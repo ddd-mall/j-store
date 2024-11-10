@@ -26,10 +26,11 @@ repositories {
 }
 
 extra["springModulithVersion"] = "1.2.4"
+extra["springBootVersion"] = "3.3.5"
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:${property("springBootVersion")}")
+    implementation("org.springframework.boot:spring-boot-starter-web:${property("springBootVersion")}")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
