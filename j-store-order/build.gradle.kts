@@ -10,6 +10,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":j-store-common"))
     testImplementation(kotlin("test"))
 }
 
