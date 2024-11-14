@@ -1,5 +1,5 @@
-package com.jstore
-
-fun main() {
-    println("Hello World!")
-}
+//package com.jstore
+//
+//fun main() {
+//    println("Hello World!")
+//}
