@@ -1,4 +1,5 @@
 package com.jstore.order.saleorder
+
 import com.jstore.com.jstore.framework.Entity
 import com.jstore.com.jstore.framework.Identify
 import com.jstore.common.properties.PhoneNumber
@@ -16,7 +17,7 @@ class SaleOrder(
     private var actualPay: Price,
     private val createTime: LocalDateTime,
     private val updateTime: LocalDateTime,
-): Entity<OrderId<Long>> {
+) : Entity<OrderId<Long>> {
     override fun getId(): OrderId<Long> {
         return id;
     }
