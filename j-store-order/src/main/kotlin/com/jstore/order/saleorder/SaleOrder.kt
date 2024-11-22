@@ -65,9 +65,3 @@ data class OrderItem(
 
 data class FreightBill(val id: String)
 
-
-object SaleOrderFactory {
-    fun assemblySaleOrder(): SaleOrder {
-        TODO()
-    }
-}

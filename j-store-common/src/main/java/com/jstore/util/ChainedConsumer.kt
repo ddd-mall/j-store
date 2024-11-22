@@ -11,7 +11,7 @@ abstract class ChainedConsumer<T> {
         this.chain?.let { it.getNext(this)?.execute(t) }
     }
 
-    class ConsumerChain<T> {
+    open class ConsumerChain<T> {
         private var consumerList: MutableList<ChainedConsumer<T>> = ArrayList()
 
         fun getNext(current: ChainedConsumer<T>?): ChainedConsumer<T>? {
@@ -33,7 +33,7 @@ abstract class ChainedConsumer<T> {
             return this
         }
 
-        fun accept(t: T) {
+        open fun accept(t: T) {
             this.consumerList.first().execute(t)
         }
     }
