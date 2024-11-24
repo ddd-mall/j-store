@@ -1,36 +1,75 @@
 package com.jstore.order.saleorder
 
 import com.jstore.com.jstore.framework.Entity
-import com.jstore.com.jstore.framework.Identify
-import com.jstore.common.properties.PhoneNumber
+import com.jstore.com.jstore.order.acl.freight.FreightServiceFactory
+import com.jstore.com.jstore.order.common.Errors
+import com.jstore.com.jstore.order.common.Errors.Companion.CommonlyErrors.ILLEGAL_STATE
+import com.jstore.com.jstore.order.refund.RefundType
+import com.jstore.com.jstore.order.refund.service.RefundServiceFactory
+import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
+import com.jstore.order.common.Id
+import com.jstore.order.saleorder.properties.FreightBill
 import com.jstore.order.saleorder.properties.Price
+import com.jstore.order.saleorder.properties.UserInfo
 import java.time.LocalDateTime
 
-class SaleOrder(
-    private val id: OrderId<Long>,
-    private val buyerInfo: UserInfo,
-    private val orderItems: List<OrderItem>,
-    private val FerightBills: List<FreightBill>,
-    private var positiveStatus: OrderPositiveStatus,
-    private var reverseStatus: OrderReverseStatus,
-    private val amount: Price,
-    private var actualPay: Price,
-    private val createTime: LocalDateTime,
-    private val updateTime: LocalDateTime,
-) : Entity<OrderId<Long>> {
-    override fun getId(): OrderId<Long> {
-        return id;
+
+data class SaleOrderId(override val value: Long): Id<Long>(value)
+data class SaleOrder(
+    private val id: SaleOrderId?,
+    val buyerInfo: UserInfo,
+    val orderItems: List<OrderItem>,
+    var deliveryAddressInfo: GeoAddressInfo,
+    val freightBills: List<FreightBill>?,
+    var positiveStatus: OrderPositiveStatus = OrderPositiveStatus.CREATING,
+    var reverseStatus: OrderReverseStatus,
+    var amount: Price,
+    var actualPay: Price,
+    val createTime: LocalDateTime? = null,
+    val updateTime: LocalDateTime? = null,
+) : Entity<SaleOrderId> {
+
+    private var repository : SaleOrderRepository? = null
+    fun setRepository(repository: SaleOrderRepository) {
+        this.repository = repository
+    }
+
+    override fun getId(): SaleOrderId {
+        return id?: throw ILLEGAL_STATE.withMsg("订单尚未创建")
+    }
+
+
+
+    fun refund(
+        refundType: RefundType,
+        reason: String?
+    ) {
+        RefundServiceFactory.getOne().createRefund(
+            getId(),
+            refundType,
+            reason,
+            this.actualPay
+        )
+    }
+
+    fun delivery() {
+        if (this.positiveStatus != OrderPositiveStatus.WAIT_FOR_SELLER_DELIVERY) {
+            throw Errors.Companion.CommonlyErrors.ILLEGAL_STATE.withMsg("当前不允许执行此操作")
+        }
+        FreightServiceFactory.getAny().delivery(this)
+        this.positiveStatus = OrderPositiveStatus.WAIT_FOR_BUYER_RECEIPT
+        repository?.save(this)
     }
 }
 
 
-data class OrderId<T>(val value: T) : Identify
+
 
 
 enum class OrderPositiveStatus {
     CREATING,
-    WAITPAY,
-    WAIT_FOR_SALLER_DELIVERY,
+    WAIT_PAY,
+    WAIT_FOR_SELLER_DELIVERY,
     WAIT_FOR_BUYER_RECEIPT,
     COMPLETE,
 }
@@ -39,29 +78,25 @@ enum class OrderReverseStatus {
     NONE,
     REFUNDING,
     WAIT_FOR_BUYER_DELIVERY,
-    WAIT_FOR_SALLER_RECEIPT,
+    WAIT_FOR_SELLER_RECEIPT,
     CANCELED,
     CLOSE
 }
 
 
-data class UserInfo(
-    val uid: Long,
-    var phoneNumber: PhoneNumber,
-    var userName: String
-)
 
 
+data class OrderItemId(override val value: Long): Id<Long>(value)
 data class OrderItem(
-    private val id: Long,
-    private val spuId: Long,
-    private val skuId: Long,
-    private val skuVersion: Long,
-    private val count: Int,
-    private val unitPrice: Price,
-    private val totalPrice: Price,
+    val id: OrderItemId? = null,
+    val spuId: Long,
+    val skuId: Long,
+    val skuVersion: Long,
+    val count: Int,
+    val unitPrice: Price,
+    val totalPrice: Price,
 )
 
 
-data class FreightBill(val id: String)
+
 

@@ -19,7 +19,7 @@ abstract class ChainedConsumer<T> {
                 it.index?.let {
                     val nextIndex = it.plus(1)
                     if (nextIndex < this.consumerList.size) {
-                        return this.consumerList.get(nextIndex)
+                        return this.consumerList[nextIndex]
                     }
                 }
             }
@@ -34,7 +34,9 @@ abstract class ChainedConsumer<T> {
         }
 
         open fun accept(t: T) {
-            this.consumerList.first().execute(t)
+            if (this.consumerList.isNotEmpty()) {
+                this.consumerList.first().execute(t)
+            }
         }
     }
 
