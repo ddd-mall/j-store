@@ -1,6 +1,6 @@
 package com.jstore.com.jstore.framework
 
 interface Repository<I : Identify, E : Entity<I>> {
-    fun save(entity: E): E;
-    fun findById(id: I): E?;
+    fun save(entity: E): E
+    fun findById(id: I): E?
 }
