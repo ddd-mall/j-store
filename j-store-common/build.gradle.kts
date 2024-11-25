@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.9.25"
+    alias(libs.plugins.jvm)
 }
 
 group = "com.jstore"
@@ -14,6 +14,7 @@ repositories {
 
 dependencies {
     implementation(libs.guava)
+    implementation(libs.slf4j.api)
     testImplementation(kotlin("test"))
 }
 

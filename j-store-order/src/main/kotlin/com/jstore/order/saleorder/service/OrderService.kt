@@ -10,13 +10,15 @@ import com.jstore.order.saleorder.*
 import com.jstore.order.saleorder.properties.Price
 import com.jstore.order.saleorder.properties.Price.Companion.Commonly.sumOf
 import com.jstore.order.saleorder.properties.UserInfo
+import org.springframework.stereotype.Service
 
-class OrderService(
+@Service
+open class OrderService(
     private val saleOrderRepository: SaleOrderRepository,
     private val goodsService: GoodsService,
     private val createParamValidChain: SaleOrderCreateParamValidChain,
-    private val saleOrderValidChain: SaleOrderValidChain
-    ) {
+    private val saleOrderValidChain: SaleOrderValidChain,
+) {
 
 
     fun createSaleOrder(createParam: SaleOrderCreateParam): SaleOrder {
@@ -38,7 +40,7 @@ class OrderService(
             orderItems,
             deliveryAddressInfo,
             null,
-            OrderPositiveStatus.CREATING,
+            OrderPositiveStatus.WAIT_PAY,
             OrderReverseStatus.NONE,
             amount,
             Price.Companion.Commonly.of(0)

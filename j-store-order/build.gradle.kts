@@ -1,15 +1,18 @@
 plugins {
-    kotlin("jvm") version "1.9.25"
+    alias(libs.plugins.jvm)
+
 }
 
 group = "com.jstore"
-version = "unspecified"
+version = "0.0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
+
+    implementation(libs.spirng.boot.boot)
     implementation(project(":j-store-common"))
     testImplementation(kotlin("test"))
 }

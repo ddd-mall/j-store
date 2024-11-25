@@ -36,28 +36,27 @@ class MockSaleOrderRepository: SaleOrderRepository {
 
     override fun save(entity: SaleOrder): SaleOrder {
         val now = LocalDateTime.now()
-        try {
-            idxSaleOrderIdIndex[entity.getId()]?.let { index -> saleOrderList[index] = entity }
-            return entity
-        } catch (e: Exception) {
+        if (null == entity.getId()) {
             val saleOrder = SaleOrder(
                 SaleOrderId(nextIdValue.getAndIncrement()),
                 entity.buyerInfo,
                 entity.orderItems,
                 entity.deliveryAddressInfo,
                 entity.freightBills,
-                OrderPositiveStatus.WAIT_PAY,
+                entity.positiveStatus,
                 entity.reverseStatus,
                 entity.amount,
                 entity.actualPay,
                 now,
                 now
             )
-            idxSaleOrderIdIndex.putIfAbsent(saleOrder.getId(), saleOrderList.size)
+            idxSaleOrderIdIndex.putIfAbsent(saleOrder.getId()!!, saleOrderList.size)
             saleOrderList.add(saleOrder)
             return saleOrder
+        } else {
+            idxSaleOrderIdIndex[entity.getId()]?.let { index -> saleOrderList[index] = entity }
+            return entity
         }
-
     }
 
     override fun findById(id: SaleOrderId): SaleOrder {

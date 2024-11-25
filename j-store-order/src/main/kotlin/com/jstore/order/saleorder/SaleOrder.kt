@@ -21,44 +21,48 @@ data class SaleOrder(
     val orderItems: List<OrderItem>,
     var deliveryAddressInfo: GeoAddressInfo,
     val freightBills: List<FreightBill>?,
-    var positiveStatus: OrderPositiveStatus = OrderPositiveStatus.CREATING,
-    var reverseStatus: OrderReverseStatus,
+    var positiveStatus: OrderPositiveStatus = OrderPositiveStatus.WAIT_PAY,
+    var reverseStatus: OrderReverseStatus = OrderReverseStatus.NONE,
     var amount: Price,
     var actualPay: Price,
     val createTime: LocalDateTime? = null,
     val updateTime: LocalDateTime? = null,
 ) : Entity<SaleOrderId> {
 
-    private var repository : SaleOrderRepository? = null
-    fun setRepository(repository: SaleOrderRepository) {
-        this.repository = repository
-    }
-
-    override fun getId(): SaleOrderId {
-        return id?: throw ILLEGAL_STATE.withMsg("订单尚未创建")
+    companion object {
+        private val ORDER_DOES_NOT_PERSIST: Errors = ILLEGAL_STATE.withMsg("订单未持久化")
     }
 
 
 
+    override fun getId(): SaleOrderId? {
+        return id
+    }
+
+    /**
+     * 售后
+     */
     fun refund(
         refundType: RefundType,
         reason: String?
     ) {
         RefundServiceFactory.getOne().createRefund(
-            getId(),
+            getId()?: throw ORDER_DOES_NOT_PERSIST,
             refundType,
             reason,
             this.actualPay
         )
     }
 
+    /**
+     * 发货
+     */
     fun delivery() {
         if (this.positiveStatus != OrderPositiveStatus.WAIT_FOR_SELLER_DELIVERY) {
-            throw Errors.Companion.CommonlyErrors.ILLEGAL_STATE.withMsg("当前不允许执行此操作")
+            throw ILLEGAL_STATE.withMsg("当前不允许执行此操作")
         }
         FreightServiceFactory.getAny().delivery(this)
         this.positiveStatus = OrderPositiveStatus.WAIT_FOR_BUYER_RECEIPT
-        repository?.save(this)
     }
 }
 
@@ -67,7 +71,6 @@ data class SaleOrder(
 
 
 enum class OrderPositiveStatus {
-    CREATING,
     WAIT_PAY,
     WAIT_FOR_SELLER_DELIVERY,
     WAIT_FOR_BUYER_RECEIPT,
