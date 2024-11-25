@@ -1,6 +1,7 @@
 package com.jstore.com.jstore.order.saleorder.properties
 
-data class GeoAddressInfo(
+data class
+GeoAddressInfo(
     val countryCOde: String,
     val countryName: String,
     val provinceCode: String,

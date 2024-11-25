@@ -4,8 +4,10 @@ import com.jstore.common.framework.Page
 import com.jstore.order.saleorder.SaleOrder
 import com.jstore.order.saleorder.SaleOrderId
 import com.jstore.order.saleorder.SaleOrderRepository
+import org.springframework.stereotype.Repository
 
-class SaleOrderRepositoryImpl: SaleOrderRepository {
+@Repository
+open class SaleOrderRepositoryImpl: SaleOrderRepository {
     override fun findByBuyerUserId(uid: Long): List<SaleOrder> {
         TODO("Not yet implemented")
     }
