@@ -1,4 +1,4 @@
-package com.jstore.util
+package com.jstore.common.utils
 
 abstract class ChainedConsumer<T> {
     private var index: Int? = null

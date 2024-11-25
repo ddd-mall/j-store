@@ -4,3 +4,4 @@ plugins {
 rootProject.name = "j-store"
 include("j-store-common")
 include("j-store-order")
+include("j-store-order-boot")
