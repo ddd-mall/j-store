@@ -16,8 +16,6 @@ postgresql = {module = "org.postgresql:postgresql", version.ref = "postgresql"}
 spring-boot-configuration-processor = {module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "springBoot"}
 slf4j-api = {module = "org.slf4j:slf4j-api", version.ref = "slf4j"}
 
-slf4j-simple = {module = "org.slf4j:slf4j-simple", version.ref = "slf4j"}
-
 
 
 [plugins]

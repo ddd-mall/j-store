@@ -13,6 +13,8 @@ repositories {
 
 
 dependencies {
+    implementation(libs.spring.data.jpa)
+    implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.guava)
     implementation(libs.slf4j.api)
     testImplementation(kotlin("test"))
