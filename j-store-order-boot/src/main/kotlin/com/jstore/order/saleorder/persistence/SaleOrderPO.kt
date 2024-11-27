@@ -1,9 +1,21 @@
 package com.jstore.com.jstore.order.saleorder.persistence
 
-data class SaleOrderPO(
-    private val id: Long,
-    private val uid: Long,
-    private val phoneNumber: String,
-    private val userName: String,
+import jakarta.persistence.Entity
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
+import jakarta.persistence.Id
 
-)
+@Entity
+
+open class SaleOrderPO {
+
+    @Id
+
+    @GeneratedValue(strategy = GenerationType.AUTO)
+
+    var autoIncrementId: Long? = null
+    var saleOrderId: Long? = null
+    var uid: Long? = null
+    var phoneNumber: String? = null
+    var userName: String? = null
+}
