@@ -13,6 +13,7 @@ repositories {
 
 
 dependencies {
+    implementation(libs.kotlin.reflect)
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.guava)
