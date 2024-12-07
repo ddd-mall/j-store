@@ -12,6 +12,7 @@ repositories {
 }
 
 dependencies {
+    implementation(libs.kotlin.stdlib)
     implementation(project(":j-store-common"))
     implementation(project(":j-store-order"))
     implementation(libs.spring.data.jpa)

@@ -4,29 +4,56 @@ import com.jstore.common.utils.logging.slf4j.Slf4jSimpleImpl
 import java.lang.reflect.Constructor
 
 
-class LoggerFactory {
+class LoggerFactory private constructor() {
     companion object {
-        val MARKER: String = "JSTORE"
-        private lateinit var logConstructor: Constructor<out Log>
+        const val MARKER: String = "JSTORE"
+        private var logConstructor: Constructor<out Log>? = null
         init {
-            useSlf4j()
+            tryImplementation(::useSlf4jLogging)
+        }
+
+        fun <T> getLogger(clazz: Class<T>): Log {
+            return getLogger(clazz.name)
         }
 
         fun getLogger(name: String): Log {
-            return logConstructor.newInstance(name)
+            if (null == logConstructor) {
+                throw LogException("Error creating logger for logger $name.  Cause: can not find Logger implementation")
+            }
+            try {
+                return logConstructor!!.newInstance(name)
+            } catch (t: Throwable) {
+                throw LogException("Error creating logger for logger $name.  Cause: $t", t)
+            }
         }
 
-        private fun useSlf4j() {
+        private fun useSlf4jLogging() {
             setImplementation(Slf4jSimpleImpl::class.java)
+        }
+
+        private fun tryImplementation(r: Runnable) {
+            if (null == logConstructor) {
+                try {
+                    r.run()
+                } catch (t: Throwable) {
+                    // ignore
+                }
+            }
         }
 
         private fun setImplementation(implClass: Class<out Log>) {
             try {
 
-                var con = implClass.getConstructor(String::class.java)
-                logConstructor = implClass.getConstructor(String::class.java)
-            } catch (e: Exception) {
-                throw LogException(e)
+                val con = implClass.getConstructor(String::class.java)
+                val clazzName = LoggerFactory::class.java.name
+
+                val log = con.newInstance(clazzName)
+                if (log.isDebugEnabled()) {
+                    log.debug("Logging initialized using '$implClass' adapter.")
+                }
+                logConstructor = con
+            } catch (e: Throwable) {
+                throw LogException("Error setting Log implementation.  Cause: $e", e)
             }
         }
 

@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.jvm)
-
 }
 
 group = "com.jstore"
@@ -11,7 +10,7 @@ repositories {
 }
 
 dependencies {
-
+    implementation(libs.kotlin.stdlib)
     implementation(libs.spirng.boot.boot)
     implementation(project(":j-store-common"))
     testImplementation(kotlin("test"))
