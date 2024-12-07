@@ -15,7 +15,7 @@ abstract class ChainedConsumer<T> {
         private var consumerList: MutableList<ChainedConsumer<T>> = ArrayList()
 
         fun getNext(current: ChainedConsumer<T>?): ChainedConsumer<T>? {
-            current?.let {
+            current?.let { it ->
                 it.index?.let {
                     val nextIndex = it.plus(1)
                     if (nextIndex < this.consumerList.size) {

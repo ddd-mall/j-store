@@ -5,6 +5,9 @@ plugins {
 group = "com.jstore"
 version = "0.0.1-SNAPSHOT"
 
+buildscript {
+
+}
 
 
 repositories {
@@ -14,6 +17,7 @@ repositories {
 
 dependencies {
     implementation(libs.kotlin.reflect)
+    implementation(libs.kotlin.stdlib)
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.guava)

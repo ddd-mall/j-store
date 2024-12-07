@@ -1,6 +1,7 @@
 package com.jstore.common.utils.logging
 
 interface Log {
+    fun isDebugEnabled(): Boolean
     fun info(format: String, args: Array<out Any>)
     fun info(format: String, arg: Any)
     fun info(format: String, throwable: Throwable)

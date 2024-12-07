@@ -4,7 +4,7 @@ springBoot = "3.3.5"
 spring-dependency-management = '1.1.6'
 postgresql = "42.7.4"
 kotlin-jvm = "1.9.20"
-kotlin-reflect = "2.1.0"
+kotlin = "1.9.0"
 slf4j = "2.0.16"
 
 [libraries]
@@ -16,7 +16,8 @@ spring-data-commons = {module = "org.springframework.data:spring-data-commons", 
 postgresql = {module = "org.postgresql:postgresql", version.ref = "postgresql"}
 spring-boot-configuration-processor = {module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "springBoot"}
 slf4j-api = {module = "org.slf4j:slf4j-api", version.ref = "slf4j"}
-kotlin-reflect = {module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin-reflect"}
+kotlin-stdlib = {module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin"}
+kotlin-reflect = {module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin"}
 
 
 
