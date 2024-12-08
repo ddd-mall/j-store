@@ -2,15 +2,14 @@ package com.jstore.common.utils.logging.slf4j
 
 import com.jstore.common.utils.logging.Log
 import com.jstore.common.utils.logging.LoggerFactory
-
 import org.slf4j.Marker
 import org.slf4j.MarkerFactory
 import org.slf4j.spi.LocationAwareLogger
 
-class Slf4jLocationAwareLoggerImpl(private val logger: LocationAwareLogger): Log {
+class Slf4jLocationAwareLoggerImpl(private val logger: LocationAwareLogger) : Log {
     companion object {
         private val MARKER: Marker = MarkerFactory.getMarker(LoggerFactory.MARKER)
-        private val FQCN = Slf4jLocationAwareLoggerImpl::class.qualifiedName;
+        private val FQCN = Slf4jLocationAwareLoggerImpl::class.qualifiedName
     }
 
     override fun isDebugEnabled(): Boolean {
@@ -81,5 +80,4 @@ class Slf4jLocationAwareLoggerImpl(private val logger: LocationAwareLogger): Log
     override fun error(format: String, args: Array<out Any>) {
         logger.log(MARKER, FQCN, LocationAwareLogger.ERROR_INT, format, args, null)
     }
-
 }

@@ -1,6 +1,6 @@
 package com.jstore.order.saleorder
 
-import com.jstore.com.jstore.order.common.Errors
+import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.Page
 import com.jstore.order.common.MockPage
 import java.time.LocalDateTime
@@ -61,7 +61,7 @@ class MockSaleOrderRepository: SaleOrderRepository {
 
     override fun findById(id: SaleOrderId): SaleOrder {
         val index = idxSaleOrderIdIndex[id]
-            ?: throw Errors.Companion.CommonlyErrors.RESOURCE_NOT_FOUND.withMsg("没有找到id为 $id 的订单")
+            ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("没有找到id为 $id 的订单")
         return saleOrderList[index]
     }
 }
