@@ -1,6 +1,6 @@
-package com.jstore.common.utils.logging
+package com.jstore.common.logging
 
-import com.jstore.common.utils.logging.slf4j.Slf4jSimpleImpl
+import com.jstore.common.logging.slf4j.Slf4jSimpleImpl
 import java.lang.reflect.Constructor
 
 
@@ -9,7 +9,7 @@ class LoggerFactory private constructor() {
         const val MARKER: String = "JSTORE"
         private var logConstructor: Constructor<out Log>? = null
         init {
-            tryImplementation(::useSlf4jLogging)
+            tryImplementation(Companion::useSlf4jLogging)
         }
 
         fun <T> getLogger(clazz: Class<T>): Log {

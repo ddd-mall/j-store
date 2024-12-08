@@ -78,8 +78,6 @@ open class OrderService(
     private fun getUserInfoFromCreateParam(createParam: SaleOrderCreateParam): UserInfo {
         return createParam.buyerUserInfo!!
     }
-
-
 }
 
 

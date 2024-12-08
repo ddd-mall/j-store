@@ -1,7 +1,7 @@
-package com.jstore.common.utils.logging.slf4j
+package com.jstore.common.logging.slf4j
 
-import com.jstore.common.utils.logging.Log
-import com.jstore.common.utils.logging.LoggerFactory
+import com.jstore.common.logging.Log
+import com.jstore.common.logging.LoggerFactory
 import org.slf4j.Marker
 import org.slf4j.MarkerFactory
 import org.slf4j.spi.LocationAwareLogger

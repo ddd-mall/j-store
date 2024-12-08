@@ -9,4 +9,8 @@ GeoAddressInfo(
     val cityCode: String,
     val cityName: String,
     var detailDesc: String? = null
-)
+) {
+    fun districtCode(): String {
+        TODO()
+    }
+}

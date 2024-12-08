@@ -1,8 +1,8 @@
-package com.jstore.common.utils.persistent
+package com.jstore.common.persistent
 
 import com.jstore.common.errors.CommonErrors
-import com.jstore.common.utils.logging.Log
-import com.jstore.common.utils.logging.LoggerFactory
+import com.jstore.common.logging.Log
+import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.string.StringUtils
 import java.lang.management.ManagementFactory
 import java.net.InetAddress
