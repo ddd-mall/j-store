@@ -1,14 +1,10 @@
 plugins {
     alias(libs.plugins.jvm)
+
 }
 
 group = "com.jstore"
 version = "0.0.1-SNAPSHOT"
-
-buildscript {
-
-}
-
 
 repositories {
     mavenCentral()

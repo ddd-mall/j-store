@@ -1,6 +1,6 @@
 package com.jstore.com.jstore.order.refund.service
 
-import com.jstore.com.jstore.order.common.Errors
+import com.jstore.common.errors.CommonErrors
 import org.springframework.stereotype.Component
 
 object RefundServiceFactory {
@@ -11,7 +11,7 @@ object RefundServiceFactory {
     }
     fun getOne(): RefundService {
         if (refundServiceHolder.isEmpty()) {
-            throw Errors.Companion.CommonlyErrors.INTERNAL_ERROR.withMsg("没有找到可用的 refund service")
+            throw CommonErrors.INTERNAL_ERROR.withMsg("没有找到可用的 refund service")
         }
         return refundServiceHolder.first()
     }

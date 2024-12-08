@@ -1,7 +1,7 @@
 package com.jstore.com.jstore.order.refund
 
 import com.jstore.com.jstore.framework.Entity
-import com.jstore.com.jstore.order.common.Errors
+import com.jstore.common.errors.CommonErrors
 import com.jstore.order.common.Id
 import com.jstore.order.saleorder.SaleOrderId
 import com.jstore.order.saleorder.properties.Price
@@ -17,7 +17,7 @@ data class RefundOrder(
     val updateTime: LocalDateTime? = null,
 ): Entity<RefundOrderId> {
     override fun getId(): RefundOrderId {
-        return id?:throw Errors.Companion.CommonlyErrors.ILLEGAL_STATE.withMsg("退款单尚未创建完成")
+        return id?:throw CommonErrors.ILLEGAL_STATE.withMsg("退款单尚未创建完成")
     }
 }
 
