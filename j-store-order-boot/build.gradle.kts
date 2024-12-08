@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.data.commons)
     implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.configuration.processor)
     implementation(libs.postgresql)
     testImplementation(kotlin("test"))

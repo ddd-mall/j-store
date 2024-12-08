@@ -4,4 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface SaleOrderPOJpaRepository: JpaRepository<SaleOrderPO, Long>
+interface SaleOrderPOJpaRepository: JpaRepository<SaleOrderPO, Long> {
+    fun findSaleOrderPOSByUid(uid: Long): MutableList<SaleOrderPO>
+}

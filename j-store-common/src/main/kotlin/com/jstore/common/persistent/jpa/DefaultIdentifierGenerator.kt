@@ -1,6 +1,6 @@
-package com.jstore.common.utils.persistent.jpa
+package com.jstore.common.persistent.jpa
 
-import com.jstore.common.utils.persistent.SnowFlakSequence
+import com.jstore.common.persistent.SnowFlakSequence
 
 open class DefaultIdentifierGenerator {
     private val sequence: SnowFlakSequence

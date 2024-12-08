@@ -2,11 +2,11 @@ package com.jstore.order.saleorder
 
 import com.jstore.com.jstore.framework.Entity
 import com.jstore.com.jstore.order.acl.freight.FreightServiceFactory
-import com.jstore.common.errors.Errors
-import com.jstore.common.errors.CommonErrors.ILLEGAL_STATE
 import com.jstore.com.jstore.order.refund.RefundType
 import com.jstore.com.jstore.order.refund.service.RefundServiceFactory
 import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
+import com.jstore.common.errors.CommonErrors.ILLEGAL_STATE
+import com.jstore.common.errors.Errors
 import com.jstore.order.common.Id
 import com.jstore.order.saleorder.properties.FreightBill
 import com.jstore.order.saleorder.properties.Price

@@ -1,4 +1,4 @@
-package com.jstore.common.utils.logging
+package com.jstore.common.logging
 
 interface Log {
     fun isDebugEnabled(): Boolean
