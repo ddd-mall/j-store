@@ -18,7 +18,7 @@ data class SaleOrderId(override val value: Long): Id<Long>(value)
 data class SaleOrder(
     private val id: SaleOrderId?,
     val buyerInfo: UserInfo,
-    val orderItems: List<OrderItem>,
+    val orderItems: List<OrderItem>?,
     var deliveryAddressInfo: GeoAddressInfo,
     val freightBills: List<FreightBill>?,
     var positiveStatus: OrderPositiveStatus = OrderPositiveStatus.WAIT_PAY,
@@ -32,8 +32,6 @@ data class SaleOrder(
     companion object {
         private val ORDER_DOES_NOT_PERSIST: Errors = ILLEGAL_STATE.withMsg("订单未持久化")
     }
-
-
 
     override fun getId(): SaleOrderId? {
         return id

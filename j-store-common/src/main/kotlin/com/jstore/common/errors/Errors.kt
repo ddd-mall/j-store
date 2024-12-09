@@ -25,6 +25,10 @@ class Errors: RuntimeException {
     fun withMsgAndCause(msg: String, cause: Throwable): Errors {
         return Errors(msg, this.errorCode, this.httpCode, cause)
     }
+
+    fun withCause(cause: Throwable): Errors {
+        return Errors(this.msg, this.errorCode, this.httpCode, cause)
+    }
 }
 
 object CommonErrors {

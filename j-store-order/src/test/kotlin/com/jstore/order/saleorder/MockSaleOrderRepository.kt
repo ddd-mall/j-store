@@ -2,6 +2,8 @@ package com.jstore.order.saleorder
 
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.Page
+import com.jstore.common.persistent.SnowFlakSequence
+import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
 import com.jstore.order.common.MockPage
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
@@ -14,6 +16,7 @@ class MockSaleOrderRepository: SaleOrderRepository {
         private var nextIdValue: AtomicLong = AtomicLong(0)
         private val saleOrderList: MutableList<SaleOrder> = ArrayList()
         private val idxSaleOrderIdIndex: MutableMap<SaleOrderId, Int> = ConcurrentHashMap()
+        private val snowFlakSequence: SnowFlakSequence = SnowFlakSequence.SnowFlakSequence()
     }
 
     override fun findByBuyerUserId(uid: Long): List<SaleOrder> {
@@ -38,7 +41,7 @@ class MockSaleOrderRepository: SaleOrderRepository {
         val now = LocalDateTime.now()
         if (null == entity.getId()) {
             val saleOrder = SaleOrder(
-                SaleOrderId(nextIdValue.getAndIncrement()),
+                SaleOrderId(snowFlakSequence.nextId()),
                 entity.buyerInfo,
                 entity.orderItems,
                 entity.deliveryAddressInfo,

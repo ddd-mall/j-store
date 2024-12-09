@@ -2,7 +2,7 @@ package com.jstore.com.jstore.order.acl.freight
 
 import com.jstore.order.saleorder.SaleOrder
 
-interface FreightSerivce {
+interface FreightService {
     fun delivery(saleOrder: SaleOrder)
 
 }

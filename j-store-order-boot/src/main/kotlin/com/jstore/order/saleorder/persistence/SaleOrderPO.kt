@@ -31,7 +31,7 @@ open class SaleOrderPO {
     open var uid: Long? = null
     open var phoneNumber: String? = null
     open var userName: String? = null
-    open var idstrictCode: String? = null
+    open var districtCode: String? = null
     open var detailAddress: String? = null
     open var freightBillId: String? = null
     open var positiveStatus: String? = null
