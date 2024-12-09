@@ -31,7 +31,7 @@ open class SaleOrderItemPO {
     open var spuId: String? = null
     open var skuId: String? = null
     open var skuVersion: Long? = null
-    open var count: Long? = null
+    open var count: Int? = null
     open var unitPrice: BigDecimal? = null
     open var totalPrice: BigDecimal? = null
 }

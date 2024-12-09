@@ -3,12 +3,12 @@ package com.jstore.com.jstore.order.acl.freight
 import com.jstore.common.errors.CommonErrors
 
 object FreightServiceFactory {
-    private var services: MutableList<FreightSerivce> = ArrayList()
-    fun setServices(services: MutableList<FreightSerivce>) {
+    private var services: MutableList<FreightService> = ArrayList()
+    fun setServices(services: MutableList<FreightService>) {
         this.services = services
     }
 
-    fun getAny(): FreightSerivce {
+    fun getAny(): FreightService {
         if (services.isNotEmpty()) {
             return services.first()
         }

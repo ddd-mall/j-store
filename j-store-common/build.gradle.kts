@@ -18,6 +18,9 @@ dependencies {
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.guava)
     implementation(libs.slf4j.api)
+    implementation(libs.jackson.core)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.annotations)
     testImplementation(kotlin("test"))
 }
 
