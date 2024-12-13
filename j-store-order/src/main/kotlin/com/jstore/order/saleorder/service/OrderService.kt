@@ -7,8 +7,8 @@ import com.jstore.order.acl.goods.GoodsId
 import com.jstore.order.acl.goods.GoodsInfo
 import com.jstore.order.acl.goods.GoodsService
 import com.jstore.order.saleorder.*
-import com.jstore.order.saleorder.properties.Price
-import com.jstore.order.saleorder.properties.Price.Companion.Commonly.sumOf
+import com.jstore.common.properties.Price
+import com.jstore.common.properties.Price.Companion.Commonly.sumOf
 import com.jstore.order.saleorder.properties.UserInfo
 import org.springframework.stereotype.Service
 
@@ -53,15 +53,15 @@ open class OrderService(
         val goodsQueryResult: List<GoodsInfo> = goodsService.queryGoods(goodsIdList)
 
         return purchaseItemList.map { purchaseItem: SaleOrderCreateParam.PurchaseItem ->
-            val goodsInfo = goodsQueryResult.find { it.spuId == purchaseItem.spuId && it.skuId == purchaseItem.skuId }
+            val goodsInfo = goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
                 ?: throw IllegalArgumentException("Goods $purchaseItem not found")
 
             val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.count!!)
             val item = OrderItem(
                 null,
 
-                goodsInfo.spuId,
-                goodsInfo.skuId,
+                goodsInfo.id.spuId,
+                goodsInfo.id.skuId,
                 goodsInfo.version,
                 purchaseItem.count!!,
                 goodsInfo.price,
