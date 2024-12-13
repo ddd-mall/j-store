@@ -9,7 +9,7 @@ import com.jstore.common.errors.CommonErrors.ILLEGAL_STATE
 import com.jstore.common.errors.Errors
 import com.jstore.order.common.Id
 import com.jstore.order.saleorder.properties.FreightBill
-import com.jstore.order.saleorder.properties.Price
+import com.jstore.common.properties.Price
 import com.jstore.order.saleorder.properties.UserInfo
 import java.time.LocalDateTime
 

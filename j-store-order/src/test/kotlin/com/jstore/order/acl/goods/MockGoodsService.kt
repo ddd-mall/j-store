@@ -1,6 +1,6 @@
 package com.jstore.order.acl.goods
 
-import com.jstore.order.saleorder.properties.Price
+import com.jstore.common.properties.Price
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
@@ -18,8 +18,7 @@ class MockGoodsService: GoodsService {
     init {
         mockGoodsId.filter { !goodsInfoMap.contains(it) }.forEach { id ->
             goodsInfoMap[id] = GoodsInfo(
-                id.spuId,
-                id.skuId,
+                id,
                 Random.nextLong(1, 1000),
                 Price.Companion.Commonly.of(Random.nextInt(1, 1000000))
             )

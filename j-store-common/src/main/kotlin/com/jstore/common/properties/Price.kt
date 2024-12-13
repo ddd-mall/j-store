@@ -1,4 +1,4 @@
-package com.jstore.order.saleorder.properties
+package com.jstore.common.properties
 
 import java.math.BigDecimal
 import java.math.MathContext

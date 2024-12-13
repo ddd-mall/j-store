@@ -10,7 +10,7 @@ import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.common.framework.Page
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.order.saleorder.*
-import com.jstore.order.saleorder.properties.Price
+import com.jstore.common.properties.Price
 import com.jstore.order.saleorder.properties.UserInfo
 import org.springframework.stereotype.Repository
 
