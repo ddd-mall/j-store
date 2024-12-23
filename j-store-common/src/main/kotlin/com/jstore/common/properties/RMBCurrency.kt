@@ -12,7 +12,7 @@ enum class RMBCurrency: Currency {
 
 class RMB(private val currencyUnit: CurrencyUnit<RMBCurrency>, private val value: BigDecimal): AbstractMoney<RMBCurrency, CurrencyUnit<RMBCurrency>>() {
 
-    override fun of(currencyUnit: CurrencyUnit<RMBCurrency>, value: BigDecimal): Money<RMBCurrency, CurrencyUnit<RMBCurrency>> {
+    override fun of(currencyUnit: CurrencyUnit<RMBCurrency>, value: BigDecimal): Money<in Currency, in CurrencyUnit<in Currency>> {
         return RMB(currencyUnit, value)
     }
     override fun getCurrency(): Currency {
