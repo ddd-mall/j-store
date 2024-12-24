@@ -1,7 +1,7 @@
 package com.jstore.common.persistent
 
 import com.jstore.common.errors.CommonErrors
-import com.jstore.common.logging.Log
+import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.string.StringUtils
 import java.lang.management.ManagementFactory
@@ -32,7 +32,7 @@ open class SnowFlakSequence(private val workerId: Long, private val datacenterId
             return SnowFlakSequence(workerId, datacenterId)
         }
 
-        private val logger: Log = LoggerFactory.getLogger(SnowFlakSequence::class.java)
+        private val logger: Logger = LoggerFactory.getLogger(SnowFlakSequence::class.java)
         /**
          * |-timestamp-|datacenterId|workerId|sequence|
          * |----41-----|------5-----|----5---|---12---|
@@ -120,7 +120,7 @@ open class SnowFlakSequence(private val workerId: Long, private val datacenterId
                 timeStamp = tilNextMillis(lastTimestamp)
             }
         } else {
-            sequence = ThreadLocalRandom.current().nextLong(1, 3);
+            sequence = ThreadLocalRandom.current().nextLong(1, 3)
         }
 
         lastTimestamp = timeStamp

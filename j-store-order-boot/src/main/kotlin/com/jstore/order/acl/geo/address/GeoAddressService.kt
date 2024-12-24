@@ -4,8 +4,15 @@ import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
 import org.springframework.stereotype.Service
 
 @Service
-object GeoAddressServiceIml: GeoAddressService {
+open class GeoAddressServiceIml: GeoAddressService {
+
     override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
-        TODO("Not yet implemented")
+        return GeoAddressInfo(
+            districtCode,
+            "Mock country",
+            "Zhejiang",
+            "Hangzhou",
+            "MOCK address"
+        )
     }
 }

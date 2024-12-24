@@ -1,7 +1,6 @@
 package com.jstore.com.jstore.order.saleorder
 
 import com.jstore.com.jstore.order.acl.geo.address.GeoAddressService
-import com.jstore.com.jstore.order.acl.geo.address.GeoAddressServiceIml
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderItemPO
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderItemPOJpaRepository
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderPO
@@ -9,16 +8,17 @@ import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderPOJpaRepositor
 import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.common.framework.Page
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.order.saleorder.*
 import com.jstore.common.properties.Price
+import com.jstore.order.saleorder.*
 import com.jstore.order.saleorder.properties.UserInfo
 import org.springframework.stereotype.Repository
+import org.springframework.stereotype.Service
 
 @Repository
 open class SaleOrderRepositoryImpl(
     private val saleOrderPOJpaRepository: SaleOrderPOJpaRepository,
     private val saleOrderItemPOJpaRepository: SaleOrderItemPOJpaRepository,
-    private val geoAddressService: GeoAddressService
+    private val saleOrderConverter: SaleOrderConverter
 ) : SaleOrderRepository {
 
     override fun findByBuyerUserId(uid: Long): List<SaleOrder> {
@@ -28,7 +28,7 @@ open class SaleOrderRepositoryImpl(
         }
         val saleOrderIdList = saleOrderPOS.stream().map { o -> o.saleOrderId!! }.toList()
         val saleOrderItemPOS = saleOrderItemPOJpaRepository.findSaleOrderItemPOSBySaleOrderIdIsIn(saleOrderIdList)
-        return POConvertor.pos2Entities(saleOrderPOS, saleOrderItemPOS)
+        return saleOrderConverter.pos2Entities(saleOrderPOS, saleOrderItemPOS)
     }
 
     override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<SaleOrder> {
@@ -63,13 +63,14 @@ open class SaleOrderPOHolder {
     var saleOrderItemPOs: MutableCollection<SaleOrderItemPO>? = null
 }
 
-object POConvertor {
+@Service
+open class SaleOrderConverter(private val geoAddressService: GeoAddressService) {
     fun po2Entity(saleOrderPO: SaleOrderPO, saleOrderItemPOList: Collection<SaleOrderItemPO>?): SaleOrder {
         val buyerInfo =
             UserInfo(saleOrderPO.uid!!, saleOrderPO.phoneNumber?.let { PhoneNumber(it) }, saleOrderPO.userName)
         val id = SaleOrderId(saleOrderPO.saleOrderId!!)
         val items: List<OrderItem>? = saleOrderItemPOList?.map { orderItemPO2Entity(it) }?.toList()
-        val addressInfo: GeoAddressInfo = GeoAddressServiceIml.getByDistrictCode(saleOrderPO.districtCode!!)
+        val addressInfo: GeoAddressInfo = geoAddressService.getByDistrictCode(saleOrderPO.districtCode!!)
             .apply { detailAddress = saleOrderPO.detailAddress }
         return SaleOrder(
             id,

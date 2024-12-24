@@ -3,17 +3,15 @@ package com.jstore.order.saleorder
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.Page
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
 import com.jstore.order.common.MockPage
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.math.min
 
 class MockSaleOrderRepository: SaleOrderRepository {
     companion object {
-        private var nextIdValue: AtomicLong = AtomicLong(0)
+
         private val saleOrderList: MutableList<SaleOrder> = ArrayList()
         private val idxSaleOrderIdIndex: MutableMap<SaleOrderId, Int> = ConcurrentHashMap()
         private val snowFlakSequence: SnowFlakSequence = SnowFlakSequence.SnowFlakSequence()

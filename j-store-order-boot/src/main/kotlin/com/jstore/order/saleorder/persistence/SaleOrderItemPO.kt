@@ -16,7 +16,6 @@ import java.math.BigDecimal
     ],
 )
 @IdClass(SaleOrderItemIdClass::class)
-
 open class SaleOrderItemPO {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
