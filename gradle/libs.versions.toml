@@ -7,6 +7,7 @@ kotlin-jvm = "1.9.20"
 kotlin = "1.9.0"
 slf4j = "2.0.16"
 jackson = "2.18.2"
+fastexcel = "1.0.0"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
@@ -23,6 +24,8 @@ kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref =
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
+fastexcel = {module = "cn.idev.excel:fastexcel", version.ref = "fastexcel"}
+
 
 
 

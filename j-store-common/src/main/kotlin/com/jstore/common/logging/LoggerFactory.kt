@@ -2,6 +2,7 @@ package com.jstore.common.logging
 
 import com.jstore.common.logging.slf4j.Slf4jSimpleImpl
 import java.lang.reflect.Constructor
+import kotlin.reflect.KClass
 
 
 class LoggerFactory private constructor() {
@@ -14,6 +15,10 @@ class LoggerFactory private constructor() {
 
         fun <T> getLogger(clazz: Class<T>): Logger {
             return getLogger(clazz.name)
+        }
+
+        fun getLogger(clazz: KClass<*>): Logger {
+            return getLogger(clazz.java)
         }
 
         fun getLogger(name: String): Logger {
