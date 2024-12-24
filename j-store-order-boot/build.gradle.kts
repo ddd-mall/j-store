@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.configuration.processor)
     implementation(libs.postgresql)
+    implementation(libs.fastexcel)
     testImplementation(kotlin("test"))
 }
 
