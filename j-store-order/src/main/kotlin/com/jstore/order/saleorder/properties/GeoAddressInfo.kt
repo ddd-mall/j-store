@@ -8,7 +8,19 @@ GeoAddressInfo(
     val cityName: String,
     var detailAddress: String? = null
 ) {
-    fun districtCode(): String {
-        TODO()
+    companion object {
+        fun getSuffix(len: Int): String {
+            return "0".repeat(len)
+        }
+    }
+
+    fun getProvinceCode(): String {
+        val prefix = this.districtCode.substring(0, 2)
+        return prefix + getSuffix(this.districtCode.length - 2)
+    }
+
+    fun getCityCode(): String {
+        val prefix = this.districtCode.substring(0, 4)
+        return prefix + getSuffix(this.districtCode.length - 4)
     }
 }

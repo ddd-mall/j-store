@@ -1,24 +1,18 @@
 package com.jstore.common.properties
 
 import java.math.BigDecimal
-import java.math.MathContext
-import java.math.RoundingMode
 
 
-data class Price(val value: BigDecimal) {
+open class Price : RMB {
+    constructor(value: BigDecimal): super(RMBCurrencyUnit.FEN, value)
+    constructor(money: RMB) : this(money.to(RMBCurrencyUnit.FEN).getValue())
+    constructor(unit: RMBCurrencyUnit, value: BigDecimal): super(unit, value)
 
     companion object {
-        private object CONFIG {
-            var MATH_CONTEXT: MathContext = MathContext.DECIMAL32
-        }
-
-        fun setMathContext(precision: Int, roundingMode: RoundingMode) {
-            CONFIG.MATH_CONTEXT = MathContext(precision, roundingMode)
-        }
 
         object Commonly {
             fun sumOf(priceList: List<Price>): Price {
-                return Price(priceList.sumOf { it.value })
+                return Price(Money.sumOf(priceList).getBasicValue())
             }
 
             fun of(value: Int): Price {
@@ -32,23 +26,23 @@ data class Price(val value: BigDecimal) {
     }
 
 
-    fun plus(other: Price): Price {
-        return Price(this.value.plus(other.value))
+    fun add(other: Price): Price {
+        return Price(this.getValue().add(other.getValue(), getMathContext()))
     }
 
     fun sub(other: Price): Price {
-        return Price(this.value.subtract(other.value, CONFIG.MATH_CONTEXT))
-    }
-
-    fun multiple(other: Price): Price {
-        return Price(this.value.multiply(other.value, CONFIG.MATH_CONTEXT))
+        return Price(this.getValue().subtract(other.getValue(), getMathContext()))
     }
 
     fun multiple(other: Int): Price {
-        return Price(this.value.multiply(BigDecimal(other)))
+        return Price(this.getValue().multiply(BigDecimal(other, getMathContext())))
     }
 
     fun div(divisor: Price): Price {
-        return Price(this.value.divide(divisor.value, CONFIG.MATH_CONTEXT))
+        return Price(this.getValue().divide(divisor.getValue(), getMathContext()))
+    }
+
+    override fun toString(): String {
+        return super.getValue().toString()
     }
 }

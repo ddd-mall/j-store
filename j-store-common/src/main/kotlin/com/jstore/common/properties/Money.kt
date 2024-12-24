@@ -6,36 +6,39 @@ import java.math.RoundingMode
 
 interface Money<C : Currency, U : CurrencyUnit<C>> {
     companion object {
-        fun sumOf(moneys: Collection<Money<in Currency, in CurrencyUnit<in Currency>>>): Money<out Currency, out CurrencyUnit<out Currency>> {
-            return moneys.reduce { acc, money ->
-                acc.sum(money)
-            }
+        fun <C : Currency, U : CurrencyUnit<C>> sumOf(monies: Collection<Money<C, U>>): Money<C, U> {
+            return monies.reduce { a, b -> a.sum(b) }
         }
     }
-    fun of(currencyUnit: U, value: BigDecimal): Money<in Currency, in CurrencyUnit<in Currency>>
+    fun getMathContext(): MathContext {
+        return getCurrency().mathContext()
+    }
+    fun to(otherUnit: U): Money<C, U> {
+        return of(otherUnit, this.getCurrencyUnit().rateOf(otherUnit).multiply(this.getValue(), getCurrency().mathContext()))
+    }
+    fun of(currencyUnit: U, value: BigDecimal): Money<C, U>
     fun getCurrency(): Currency
     fun getCurrencyUnit(): U
     fun getValue(): BigDecimal
     fun getBasicValue(): BigDecimal
 
-    fun sum(other: Money<out C, out U>): Money<in Currency, in CurrencyUnit<in Currency>>
-    fun sub(other: Money<out C, out U>): Money<in Currency, in CurrencyUnit<in Currency>>
+    fun sum(other: Money<C, U>): Money<C, U>
+    fun sub(other: Money<C, U>): Money<C, U>
 
-    fun multiply(value: BigDecimal): Money<in Currency, in CurrencyUnit<in Currency>>
-    fun multiply(value: Int): Money<in Currency, in CurrencyUnit<in Currency>>
-    fun multiply(value: Long): Money<in Currency, in CurrencyUnit<in Currency>>
+    fun multiply(value: BigDecimal): Money<C, U>
+    fun multiply(value: Int): Money<C, U>
+    fun multiply(value: Long): Money<C, U>
 
 
-    fun divide(value: BigDecimal): Money<in Currency, in CurrencyUnit<in Currency>>
-    fun divide(value: Int): Money<in Currency, in CurrencyUnit<in Currency>>
-    fun divide(value: Long): Money<in Currency, in CurrencyUnit<in Currency>>
+    fun divide(value: BigDecimal): Money<C, U>
+    fun divide(value: Int): Money<C, U>
+    fun divide(value: Long): Money<C, U>
 }
 
 interface Currency {
     companion object {
         private val defaultMathContext = MathContext(0, RoundingMode.HALF_EVEN)
     }
-    fun basicUnit(): CurrencyUnit<out Currency>
     fun mathContext(): MathContext {
         return defaultMathContext
     }
@@ -44,63 +47,68 @@ interface Currency {
 interface CurrencyUnit<C : Currency> {
     fun ofValue(value: BigDecimal): Money<C, CurrencyUnit<C>>
     fun ofValue(value: Long): Money<C, CurrencyUnit<C>> {
-        return ofValue(BigDecimal(value))
+        return ofValue(BigDecimal(value, getCurrency().mathContext()))
     }
     fun ofValue(value: Int): Money<C, CurrencyUnit<C>> {
-        return ofValue(BigDecimal(value))
+        return ofValue(BigDecimal(value, getCurrency().mathContext()))
     }
-    fun rateOf(otherCurrencyUnit: CurrencyUnit<out Currency>): BigDecimal
+
+
+    fun rateOf(otherCurrencyUnit: CurrencyUnit<C>): BigDecimal
+    fun basicUnit(): CurrencyUnit<C>
+    fun getCurrency(): C
+
 }
 
 abstract class AbstractMoney<C : Currency, U : CurrencyUnit<C>> : Money<C, U> {
 
     override fun getBasicValue(): BigDecimal {
-        return this.getCurrencyUnit().rateOf(getCurrency().basicUnit())
+        return this.getCurrencyUnit().rateOf(getCurrencyUnit().basicUnit())
             .multiply(this.getValue(), getCurrency().mathContext())
     }
 
-    override fun multiply(value: BigDecimal): Money<in Currency, in CurrencyUnit<in Currency>> {
+    override fun multiply(value: BigDecimal): Money<C, U> {
         return of(this.getCurrencyUnit(), this.getValue().multiply(value, getCurrency().mathContext()))
     }
 
-    override fun multiply(value: Int): Money<in Currency, in CurrencyUnit<in Currency>> {
+    override fun multiply(value: Int): Money<C, U> {
         return of(
             this.getCurrencyUnit(),
             this.getValue().multiply(BigDecimal(value, this.getCurrency().mathContext()), this.getCurrency().mathContext())
         )
     }
 
-    override fun multiply(value: Long): Money<in Currency, in CurrencyUnit<in Currency>> {
+    override fun multiply(value: Long): Money<C, U> {
         return of(
             this.getCurrencyUnit(),
             this.getValue().multiply(BigDecimal(value, this.getCurrency().mathContext()), this.getCurrency().mathContext())
         )
     }
 
-    override fun divide(value: BigDecimal): Money<in Currency, in CurrencyUnit<in Currency>> {
+    override fun divide(value: BigDecimal): Money<C, U> {
         return of(this.getCurrencyUnit(), this.getValue().divide(value, this.getCurrency().mathContext()))
     }
 
-    override fun divide(value: Int): Money<in Currency, in CurrencyUnit<in Currency>> {
+    override fun divide(value: Int): Money<C, U> {
         return of(
             this.getCurrencyUnit(),
             this.getValue().divide(BigDecimal(value, this.getCurrency().mathContext()), this.getCurrency().mathContext())
         )
     }
 
-    override fun divide(value: Long): Money<in Currency, in CurrencyUnit<in Currency>> {
+    override fun divide(value: Long): Money<C, U> {
         return of(
             this.getCurrencyUnit(),
             this.getValue().divide(BigDecimal(value, this.getCurrency().mathContext()), this.getCurrency().mathContext())
         )
     }
 
-    override fun sub(other: Money<out C, out U>): Money<in Currency, in CurrencyUnit<in Currency>> {
+    override fun sub(other: Money<C, U>): Money<C, U> {
         val otherValues = other.getCurrencyUnit().rateOf(this.getCurrencyUnit()).multiply(other.getValue(), this.getCurrency().mathContext())
         return of(this.getCurrencyUnit(), this.getValue().subtract(otherValues, this.getCurrency().mathContext()))
     }
 
-    override fun sum(other: Money<out C, out U>): Money<in Currency, in CurrencyUnit<in Currency>> {
+    override fun sum(other: Money<C, U>): Money<C, U> {
         val otherValues = other.getCurrencyUnit().rateOf(this.getCurrencyUnit()).multiply(other.getValue(), getCurrency().mathContext())
         return of(getCurrencyUnit(), this.getValue().add(otherValues, getCurrency().mathContext()))
     }
