@@ -9,13 +9,18 @@ abstract class AbstractFactory<T: Any>(private val candidateClass: Collection<Cl
     private val log = LoggerFactory.getLogger(this::class)
     @Volatile private var constructor: Constructor<out T>? = null
     @Volatile private var lock = Any()
-    private val a = lock.javaClass
+    private val cache: MutableMap<String, MutableList<Constructor<out T>>> = HashMap()
 
-    private fun <I: T> election(clazz: Class<I>, vararg testArgs: Any): T {
+    private fun getCandidateConstructors(vararg args: Any): MutableList<Constructor<out T>>? {
+        val key = args.map { it::class.java.name }.toString()
+        return cache[key]
+    }
+
+    private fun <I: T> election(clazz: Class<I>, vararg args: Any): T {
         synchronized(lock) {
             if (null != constructor && constructor!!.declaringClass == clazz) {
                 try {
-                    return constructor!!.newInstance(*testArgs)
+                    return constructor!!.newInstance(*args)
                 } catch (e: Exception) {
                     constructor = null
                 }
@@ -23,9 +28,12 @@ abstract class AbstractFactory<T: Any>(private val candidateClass: Collection<Cl
             for (candidateClazz in candidateClass) {
                 if (null == constructor && candidateClazz == clazz) {
                     try {
-                        val candidateConstructor = candidateClazz.getDeclaredConstructor(*testArgs.map { it::class.java }.toTypedArray())
+                        val argsType = args.map { it::class.java }.toTypedArray()
+
+                        log.info("{}", argsType.map { it.name }.toString())
+                        val candidateConstructor = candidateClazz.getDeclaredConstructor(*argsType)
                         candidateConstructor.isAccessible = true
-                        val newInstance = candidateConstructor.newInstance(*testArgs)
+                        val newInstance = candidateConstructor.newInstance(*args)
                         constructor = candidateConstructor
                         log.info("candidate supplier through election $candidateClazz")
                         return newInstance
@@ -40,7 +48,7 @@ abstract class AbstractFactory<T: Any>(private val candidateClass: Collection<Cl
 
     fun <I: T> newInstance(clazz: Class<I>, vararg args: Any): T {
         if (null == constructor || clazz != constructor!!.declaringClass) {
-            return election(clazz, args)
+            return election(clazz, *args)
         }
         return try {
             constructor!!.newInstance(*args)
@@ -57,4 +65,6 @@ abstract class AbstractFactory<T: Any>(private val candidateClass: Collection<Cl
     fun <I: T> newInstance(clazz: KClass<I>, vararg args: Any): T {
         return newInstance(clazz.java, *args)
     }
+
+
 }

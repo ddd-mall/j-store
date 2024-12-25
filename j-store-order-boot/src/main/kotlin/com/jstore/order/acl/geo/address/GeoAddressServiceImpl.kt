@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
 object GeoAddressServiceProxy : GeoAddressService {
     private val log: Logger = LoggerFactory.getLogger(GeoAddressServiceProxy::class)
     private val geoAddressServiceFactory = GeoAddressServiceFactory()
-    private val geoAddressService = geoAddressServiceFactory.newInstance(MockGeoAddressServiceImpl::class,"test")
+    private val geoAddressService = geoAddressServiceFactory.newInstance(MockGeoAddressServiceImpl::class,"test", "test")
     override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
         return geoAddressService.getByDistrictCode(districtCode)
     }
@@ -25,7 +25,7 @@ object GeoAddressServiceProxy : GeoAddressService {
 
 
 
-open class MockGeoAddressServiceImpl(private val name: String) : GeoAddressService {
+open class MockGeoAddressServiceImpl(private val name: String, private val value: String) : GeoAddressService {
     private val log: Logger = LoggerFactory.getLogger(MockGeoAddressServiceImpl::class)
     override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
         val geoAddressInfo = GeoAddressInfo(districtCode, "MOCK PROVINCE", "MOCK CITY", "MOCK COUNTY")
@@ -94,7 +94,7 @@ open class ExcelGeoAddressServiceImpl : GeoAddressService {
 
 fun main() {
     val log = LoggerFactory.getLogger(ExcelGeoAddressServiceImpl::class)
-    val geoAddressService = ExcelGeoAddressServiceImpl()
-    val geoInfo = geoAddressService.getByDistrictCode("450324")
+
+    val geoInfo = GeoAddressServiceProxy.getByDistrictCode("450324")
     log.info("{}", geoInfo)
 }
