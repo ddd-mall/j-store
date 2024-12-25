@@ -6,7 +6,7 @@ import org.slf4j.Marker
 import org.slf4j.spi.LocationAwareLogger
 
 class Slf4jSimpleImpl(clazz: String) : Logger {
-    private val logger: Logger
+    private val log: Logger
     init {
         val logger = LoggerFactory.getLogger(clazz)
         var loggerTemporary: Logger
@@ -17,78 +17,78 @@ class Slf4jSimpleImpl(clazz: String) : Logger {
             } catch (e: NoSuchMethodException) {
                 loggerTemporary = Slf4jLoggerImpl(logger)
             }
-            this.logger = loggerTemporary
+            this.log = loggerTemporary
         } else {
-            this.logger = Slf4jLoggerImpl(logger)
+            this.log = Slf4jLoggerImpl(logger)
         }
     }
 
     override fun isDebugEnabled(): Boolean {
-        return logger.isDebugEnabled()
+        return log.isDebugEnabled()
     }
 
     override fun info(format: String, args: Array<out Any>) {
-        logger.info(format, args)
+        log.info(format, args)
     }
 
     override fun info(format: String, arg: Any) {
-        logger.info(format, arg)
+        log.info(format, arg)
     }
 
     override fun info(format: String, throwable: Throwable) {
-        logger.info(format, throwable)
+        log.info(format, throwable)
     }
 
     override fun info(msg: String) {
-        logger.info(msg)
+        log.info(msg)
     }
 
     override fun debug(msg: String) {
-        logger.debug(msg)
+        log.debug(msg)
     }
 
     override fun debug(format: String, arg: Any) {
-        logger.debug(format, arg)
+        log.debug(format, arg)
     }
 
     override fun debug(format: String, throwable: Throwable) {
-        logger.debug(format, throwable)
+        log.debug(format, throwable)
     }
 
     override fun debug(format: String, args: Array<out Any>) {
-        logger.debug(format, args)
+        log.debug(format, args)
     }
 
     override fun warn(msg: String) {
-        logger.warn(msg)
+        log.warn(msg)
     }
 
     override fun warn(format: String, arg: Any) {
-        logger.warn(format, arg)
+        log.warn(format, arg)
     }
 
     override fun warn(format: String, throwable: Throwable) {
-        logger.warn(format, throwable)
+        log.warn(format, throwable)
     }
 
     override fun warn(format: String, args: Array<out Any>) {
-        logger.warn(format, args)
+        log.warn(format, args)
     }
 
     override fun error(msg: String) {
-        logger.error(msg)
+        log.error(msg)
     }
 
     override fun error(format: String, arg: Any) {
-        logger.error(format, arg)
+        log.error(format, arg)
     }
 
     override fun error(format: String, throwable: Throwable) {
-        logger.error(format, throwable)
+        log.error(format, throwable)
     }
 
     override fun error(format: String, args: Array<out Any>) {
-        logger.error(format, args)
+        log.error(format, args)
     }
 }
 

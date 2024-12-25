@@ -32,7 +32,7 @@ open class SnowFlakSequence(private val workerId: Long, private val datacenterId
             return SnowFlakSequence(workerId, datacenterId)
         }
 
-        private val logger: Logger = LoggerFactory.getLogger(SnowFlakSequence::class.java)
+        private val logger: Logger = LoggerFactory.getLogger(SnowFlakSequence::class)
         /**
          * |-timestamp-|datacenterId|workerId|sequence|
          * |----41-----|------5-----|----5---|---12---|

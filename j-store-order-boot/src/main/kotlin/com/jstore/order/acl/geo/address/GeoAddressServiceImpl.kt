@@ -4,7 +4,6 @@ import cn.idev.excel.FastExcel
 import cn.idev.excel.annotation.ExcelProperty
 import cn.idev.excel.context.AnalysisContext
 import cn.idev.excel.read.listener.ReadListener
-import cn.idev.excel.support.ExcelTypeEnum
 import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.logging.Logger
@@ -14,28 +13,48 @@ import org.springframework.util.ResourceUtils
 import java.io.FileInputStream
 import java.util.concurrent.ConcurrentHashMap
 
-
 @Service
+object GeoAddressServiceProxy : GeoAddressService {
+    private val log: Logger = LoggerFactory.getLogger(GeoAddressServiceProxy::class)
+    private val geoAddressServiceFactory = GeoAddressServiceFactory()
+    private val geoAddressService = geoAddressServiceFactory.newInstance(MockGeoAddressServiceImpl::class,"test")
+    override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
+        return geoAddressService.getByDistrictCode(districtCode)
+    }
+}
+
+
+
+open class MockGeoAddressServiceImpl(private val name: String) : GeoAddressService {
+    private val log: Logger = LoggerFactory.getLogger(MockGeoAddressServiceImpl::class)
+    override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
+        val geoAddressInfo = GeoAddressInfo(districtCode, "MOCK PROVINCE", "MOCK CITY", "MOCK COUNTY")
+        log.info("[地址服务-mock版:${name}] - 通过地区编码${districtCode}获取地址信息: $geoAddressInfo")
+        return geoAddressInfo
+    }
+}
+
 open class ExcelGeoAddressServiceImpl : GeoAddressService {
 
     companion object {
-        private val log: Logger = LoggerFactory.getLogger(ExcelGeoAddressServiceImpl::class.java)
+        private val log: Logger = LoggerFactory.getLogger(ExcelGeoAddressServiceImpl::class)
         private val dataStorage: MutableMap<String, String> = ConcurrentHashMap<String, String>()
 
         init {
             val excelPath = "data/district.xlsx"
             val file = ResourceUtils.getFile("classpath:${excelPath}")
             val fileInputStream = FileInputStream(file)
-
-            FastExcel.read(fileInputStream, DistrictData::class.java, DistrictDataListener(dataStorage))
-                .excelType(ExcelTypeEnum.XLSX)
-                .sheet()
-                .doRead()
+            fileInputStream.use { fis ->
+                FastExcel.read(fis, DistrictData::class.java, DistrictDataListener(dataStorage))
+                    .sheet()
+                    .doRead()
+            }
         }
 
         open class DistrictData {
             @ExcelProperty("district_name")
             var districtName: String? = null
+
             @ExcelProperty("district_code")
             var districtCode: String? = null
         }
@@ -52,7 +71,7 @@ open class ExcelGeoAddressServiceImpl : GeoAddressService {
             }
 
             override fun doAfterAllAnalysed(analysisContext: AnalysisContext?) {
-                log.info("[地址服务-excel版] - 已将地址数据从excel数据加载完毕")
+                log.info("[地址服务-excel版] - 已将地址数据从excel加载到内存")
             }
         }
     }
@@ -74,7 +93,8 @@ open class ExcelGeoAddressServiceImpl : GeoAddressService {
 }
 
 fun main() {
+    val log = LoggerFactory.getLogger(ExcelGeoAddressServiceImpl::class)
     val geoAddressService = ExcelGeoAddressServiceImpl()
     val geoInfo = geoAddressService.getByDistrictCode("450324")
-    println(geoInfo)
+    log.info("{}", geoInfo)
 }
