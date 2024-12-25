@@ -9,7 +9,7 @@ import com.jstore.common.logging.LoggerFactory
 
 object JsonUtils {
     private val OBJECT_MAPPER: ObjectMapper
-    private val log = LoggerFactory.getLogger(JsonUtils::class.java)
+    private val log = LoggerFactory.getLogger(JsonUtils::class)
 
     init {
         try {
