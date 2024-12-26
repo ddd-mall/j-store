@@ -8,6 +8,7 @@ import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
+import com.jstore.common.utils.string.StringUtils
 import org.springframework.stereotype.Service
 import org.springframework.util.ResourceUtils
 import java.io.FileInputStream
@@ -17,11 +18,12 @@ import java.util.concurrent.ConcurrentHashMap
 object GeoAddressServiceProxy : GeoAddressService {
     private val geoAddressServiceFactory = GeoAddressServiceFactory()
     private val geoAddressService = geoAddressServiceFactory.newInstance()
+
+
     override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
         return geoAddressService.getByDistrictCode(districtCode)
     }
 }
-
 
 
 open class MockGeoAddressServiceImpl(private val name: String) : GeoAddressService {
@@ -82,11 +84,31 @@ open class ExcelGeoAddressServiceImpl : GeoAddressService {
         val provinceCode = GeoAddressInfo.getProvinceCode(districtCode)
         val cityCode = GeoAddressInfo.getCityCode(districtCode)
         val countyCode = GeoAddressInfo.getCountyCode(districtCode)
+        val province = dataStorage[provinceCode] ?: ""
+        val county = dataStorage[countyCode]?.let {
+            if (it == province) {
+                ""
+            } else {
+                it
+            }
+        } ?: ""
+        val city = dataStorage[cityCode]?.let {
+            if (it == province) {
+                ""
+            } else {
+                it
+            }
+        } ?: "市辖区"
+
+
+        if (StringUtils.isAllEmpty(province, city, county)) {
+            throw CommonErrors.INVALID_PARAM.withMsg("地区编码错误: $districtCode")
+        }
         return GeoAddressInfo(
             districtCode,
-            dataStorage[provinceCode] ?: "",
-            dataStorage[cityCode] ?: "",
-            dataStorage[countyCode] ?: ""
+            province,
+            city,
+            county
         )
     }
 }

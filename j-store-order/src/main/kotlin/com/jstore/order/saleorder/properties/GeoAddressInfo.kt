@@ -1,6 +1,7 @@
 package com.jstore.com.jstore.order.saleorder.properties
 
 import com.jstore.common.errors.CommonErrors
+import com.jstore.common.utils.string.StringUtils
 
 data class
 GeoAddressInfo(
@@ -29,27 +30,14 @@ GeoAddressInfo(
             }
             return districtCode.substring(0, level.getCodeLen()) + "0".repeat(districtCode.length - level.getCodeLen())
         }
+    }
 
-        private enum class DistrictLevel {
-            PROVINCE {
-                override fun getCodeLen(): Int {
-                    return 2
-                }
-
-            },
-            CITY {
-                override fun getCodeLen(): Int {
-                    return 4
-                }
-            },
-            COUNTY {
-                override fun getCodeLen(): Int {
-                    return 6
-                }
-            },
-            ;
-            abstract fun getCodeLen(): Int
-        }
+    val level: DistrictLevel = if (StringUtils.isNotEmpty(this.county)) {
+        DistrictLevel.COUNTY
+    } else if (StringUtils.isNotEmpty(this.city)) {
+        DistrictLevel.CITY
+    } else {
+        DistrictLevel.PROVINCE
     }
 
     fun getProvinceCode(): String {
@@ -65,4 +53,26 @@ GeoAddressInfo(
     }
 
 
+}
+
+enum class DistrictLevel {
+    PROVINCE {
+        override fun getCodeLen(): Int {
+            return 2
+        }
+
+    },
+    CITY {
+        override fun getCodeLen(): Int {
+            return 4
+        }
+    },
+    COUNTY {
+        override fun getCodeLen(): Int {
+            return 6
+        }
+    },
+    ;
+
+    abstract fun getCodeLen(): Int
 }
