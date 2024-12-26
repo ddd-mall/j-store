@@ -7,11 +7,8 @@ class GeoAddressServiceFactory : AbstractFactory<GeoAddressService>(
         MockGeoAddressServiceImpl::class.java,
         ExcelGeoAddressServiceImpl::class.java
     )
-)
-
-
-
-fun main() {
-    val byDistrictCode = GeoAddressServiceProxy.getByDistrictCode("110106")
-    println(byDistrictCode)
+) {
+    fun newInstance(): GeoAddressService {
+        return super.newInstance()
+    }
 }
