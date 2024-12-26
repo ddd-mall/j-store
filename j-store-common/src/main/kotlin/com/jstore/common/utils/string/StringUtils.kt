@@ -29,4 +29,13 @@ object StringUtils {
         return !isEmpty(cs)
     }
 
+    fun isAllEmpty(vararg css: CharSequence?): Boolean {
+        for (cs in css) {
+            if (isNotEmpty(cs)) {
+                return false
+            }
+        }
+        return true
+    }
+
 }
