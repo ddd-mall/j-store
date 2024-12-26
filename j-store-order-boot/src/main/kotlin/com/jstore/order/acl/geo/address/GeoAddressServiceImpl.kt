@@ -15,9 +15,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 @Service
 object GeoAddressServiceProxy : GeoAddressService {
-    private val log: Logger = LoggerFactory.getLogger(GeoAddressServiceProxy::class)
     private val geoAddressServiceFactory = GeoAddressServiceFactory()
-    private val geoAddressService = geoAddressServiceFactory.newInstance(MockGeoAddressServiceImpl::class,"test")
+    private val geoAddressService = geoAddressServiceFactory.newInstance()
     override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
         return geoAddressService.getByDistrictCode(districtCode)
     }
@@ -71,7 +70,7 @@ open class ExcelGeoAddressServiceImpl : GeoAddressService {
             }
 
             override fun doAfterAllAnalysed(analysisContext: AnalysisContext?) {
-                log.info("[地址服务-excel版] - 已将地址数据从excel加载到内存")
+                log.info("[地址服务-excel版] - 已将地址数据从excel中加载到内存")
             }
         }
     }
@@ -90,11 +89,4 @@ open class ExcelGeoAddressServiceImpl : GeoAddressService {
             dataStorage[countyCode] ?: ""
         )
     }
-}
-
-fun main() {
-    val log = LoggerFactory.getLogger(ExcelGeoAddressServiceImpl::class)
-    val geoAddressService = ExcelGeoAddressServiceImpl()
-    val geoInfo = geoAddressService.getByDistrictCode("450324")
-    log.info("{}", geoInfo)
 }
