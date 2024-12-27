@@ -2,6 +2,8 @@ package com.jstore.com.jstore.order.saleorder.persistence
 
 import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
 import jakarta.persistence.*
+import org.springframework.data.annotation.CreatedDate
+import org.springframework.data.annotation.LastModifiedDate
 import java.io.Serializable
 import java.math.BigDecimal
 import java.time.LocalDateTime
@@ -18,7 +20,11 @@ import java.time.LocalDateTime
     ]
 )
 @IdClass(SaleOrderIdClass::class)
-open class SaleOrderPO {
+
+open class SaleOrderPO : Serializable {
+    companion object {
+        private const val serialVersionUID: Long = 1
+    }
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", unique = true, nullable = false, updatable = false)
@@ -27,18 +33,22 @@ open class SaleOrderPO {
     @Id
     @SnowFlakeId
     @Column(name = "sale_order_id", unique = true, nullable = false, updatable = false)
-    open var saleOrderId: Long? = null
-    open var uid: Long? = null
-    open var phoneNumber: String? = null
-    open var userName: String? = null
-    open var districtCode: String? = null
-    open var detailAddress: String? = null
-    open var freightBillId: String? = null
-    open var positiveStatus: String? = null
-    open var reverseStatus: String? = null
-    open var amount: BigDecimal? = null
-    open var actualPay: BigDecimal? = null
+    open var saleOrderId: Long = 0
+    open var uid: Long = 0
+    open var phoneNumber: String = ""
+    open var userName: String = ""
+    open var districtCode: String = ""
+    open var detailAddress: String = ""
+    open var freightBillId: String = "[]"
+    open var positiveStatus: String = ""
+    open var reverseStatus: String = ""
+    open var amount: BigDecimal = BigDecimal.ZERO
+    open var actualPay: BigDecimal = BigDecimal.ZERO
+    @CreatedDate
+    @Column(name = "create_time", updatable = false)
     open var createTime: LocalDateTime? = null
+    @LastModifiedDate
+    @Column(name = "update_time", nullable = false)
     open var updateTime: LocalDateTime? = null
 }
 
@@ -46,8 +56,6 @@ open class SaleOrderIdClass : Serializable {
     companion object {
         private const val serialVersionUID: Long = 1
     }
-    private val id: Long? = null
-    private val saleOrderId: Long? = null
-
-
+    val id: Long? = null
+    val saleOrderId: Long? = null
 }
