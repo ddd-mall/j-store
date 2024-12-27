@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.jackson.core)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.annotations)
+    implementation(libs.jackson.module.kotlin)
     testImplementation(kotlin("test"))
 }
 

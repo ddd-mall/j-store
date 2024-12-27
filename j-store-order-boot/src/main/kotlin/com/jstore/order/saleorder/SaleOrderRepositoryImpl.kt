@@ -1,6 +1,7 @@
 package com.jstore.com.jstore.order.saleorder
 
-import com.jstore.com.jstore.order.acl.geo.address.GeoAddressService
+import com.fasterxml.jackson.core.type.TypeReference
+import com.jstore.com.jstore.order.acl.geo.address.GeoAddressServiceProxy
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderItemPO
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderItemPOJpaRepository
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderPO
@@ -9,6 +10,7 @@ import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.common.framework.Page
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
+import com.jstore.common.utils.json.JsonUtils
 import com.jstore.order.saleorder.*
 import com.jstore.order.saleorder.properties.UserInfo
 import org.springframework.stereotype.Repository
@@ -48,40 +50,38 @@ open class SaleOrderRepositoryImpl(
 
 open class SaleOrderPOHolder {
     constructor()
-    constructor(saleOrder: SaleOrder) {
-        this.saleOrderPO = SaleOrderPO().apply {
-            saleOrderId = saleOrder.getId()?.value
-            uid = saleOrder.buyerInfo.uid
-            phoneNumber = saleOrder.buyerInfo.phoneNumber?.value
-            userName = saleOrder.buyerInfo.userName
+    constructor(saleOrder: SaleOrder)
 
-        }
-
-        TODO()
-    }
     var saleOrderPO: SaleOrderPO? = null
     var saleOrderItemPOs: MutableCollection<SaleOrderItemPO>? = null
 }
 
+
+
 @Service
-open class SaleOrderConverter(private val geoAddressService: GeoAddressService) {
+object SaleOrderConverter {
+
+    class StringListTypeReference: TypeReference<List<String>>()
+
     fun po2Entity(saleOrderPO: SaleOrderPO, saleOrderItemPOList: Collection<SaleOrderItemPO>?): SaleOrder {
-        val buyerInfo =
-            UserInfo(saleOrderPO.uid!!, saleOrderPO.phoneNumber?.let { PhoneNumber(it) }, saleOrderPO.userName)
-        val id = SaleOrderId(saleOrderPO.saleOrderId!!)
+        val buyerInfo = UserInfo(saleOrderPO.uid, PhoneNumber(saleOrderPO.phoneNumber), saleOrderPO.userName)
+        val id = SaleOrderId(saleOrderPO.saleOrderId)
         val items: List<OrderItem>? = saleOrderItemPOList?.map { orderItemPO2Entity(it) }?.toList()
-        val addressInfo: GeoAddressInfo = geoAddressService.getByDistrictCode(saleOrderPO.districtCode!!)
+        val addressInfo: GeoAddressInfo = GeoAddressServiceProxy.getByDistrictCode(saleOrderPO.districtCode)
             .apply { detailAddress = saleOrderPO.detailAddress }
+
+
+        val o = JsonUtils.deserialize(saleOrderPO.freightBillId, typeReference = StringListTypeReference() )
         return SaleOrder(
             id,
             buyerInfo,
             items,
             addressInfo,
             null,
-            OrderPositiveStatus.valueOf(saleOrderPO.positiveStatus!!),
-            OrderReverseStatus.valueOf(saleOrderPO.reverseStatus!!),
-            Price(saleOrderPO.amount!!),
-            Price(saleOrderPO.actualPay!!),
+            OrderPositiveStatus.valueOf(saleOrderPO.positiveStatus),
+            OrderReverseStatus.valueOf(saleOrderPO.reverseStatus),
+            Price(saleOrderPO.amount),
+            Price(saleOrderPO.actualPay),
             saleOrderPO.createTime,
             saleOrderPO.updateTime
         )
@@ -117,15 +117,33 @@ open class SaleOrderConverter(private val geoAddressService: GeoAddressService) 
     }
 
     fun entity2POHolder(saleOrder: SaleOrder): SaleOrderPOHolder {
-        SaleOrderPO().apply {
-            saleOrderId = saleOrder.getId()?.value
-            uid = saleOrder.buyerInfo.uid
-            phoneNumber = saleOrder.buyerInfo.phoneNumber?.value
-            userName = saleOrder.buyerInfo.userName
+        val saleOrderPOHolder = SaleOrderPOHolder()
 
+        SaleOrderPO().apply {
+            saleOrder.getId()?.value?.also { saleOrderId = it }
+            saleOrder.buyerInfo.uid.also { uid = it }
+            saleOrder.buyerInfo.phoneNumber?.value?.also { phoneNumber = it }
+            saleOrder.buyerInfo.userName?.also { userName = it }
+            saleOrder.deliveryAddressInfo.districtCode.also { districtCode = it }
+            saleOrder.deliveryAddressInfo.detailAddress?.also { detailAddress = it }
+            saleOrder.freightBills?.map { it.id }?.toList()
+                .let { JsonUtils.toJsonString(it ?: listOf<String>()) }
+                .also { freightBillId = it }
+            saleOrder.positiveStatus.name.also { positiveStatus = it }
+            saleOrder.reverseStatus.name.also { reverseStatus = it }
+            saleOrder.amount.getBasicValue().also { amount = it }
+            saleOrder.actualPay.getBasicValue().also { actualPay = it }
+        }.also { saleOrderPOHolder.saleOrderPO = it }
+
+        saleOrder.orderItems?.map {
+            SaleOrderItemPO().apply {
+                it
+            }
         }
-        SaleOrderPOHolder()
-        TODO()
+
+
+
+        return saleOrderPOHolder
     }
 
 
