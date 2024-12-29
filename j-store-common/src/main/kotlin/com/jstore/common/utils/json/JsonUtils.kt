@@ -12,7 +12,7 @@ import com.jstore.common.logging.LoggerFactory
 
 object JsonUtils {
     val JSON: ObjectMapper = jacksonObjectMapper()
-    private val log = LoggerFactory.getLogger(JsonUtils::class)
+    val log = LoggerFactory.getLogger(JsonUtils::class)
 
     init {
         try {
@@ -51,7 +51,7 @@ object JsonUtils {
     }
 
 
-    private inline fun <reified T> deserialize(jsonStr: String): T {
+    public inline fun <reified T> deserialize(jsonStr: String): T {
         return try {
             JSON.readValue<T>(jsonStr)
         } catch (e: Exception) {

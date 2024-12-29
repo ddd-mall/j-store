@@ -13,14 +13,18 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.json.JsonUtils
 import com.jstore.order.saleorder.*
 import com.jstore.order.saleorder.properties.UserInfo
+import jakarta.transaction.Transactional
+import org.springframework.data.domain.AbstractPageRequest
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Repository
 import org.springframework.stereotype.Service
 
 @Repository
 open class SaleOrderRepositoryImpl(
     private val saleOrderPOJpaRepository: SaleOrderPOJpaRepository,
-    private val saleOrderItemPOJpaRepository: SaleOrderItemPOJpaRepository,
-    private val saleOrderConverter: SaleOrderConverter
+    private val saleOrderItemPOJpaRepository: SaleOrderItemPOJpaRepository
 ) : SaleOrderRepository {
 
     override fun findByBuyerUserId(uid: Long): List<SaleOrder> {
@@ -28,50 +32,89 @@ open class SaleOrderRepositoryImpl(
         if (saleOrderPOS.isEmpty()) {
             return listOf()
         }
-        val saleOrderIdList = saleOrderPOS.stream().map { o -> o.saleOrderId!! }.toList()
+        val saleOrderIdList = saleOrderPOS.stream().map { o -> o.saleOrderId }.toList()
         val saleOrderItemPOS = saleOrderItemPOJpaRepository.findSaleOrderItemPOSBySaleOrderIdIsIn(saleOrderIdList)
-        return saleOrderConverter.pos2Entities(saleOrderPOS, saleOrderItemPOS)
+        return SaleOrderConverter.POs2Entities(saleOrderPOS, saleOrderItemPOS)
     }
 
     override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<SaleOrder> {
-        TODO("Not yet implemented")
+        saleOrderPOJpaRepository.findAllByUidOrderByCreateTimeDesc(
+            uid,
+            object : AbstractPageRequest(currentPage, pageSize) {
+                override fun getSort(): Sort {
+                    TODO("Not yet implemented")
+                }
+
+                override fun next(): Pageable {
+                    TODO(" not yet implemented")
+                }
+
+                override fun first(): Pageable {
+                    TODO("Not yet implemented")
+                }
+
+                override fun withPage(pageNumber: Int): Pageable {
+                    TODO("Not yet implemented")
+                }
+
+                override fun previous(): Pageable {
+                    TODO("Not yet implemented")
+                }
+            })
+        TODO(" NOT YET IMPLEMENTED")
     }
 
+    @Transactional(rollbackOn = [Exception::class])
     override fun save(entity: SaleOrder): SaleOrder {
-        val holder: SaleOrderPOHolder = SaleOrderPOHolder(entity)
+        val holder: SaleOrderPOHolder = SaleOrderConverter.entity2POHolder(entity)
 
-        TODO("Not yet implemented")
+        val savedSaleOrderPO = holder.saleOrderPO!!.let { saleOrderPOJpaRepository.save(it) }
+        val savedSaleOrderItemPOs = if (holder.saleOrderItemPOs.isNotEmpty()) {
+            saleOrderItemPOJpaRepository.saveAll(holder.saleOrderItemPOs)
+        } else {
+            listOf()
+        }
+        return SaleOrderConverter.PO2Entity(savedSaleOrderPO, savedSaleOrderItemPOs)
+
     }
 
     override fun findById(id: SaleOrderId): SaleOrder? {
-        TODO("Not yet implemented")
+        saleOrderPOJpaRepository.findByIdOrNull(id.value)?.let { saleOrderPO ->
+            saleOrderItemPOJpaRepository.findAllBySaleOrderId(id.value).let { saleOrderItemPOs ->
+                return SaleOrderConverter.PO2Entity(saleOrderPO, saleOrderItemPOs)
+            }
+        }
+        return null;
     }
 }
 
 open class SaleOrderPOHolder {
-    constructor()
-    constructor(saleOrder: SaleOrder)
-
     var saleOrderPO: SaleOrderPO? = null
-    var saleOrderItemPOs: MutableCollection<SaleOrderItemPO>? = null
+    var saleOrderItemPOs: Collection<SaleOrderItemPO> = listOf()
 }
-
 
 
 @Service
 object SaleOrderConverter {
 
-    class StringListTypeReference: TypeReference<List<String>>()
 
-    fun po2Entity(saleOrderPO: SaleOrderPO, saleOrderItemPOList: Collection<SaleOrderItemPO>?): SaleOrder {
-        val buyerInfo = UserInfo(saleOrderPO.uid, PhoneNumber(saleOrderPO.phoneNumber), saleOrderPO.userName)
+    fun POHolder2Entity(saleOrderPOHolder: SaleOrderPOHolder): SaleOrder? {
+        if (saleOrderPOHolder.saleOrderPO == null) {
+            return null
+        }
+        return PO2Entity(saleOrderPOHolder.saleOrderPO!!, saleOrderPOHolder.saleOrderItemPOs)
+    }
+
+    fun PO2Entity(saleOrderPO: SaleOrderPO, saleOrderItemPOList: Collection<SaleOrderItemPO>): SaleOrder {
         val id = SaleOrderId(saleOrderPO.saleOrderId)
-        val items: List<OrderItem>? = saleOrderItemPOList?.map { orderItemPO2Entity(it) }?.toList()
+        val buyerInfo = UserInfo(saleOrderPO.uid, PhoneNumber(saleOrderPO.phoneNumber), saleOrderPO.userName)
+        val items: List<OrderItem> = saleOrderItemPOList.map { orderItemPO2Entity(it) }.toList()
         val addressInfo: GeoAddressInfo = GeoAddressServiceProxy.getByDistrictCode(saleOrderPO.districtCode)
             .apply { detailAddress = saleOrderPO.detailAddress }
 
 
-        val o = JsonUtils.deserialize(saleOrderPO.freightBillId, typeReference = StringListTypeReference() )
+        val freightBillIds = JsonUtils.deserialize(saleOrderPO.freightBillId, object : TypeReference<List<String>>() {})
+
         return SaleOrder(
             id,
             buyerInfo,
@@ -87,13 +130,13 @@ object SaleOrderConverter {
         )
     }
 
-    fun pos2Entities(
+    fun POs2Entities(
         saleOrderPOs: MutableCollection<SaleOrderPO>,
         saleOrderItemPOs: MutableCollection<SaleOrderItemPO>
     ): List<SaleOrder> {
         val itemMap: Map<Long, List<SaleOrderItemPO>> = saleOrderItemPOs.groupBy { item -> item.saleOrderId!! }
         return saleOrderPOs.map { saleOrderPO ->
-            po2Entity(saleOrderPO, itemMap[saleOrderPO.id!!])
+            PO2Entity(saleOrderPO, itemMap[saleOrderPO.id!!] ?: listOf())
         }
     }
 
@@ -109,42 +152,36 @@ object SaleOrderConverter {
         )
     }
 
-    fun poHolder2Entity(saleOrderPOHolder: SaleOrderPOHolder): SaleOrder? {
-        if (saleOrderPOHolder.saleOrderPO == null) {
-            return null
-        }
-        return po2Entity(saleOrderPOHolder.saleOrderPO!!, saleOrderPOHolder.saleOrderItemPOs)
-    }
 
     fun entity2POHolder(saleOrder: SaleOrder): SaleOrderPOHolder {
-        val saleOrderPOHolder = SaleOrderPOHolder()
-
-        SaleOrderPO().apply {
-            saleOrder.getId()?.value?.also { saleOrderId = it }
-            saleOrder.buyerInfo.uid.also { uid = it }
-            saleOrder.buyerInfo.phoneNumber?.value?.also { phoneNumber = it }
-            saleOrder.buyerInfo.userName?.also { userName = it }
-            saleOrder.deliveryAddressInfo.districtCode.also { districtCode = it }
-            saleOrder.deliveryAddressInfo.detailAddress?.also { detailAddress = it }
-            saleOrder.freightBills?.map { it.id }?.toList()
-                .let { JsonUtils.toJsonString(it ?: listOf<String>()) }
-                .also { freightBillId = it }
-            saleOrder.positiveStatus.name.also { positiveStatus = it }
-            saleOrder.reverseStatus.name.also { reverseStatus = it }
-            saleOrder.amount.getBasicValue().also { amount = it }
-            saleOrder.actualPay.getBasicValue().also { actualPay = it }
-        }.also { saleOrderPOHolder.saleOrderPO = it }
-
-        saleOrder.orderItems?.map {
-            SaleOrderItemPO().apply {
-                it
+        return SaleOrderPOHolder().apply {
+            saleOrderPO = SaleOrderPO().apply {
+                saleOrder.getId()?.value?.also { saleOrderId = it }
+                saleOrder.buyerInfo.uid.also { uid = it }
+                saleOrder.buyerInfo.phoneNumber?.value?.also { phoneNumber = it }
+                saleOrder.buyerInfo.userName?.also { userName = it }
+                saleOrder.deliveryAddressInfo.districtCode.also { districtCode = it }
+                saleOrder.deliveryAddressInfo.detailAddress?.also { detailAddress = it }
+                saleOrder.freightBills?.map { it.id }?.toList()
+                    .let { JsonUtils.toJsonString(it ?: listOf<String>()) }
+                    .also { freightBillId = it }
+                saleOrder.positiveStatus.name.also { positiveStatus = it }
+                saleOrder.reverseStatus.name.also { reverseStatus = it }
+                saleOrder.amount.getBasicValue().also { amount = it }
+                saleOrder.actualPay.getBasicValue().also { actualPay = it }
             }
+
+            saleOrderItemPOs = saleOrder.orderItems?.map {
+                SaleOrderItemPO().apply {
+                    it.id?.also { saleOrderId = it.value }
+                    it.count.also { count = it }
+                    it.skuId.also { skuId = it.toString() }
+                    it.spuId.also { spuId = it.toString() }
+                    it.skuVersion.also { skuVersion = it }
+                    it.unitPrice.also { unitPrice = it.getBasicValue() }
+                    it.totalPrice.also { totalPrice = it.getBasicValue() }
+                }
+            } ?: listOf()
         }
-
-
-
-        return saleOrderPOHolder
     }
-
-
 }
