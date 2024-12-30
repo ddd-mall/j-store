@@ -79,10 +79,12 @@ open class SnowFlakSequence(private val workerId: Long, private val datacenterId
             try {
                 val ip: InetAddress = InetAddress.getLocalHost()
                 val network: NetworkInterface = NetworkInterface.getByInetAddress(ip)
-                val mac: ByteArray = network.hardwareAddress
-                id =
-                    ((0x000000FFL and mac[mac.size - 1].toLong()) or (0x0000FF00L and ((mac[mac.size - 2].toLong()) shl 8))) shr 6
-                id %= (maxDatacenterId + 1)
+                val mac: ByteArray? = network.getHardwareAddress()
+                id = 1
+                mac?.let {
+                    id = ((0x000000FFL and mac[mac.size - 1].toLong()) or (0x0000FF00L and ((mac[mac.size - 2].toLong()) shl 8))) shr 6
+                    id %= (maxDatacenterId + 1)
+                }
             } catch (t: Throwable) {
                 logger.warn("error occurred when get datacenter id ${t.message}")
             }
