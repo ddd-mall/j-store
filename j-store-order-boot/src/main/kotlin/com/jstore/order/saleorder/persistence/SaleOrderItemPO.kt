@@ -15,31 +15,22 @@ import java.math.BigDecimal
         Index(name = "idx_sale_order_id", columnList = "sale_order_id")
     ],
 )
-@IdClass(SaleOrderItemIdClass::class)
-open class SaleOrderItemPO {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    open var id: Long? = null
-    @Id
-    @SnowFlakeId
-    @Column(name = "sale_order_item_id", nullable = false, unique = true, updatable = false)
-    open var saleOrderItemId: Long? = null
 
-    @Column(name = "sale_order_id", nullable = false, updatable = false)
-    open var saleOrderId: Long? = null
-    open var spuId: String? = null
-    open var skuId: String? = null
-    open var skuVersion: Long? = null
-    open var count: Int? = null
-    open var unitPrice: BigDecimal? = null
-    open var totalPrice: BigDecimal? = null
-}
-
-
-open class SaleOrderItemIdClass : Serializable {
+open class SaleOrderItemPO : Serializable {
     companion object {
         private const val serialVersionUID: Long = 1
     }
-    private var id: Long? = null
-    private val saleOrderItemId: Long? = null
+
+    @Id
+    @SnowFlakeId
+    @Column(name = "sale_order_item_id", nullable = false, unique = true, updatable = false)
+    open var saleOrderItemId: Long = 0L
+    @Column(name = "sale_order_id", nullable = false, updatable = false)
+    open var saleOrderId: Long = 0L
+    open var spuId: String = ""
+    open var skuId: String = ""
+    open var skuVersion: Long = 0L
+    open var count: Int = 0
+    open var unitPrice: BigDecimal = BigDecimal.ZERO
+    open var totalPrice: BigDecimal = BigDecimal.ZERO
 }

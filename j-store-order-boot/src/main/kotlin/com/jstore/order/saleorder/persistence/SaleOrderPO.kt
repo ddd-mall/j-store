@@ -12,23 +12,17 @@ import java.time.LocalDateTime
 @Table(
     name = "sale_order",
     uniqueConstraints = [
-        UniqueConstraint(name = "uk_id", columnNames = ["id"]),
         UniqueConstraint(name = "uk_sale_order_id", columnNames = ["sale_order_id"]),
     ],
     indexes = [
         Index(name = "idx_uid_create_time_update_time", columnList = "uid, create_time, update_time")
     ]
 )
-@IdClass(SaleOrderIdClass::class)
 
 open class SaleOrderPO : Serializable {
     companion object {
         private const val serialVersionUID: Long = 1
     }
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", unique = true, nullable = false, updatable = false)
-    open var id: Long? = null
 
     @Id
     @SnowFlakeId
@@ -50,12 +44,4 @@ open class SaleOrderPO : Serializable {
     @LastModifiedDate
     @Column(name = "update_time", nullable = false)
     open var updateTime: LocalDateTime? = null
-}
-
-open class SaleOrderIdClass : Serializable {
-    companion object {
-        private const val serialVersionUID: Long = 1
-    }
-    val id: Long? = null
-    val saleOrderId: Long? = null
 }
