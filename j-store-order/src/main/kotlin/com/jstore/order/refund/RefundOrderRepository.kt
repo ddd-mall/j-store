@@ -1,6 +1,6 @@
-package com.jstore.com.jstore.order.refund
+package com.jstore.order.refund
 
-import com.jstore.com.jstore.framework.Repository
+import com.jstore.common.framework.Repository
 
 @org.springframework.stereotype.Repository
 interface RefundOrderRepository: Repository<RefundOrderId, RefundOrder>

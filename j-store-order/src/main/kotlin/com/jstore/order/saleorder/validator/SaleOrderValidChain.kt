@@ -1,4 +1,4 @@
-package com.jstore.com.jstore.order.saleorder.validator
+package com.jstore.order.saleorder.validator
 
 import com.jstore.order.saleorder.SaleOrder
 import com.jstore.common.utils.ChainedConsumer

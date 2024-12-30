@@ -1,11 +1,11 @@
-package com.jstore.com.jstore.order.acl.freight
+package com.jstore.order.acl.freight
 
 import com.jstore.common.errors.CommonErrors
 
 object FreightServiceFactory {
     private var services: MutableList<FreightService> = ArrayList()
     fun setServices(services: MutableList<FreightService>) {
-        this.services = services
+        FreightServiceFactory.services = services
     }
 
     fun getAny(): FreightService {

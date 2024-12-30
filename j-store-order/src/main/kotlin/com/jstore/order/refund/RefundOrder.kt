@@ -1,4 +1,4 @@
-package com.jstore.com.jstore.order.refund
+package com.jstore.order.refund
 
 import com.jstore.com.jstore.framework.Entity
 import com.jstore.common.errors.CommonErrors

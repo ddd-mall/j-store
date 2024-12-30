@@ -5,3 +5,6 @@ rootProject.name = "j-store"
 include("j-store-common")
 include("j-store-order")
 include("j-store-order-boot")
+include("j-store-goods")
+include("j-store-goods-boot")
+include("j-store-service-center")

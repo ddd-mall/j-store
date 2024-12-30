@@ -1,4 +1,4 @@
-package com.jstore.com.jstore.order.refund.service
+package com.jstore.order.refund.service
 
 import com.jstore.common.errors.CommonErrors
 import org.springframework.stereotype.Component
@@ -7,7 +7,7 @@ object RefundServiceFactory {
     private var refundServiceHolder: List<RefundService> = listOf()
 
     fun setRefundServiceHolder(refundServiceHolder: List<RefundService>) {
-        this.refundServiceHolder = refundServiceHolder
+        RefundServiceFactory.refundServiceHolder = refundServiceHolder
     }
     fun getOne(): RefundService {
         if (refundServiceHolder.isEmpty()) {
