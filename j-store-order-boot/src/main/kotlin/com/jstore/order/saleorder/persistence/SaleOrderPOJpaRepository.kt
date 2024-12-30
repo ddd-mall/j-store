@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository
 interface SaleOrderPOJpaRepository: JpaRepository<SaleOrderPO, Long> {
     fun findSaleOrderPOSByUid(uid: Long): MutableList<SaleOrderPO>
     fun findAllByUidOrderByCreateTimeDesc(uid: Long, pageable: Pageable): Page<SaleOrderPO>
+
 }

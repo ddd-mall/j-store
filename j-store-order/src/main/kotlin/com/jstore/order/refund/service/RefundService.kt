@@ -1,8 +1,8 @@
-package com.jstore.com.jstore.order.refund.service
+package com.jstore.order.refund.service
 
-import com.jstore.com.jstore.order.refund.RefundOrder
-import com.jstore.com.jstore.order.refund.RefundOrderRepository
-import com.jstore.com.jstore.order.refund.RefundType
+import com.jstore.order.refund.RefundOrder
+import com.jstore.order.refund.RefundOrderRepository
+import com.jstore.order.refund.RefundType
 import com.jstore.order.saleorder.SaleOrderId
 import com.jstore.common.properties.Price
 import org.springframework.stereotype.Service
@@ -15,7 +15,7 @@ class RefundService(private val refundOrderRepository: RefundOrderRepository) {
         refundType: RefundType,
         reason: String?,
         amount: Price
-    ):RefundOrder {
+    ): RefundOrder {
         val refundOrder = RefundOrder(
             null,
             refundType,

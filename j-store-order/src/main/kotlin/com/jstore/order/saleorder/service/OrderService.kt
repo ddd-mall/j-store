@@ -1,8 +1,8 @@
-package com.jstore.com.jstore.order.saleorder.service
+package com.jstore.order.saleorder.service
 
-import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
-import com.jstore.com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
-import com.jstore.com.jstore.order.saleorder.validator.SaleOrderValidChain
+import com.jstore.order.saleorder.properties.GeoAddressInfo
+import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
+import com.jstore.order.saleorder.validator.SaleOrderValidChain
 import com.jstore.order.acl.goods.GoodsId
 import com.jstore.order.acl.goods.GoodsInfo
 import com.jstore.order.acl.goods.GoodsService

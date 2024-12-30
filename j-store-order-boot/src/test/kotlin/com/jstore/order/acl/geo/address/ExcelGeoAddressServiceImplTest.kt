@@ -1,7 +1,7 @@
 package com.jstore.order.acl.geo.address
 
 import com.jstore.com.jstore.order.acl.geo.address.GeoAddressServiceProxy
-import com.jstore.com.jstore.order.saleorder.properties.DistrictLevel
+import com.jstore.order.saleorder.properties.DistrictLevel
 import com.jstore.common.logging.LoggerFactory
 import org.junit.jupiter.api.Test
 import kotlin.test.asserter

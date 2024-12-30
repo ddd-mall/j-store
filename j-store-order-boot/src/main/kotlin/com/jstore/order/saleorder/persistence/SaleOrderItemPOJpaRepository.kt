@@ -5,6 +5,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface SaleOrderItemPOJpaRepository: JpaRepository<SaleOrderItemPO, Long> {
-    fun findSaleOrderItemPOSBySaleOrderIdIsIn(saleOrderIds: Collection<Long>): MutableList<SaleOrderItemPO>
+    fun findAllBySaleOrderIdIsIn(saleOrderIds: Collection<Long>): List<SaleOrderItemPO>
     fun findAllBySaleOrderId(saleOrderId: Long): List<SaleOrderItemPO>
 }

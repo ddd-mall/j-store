@@ -1,4 +1,4 @@
-package com.jstore.com.jstore.order.saleorder.properties
+package com.jstore.order.saleorder.properties
 
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.utils.string.StringUtils
@@ -41,15 +41,15 @@ GeoAddressInfo(
     }
 
     fun getProvinceCode(): String {
-        return Companion.getProvinceCode(this.districtCode)
+        return getProvinceCode(this.districtCode)
     }
 
     fun getCityCode(): String {
-        return Companion.getCityCode(this.districtCode)
+        return getCityCode(this.districtCode)
     }
 
     fun getCountyCode(): String {
-        return Companion.getCountyCode(this.districtCode)
+        return getCountyCode(this.districtCode)
     }
 
 

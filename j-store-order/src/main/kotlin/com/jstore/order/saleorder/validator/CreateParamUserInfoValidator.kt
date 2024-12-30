@@ -1,7 +1,7 @@
-package com.jstore.com.jstore.order.saleorder.validator
+package com.jstore.order.saleorder.validator
 
+import com.jstore.order.saleorder.service.SaleOrderCreateParam
 import com.jstore.common.errors.CommonErrors
-import com.jstore.com.jstore.order.saleorder.service.SaleOrderCreateParam
 
 class CreateParamUserInfoValidator: AbstractSaleOrderCreateParamValidator() {
     override fun accept(t: SaleOrderCreateParam) {

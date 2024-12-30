@@ -6,20 +6,21 @@ import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderItemPO
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderItemPOJpaRepository
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderPO
 import com.jstore.com.jstore.order.saleorder.persistence.SaleOrderPOJpaRepository
-import com.jstore.com.jstore.order.saleorder.properties.GeoAddressInfo
+import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.common.framework.Page
+import com.jstore.common.framework.SortedPage
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.json.JsonUtils
 import com.jstore.order.saleorder.*
 import com.jstore.order.saleorder.properties.UserInfo
 import jakarta.transaction.Transactional
-import org.springframework.data.domain.AbstractPageRequest
-import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
+import org.springframework.data.domain.Sort.Order
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Repository
-import org.springframework.stereotype.Service
+
 
 @Repository
 open class SaleOrderRepositoryImpl(
@@ -33,88 +34,66 @@ open class SaleOrderRepositoryImpl(
             return listOf()
         }
         val saleOrderIdList = saleOrderPOS.stream().map { o -> o.saleOrderId }.toList()
-        val saleOrderItemPOS = saleOrderItemPOJpaRepository.findSaleOrderItemPOSBySaleOrderIdIsIn(saleOrderIdList)
-        return SaleOrderConverter.POs2Entities(saleOrderPOS, saleOrderItemPOS)
+        val saleOrderItemPOS = saleOrderItemPOJpaRepository.findAllBySaleOrderIdIsIn(saleOrderIdList)
+        return SaleOrderConverter.pos2Entities(saleOrderPOS, saleOrderItemPOS)
     }
 
     override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<SaleOrder> {
-        saleOrderPOJpaRepository.findAllByUidOrderByCreateTimeDesc(
+        val saleOrderPOPage = saleOrderPOJpaRepository.findAllByUidOrderByCreateTimeDesc(
             uid,
-            object : AbstractPageRequest(currentPage, pageSize) {
-                override fun getSort(): Sort {
-                    TODO("Not yet implemented")
-                }
+            PageRequest.of(currentPage, pageSize, Sort.by(listOf(Order.desc("create_time"))))
+        )
+        val saleOrderPOS = saleOrderPOPage.get().toList()
+        val saleOrderItemPOList = saleOrderPOPage.get().map { it.saleOrderId }.toList().let { saleOrderIds ->
+            saleOrderItemPOJpaRepository.findAllBySaleOrderIdIsIn(saleOrderIds)
+        }
 
-                override fun next(): Pageable {
-                    TODO(" not yet implemented")
-                }
-
-                override fun first(): Pageable {
-                    TODO("Not yet implemented")
-                }
-
-                override fun withPage(pageNumber: Int): Pageable {
-                    TODO("Not yet implemented")
-                }
-
-                override fun previous(): Pageable {
-                    TODO("Not yet implemented")
-                }
-            })
-        TODO(" NOT YET IMPLEMENTED")
+        return SortedPage(currentPage, pageSize, SaleOrderConverter.pos2Entities(saleOrderPOS, saleOrderItemPOList))
     }
 
     @Transactional(rollbackOn = [Exception::class])
     override fun save(entity: SaleOrder): SaleOrder {
         val holder: SaleOrderPOHolder = SaleOrderConverter.entity2POHolder(entity)
 
-        val savedSaleOrderPO = holder.saleOrderPO!!.let { saleOrderPOJpaRepository.save(it) }
+        val savedSaleOrderPO = holder.saleOrderPO.let { saleOrderPOJpaRepository.save(it) }
         val savedSaleOrderItemPOs = if (holder.saleOrderItemPOs.isNotEmpty()) {
             saleOrderItemPOJpaRepository.saveAll(holder.saleOrderItemPOs)
         } else {
             listOf()
         }
-        return SaleOrderConverter.PO2Entity(savedSaleOrderPO, savedSaleOrderItemPOs)
+        return SaleOrderConverter.po2Entity(savedSaleOrderPO, savedSaleOrderItemPOs)
 
     }
 
     override fun findById(id: SaleOrderId): SaleOrder? {
         saleOrderPOJpaRepository.findByIdOrNull(id.value)?.let { saleOrderPO ->
             saleOrderItemPOJpaRepository.findAllBySaleOrderId(id.value).let { saleOrderItemPOs ->
-                return SaleOrderConverter.PO2Entity(saleOrderPO, saleOrderItemPOs)
+                return SaleOrderConverter.po2Entity(saleOrderPO, saleOrderItemPOs)
             }
         }
-        return null;
+        return null
     }
 }
 
 open class SaleOrderPOHolder {
-    var saleOrderPO: SaleOrderPO? = null
+    lateinit var saleOrderPO: SaleOrderPO
     var saleOrderItemPOs: Collection<SaleOrderItemPO> = listOf()
 }
 
 
-@Service
 object SaleOrderConverter {
-
-
-    fun POHolder2Entity(saleOrderPOHolder: SaleOrderPOHolder): SaleOrder? {
-        if (saleOrderPOHolder.saleOrderPO == null) {
-            return null
-        }
-        return PO2Entity(saleOrderPOHolder.saleOrderPO!!, saleOrderPOHolder.saleOrderItemPOs)
+    fun poHolder2Entity(saleOrderPOHolder: SaleOrderPOHolder): SaleOrder {
+        return po2Entity(saleOrderPOHolder.saleOrderPO, saleOrderPOHolder.saleOrderItemPOs)
     }
 
-    fun PO2Entity(saleOrderPO: SaleOrderPO, saleOrderItemPOList: Collection<SaleOrderItemPO>): SaleOrder {
+    fun po2Entity(saleOrderPO: SaleOrderPO, saleOrderItemPOList: Collection<SaleOrderItemPO>): SaleOrder {
         val id = SaleOrderId(saleOrderPO.saleOrderId)
         val buyerInfo = UserInfo(saleOrderPO.uid, PhoneNumber(saleOrderPO.phoneNumber), saleOrderPO.userName)
         val items: List<OrderItem> = saleOrderItemPOList.map { orderItemPO2Entity(it) }.toList()
         val addressInfo: GeoAddressInfo = GeoAddressServiceProxy.getByDistrictCode(saleOrderPO.districtCode)
             .apply { detailAddress = saleOrderPO.detailAddress }
 
-
         val freightBillIds = JsonUtils.deserialize(saleOrderPO.freightBillId, object : TypeReference<List<String>>() {})
-
         return SaleOrder(
             id,
             buyerInfo,
@@ -130,13 +109,13 @@ object SaleOrderConverter {
         )
     }
 
-    fun POs2Entities(
-        saleOrderPOs: MutableCollection<SaleOrderPO>,
-        saleOrderItemPOs: MutableCollection<SaleOrderItemPO>
+    fun pos2Entities(
+        saleOrderPOs: Collection<SaleOrderPO>,
+        saleOrderItemPOs: Collection<SaleOrderItemPO>
     ): List<SaleOrder> {
         val itemMap: Map<Long, List<SaleOrderItemPO>> = saleOrderItemPOs.groupBy { item -> item.saleOrderId!! }
         return saleOrderPOs.map { saleOrderPO ->
-            PO2Entity(saleOrderPO, itemMap[saleOrderPO.id!!] ?: listOf())
+            po2Entity(saleOrderPO, itemMap[saleOrderPO.saleOrderId] ?: listOf())
         }
     }
 
