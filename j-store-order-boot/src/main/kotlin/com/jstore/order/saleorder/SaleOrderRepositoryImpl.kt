@@ -20,10 +20,11 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.domain.Sort.Order
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Repository
+import java.time.LocalDateTime
 
 
 @Repository
-open class SaleOrderRepositoryImpl(
+class SaleOrderRepositoryImpl(
     private val saleOrderPOJpaRepository: SaleOrderPOJpaRepository,
     private val saleOrderItemPOJpaRepository: SaleOrderItemPOJpaRepository
 ) : SaleOrderRepository {
@@ -55,7 +56,7 @@ open class SaleOrderRepositoryImpl(
     override fun save(entity: SaleOrder): SaleOrder {
         val holder: SaleOrderPOHolder = SaleOrderConverter.entity2POHolder(entity)
 
-        val savedSaleOrderPO = holder.saleOrderPO.let { saleOrderPOJpaRepository.save(it) }
+        val savedSaleOrderPO = holder.saleOrderPO.let { saleOrderPOJpaRepository.save(it.apply { updateTime = LocalDateTime.now() }) }
         val savedSaleOrderItemPOs = if (holder.saleOrderItemPOs.isNotEmpty()) {
             saleOrderItemPOJpaRepository.saveAll(holder.saleOrderItemPOs)
         } else {

@@ -1,4 +1,4 @@
-package com.jstore.order.common
+package com.jstore.common.properties
 
 import com.jstore.com.jstore.framework.Identify
 

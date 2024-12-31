@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/saleOrder")
-open class SaleOrderController(private val saleOrderService: OrderService) {
+class SaleOrderController(private val saleOrderService: OrderService) {
     @PostMapping("/create")
-    open fun create(@RequestBody @Validated saleOrderCreateParam: SaleOrderCreateParam): SaleOrder {
+    fun create(@RequestBody @Validated saleOrderCreateParam: SaleOrderCreateParam): SaleOrder {
         return saleOrderService.createSaleOrder(saleOrderCreateParam)
     }
 }

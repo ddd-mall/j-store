@@ -4,11 +4,13 @@ import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
 import jakarta.persistence.*
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
+import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import java.io.Serializable
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
 @Entity
+@EntityListeners(AuditingEntityListener::class)
 @Table(
     name = "sale_order",
     uniqueConstraints = [
@@ -39,9 +41,10 @@ open class SaleOrderPO : Serializable {
     open var amount: BigDecimal = BigDecimal.ZERO
     open var actualPay: BigDecimal = BigDecimal.ZERO
     @CreatedDate
-    @Column(name = "create_time", updatable = false)
-    open var createTime: LocalDateTime? = null
+    @Column(name = "create_time", updatable = false, insertable = true)
+
+    open lateinit var createTime: LocalDateTime
     @LastModifiedDate
-    @Column(name = "update_time", nullable = false)
-    open var updateTime: LocalDateTime? = null
+    @Column(name = "update_time", nullable = false, updatable = true, insertable = true)
+    open lateinit var updateTime: LocalDateTime
 }
