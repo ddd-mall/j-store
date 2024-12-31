@@ -1,16 +1,16 @@
 package com.jstore.order.saleorder
 
+import com.jstore.common.logging.Logger
+import com.jstore.common.logging.LoggerFactory
+import com.jstore.common.properties.PhoneNumber
+import com.jstore.order.acl.goods.MockGoodsService
 import com.jstore.order.saleorder.properties.GeoAddressInfo
+import com.jstore.order.saleorder.properties.UserInfo
 import com.jstore.order.saleorder.service.OrderService
 import com.jstore.order.saleorder.service.SaleOrderCreateParam
 import com.jstore.order.saleorder.validator.CreateParamUserInfoValidator
 import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
 import com.jstore.order.saleorder.validator.SaleOrderValidChain
-import com.jstore.common.logging.Logger
-import com.jstore.common.logging.LoggerFactory
-import com.jstore.common.properties.PhoneNumber
-import com.jstore.order.acl.goods.MockGoodsService
-import com.jstore.order.saleorder.properties.UserInfo
 import org.junit.jupiter.api.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
@@ -50,20 +50,17 @@ class SaleOrderTest {
                     }
                 )
 
-                deliveryAddressInfo = GeoAddressInfo(
-                    "mock",
-                    "mock",
-                    "mock",
-                    "mock",
-                ).apply { detailAddress = "mock" }
+
+                districtCode = "110106"
+                detailAddress = "MOCK detail address"
             }
         val saleOrder = mockOrderService.createSaleOrder(createParam)
         assertNotNull(saleOrder.getId(), "订单创建后ID仍然为空")
         logger.info("订单创建成功，订单ID： {}", arrayOf(saleOrder.getId()))
         asserter.assertSame("用户信息与创建时不一致", saleOrder.buyerInfo, createParam.buyerUserInfo)
         asserter.assertSame("订单项数量与传参中不一致", saleOrder.orderItems?.size, createParam.purchaseItemList?.size)
-        saleOrder.orderItems?.forEach {item -> logger.info("订单项目金额： ${item.totalPrice}")}
-        logger.info("订单总金额 ${saleOrder.amount}")
+        saleOrder.orderItems?.forEach { item -> logger.info("订单项目金额： ${item.totalPrice}, 单位：${item.totalPrice.getCurrencyUnit()}") }
+        logger.info("订单总金额: ${saleOrder.amount}, 单位：${saleOrder.amount.getCurrencyUnit()}")
         val findOrder = saleOrderRepository.findById(saleOrder.getId()!!)
         assertNotNull(findOrder, "订单没有成功被保存")
         assertSame(OrderPositiveStatus.WAIT_PAY, findOrder.positiveStatus, "订单状态不正确")

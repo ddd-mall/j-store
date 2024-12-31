@@ -9,6 +9,7 @@ import com.jstore.order.acl.goods.GoodsService
 import com.jstore.order.saleorder.*
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
+import com.jstore.order.acl.geo.address.GeoAddressService
 import com.jstore.order.saleorder.properties.UserInfo
 import org.springframework.stereotype.Service
 
@@ -18,6 +19,7 @@ open class OrderService(
     private val goodsService: GoodsService,
     private val createParamValidChain: SaleOrderCreateParamValidChain,
     private val saleOrderValidChain: SaleOrderValidChain,
+    private val geoAddressService: GeoAddressService
 ) {
 
 
@@ -72,7 +74,7 @@ open class OrderService(
     }
 
     private fun getDeliveryAddressInfoFromCreateParam(createParam: SaleOrderCreateParam): GeoAddressInfo {
-        return createParam.deliveryAddressInfo!!
+        return geoAddressService.getByDistrictCode(createParam.districtCode).apply { detailAddress = createParam.detailAddress }
     }
 
     private fun getUserInfoFromCreateParam(createParam: SaleOrderCreateParam): UserInfo {
@@ -84,7 +86,8 @@ open class OrderService(
 class SaleOrderCreateParam {
     var buyerUserInfo: UserInfo? = null
     var purchaseItemList: List<PurchaseItem>? = null
-    var deliveryAddressInfo: GeoAddressInfo? = null
+    var districtCode: String = ""
+    var detailAddress: String = ""
 
     class PurchaseItem {
         var spuId: Long? = null
@@ -96,6 +99,10 @@ class SaleOrderCreateParam {
                 spuId ?: throw IllegalArgumentException("spuId can not be null"),
                 skuId ?: throw IllegalArgumentException("skuId can not be null")
             )
+        }
+
+        override fun toString(): String {
+            return "PurchaseItem(spuId=$spuId, skuId=$skuId, count=$count)"
         }
     }
 
