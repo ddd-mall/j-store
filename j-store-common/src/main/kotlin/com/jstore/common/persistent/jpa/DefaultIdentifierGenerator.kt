@@ -5,7 +5,7 @@ import com.jstore.common.persistent.SnowFlakSequence
 open class DefaultIdentifierGenerator {
     private val sequence: SnowFlakSequence
     constructor() {
-        this.sequence = SnowFlakSequence.SnowFlakSequence()
+        this.sequence = SnowFlakSequence()
     }
     constructor(sequence: SnowFlakSequence) {
         this.sequence = sequence

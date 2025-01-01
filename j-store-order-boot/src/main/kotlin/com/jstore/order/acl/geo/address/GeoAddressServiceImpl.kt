@@ -27,19 +27,13 @@ object GeoAddressServiceProxy : GeoAddressService {
 }
 
 
-open class MockGeoAddressServiceImpl(private val name: String) : GeoAddressService {
-    private val log: Logger = LoggerFactory.getLogger(MockGeoAddressServiceImpl::class)
-    override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
-        val geoAddressInfo = GeoAddressInfo(districtCode, "MOCK PROVINCE", "MOCK CITY", "MOCK COUNTY")
-        log.info("[地址服务-mock版:${name}] - 通过地区编码${districtCode}获取地址信息: $geoAddressInfo")
-        return geoAddressInfo
-    }
-}
 
-open class ExcelGeoAddressServiceImpl : GeoAddressService {
+
+
+open class ChinaGeoAddressServiceExcelImpl : GeoAddressService {
 
     companion object {
-        private val log: Logger = LoggerFactory.getLogger(ExcelGeoAddressServiceImpl::class)
+        private val log: Logger = LoggerFactory.getLogger(ChinaGeoAddressServiceExcelImpl::class)
         private val dataStorage: MutableMap<String, String> = ConcurrentHashMap<String, String>()
 
         init {
@@ -82,17 +76,12 @@ open class ExcelGeoAddressServiceImpl : GeoAddressService {
         if (districtCode.length < 6) {
             throw CommonErrors.INVALID_PARAM.withMsg("地区编码错误: $districtCode")
         }
+        val address = dataStorage[districtCode] ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("未能找到编码${districtCode}对应的地址")
         val provinceCode = GeoAddressInfo.getProvinceCode(districtCode)
         val cityCode = GeoAddressInfo.getCityCode(districtCode)
         val countyCode = GeoAddressInfo.getCountyCode(districtCode)
-        val province = dataStorage[provinceCode] ?: ""
-        val county = dataStorage[countyCode]?.let {
-            if (it == province) {
-                ""
-            } else {
-                it
-            }
-        } ?: ""
+
+        val province = dataStorage[provinceCode] ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("未能找到编码${provinceCode}对应的地址")
         val city = dataStorage[cityCode]?.let {
             if (it == province) {
                 ""
@@ -100,6 +89,14 @@ open class ExcelGeoAddressServiceImpl : GeoAddressService {
                 it
             }
         } ?: "市辖区"
+        val county = dataStorage[countyCode]?.let {
+            if (it == province || it == city) {
+                ""
+            } else {
+                it
+            }
+        } ?: ""
+
 
 
         if (StringUtils.isAllEmpty(province, city, county)) {
