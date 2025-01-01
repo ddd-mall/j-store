@@ -1,5 +1,6 @@
 package com.jstore.order.saleorder.service
 
+import com.jstore.common.errors.CommonErrors
 import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
 import com.jstore.order.saleorder.validator.SaleOrderValidChain
@@ -31,9 +32,9 @@ open class OrderService(
     }
 
     private fun convertParamToSaleOrder(createParam: SaleOrderCreateParam): SaleOrder {
-        val userInfo: UserInfo = getUserInfoFromCreateParam(createParam)
+        val userInfo: UserInfo = createParam.buyerUserInfo!!
         val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createParam)
-        val deliveryAddressInfo: GeoAddressInfo = getDeliveryAddressInfoFromCreateParam(createParam)
+        val deliveryAddressInfo: GeoAddressInfo = geoAddressService.getByDistrictCode(createParam.districtCode).apply { detailAddress = createParam.detailAddress }
 
         val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
         return SaleOrder(
@@ -56,7 +57,7 @@ open class OrderService(
 
         return purchaseItemList.map { purchaseItem: SaleOrderCreateParam.PurchaseItem ->
             val goodsInfo = goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
-                ?: throw IllegalArgumentException("Goods $purchaseItem not found")
+                ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("the goods corresponding to purchase item $purchaseItem not found")
 
             val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.count!!)
             val item = OrderItem(
@@ -71,14 +72,6 @@ open class OrderService(
             )
             item
         }
-    }
-
-    private fun getDeliveryAddressInfoFromCreateParam(createParam: SaleOrderCreateParam): GeoAddressInfo {
-        return geoAddressService.getByDistrictCode(createParam.districtCode).apply { detailAddress = createParam.detailAddress }
-    }
-
-    private fun getUserInfoFromCreateParam(createParam: SaleOrderCreateParam): UserInfo {
-        return createParam.buyerUserInfo!!
     }
 }
 
@@ -105,6 +98,5 @@ class SaleOrderCreateParam {
             return "PurchaseItem(spuId=$spuId, skuId=$skuId, count=$count)"
         }
     }
-
 }
 

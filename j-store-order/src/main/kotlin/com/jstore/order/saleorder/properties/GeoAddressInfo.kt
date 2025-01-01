@@ -52,7 +52,6 @@ GeoAddressInfo(
         return getCountyCode(this.districtCode)
     }
 
-
 }
 
 enum class DistrictLevel {

@@ -5,8 +5,7 @@ import com.jstore.order.acl.geo.address.GeoAddressService
 
 class GeoAddressServiceFactory : AbstractFactory<GeoAddressService>(
     listOf(
-        MockGeoAddressServiceImpl::class.java,
-        ExcelGeoAddressServiceImpl::class.java
+        ChinaGeoAddressServiceExcelImpl::class.java
     )
 ) {
     fun newInstance(): GeoAddressService {

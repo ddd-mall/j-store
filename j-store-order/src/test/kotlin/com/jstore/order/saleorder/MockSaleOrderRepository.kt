@@ -14,7 +14,7 @@ class MockSaleOrderRepository: SaleOrderRepository {
 
         private val saleOrderList: MutableList<SaleOrder> = ArrayList()
         private val idxSaleOrderIdIndex: MutableMap<SaleOrderId, Int> = ConcurrentHashMap()
-        private val snowFlakSequence: SnowFlakSequence = SnowFlakSequence.SnowFlakSequence()
+        private val snowFlakSequence: SnowFlakSequence = SnowFlakSequence()
     }
 
     override fun findByBuyerUserId(uid: Long): List<SaleOrder> {
@@ -37,27 +37,27 @@ class MockSaleOrderRepository: SaleOrderRepository {
 
     override fun save(entity: SaleOrder): SaleOrder {
         val now = LocalDateTime.now()
-        if (null == entity.getId()) {
-            val saleOrder = SaleOrder(
-                SaleOrderId(snowFlakSequence.nextId()),
-                entity.buyerInfo,
-                entity.orderItems,
-                entity.deliveryAddressInfo,
-                entity.freightBills,
-                entity.positiveStatus,
-                entity.reverseStatus,
-                entity.amount,
-                entity.actualPay,
-                now,
-                now
-            )
-            idxSaleOrderIdIndex.putIfAbsent(saleOrder.getId()!!, saleOrderList.size)
-            saleOrderList.add(saleOrder)
-            return saleOrder
-        } else {
+        entity.getId()?.let {
             idxSaleOrderIdIndex[entity.getId()]?.let { index -> saleOrderList[index] = entity }
             return entity
         }
+        val saleOrder = SaleOrder(
+            SaleOrderId(snowFlakSequence.nextId()),
+            entity.buyerInfo,
+            entity.orderItems ?: listOf(),
+            entity.deliveryAddressInfo,
+            entity.freightBills,
+            entity.positiveStatus,
+            entity.reverseStatus,
+            entity.amount,
+            entity.actualPay,
+            now,
+            now
+        )
+        idxSaleOrderIdIndex.putIfAbsent(saleOrder.getId()!!, saleOrderList.size)
+        saleOrderList.add(saleOrder)
+        return saleOrder
+
     }
 
     override fun findById(id: SaleOrderId): SaleOrder {

@@ -13,24 +13,28 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
-open class SnowFlakSequence(private val workerId: Long, private val datacenterId: Long) {
+open class SnowFlakSequence {
+    private val workerId: Long
+    private val datacenterId: Long
 
-    init {
+    constructor(workerId: Long, datacenterId: Long) {
         if (workerId > maxWorkerId || workerId < 0) {
             throw CommonErrors.INVALID_PARAM.withMsg("worker Id can't be greater than $maxWorkerId or less than 0")
         }
         if (datacenterId > maxDatacenterId || datacenterId < 0) {
             throw CommonErrors.INVALID_PARAM.withMsg("datacenter Id can't be greater than $maxDatacenterId or less than 0")
         }
+        this.workerId = workerId
+        this.datacenterId = datacenterId
+    }
+
+    constructor() {
+        this.datacenterId = getDatacenterId()
+        this.workerId = getDefaultWorkerId(datacenterId)
     }
 
 
     companion object {
-        fun SnowFlakSequence(): SnowFlakSequence {
-            val datacenterId = getDatacenterId()
-            val workerId = getDefaultWorkerId(datacenterId)
-            return SnowFlakSequence(workerId, datacenterId)
-        }
 
         private val logger: Logger = LoggerFactory.getLogger(SnowFlakSequence::class)
         /**

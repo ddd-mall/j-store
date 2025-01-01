@@ -4,7 +4,7 @@ import java.math.BigDecimal
 
 
 enum class RMBCurrency : Currency {
-    INSTANCE;
+    RMB;
 }
 
 open class RMB(private val currencyUnit: CurrencyUnit<RMBCurrency>, private val value: BigDecimal) :
@@ -15,7 +15,7 @@ open class RMB(private val currencyUnit: CurrencyUnit<RMBCurrency>, private val 
     }
 
     override fun getCurrency(): Currency {
-        return RMBCurrency.INSTANCE
+        return RMBCurrency.RMB
     }
 
     override fun getCurrencyUnit(): CurrencyUnit<RMBCurrency> {
@@ -32,9 +32,9 @@ enum class RMBCurrencyUnit : CurrencyUnit<RMBCurrency> {
     YUAN {
         override fun rateOf(otherCurrencyUnit: CurrencyUnit<RMBCurrency>): BigDecimal {
             return when (otherCurrencyUnit) {
-                FEN -> BigDecimal(100, RMBCurrency.INSTANCE.mathContext())
-                JIAO -> BigDecimal(10, RMBCurrency.INSTANCE.mathContext())
-                YUAN -> BigDecimal(1, RMBCurrency.INSTANCE.mathContext())
+                FEN -> BigDecimal(100, RMBCurrency.RMB.mathContext())
+                JIAO -> BigDecimal(10, RMBCurrency.RMB.mathContext())
+                YUAN -> BigDecimal(1, RMBCurrency.RMB.mathContext())
                 else -> throw IllegalArgumentException("Unsupported currency unit")
             }
         }
@@ -65,7 +65,7 @@ enum class RMBCurrencyUnit : CurrencyUnit<RMBCurrency> {
     }
 
     override fun getCurrency(): RMBCurrency {
-        return RMBCurrency.INSTANCE
+        return RMBCurrency.RMB
     }
 
     override fun ofValue(value: BigDecimal): Money<RMBCurrency, CurrencyUnit<RMBCurrency>> {

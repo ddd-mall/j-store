@@ -3,8 +3,8 @@ package com.jstore.order.saleorder
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
+import com.jstore.order.acl.address.MockAddressService
 import com.jstore.order.acl.goods.MockGoodsService
-import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.order.saleorder.properties.UserInfo
 import com.jstore.order.saleorder.service.OrderService
 import com.jstore.order.saleorder.service.SaleOrderCreateParam
@@ -24,7 +24,8 @@ class SaleOrderTest {
         saleOrderRepository,
         goodsService,
         SaleOrderCreateParamValidChain(listOf(CreateParamUserInfoValidator())),
-        SaleOrderValidChain(null)
+        SaleOrderValidChain(null),
+        MockAddressService()
     )
     private val logger: Logger = LoggerFactory.getLogger(SaleOrderTest::class.java)
 
