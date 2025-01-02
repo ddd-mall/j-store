@@ -38,21 +38,6 @@ data class SaleOrder(
     }
 
     /**
-     * 售后
-     */
-    fun refund(
-        refundType: RefundType,
-        reason: String?
-    ) {
-        RefundServiceFactory.getOne().createRefund(
-            getId()?: throw ORDER_DOES_NOT_PERSIST,
-            refundType,
-            reason,
-            this.actualPay
-        )
-    }
-
-    /**
      * 发货
      */
     fun delivery() {
