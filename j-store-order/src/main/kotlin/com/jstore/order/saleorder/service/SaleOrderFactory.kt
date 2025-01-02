@@ -15,7 +15,7 @@ import com.jstore.order.saleorder.properties.UserInfo
 import org.springframework.stereotype.Service
 
 @Service
-open class OrderService(
+open class SaleOrderFactory(
     private val saleOrderRepository: SaleOrderRepository,
     private val goodsService: GoodsService,
     private val createParamValidChain: SaleOrderCreateParamValidChain,
@@ -24,17 +24,19 @@ open class OrderService(
 ) {
 
 
-    fun createSaleOrder(createParam: SaleOrderCreateParam): SaleOrder {
+    fun createSaleOrder(createParam: SaleOrderCreateCMD): SaleOrder {
         createParamValidChain.accept(createParam)
         val saleOrder = convertParamToSaleOrder(createParam)
         saleOrderValidChain.accept(saleOrder)
         return saleOrderRepository.save(saleOrder)
     }
 
-    private fun convertParamToSaleOrder(createParam: SaleOrderCreateParam): SaleOrder {
+    private fun convertParamToSaleOrder(createParam: SaleOrderCreateCMD): SaleOrder {
         val userInfo: UserInfo = createParam.buyerUserInfo!!
         val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createParam)
-        val deliveryAddressInfo: GeoAddressInfo = geoAddressService.getByDistrictCode(createParam.districtCode).apply { detailAddress = createParam.detailAddress }
+        val deliveryAddressInfo: GeoAddressInfo = geoAddressService
+            .getByDistrictCode(createParam.districtCode)
+            .apply { detailAddress = createParam.detailAddress }
 
         val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
         return SaleOrder(
@@ -50,12 +52,12 @@ open class OrderService(
         )
     }
 
-    private fun getOrderItemsFromCreateParam(createParam: SaleOrderCreateParam): List<OrderItem> {
+    private fun getOrderItemsFromCreateParam(createParam: SaleOrderCreateCMD): List<OrderItem> {
         val purchaseItemList = createParam.purchaseItemList!!
         val goodsIdList: List<GoodsId> = purchaseItemList.map { it.mapToGoodsId() }
         val goodsQueryResult: List<GoodsInfo> = goodsService.queryGoods(goodsIdList)
 
-        return purchaseItemList.map { purchaseItem: SaleOrderCreateParam.PurchaseItem ->
+        return purchaseItemList.map { purchaseItem: SaleOrderCreateCMD.PurchaseItem ->
             val goodsInfo = goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
                 ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("the goods corresponding to purchase item $purchaseItem not found")
 
@@ -76,7 +78,7 @@ open class OrderService(
 }
 
 
-class SaleOrderCreateParam {
+class SaleOrderCreateCMD {
     var buyerUserInfo: UserInfo? = null
     var purchaseItemList: List<PurchaseItem>? = null
     var districtCode: String = ""

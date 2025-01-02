@@ -6,8 +6,8 @@ import com.jstore.common.properties.PhoneNumber
 import com.jstore.order.acl.address.MockAddressService
 import com.jstore.order.acl.goods.MockGoodsService
 import com.jstore.order.saleorder.properties.UserInfo
-import com.jstore.order.saleorder.service.OrderService
-import com.jstore.order.saleorder.service.SaleOrderCreateParam
+import com.jstore.order.saleorder.service.SaleOrderFactory
+import com.jstore.order.saleorder.service.SaleOrderCreateCMD
 import com.jstore.order.saleorder.validator.CreateParamUserInfoValidator
 import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
 import com.jstore.order.saleorder.validator.SaleOrderValidChain
@@ -20,7 +20,7 @@ import kotlin.test.asserter
 class SaleOrderTest {
     private val goodsService = MockGoodsService()
     private val saleOrderRepository = MockSaleOrderRepository()
-    private val mockOrderService: OrderService = OrderService(
+    private val mockSaleOrderFactory: SaleOrderFactory = SaleOrderFactory(
         saleOrderRepository,
         goodsService,
         SaleOrderCreateParamValidChain(listOf(CreateParamUserInfoValidator())),
@@ -31,7 +31,7 @@ class SaleOrderTest {
 
     @Test
     fun createSaleOrderTest() {
-        val createParam = SaleOrderCreateParam()
+        val createParam = SaleOrderCreateCMD()
             .apply {
                 buyerUserInfo = UserInfo(
                     1L,
@@ -39,12 +39,12 @@ class SaleOrderTest {
                     "MockUser——A"
                 )
                 purchaseItemList = listOf(
-                    SaleOrderCreateParam.PurchaseItem().apply {
+                    SaleOrderCreateCMD.PurchaseItem().apply {
                         spuId = 1
                         skuId = 1
                         count = 2
                     },
-                    SaleOrderCreateParam.PurchaseItem().apply {
+                    SaleOrderCreateCMD.PurchaseItem().apply {
                         skuId = 2
                         spuId = 2
                         count = 1
@@ -55,7 +55,7 @@ class SaleOrderTest {
                 districtCode = "110106"
                 detailAddress = "MOCK detail address"
             }
-        val saleOrder = mockOrderService.createSaleOrder(createParam)
+        val saleOrder = mockSaleOrderFactory.createSaleOrder(createParam)
         assertNotNull(saleOrder.getId(), "订单创建后ID仍然为空")
         logger.info("订单创建成功，订单ID： {}", arrayOf(saleOrder.getId()))
         asserter.assertSame("用户信息与创建时不一致", saleOrder.buyerInfo, createParam.buyerUserInfo)

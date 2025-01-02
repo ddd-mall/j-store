@@ -6,10 +6,10 @@ import com.jstore.common.properties.Price
 
 class Spu(
     val spuId: SpuId?,
-    val spuName: String,
+    var spuName: String,
     var skuList: List<Sku>,
-    var goodsClass: GoodsClass
-
+    var goodsClass: GoodsClass,
+    val version: Long? = null
 ) {
 
 }
