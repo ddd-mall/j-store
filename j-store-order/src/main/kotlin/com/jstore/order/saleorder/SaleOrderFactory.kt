@@ -1,17 +1,16 @@
-package com.jstore.order.saleorder.service
+package com.jstore.order.saleorder
 
 import com.jstore.common.errors.CommonErrors
-import com.jstore.order.saleorder.properties.GeoAddressInfo
-import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
-import com.jstore.order.saleorder.validator.SaleOrderValidChain
-import com.jstore.order.acl.goods.GoodsId
-import com.jstore.order.acl.goods.GoodsInfo
-import com.jstore.order.acl.goods.GoodsService
-import com.jstore.order.saleorder.*
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
 import com.jstore.order.acl.geo.address.GeoAddressService
+import com.jstore.order.acl.goods.GoodsId
+import com.jstore.order.acl.goods.GoodsInfo
+import com.jstore.order.acl.goods.GoodsService
+import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.order.saleorder.properties.UserInfo
+import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
+import com.jstore.order.saleorder.validator.SaleOrderValidChain
 import org.springframework.stereotype.Service
 
 @Service
@@ -20,15 +19,15 @@ open class SaleOrderFactory(
     private val goodsService: GoodsService,
     private val createParamValidChain: SaleOrderCreateParamValidChain,
     private val saleOrderValidChain: SaleOrderValidChain,
-    private val geoAddressService: GeoAddressService
+    private val geoAddressService: GeoAddressService,
 ) {
 
-
-    fun createSaleOrder(createParam: SaleOrderCreateCMD): SaleOrder {
+    fun create(createParam: SaleOrderCreateCMD): SaleOrder {
         createParamValidChain.accept(createParam)
         val saleOrder = convertParamToSaleOrder(createParam)
         saleOrderValidChain.accept(saleOrder)
-        return saleOrderRepository.save(saleOrder)
+
+        return saleOrder
     }
 
     private fun convertParamToSaleOrder(createParam: SaleOrderCreateCMD): SaleOrder {
@@ -58,8 +57,9 @@ open class SaleOrderFactory(
         val goodsQueryResult: List<GoodsInfo> = goodsService.queryGoods(goodsIdList)
 
         return purchaseItemList.map { purchaseItem: SaleOrderCreateCMD.PurchaseItem ->
-            val goodsInfo = goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
-                ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("the goods corresponding to purchase item $purchaseItem not found")
+            val goodsInfo =
+                goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
+                    ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("the goods corresponding to purchase item $purchaseItem not found")
 
             val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.count!!)
             val item = OrderItem(
@@ -78,27 +78,5 @@ open class SaleOrderFactory(
 }
 
 
-class SaleOrderCreateCMD {
-    var buyerUserInfo: UserInfo? = null
-    var purchaseItemList: List<PurchaseItem>? = null
-    var districtCode: String = ""
-    var detailAddress: String = ""
 
-    class PurchaseItem {
-        var spuId: Long? = null
-        var skuId: Long? = null
-        var count: Int? = 0
-
-        fun mapToGoodsId(): GoodsId {
-            return GoodsId(
-                spuId ?: throw IllegalArgumentException("spuId can not be null"),
-                skuId ?: throw IllegalArgumentException("skuId can not be null")
-            )
-        }
-
-        override fun toString(): String {
-            return "PurchaseItem(spuId=$spuId, skuId=$skuId, count=$count)"
-        }
-    }
-}
 
