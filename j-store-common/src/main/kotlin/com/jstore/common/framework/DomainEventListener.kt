@@ -1,6 +1,6 @@
 package com.jstore.common.framework
 
-interface DomainEventListener<T: DomainEvent> {
-    val topic: Class<T>
-    fun handle(event: T)
+interface DomainEventListener {
+    fun topics(): List<String>
+    fun handle(event: DomainEvent)
 }

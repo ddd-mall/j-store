@@ -6,11 +6,10 @@ import com.jstore.common.properties.PhoneNumber
 import com.jstore.order.acl.address.MockAddressService
 import com.jstore.order.acl.goods.MockGoodsService
 import com.jstore.order.saleorder.properties.UserInfo
-import com.jstore.order.saleorder.service.SaleOrderFactory
-import com.jstore.order.saleorder.service.SaleOrderCreateCMD
 import com.jstore.order.saleorder.validator.CreateParamUserInfoValidator
 import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
 import com.jstore.order.saleorder.validator.SaleOrderValidChain
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
@@ -18,6 +17,16 @@ import kotlin.test.asserter
 
 
 class SaleOrderTest {
+    companion object {
+
+        private val logger: Logger = LoggerFactory.getLogger(SaleOrderTest::class.java)
+        @JvmStatic
+        @BeforeAll
+        fun setUp() {
+            MockSaleOrderCreatedEventListener().register()
+        }
+
+    }
     private val goodsService = MockGoodsService()
     private val saleOrderRepository = MockSaleOrderRepository()
     private val mockSaleOrderFactory: SaleOrderFactory = SaleOrderFactory(
@@ -25,9 +34,17 @@ class SaleOrderTest {
         goodsService,
         SaleOrderCreateParamValidChain(listOf(CreateParamUserInfoValidator())),
         SaleOrderValidChain(null),
-        MockAddressService()
+        MockAddressService(),
+
     )
-    private val logger: Logger = LoggerFactory.getLogger(SaleOrderTest::class.java)
+    private val saleOrderHandler: SaleOrderHandler = SaleOrderHandler(
+        saleOrderRepository,
+        mockSaleOrderFactory,
+        MockSaleOrderEventPublisher()
+    )
+
+
+
 
     @Test
     fun createSaleOrderTest() {
@@ -55,7 +72,7 @@ class SaleOrderTest {
                 districtCode = "110106"
                 detailAddress = "MOCK detail address"
             }
-        val saleOrder = mockSaleOrderFactory.createSaleOrder(createParam)
+        val saleOrder = saleOrderHandler.create(createParam)
         assertNotNull(saleOrder.getId(), "订单创建后ID仍然为空")
         logger.info("订单创建成功，订单ID： {}", arrayOf(saleOrder.getId()))
         asserter.assertSame("用户信息与创建时不一致", saleOrder.buyerInfo, createParam.buyerUserInfo)
@@ -66,5 +83,6 @@ class SaleOrderTest {
         assertNotNull(findOrder, "订单没有成功被保存")
         assertSame(OrderPositiveStatus.WAIT_PAY, findOrder.positiveStatus, "订单状态不正确")
         logger.info("订单{}", findOrder)
+        Thread.sleep(1000)
     }
 }
