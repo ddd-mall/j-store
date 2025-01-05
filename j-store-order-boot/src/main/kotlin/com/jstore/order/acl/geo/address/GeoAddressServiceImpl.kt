@@ -9,7 +9,7 @@ import com.jstore.common.errors.CommonErrors
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.string.StringUtils
-import com.jstore.order.acl.geo.address.GeoAddressService
+import com.jstore.order.acl.GeoAddressService
 import org.springframework.stereotype.Service
 import org.springframework.util.ResourceUtils
 import java.io.FileInputStream

@@ -1,6 +1,6 @@
 package com.jstore.order.stock
 
-import com.jstore.order.acl.goods.GoodsId
+import com.jstore.order.acl.GoodsId
 import java.math.BigDecimal
 
 class StockDeductCMD(

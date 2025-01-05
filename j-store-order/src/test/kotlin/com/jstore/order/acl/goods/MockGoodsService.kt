@@ -1,6 +1,9 @@
 package com.jstore.order.acl.goods
 
 import com.jstore.common.properties.Price
+import com.jstore.order.acl.GoodsId
+import com.jstore.order.acl.GoodsInfo
+import com.jstore.order.acl.GoodsService
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 

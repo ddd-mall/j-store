@@ -5,7 +5,7 @@ import com.jstore.common.errors.CommonErrors.ILLEGAL_STATE
 import com.jstore.common.errors.Errors
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
-import com.jstore.order.acl.freight.FreightServiceFactory
+import com.jstore.order.acl.FreightServiceFactory
 import com.jstore.order.saleorder.properties.FreightBill
 import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.order.saleorder.properties.UserInfo

@@ -8,7 +8,7 @@ interface ExecutorServiceFactory {
 
 }
 
-object BizAsyncExecutorServiceFactory : ExecutorServiceFactory {
+object DefaultAsyncExecutorServiceFactory : ExecutorServiceFactory {
     private val executorService = Executors.newCachedThreadPool()
 
     override fun get(): ExecutorService {
