@@ -1,4 +1,4 @@
-package com.jstore.order.acl.freight
+package com.jstore.order.acl
 
 import com.jstore.order.saleorder.SaleOrder
 import com.jstore.order.saleorder.properties.FreightBill

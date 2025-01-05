@@ -1,6 +1,6 @@
 package com.jstore.order.saleorder
 
-import com.jstore.order.acl.goods.GoodsId
+import com.jstore.order.acl.GoodsId
 import com.jstore.order.saleorder.properties.UserInfo
 
 class SaleOrderCreateCMD {

@@ -3,24 +3,34 @@ package com.jstore.order.saleorder
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
-import com.jstore.order.acl.geo.address.GeoAddressService
-import com.jstore.order.acl.goods.GoodsId
-import com.jstore.order.acl.goods.GoodsInfo
-import com.jstore.order.acl.goods.GoodsService
+import com.jstore.order.acl.GeoAddressService
+import com.jstore.order.acl.GoodsId
+import com.jstore.order.acl.GoodsInfo
+import com.jstore.order.acl.GoodsService
 import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.order.saleorder.properties.UserInfo
-import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
+import com.jstore.order.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
+import com.jstore.order.saleorder.validator.SaleOrderCreateCMDValidChain
+import com.jstore.order.saleorder.validator.SaleOrderRiskValidator
 import com.jstore.order.saleorder.validator.SaleOrderValidChain
 import org.springframework.stereotype.Service
 
 @Service
 open class SaleOrderFactory(
-    private val saleOrderRepository: SaleOrderRepository,
     private val goodsService: GoodsService,
-    private val createParamValidChain: SaleOrderCreateParamValidChain,
-    private val saleOrderValidChain: SaleOrderValidChain,
     private val geoAddressService: GeoAddressService,
+    saleOrderCreateCMDValidator: SaleOrderCreateCMDUserInfoValidator,
+    saleOrderRiskValidator: SaleOrderRiskValidator
+
 ) {
+    companion object {
+        private val createParamValidChain: SaleOrderCreateCMDValidChain = SaleOrderCreateCMDValidChain()
+        private val saleOrderValidChain: SaleOrderValidChain = SaleOrderValidChain()
+    }
+    init {
+        createParamValidChain.appendAll(saleOrderCreateCMDValidator)
+        saleOrderValidChain.appendAll(saleOrderRiskValidator)
+    }
 
     fun create(createParam: SaleOrderCreateCMD): SaleOrder {
         createParamValidChain.accept(createParam)

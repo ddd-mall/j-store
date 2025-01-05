@@ -1,4 +1,4 @@
-package com.jstore.order.acl.geo.address
+package com.jstore.order.acl
 
 import com.jstore.order.saleorder.properties.GeoAddressInfo
 

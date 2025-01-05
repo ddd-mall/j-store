@@ -1,17 +1,13 @@
 package com.jstore.order.saleorder.validator
 
-import com.jstore.order.saleorder.SaleOrder
 import com.jstore.common.utils.ChainedConsumer
-import org.springframework.stereotype.Component
+import com.jstore.order.saleorder.SaleOrder
 
-@Component
-class SaleOrderValidChain(validatorList: List<AbstractSaleOrderValidator>?): ChainedConsumer.ConsumerChain<SaleOrder>() {
-    init {
-        validatorList?.forEach(::append)
-    }
+class SaleOrderValidChain : ChainedConsumer.ConsumerChain<SaleOrder>() {
 
-    fun appendAll(validatorList: List<AbstractSaleOrderValidator>?) {
-        validatorList?.forEach(::append)
+    fun appendAll(vararg validatorList: AbstractSaleOrderValidator): SaleOrderValidChain {
+        validatorList.forEach(::append)
+        return this
     }
 
 }

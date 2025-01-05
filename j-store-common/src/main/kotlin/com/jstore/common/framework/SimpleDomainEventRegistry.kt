@@ -1,29 +1,55 @@
 package com.jstore.common.framework
 
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.collections.HashSet
 
-class SimpleDomainEventRegistry {
-    private val executorService: ExecutorService
-    constructor() {
-        executorService =  BizAsyncExecutorServiceFactory.get()
+open class SimpleDomainEventRegistry {
+    companion object {
+        private var INSTANCE: SimpleDomainEventRegistry? = null
+        fun getDefaultInstance(): SimpleDomainEventRegistry {
+            INSTANCE?.let { return it }
+            synchronized(this) {
+                INSTANCE?.let { return it }
+                INSTANCE = SimpleDomainEventRegistry(DefaultAsyncExecutorServiceFactory)
+                return INSTANCE!!
+            }
+        }
     }
-    constructor(executorService: ExecutorService) {
+
+    private val executorService: ExecutorService
+
+    private constructor(executorServiceFactory: ExecutorServiceFactory) {
+        executorService = executorServiceFactory.get()
+    }
+
+    private constructor(executorService: ExecutorService) {
         this.executorService = executorService
     }
 
-    private val listenerList: MutableSet<DomainEventListener> = HashSet()
+    private val listenerMap: MutableMap<String, MutableSet<DomainEventListener>> = ConcurrentHashMap()
+
     private val eventQueue: Queue<DomainEvent> = LinkedBlockingQueue()
 
     private val mutex = Object()
 
     fun register(listener: DomainEventListener) {
-        listenerList.add(listener)
+        listener.topics().forEach { topic ->
+            listenerMap[topic]?.add(listener) ?: let {
+                val set: MutableSet<DomainEventListener> = HashSet()
+                listenerMap[topic] = set
+                set.add(listener)
+            }
+
+        }
     }
 
     fun logou(listener: DomainEventListener) {
-        listenerList.remove(listener)
+        listener.topics().forEach { topic ->
+            listenerMap[topic]?.remove(listener)
+        }
     }
 
     fun publish(event: DomainEvent) {
@@ -42,8 +68,7 @@ class SimpleDomainEventRegistry {
                 }
             }
             val event = eventQueue.poll()
-            listenerList.forEach { executorService.submit { it.handle(event) } }
-
+            listenerMap[event.topic()]?.forEach { executorService.submit { it.handle(event) } }
         }
     }
 
@@ -53,14 +78,5 @@ class SimpleDomainEventRegistry {
         }
         thread.name = "mock-domain-event-registry"
         thread.start()
-    }
-}
-
-class SimpleDomainEventRegistrySingleToneFactory {
-    companion object {
-        private val instance = SimpleDomainEventRegistry()
-        fun get(): SimpleDomainEventRegistry {
-            return instance
-        }
     }
 }

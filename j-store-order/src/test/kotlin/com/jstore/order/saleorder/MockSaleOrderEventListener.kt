@@ -2,7 +2,7 @@ package com.jstore.order.saleorder
 
 import com.jstore.common.framework.DomainEvent
 import com.jstore.common.framework.DomainEventListener
-import com.jstore.common.framework.SimpleDomainEventRegistrySingleToneFactory
+import com.jstore.common.framework.SimpleDomainEventRegistry
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 
@@ -26,7 +26,7 @@ class MockSaleOrderCreatedEventListener : DomainEventListener {
     }
 
     fun register() {
-        SimpleDomainEventRegistrySingleToneFactory.get().register(this)
+        SimpleDomainEventRegistry.getDefaultInstance().register(this)
     }
 
 }

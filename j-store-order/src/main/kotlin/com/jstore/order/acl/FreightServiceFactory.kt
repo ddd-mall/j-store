@@ -1,4 +1,4 @@
-package com.jstore.order.acl.freight
+package com.jstore.order.acl
 
 import com.jstore.common.errors.CommonErrors
 

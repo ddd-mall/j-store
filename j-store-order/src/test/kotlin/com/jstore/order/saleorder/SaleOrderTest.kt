@@ -6,9 +6,8 @@ import com.jstore.common.properties.PhoneNumber
 import com.jstore.order.acl.address.MockAddressService
 import com.jstore.order.acl.goods.MockGoodsService
 import com.jstore.order.saleorder.properties.UserInfo
-import com.jstore.order.saleorder.validator.CreateParamUserInfoValidator
-import com.jstore.order.saleorder.validator.SaleOrderCreateParamValidChain
-import com.jstore.order.saleorder.validator.SaleOrderValidChain
+import com.jstore.order.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
+import com.jstore.order.saleorder.validator.SaleOrderRiskValidator
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import kotlin.test.assertNotNull
@@ -30,12 +29,10 @@ class SaleOrderTest {
     private val goodsService = MockGoodsService()
     private val saleOrderRepository = MockSaleOrderRepository()
     private val mockSaleOrderFactory: SaleOrderFactory = SaleOrderFactory(
-        saleOrderRepository,
         goodsService,
-        SaleOrderCreateParamValidChain(listOf(CreateParamUserInfoValidator())),
-        SaleOrderValidChain(null),
         MockAddressService(),
-
+        SaleOrderCreateCMDUserInfoValidator(),
+        SaleOrderRiskValidator()
     )
     private val saleOrderHandler: SaleOrderHandler = SaleOrderHandler(
         saleOrderRepository,
