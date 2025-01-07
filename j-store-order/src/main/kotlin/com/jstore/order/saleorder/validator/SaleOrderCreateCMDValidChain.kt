@@ -1,10 +1,10 @@
 package com.jstore.order.saleorder.validator
 
 import com.jstore.common.utils.ChainedConsumer
-import com.jstore.order.saleorder.SaleOrderCreateCMD
+import com.jstore.order.saleorder.NormalSaleOrderCreateCmd
 
 
-class SaleOrderCreateCMDValidChain : ChainedConsumer.ConsumerChain<SaleOrderCreateCMD>() {
+class SaleOrderCreateCMDValidChain : ChainedConsumer.ConsumerChain<NormalSaleOrderCreateCmd>() {
 
     fun appendAll(vararg validator: AbstractSaleOrderCreateCMDValidator): SaleOrderCreateCMDValidChain {
         validator.forEach(::append)

@@ -41,7 +41,7 @@ class MockSaleOrderRepository: SaleOrderRepository {
             idxSaleOrderIdIndex[entity.getId()]?.let { index -> saleOrderList[index] = entity }
             return entity
         }
-        val saleOrder = SaleOrder(
+        val saleOrder = SaleOrderImpl(
             SaleOrderId(snowFlakSequence.nextId()),
             entity.buyerInfo,
             entity.orderItems ?: listOf(),
@@ -62,7 +62,7 @@ class MockSaleOrderRepository: SaleOrderRepository {
 
     override fun findById(id: SaleOrderId): SaleOrder {
         val index = idxSaleOrderIdIndex[id]
-            ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("没有找到id为 $id 的订单")
+            ?: throw CommonErrors.RESOURCE_NOT_FOUND.to("没有找到id为 $id 的订单")
         return saleOrderList[index]
     }
 }

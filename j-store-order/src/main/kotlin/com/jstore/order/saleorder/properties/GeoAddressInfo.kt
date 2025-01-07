@@ -26,7 +26,7 @@ GeoAddressInfo(
 
         private fun commonDecoding(districtCode: String, level: DistrictLevel): String {
             if (districtCode.length < level.getCodeLen()) {
-                throw CommonErrors.INVALID_PARAM.withMsg("无法从${districtCode}中解析出${level.name}级行政编码")
+                throw CommonErrors.INVALID_PARAM.to("无法从${districtCode}中解析出${level.name}级行政编码")
             }
             return districtCode.substring(0, level.getCodeLen()) + "0".repeat(districtCode.length - level.getCodeLen())
         }

@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 
 const val saleOrderTopic: String = "sale-order"
 
-data class SaleOrderCreatedEvent(
+data class NormalSaleOrderCreatedEvent(
     val saleOrderId: SaleOrderId,
     val createTime: LocalDateTime
 ) : DomainEvent {
@@ -15,7 +15,7 @@ data class SaleOrderCreatedEvent(
 }
 
 data class FailToCreateSaleOrderEvent(
-    val createCMD: SaleOrderCreateCMD,
+    val createCMD: NormalSaleOrderCreateCmd,
     val createTime: LocalDateTime,
     val cause: Throwable,
 ) : DomainEvent {

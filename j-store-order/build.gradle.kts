@@ -12,6 +12,7 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.spirng.boot.boot)
+    implementation(libs.transaction.api)
     implementation(project(":j-store-common"))
     testImplementation(kotlin("test"))
 }

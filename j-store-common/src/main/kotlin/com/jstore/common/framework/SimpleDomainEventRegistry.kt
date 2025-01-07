@@ -1,32 +1,54 @@
 package com.jstore.common.framework
 
+import com.jstore.common.logging.Logger
+import com.jstore.common.logging.LoggerFactory
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.LinkedBlockingQueue
-import kotlin.collections.HashSet
+import java.util.concurrent.ThreadPoolExecutor
 
 open class SimpleDomainEventRegistry {
     companion object {
         private var INSTANCE: SimpleDomainEventRegistry? = null
-        fun getDefaultInstance(): SimpleDomainEventRegistry {
+        fun defaultInstance(): SimpleDomainEventRegistry {
             INSTANCE?.let { return it }
             synchronized(this) {
                 INSTANCE?.let { return it }
-                INSTANCE = SimpleDomainEventRegistry(DefaultAsyncExecutorServiceFactory)
+                INSTANCE = SimpleDomainEventRegistry()
                 return INSTANCE!!
             }
         }
+
+        private val log: Logger = LoggerFactory.getLogger(this::class)
     }
 
-    private val executorService: ExecutorService
+    init {
+        val thread = Thread {
+            listen()
+        }
+        thread.name = "simple-domain-event-registry"
+        thread.start()
+    }
 
-    private constructor(executorServiceFactory: ExecutorServiceFactory) {
+    private val executorService: ThreadPoolTaskExecutor
+
+    constructor() {
+        executorService = ThreadPoolTaskExecutor()
+        executorService.setThreadNamePrefix("domain-event-registry-default-")
+        executorService.corePoolSize = 1
+        executorService.maxPoolSize = 30
+        executorService.queueCapacity = 1000
+        executorService.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+        executorService.initialize()
+    }
+
+    constructor(executorServiceFactory: ExecutorServiceFactory) {
         executorService = executorServiceFactory.get()
     }
 
-    private constructor(executorService: ExecutorService) {
-        this.executorService = executorService
+    constructor(threadPoolTaskExecutor: ThreadPoolTaskExecutor) {
+        this.executorService = threadPoolTaskExecutor
     }
 
     private val listenerMap: MutableMap<String, MutableSet<DomainEventListener>> = ConcurrentHashMap()
@@ -46,7 +68,7 @@ open class SimpleDomainEventRegistry {
         }
     }
 
-    fun logou(listener: DomainEventListener) {
+    fun logout(listener: DomainEventListener) {
         listener.topics().forEach { topic ->
             listenerMap[topic]?.remove(listener)
         }
@@ -64,7 +86,7 @@ open class SimpleDomainEventRegistry {
                 try {
                     synchronized(mutex) { mutex.wait() }
                 } catch (e: InterruptedException) {
-                    e.printStackTrace()
+                    log.error("interrupted occurred", e)
                 }
             }
             val event = eventQueue.poll()
@@ -72,11 +94,4 @@ open class SimpleDomainEventRegistry {
         }
     }
 
-    init {
-        val thread = Thread {
-            listen()
-        }
-        thread.name = "mock-domain-event-registry"
-        thread.start()
-    }
 }

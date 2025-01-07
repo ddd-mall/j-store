@@ -16,7 +16,7 @@ import com.jstore.order.saleorder.validator.SaleOrderValidChain
 import org.springframework.stereotype.Service
 
 @Service
-open class SaleOrderFactory(
+open class NormalSaleOrderFactory(
     private val goodsService: GoodsService,
     private val geoAddressService: GeoAddressService,
     saleOrderCreateCMDValidator: SaleOrderCreateCMDUserInfoValidator,
@@ -32,15 +32,14 @@ open class SaleOrderFactory(
         saleOrderValidChain.appendAll(saleOrderRiskValidator)
     }
 
-    fun create(createParam: SaleOrderCreateCMD): SaleOrder {
+    fun create(createParam: NormalSaleOrderCreateCmd): SaleOrder {
         createParamValidChain.accept(createParam)
         val saleOrder = convertParamToSaleOrder(createParam)
         saleOrderValidChain.accept(saleOrder)
-
         return saleOrder
     }
 
-    private fun convertParamToSaleOrder(createParam: SaleOrderCreateCMD): SaleOrder {
+    private fun convertParamToSaleOrder(createParam: NormalSaleOrderCreateCmd): SaleOrder {
         val userInfo: UserInfo = createParam.buyerUserInfo!!
         val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createParam)
         val deliveryAddressInfo: GeoAddressInfo = geoAddressService
@@ -48,7 +47,7 @@ open class SaleOrderFactory(
             .apply { detailAddress = createParam.detailAddress }
 
         val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
-        return SaleOrder(
+        return SaleOrderImpl(
             null,
             userInfo,
             orderItems,
@@ -61,15 +60,15 @@ open class SaleOrderFactory(
         )
     }
 
-    private fun getOrderItemsFromCreateParam(createParam: SaleOrderCreateCMD): List<OrderItem> {
+    private fun getOrderItemsFromCreateParam(createParam: NormalSaleOrderCreateCmd): List<OrderItem> {
         val purchaseItemList = createParam.purchaseItemList!!
         val goodsIdList: List<GoodsId> = purchaseItemList.map { it.mapToGoodsId() }
         val goodsQueryResult: List<GoodsInfo> = goodsService.queryGoods(goodsIdList)
 
-        return purchaseItemList.map { purchaseItem: SaleOrderCreateCMD.PurchaseItem ->
+        return purchaseItemList.map { purchaseItem: NormalSaleOrderCreateCmd.PurchaseItem ->
             val goodsInfo =
                 goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
-                    ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("the goods corresponding to purchase item $purchaseItem not found")
+                    ?: throw CommonErrors.RESOURCE_NOT_FOUND.to("the goods corresponding to purchase item $purchaseItem not found")
 
             val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.count!!)
             val item = OrderItem(

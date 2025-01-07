@@ -1,5 +1,6 @@
-package com.jstore.goods
+package com.jstore.goods.spu
 
+import com.jstore.com.jstore.framework.Entity
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
 
@@ -10,8 +11,10 @@ class Spu(
     var skuList: List<Sku>,
     var goodsClass: GoodsClass,
     val version: Long? = null
-) {
-
+) : Entity<SpuId> {
+    override fun getId(): SpuId? {
+        return spuId
+    }
 }
 
 

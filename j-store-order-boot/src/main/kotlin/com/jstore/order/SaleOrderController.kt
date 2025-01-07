@@ -1,8 +1,8 @@
 package com.jstore.com.jstore.order
 
-import com.jstore.order.saleorder.SaleOrderHandler
+import com.jstore.com.jstore.order.saleorder.SaleOrderService
 import com.jstore.order.saleorder.SaleOrder
-import com.jstore.order.saleorder.SaleOrderCreateCMD
+import com.jstore.order.saleorder.NormalSaleOrderCreateCmd
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/saleOrder")
-class SaleOrderController(private val saleOrderHandler: SaleOrderHandler) {
+class SaleOrderController(private val saleOrderService: SaleOrderService) {
     @PostMapping("/create")
-    fun create(@RequestBody @Validated saleOrderCreateCMD: SaleOrderCreateCMD): SaleOrder {
-        return saleOrderHandler.create(saleOrderCreateCMD)
+    fun create(@RequestBody @Validated normalSaleOrderCreateCMD: NormalSaleOrderCreateCmd): SaleOrder {
+        return saleOrderService.create(normalSaleOrderCreateCMD)
     }
 }
