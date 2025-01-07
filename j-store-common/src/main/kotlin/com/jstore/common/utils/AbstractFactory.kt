@@ -53,7 +53,7 @@ abstract class AbstractFactory<T : Any>(private val candidateClass: Collection<C
             election(args)
         } catch (e: Exception) {
             log.error("Error creating instance. Cause: $e", e)
-            throw CommonErrors.INTERNAL_ERROR.withMsgAndCause("Error creating instance.  Cause: $e", e)
+            throw CommonErrors.INTERNAL_ERROR.to("Error creating instance.  Cause: $e", e)
         }
     }
 }

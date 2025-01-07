@@ -1,54 +1,61 @@
 package com.jstore.order.saleorder
 
 import com.jstore.com.jstore.framework.Entity
-import com.jstore.common.errors.CommonErrors.ILLEGAL_STATE
-import com.jstore.common.errors.Errors
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
-import com.jstore.order.acl.FreightServiceFactory
 import com.jstore.order.saleorder.properties.FreightBill
 import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.order.saleorder.properties.UserInfo
 import java.time.LocalDateTime
 
 
-data class SaleOrderId(override val value: Long): Id<Long>(value)
-data class SaleOrder(
-    private val id: SaleOrderId?,
-    val buyerInfo: UserInfo,
-    val orderItems: List<OrderItem>?,
-    var deliveryAddressInfo: GeoAddressInfo,
-    val freightBills: List<FreightBill>?,
-    var positiveStatus: OrderPositiveStatus = OrderPositiveStatus.WAIT_PAY,
-    var reverseStatus: OrderReverseStatus = OrderReverseStatus.NONE,
-    var amount: Price,
-    var actualPay: Price,
-    val createTime: LocalDateTime? = null,
-    val updateTime: LocalDateTime? = null,
-) : Entity<SaleOrderId> {
+data class SaleOrderId(override val value: Long) : Id<Long>(value)
 
-    companion object {
-        private val ORDER_DOES_NOT_PERSIST: Errors = ILLEGAL_STATE.withMsg("订单未持久化")
-    }
+/**
+ * 销售单，创建时预扣商品库存。
+ *
+ */
+interface SaleOrder : Entity<SaleOrderId> {
+    fun pay()
+    fun refund()
+    val buyerInfo: UserInfo
+    val orderItems: List<OrderItem>?
+    var deliveryAddressInfo: GeoAddressInfo
+    val freightBills: List<FreightBill>?
+    var positiveStatus: OrderPositiveStatus?
+    var reverseStatus: OrderReverseStatus?
+    var amount: Price
+    var actualPay: Price
+    val createTime: LocalDateTime?
+    val updateTime: LocalDateTime?
+}
+
+data class SaleOrderImpl(
+    private val id: SaleOrderId?,
+    override val buyerInfo: UserInfo,
+    override val orderItems: List<OrderItem>?,
+    override var deliveryAddressInfo: GeoAddressInfo,
+    override val freightBills: List<FreightBill>?,
+    override var positiveStatus: OrderPositiveStatus? = null,
+    override var reverseStatus: OrderReverseStatus? = null,
+    override var amount: Price,
+    override var actualPay: Price,
+    override val createTime: LocalDateTime? = null,
+    override val updateTime: LocalDateTime? = null,
+) : SaleOrder {
 
     override fun getId(): SaleOrderId? {
         return id
     }
 
-    /**
-     * 发货
-     */
-    fun delivery() {
-        if (this.positiveStatus != OrderPositiveStatus.WAIT_FOR_SELLER_DELIVERY) {
-            throw ILLEGAL_STATE.withMsg("当前不允许执行此操作")
-        }
-        FreightServiceFactory.getAny().delivery(this)
-        this.positiveStatus = OrderPositiveStatus.WAIT_FOR_BUYER_RECEIPT
+    override fun pay() {
+
+    }
+
+    override fun refund() {
+
     }
 }
-
-
-
 
 
 enum class OrderPositiveStatus {
@@ -68,9 +75,7 @@ enum class OrderReverseStatus {
 }
 
 
-
-
-data class OrderItemId(override val value: Long): Id<Long>(value)
+data class OrderItemId(override val value: Long) : Id<Long>(value)
 data class OrderItem(
     val id: OrderItemId? = null,
     val spuId: Long,

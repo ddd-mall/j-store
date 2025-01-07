@@ -9,12 +9,13 @@ slf4j = "2.0.16"
 jackson = "2.18.2"
 fastexcel = "1.0.0"
 junit = "1.11.4"
+transaction-api = "2.0.1"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 spirng-boot-boot = { module = "org.springframework.boot:spring-boot", version.ref = "springBoot" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa", version.ref = "springBoot" }
-spring-boot-starter-test = {module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot"}
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot" }
 spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools", version.ref = "springBoot" }
 spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "springBoot" }
@@ -33,7 +34,9 @@ jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
-fastexcel = {module = "cn.idev.excel:fastexcel", version.ref = "fastexcel"}
+fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
+transaction-api = { module = "jakarta.transaction:jakarta.transaction-api", version.ref = "transaction-api" }
+
 
 
 

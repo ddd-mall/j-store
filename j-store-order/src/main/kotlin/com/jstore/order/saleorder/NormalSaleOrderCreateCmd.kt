@@ -2,8 +2,11 @@ package com.jstore.order.saleorder
 
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.saleorder.properties.UserInfo
+import org.springframework.lang.Nullable
+import org.springframework.stereotype.Service
 
-class SaleOrderCreateCMD {
+class NormalSaleOrderCreateCmd(val token: String) {
+
     var buyerUserInfo: UserInfo? = null
     var purchaseItemList: List<PurchaseItem>? = null
     var districtCode: String = ""
@@ -24,5 +27,20 @@ class SaleOrderCreateCMD {
         override fun toString(): String {
             return "PurchaseItem(spuId=$spuId, skuId=$skuId, count=$count)"
         }
+    }
+}
+
+@Service
+class NormalSaleOrderCreateCMDHandler(
+    private val saleOrderRepository: SaleOrderRepository,
+    private val normalSaleOrderFactory: NormalSaleOrderFactory,
+    @Nullable
+    private val saleOrderEventPublisher: SaleOrderEventPublisher?
+) {
+    fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
+        val saleOrder = this.normalSaleOrderFactory.create(cmd)
+        val saved = saleOrderRepository.save(saleOrder)
+        saleOrderEventPublisher?.publish(NormalSaleOrderCreatedEvent(saved.getId()!!, saved.createTime!!))
+        return saved
     }
 }

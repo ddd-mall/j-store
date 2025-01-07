@@ -74,14 +74,14 @@ open class ChinaGeoAddressServiceExcelImpl : GeoAddressService {
 
     override fun getByDistrictCode(districtCode: String): GeoAddressInfo {
         if (districtCode.length < 6) {
-            throw CommonErrors.INVALID_PARAM.withMsg("地区编码错误: $districtCode")
+            throw CommonErrors.INVALID_PARAM.to("地区编码错误: $districtCode")
         }
-        val address = dataStorage[districtCode] ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("未能找到编码${districtCode}对应的地址")
+        val address = dataStorage[districtCode] ?: throw CommonErrors.RESOURCE_NOT_FOUND.to("未能找到编码${districtCode}对应的地址")
         val provinceCode = GeoAddressInfo.getProvinceCode(districtCode)
         val cityCode = GeoAddressInfo.getCityCode(districtCode)
         val countyCode = GeoAddressInfo.getCountyCode(districtCode)
 
-        val province = dataStorage[provinceCode] ?: throw CommonErrors.RESOURCE_NOT_FOUND.withMsg("未能找到编码${provinceCode}对应的地址")
+        val province = dataStorage[provinceCode] ?: throw CommonErrors.RESOURCE_NOT_FOUND.to("未能找到编码${provinceCode}对应的地址")
         val city = dataStorage[cityCode]?.let {
             if (it == province) {
                 ""
@@ -100,7 +100,7 @@ open class ChinaGeoAddressServiceExcelImpl : GeoAddressService {
 
 
         if (StringUtils.isAllEmpty(province, city, county)) {
-            throw CommonErrors.INVALID_PARAM.withMsg("地区编码错误: $districtCode")
+            throw CommonErrors.INVALID_PARAM.to("地区编码错误: $districtCode")
         }
         return GeoAddressInfo(
             districtCode,

@@ -18,15 +18,15 @@ class Errors: RuntimeException {
 
 
 
-    fun withMsg(msg: String): Errors {
+    fun to(msg: String): Errors {
         return Errors(msg, this.errorCode, this.httpCode)
     }
 
-    fun withMsgAndCause(msg: String, cause: Throwable): Errors {
+    fun to(msg: String, cause: Throwable): Errors {
         return Errors(msg, this.errorCode, this.httpCode, cause)
     }
 
-    fun withCause(cause: Throwable): Errors {
+    fun to(cause: Throwable): Errors {
         return Errors(this.msg, this.errorCode, this.httpCode, cause)
     }
 }

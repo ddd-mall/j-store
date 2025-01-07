@@ -95,7 +95,7 @@ object SaleOrderConverter {
             .apply { detailAddress = saleOrderPO.detailAddress }
 
         val freightBillIds = JsonUtils.deserialize(saleOrderPO.freightBillId, object : TypeReference<List<String>>() {})
-        return SaleOrder(
+        return SaleOrderImpl(
             id,
             buyerInfo,
             items,
@@ -145,8 +145,8 @@ object SaleOrderConverter {
                 saleOrder.freightBills?.map { it.id }?.toList()
                     .let { JsonUtils.toJsonString(it ?: listOf<String>()) }
                     .also { freightBillId = it }
-                saleOrder.positiveStatus.name.also { positiveStatus = it }
-                saleOrder.reverseStatus.name.also { reverseStatus = it }
+                saleOrder.positiveStatus?.name?.also { positiveStatus = it }
+                saleOrder.reverseStatus?.name?.also { reverseStatus = it }
                 saleOrder.amount.getBasicValue().also { amount = it }
                 saleOrder.actualPay.getBasicValue().also { actualPay = it }
             }
