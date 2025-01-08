@@ -5,6 +5,9 @@ import com.jstore.order.saleorder.properties.UserInfo
 import org.springframework.lang.Nullable
 import org.springframework.stereotype.Service
 
+/**
+ * 普通订单创建命令，
+ */
 class NormalSaleOrderCreateCmd(val token: String) {
 
     var buyerUserInfo: UserInfo? = null

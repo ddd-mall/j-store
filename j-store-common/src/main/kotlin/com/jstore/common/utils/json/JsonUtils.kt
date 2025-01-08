@@ -51,7 +51,7 @@ object JsonUtils {
     }
 
 
-    public inline fun <reified T> deserialize(jsonStr: String): T {
+    inline fun <reified T> deserialize(jsonStr: String): T {
         return try {
             JSON.readValue<T>(jsonStr)
         } catch (e: Exception) {
