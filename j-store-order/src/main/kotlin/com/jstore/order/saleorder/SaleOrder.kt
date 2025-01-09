@@ -6,6 +6,7 @@ import com.jstore.common.properties.Price
 import com.jstore.order.saleorder.properties.FreightBill
 import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.order.saleorder.properties.UserInfo
+import java.math.BigDecimal
 import java.time.LocalDateTime
 
 
@@ -17,9 +18,10 @@ data class SaleOrderId(override val value: Long) : Id<Long>(value)
  */
 interface SaleOrder : Entity<SaleOrderId> {
     fun pay()
-    fun refund()
+    fun cancel()
+    fun close()
     val buyerInfo: UserInfo
-    val orderItems: List<OrderItem>?
+    val orderItems: List<OrderItem>
     var deliveryAddressInfo: GeoAddressInfo
     val freightBills: List<FreightBill>?
     var positiveStatus: OrderPositiveStatus?
@@ -30,10 +32,10 @@ interface SaleOrder : Entity<SaleOrderId> {
     val updateTime: LocalDateTime?
 }
 
-data class SaleOrderImpl(
+data class NormalSaleOrderImpl(
     private val id: SaleOrderId?,
     override val buyerInfo: UserInfo,
-    override val orderItems: List<OrderItem>?,
+    override val orderItems: List<OrderItem>,
     override var deliveryAddressInfo: GeoAddressInfo,
     override val freightBills: List<FreightBill>?,
     override var positiveStatus: OrderPositiveStatus? = null,
@@ -42,6 +44,7 @@ data class SaleOrderImpl(
     override var actualPay: Price,
     override val createTime: LocalDateTime? = null,
     override val updateTime: LocalDateTime? = null,
+    private val type: OrderType = OrderType.NORMAL
 ) : SaleOrder {
 
     override fun getId(): SaleOrderId? {
@@ -52,8 +55,12 @@ data class SaleOrderImpl(
 
     }
 
-    override fun refund() {
+    override fun cancel() {
+        TODO("Not yet implemented")
+    }
 
+    override fun close() {
+        TODO("Not yet implemented")
     }
 }
 
@@ -74,6 +81,13 @@ enum class OrderReverseStatus {
     CLOSE
 }
 
+enum class OrderType {
+    NORMAL,
+    GROUP,
+    SEC_KILL,
+    PRE_SELL
+}
+
 
 data class OrderItemId(override val value: Long) : Id<Long>(value)
 data class OrderItem(
@@ -81,7 +95,7 @@ data class OrderItem(
     val spuId: Long,
     val skuId: Long,
     val skuVersion: Long,
-    val count: Int,
+    val count: BigDecimal,
     val unitPrice: Price,
     val totalPrice: Price,
 )

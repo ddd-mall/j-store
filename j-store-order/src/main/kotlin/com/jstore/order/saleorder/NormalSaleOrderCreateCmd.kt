@@ -4,6 +4,7 @@ import com.jstore.order.acl.GoodsId
 import com.jstore.order.saleorder.properties.UserInfo
 import org.springframework.lang.Nullable
 import org.springframework.stereotype.Service
+import java.math.BigDecimal
 
 /**
  * 普通订单创建命令，
@@ -18,7 +19,7 @@ class NormalSaleOrderCreateCmd(val token: String) {
     class PurchaseItem {
         var spuId: Long? = null
         var skuId: Long? = null
-        var count: Int? = 0
+        var count: BigDecimal = BigDecimal.ZERO
 
         fun mapToGoodsId(): GoodsId {
             return GoodsId(

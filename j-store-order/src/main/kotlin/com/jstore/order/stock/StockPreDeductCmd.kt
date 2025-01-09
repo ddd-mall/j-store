@@ -5,7 +5,6 @@ import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.saleorder.SaleOrderId
-import jakarta.transaction.Transactional
 import org.springframework.stereotype.Component
 import java.math.BigDecimal
 
@@ -22,7 +21,6 @@ open class StockPreDeductHandler(
     private val log: Logger = LoggerFactory.getLogger(this::class)
 
 
-    @Transactional(rollbackOn = [Exception::class], value = Transactional.TxType.REQUIRED)
     open fun handle(cmd: StockPreDeductCmd) {
 
         val stockList = stockRepository.findAllByOrderId(cmd.orderId).let {
@@ -42,6 +40,8 @@ open class StockPreDeductHandler(
             stockList.forEach(Stock::rollback)
             throw CommonErrors.INTERNAL_ERROR.to("order ${cmd.orderId}'s stock pre deduct failed", e)
         }
+
+        log.info("order ${cmd.orderId}'s stock pre deduct success")
     }
 
 
