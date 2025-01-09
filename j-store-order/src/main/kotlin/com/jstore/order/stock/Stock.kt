@@ -17,6 +17,8 @@ interface Stock : Entity<StockId> {
     val orderId: SaleOrderId
     val goodsId: GoodsId
     val amount: BigDecimal
+    var currentStatus: StockStatus
+    var lastStatus: StockStatus
     fun preDeduct(): CompletableFuture<Stock>
     fun deduct(): CompletableFuture<Stock>
     fun rollback(): CompletableFuture<Stock>
@@ -29,9 +31,9 @@ class StockImpl(
     override val orderId: SaleOrderId,
     override val goodsId: GoodsId,
     override val amount: BigDecimal,
-    private val stockAclService: StockAclService,
-    var currentStatus: StockStatus = StockStatus.CREATED,
-    var lastStatus: StockStatus = currentStatus
+    override var currentStatus: StockStatus = StockStatus.CREATED,
+    override var lastStatus: StockStatus = currentStatus,
+    @Transient private val stockAclService: StockAclService,
 ) : Stock {
     override fun preDeduct(): CompletableFuture<Stock> {
         if (currentStatus != StockStatus.CREATED) {

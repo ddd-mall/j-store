@@ -1,12 +1,10 @@
 package com.jstore.order.saleorder
 
 import com.jstore.common.errors.CommonErrors
+import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
-import com.jstore.order.acl.GeoAddressService
-import com.jstore.order.acl.GoodsId
-import com.jstore.order.acl.GoodsInfo
-import com.jstore.order.acl.GoodsService
+import com.jstore.order.acl.*
 import com.jstore.order.saleorder.properties.GeoAddressInfo
 import com.jstore.order.saleorder.properties.UserInfo
 import com.jstore.order.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
@@ -27,19 +25,20 @@ open class NormalSaleOrderFactory(
         private val createParamValidChain: SaleOrderCreateCMDValidChain = SaleOrderCreateCMDValidChain()
         private val saleOrderValidChain: SaleOrderValidChain = SaleOrderValidChain()
     }
+
     init {
         createParamValidChain.appendAll(saleOrderCreateCMDValidator)
         saleOrderValidChain.appendAll(saleOrderRiskValidator)
     }
 
-    fun create(createParam: NormalSaleOrderCreateCmd): SaleOrder {
+    fun create(createParam: NormalSaleOrderCreateCmd): NormalSaleOrderImpl {
         createParamValidChain.accept(createParam)
-        val saleOrder = convertParamToSaleOrder(createParam)
+        val saleOrder = convertParamToNormalSaleOrder(createParam)
         saleOrderValidChain.accept(saleOrder)
         return saleOrder
     }
 
-    private fun convertParamToSaleOrder(createParam: NormalSaleOrderCreateCmd): SaleOrder {
+    private fun convertParamToNormalSaleOrder(createParam: NormalSaleOrderCreateCmd): NormalSaleOrderImpl {
         val userInfo: UserInfo = createParam.buyerUserInfo!!
         val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createParam)
         val deliveryAddressInfo: GeoAddressInfo = geoAddressService
@@ -47,7 +46,7 @@ open class NormalSaleOrderFactory(
             .apply { detailAddress = createParam.detailAddress }
 
         val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
-        return SaleOrderImpl(
+        return NormalSaleOrderImpl(
             null,
             userInfo,
             orderItems,
@@ -70,14 +69,14 @@ open class NormalSaleOrderFactory(
                 goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
                     ?: throw CommonErrors.RESOURCE_NOT_FOUND.to("the goods corresponding to purchase item $purchaseItem not found")
 
-            val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.count!!)
+            val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.count)
             val item = OrderItem(
                 null,
 
                 goodsInfo.id.spuId,
                 goodsInfo.id.skuId,
                 goodsInfo.version,
-                purchaseItem.count!!,
+                purchaseItem.count,
                 goodsInfo.price,
                 totalPrice
             )

@@ -35,7 +35,11 @@ open class Price : RMB {
     }
 
     fun multiple(other: Int): Price {
-        return Price(this.getValue().multiply(BigDecimal(other, getMathContext())))
+        return Price(this.getValue().multiply(BigDecimal(other, getMathContext()), getMathContext()))
+    }
+
+    fun multiple(other: BigDecimal): Price {
+        return Price(this.getValue().multiply(other, getMathContext()))
     }
 
     fun div(divisor: Price): Price {

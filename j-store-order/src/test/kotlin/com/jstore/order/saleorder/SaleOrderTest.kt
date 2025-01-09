@@ -11,6 +11,7 @@ import com.jstore.order.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
 import com.jstore.order.saleorder.validator.SaleOrderRiskValidator
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.asserter
@@ -55,12 +56,12 @@ class SaleOrderTest {
                     NormalSaleOrderCreateCmd.PurchaseItem().apply {
                         spuId = 1
                         skuId = 1
-                        count = 2
+                        count = BigDecimal.TWO
                     },
                     NormalSaleOrderCreateCmd.PurchaseItem().apply {
                         skuId = 2
                         spuId = 2
-                        count = 1
+                        count = BigDecimal.ONE
                     }
                 )
 
@@ -72,8 +73,8 @@ class SaleOrderTest {
         assertNotNull(saleOrder.getId(), "订单创建后ID仍然为空")
         logger.info("订单创建成功，订单ID： {}", arrayOf(saleOrder.getId()))
         asserter.assertSame("用户信息与创建时不一致", saleOrder.buyerInfo, createCMD.buyerUserInfo)
-        asserter.assertSame("订单项数量与传参中不一致", saleOrder.orderItems?.size, createCMD.purchaseItemList?.size)
-        saleOrder.orderItems?.forEach { item -> logger.info("订单项目金额： ${item.totalPrice}, 单位：${item.totalPrice.getCurrencyUnit()}") }
+        asserter.assertSame("订单项数量与传参中不一致", saleOrder.orderItems.size, createCMD.purchaseItemList?.size)
+        saleOrder.orderItems.forEach { item -> logger.info("订单项目金额： ${item.totalPrice}, 单位：${item.totalPrice.getCurrencyUnit()}") }
         logger.info("订单总金额: ${saleOrder.amount}, 单位：${saleOrder.amount.getCurrencyUnit()}")
         val findOrder = saleOrderRepository.findById(saleOrder.getId()!!)
         assertNotNull(findOrder, "订单没有成功被保存")

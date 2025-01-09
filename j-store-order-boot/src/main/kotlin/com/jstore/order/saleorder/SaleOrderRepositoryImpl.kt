@@ -95,7 +95,7 @@ object SaleOrderConverter {
             .apply { detailAddress = saleOrderPO.detailAddress }
 
         val freightBillIds = JsonUtils.deserialize(saleOrderPO.freightBillId, object : TypeReference<List<String>>() {})
-        return SaleOrderImpl(
+        return NormalSaleOrderImpl(
             id,
             buyerInfo,
             items,
@@ -114,7 +114,7 @@ object SaleOrderConverter {
         saleOrderPOs: Collection<SaleOrderPO>,
         saleOrderItemPOs: Collection<SaleOrderItemPO>
     ): List<SaleOrder> {
-        val itemMap: Map<Long, List<SaleOrderItemPO>> = saleOrderItemPOs.groupBy { item -> item.saleOrderId!! }
+        val itemMap: Map<Long, List<SaleOrderItemPO>> = saleOrderItemPOs.groupBy { item -> item.saleOrderId }
         return saleOrderPOs.map { saleOrderPO ->
             po2Entity(saleOrderPO, itemMap[saleOrderPO.saleOrderId] ?: listOf())
         }
@@ -122,13 +122,13 @@ object SaleOrderConverter {
 
     private fun orderItemPO2Entity(itemPO: SaleOrderItemPO): OrderItem {
         return OrderItem(
-            itemPO.saleOrderItemId?.let { OrderItemId(it) },
-            itemPO.spuId!!.toLong(),
-            itemPO.skuId!!.toLong(),
-            itemPO.skuVersion!!,
-            itemPO.count!!,
-            Price(itemPO.unitPrice!!),
-            Price(itemPO.totalPrice!!)
+            itemPO.saleOrderItemId.let { OrderItemId(it) },
+            itemPO.spuId.toLong(),
+            itemPO.skuId.toLong(),
+            itemPO.skuVersion,
+            itemPO.count,
+            Price(itemPO.unitPrice),
+            Price(itemPO.totalPrice)
         )
     }
 
@@ -151,7 +151,7 @@ object SaleOrderConverter {
                 saleOrder.actualPay.getBasicValue().also { actualPay = it }
             }
 
-            saleOrderItemPOs = saleOrder.orderItems?.map {
+            saleOrderItemPOs = saleOrder.orderItems.map {
                 SaleOrderItemPO().apply {
                     it.id?.also { saleOrderId = it.value }
                     it.count.also { count = it }
@@ -161,7 +161,7 @@ object SaleOrderConverter {
                     it.unitPrice.also { unitPrice = it.getBasicValue() }
                     it.totalPrice.also { totalPrice = it.getBasicValue() }
                 }
-            } ?: listOf()
+            }
         }
     }
 }

@@ -30,7 +30,7 @@ open class SaleOrderItemPO : Serializable {
     open var spuId: String = ""
     open var skuId: String = ""
     open var skuVersion: Long = 0L
-    open var count: Int = 0
+    open var count: BigDecimal = BigDecimal.ZERO
     open var unitPrice: BigDecimal = BigDecimal.ZERO
     open var totalPrice: BigDecimal = BigDecimal.ZERO
 }
