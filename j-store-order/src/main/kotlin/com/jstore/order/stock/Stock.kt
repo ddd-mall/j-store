@@ -1,7 +1,8 @@
 package com.jstore.order.stock
 
-import com.jstore.com.jstore.framework.Entity
+
 import com.jstore.common.errors.CommonErrors
+import com.jstore.common.framework.Entity
 import com.jstore.common.properties.Id
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.StockAclService
@@ -31,16 +32,17 @@ class StockImpl(
     override val orderId: SaleOrderId,
     override val goodsId: GoodsId,
     override val amount: BigDecimal,
+    @Transient private val stockAclService: StockAclService?,
     override var currentStatus: StockStatus = StockStatus.CREATED,
     override var lastStatus: StockStatus = currentStatus,
-    @Transient private val stockAclService: StockAclService,
+
 ) : Stock {
     override fun preDeduct(): CompletableFuture<Stock> {
         if (currentStatus != StockStatus.CREATED) {
             throw CommonErrors.ILLEGAL_STATE.to("库存当前状态不允许进行此操作")
         }
         return CompletableFuture.supplyAsync {
-            this.id = stockAclService.preDeduct(goodsId, amount)
+            this.id = stockAclService?.preDeduct(goodsId, amount)
             lastStatus = currentStatus
             currentStatus = StockStatus.PRE_DEDUCTED
             this
@@ -53,7 +55,7 @@ class StockImpl(
         }
         id ?: throw CommonErrors.ILLEGAL_STATE.to("库存操作未初始化")
         return CompletableFuture.supplyAsync {
-            stockAclService.deduct(id!!)
+            stockAclService?.deduct(id!!)
             lastStatus = currentStatus
             currentStatus = StockStatus.DEDUCTED
             this
@@ -63,7 +65,7 @@ class StockImpl(
     override fun rollback(): CompletableFuture<Stock> {
         id ?: throw CommonErrors.ILLEGAL_STATE.to("库存操作未初始化")
         return CompletableFuture.supplyAsync {
-            stockAclService.rollback(id!!)
+            stockAclService?.rollback(id!!)
             val temp = currentStatus
             currentStatus = lastStatus
             lastStatus = temp

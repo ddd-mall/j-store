@@ -1,7 +1,6 @@
 package com.jstore.order.saleorder
 
 import com.jstore.common.errors.CommonErrors
-import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
 import com.jstore.order.acl.*
@@ -31,14 +30,14 @@ open class NormalSaleOrderFactory(
         saleOrderValidChain.appendAll(saleOrderRiskValidator)
     }
 
-    fun create(createParam: NormalSaleOrderCreateCmd): NormalSaleOrderImpl {
+    fun create(createParam: NormalSaleOrderCreateCmd): SaleOrderImpl {
         createParamValidChain.accept(createParam)
         val saleOrder = convertParamToNormalSaleOrder(createParam)
         saleOrderValidChain.accept(saleOrder)
         return saleOrder
     }
 
-    private fun convertParamToNormalSaleOrder(createParam: NormalSaleOrderCreateCmd): NormalSaleOrderImpl {
+    private fun convertParamToNormalSaleOrder(createParam: NormalSaleOrderCreateCmd): SaleOrderImpl {
         val userInfo: UserInfo = createParam.buyerUserInfo!!
         val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createParam)
         val deliveryAddressInfo: GeoAddressInfo = geoAddressService
@@ -46,7 +45,7 @@ open class NormalSaleOrderFactory(
             .apply { detailAddress = createParam.detailAddress }
 
         val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
-        return NormalSaleOrderImpl(
+        return SaleOrderImpl(
             null,
             userInfo,
             orderItems,

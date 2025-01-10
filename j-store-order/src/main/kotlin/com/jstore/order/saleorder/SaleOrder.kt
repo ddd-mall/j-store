@@ -1,6 +1,7 @@
 package com.jstore.order.saleorder
 
-import com.jstore.com.jstore.framework.Entity
+
+import com.jstore.common.framework.Entity
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
 import com.jstore.order.saleorder.properties.FreightBill
@@ -12,14 +13,7 @@ import java.time.LocalDateTime
 
 data class SaleOrderId(override val value: Long) : Id<Long>(value)
 
-/**
- * 销售单，创建时预扣商品库存。
- *
- */
 interface SaleOrder : Entity<SaleOrderId> {
-    fun pay()
-    fun cancel()
-    fun close()
     val buyerInfo: UserInfo
     val orderItems: List<OrderItem>
     var deliveryAddressInfo: GeoAddressInfo
@@ -30,9 +24,10 @@ interface SaleOrder : Entity<SaleOrderId> {
     var actualPay: Price
     val createTime: LocalDateTime?
     val updateTime: LocalDateTime?
+    val type: OrderType
 }
 
-data class NormalSaleOrderImpl(
+data class SaleOrderImpl(
     private val id: SaleOrderId?,
     override val buyerInfo: UserInfo,
     override val orderItems: List<OrderItem>,
@@ -44,23 +39,11 @@ data class NormalSaleOrderImpl(
     override var actualPay: Price,
     override val createTime: LocalDateTime? = null,
     override val updateTime: LocalDateTime? = null,
-    private val type: OrderType = OrderType.NORMAL
+    override val type: OrderType = OrderType.NORMAL
 ) : SaleOrder {
 
     override fun getId(): SaleOrderId? {
         return id
-    }
-
-    override fun pay() {
-
-    }
-
-    override fun cancel() {
-        TODO("Not yet implemented")
-    }
-
-    override fun close() {
-        TODO("Not yet implemented")
     }
 }
 

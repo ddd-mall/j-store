@@ -3,31 +3,33 @@ package com.jstore.order.saleorder
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.DomainEvent
 import com.jstore.common.framework.DomainEventListener
-import com.jstore.common.framework.SimpleDomainEventRegistry
+import com.jstore.common.framework.DomainEventRegistry
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 
 class MockSaleOrderCreatedEventListener : DomainEventListener {
-    private var domainEventRegistry: SimpleDomainEventRegistry? = null
+    private var domainEventRegistry: DomainEventRegistry? = null
+
 
 
     companion object {
+        private const val NAME = "mockSaleOrderCreatedEventListener"
         val log: Logger = LoggerFactory.getLogger(MockSaleOrderCreatedEventListener::class)
     }
 
-    override fun topics(): List<String> {
-        return listOf(saleOrderTopic)
-    }
+    override fun name(): String = NAME
+    override fun async(): Boolean = true
+    override fun onTopics(): List<String> = listOf(saleOrderTopic)
 
     override fun handle(event: DomainEvent) {
         when (event) {
-            is NormalSaleOrderCreatedEvent -> {
-                log.info("order ${event.saleOrderId} has been created")
+            is SaleOrderCreatedEvent -> {
+                log.info("order ${event.orderId} has been created")
             }
         }
     }
 
-    fun register(domainEventRegistry: SimpleDomainEventRegistry) {
+    fun register(domainEventRegistry: DomainEventRegistry) {
         this.domainEventRegistry?.let { throw CommonErrors.ILLEGAL_STATE.to("已经注册过了") }
         domainEventRegistry.register(this)
         this.domainEventRegistry = domainEventRegistry

@@ -24,8 +24,11 @@ open class StockDeductCmdHandler(
         try {
             orderStocks.forEach(Stock::deduct)
             stockRepository.saveBatch(orderStocks)
+            log.info("stock deduct success, order: ${cmd.orderId}")
         } catch (e: Exception) {
             orderStocks.forEach(Stock::rollback)
+            stockRepository.saveBatch(orderStocks)
+            log.error("stock deduct failed, order: ${cmd.orderId}")
             throw CommonErrors.INTERNAL_ERROR.to("stock deduct failed, order ${cmd.orderId}")
         }
 

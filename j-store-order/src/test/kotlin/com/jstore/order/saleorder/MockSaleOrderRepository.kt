@@ -41,7 +41,7 @@ class MockSaleOrderRepository: SaleOrderRepository {
             idxSaleOrderIdIndex[entity.getId()]?.let { index -> saleOrderList[index] = entity }
             return entity
         }
-        val saleOrder = NormalSaleOrderImpl(
+        val saleOrder = SaleOrderImpl(
             SaleOrderId(snowFlakSequence.nextId()),
             entity.buyerInfo,
             entity.orderItems ?: listOf(),

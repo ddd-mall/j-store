@@ -1,6 +1,3 @@
-package com.jstore.com.jstore.framework
+package com.jstore.common.framework
 
-import com.jstore.common.framework.Properties
-
-interface Identify : Properties {
-}
+interface Identify : Properties

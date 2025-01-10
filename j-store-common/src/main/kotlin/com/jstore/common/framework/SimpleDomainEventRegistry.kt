@@ -2,13 +2,22 @@ package com.jstore.common.framework
 
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
+import org.springframework.lang.Nullable
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
+import kotlin.collections.ArrayList
 
-open class SimpleDomainEventRegistry {
+interface DomainEventRegistry {
+    fun register(listener: DomainEventListener)
+    fun logout(listener: DomainEventListener)
+    fun publish(event: DomainEvent)
+}
+
+
+open class SimpleDomainEventRegistry : DomainEventRegistry {
     companion object {
         private var INSTANCE: SimpleDomainEventRegistry? = null
         fun defaultInstance(): SimpleDomainEventRegistry {
@@ -19,69 +28,88 @@ open class SimpleDomainEventRegistry {
                 return INSTANCE!!
             }
         }
-
         private val log: Logger = LoggerFactory.getLogger(this::class)
     }
 
+    private val executorService: ThreadPoolTaskExecutor?
+
+    @Nullable
+    private var domainEventRepository: DomainEventRepository? = null
+
+    private val dispatcher = Thread(::listen)
+    private val asyncListenerMap: MutableMap<String, MutableList<DomainEventListener>> = ConcurrentHashMap()
+    private val syncEventHandlerMap: MutableMap<String, MutableList<DomainEventListener>> = ConcurrentHashMap()
+    private val eventQueue: Queue<DomainEvent> = LinkedBlockingQueue()
+    private val mutex = Object()
+
     init {
-        val thread = Thread {
-            listen()
-        }
-        thread.name = "simple-domain-event-registry"
-        thread.start()
+        dispatcher.name = "simple-domain-event-registry"
+        dispatcher.start()
     }
 
-    private val executorService: ThreadPoolTaskExecutor
 
-    constructor() {
-        executorService = ThreadPoolTaskExecutor()
+    constructor(domainEventRepository: DomainEventRepository? = null) {
+        this.executorService = ThreadPoolTaskExecutor()
         executorService.setThreadNamePrefix("domain-event-registry-default-")
         executorService.corePoolSize = 1
         executorService.maxPoolSize = 30
         executorService.queueCapacity = 1000
         executorService.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
         executorService.initialize()
+        this.domainEventRepository = domainEventRepository
     }
 
-    constructor(executorServiceFactory: ExecutorServiceFactory) {
-        executorService = executorServiceFactory.get()
-    }
-
-    constructor(threadPoolTaskExecutor: ThreadPoolTaskExecutor) {
+    constructor(
+        threadPoolTaskExecutor: ThreadPoolTaskExecutor?,
+        domainEventRepository: DomainEventRepository? = null
+    ) {
         this.executorService = threadPoolTaskExecutor
+        this.domainEventRepository = domainEventRepository
     }
 
-    private val listenerMap: MutableMap<String, MutableSet<DomainEventListener>> = ConcurrentHashMap()
 
-    private val eventQueue: Queue<DomainEvent> = LinkedBlockingQueue()
-
-    private val mutex = Object()
-
-    fun register(listener: DomainEventListener) {
-        listener.topics().forEach { topic ->
-            listenerMap[topic]?.add(listener) ?: let {
-                val set: MutableSet<DomainEventListener> = HashSet()
-                listenerMap[topic] = set
-                set.add(listener)
+    override fun register(listener: DomainEventListener) {
+        listener.onTopics().forEach { topic ->
+            if (listener.async()) {
+                asyncListenerMap[topic]?.add(listener) ?: let {
+                    val list: MutableList<DomainEventListener> = ArrayList()
+                    asyncListenerMap[topic] = list
+                    list.add(listener)
+                }
+            } else {
+                syncEventHandlerMap[topic]?.add(listener) ?: let {
+                    val list: MutableList<DomainEventListener> = ArrayList()
+                    syncEventHandlerMap[topic] = list
+                    list.add(listener)
+                }
             }
 
         }
     }
 
-    fun logout(listener: DomainEventListener) {
-        listener.topics().forEach { topic ->
-            listenerMap[topic]?.remove(listener)
+    override fun logout(listener: DomainEventListener) {
+        listener.onTopics().forEach { topic ->
+            asyncListenerMap[topic]?.remove(listener)
         }
     }
 
-    fun publish(event: DomainEvent) {
+    override fun publish(event: DomainEvent) {
+        domainEventRepository?.save(event)
+        syncEventHandlerMap[event.topic()]?.forEach { it.invoke(event) }
+        async(event)
+    }
+
+    private fun async(event: DomainEvent) {
+        if (dispatcher.isInterrupted) {
+            log.error("dispatcher is interrupted")
+            return
+        }
         eventQueue.add(event)
         synchronized(mutex) { mutex.notify() }
     }
 
     private fun listen() {
         while (true) {
-
             while (eventQueue.isEmpty()) {
                 try {
                     synchronized(mutex) { mutex.wait() }
@@ -90,7 +118,9 @@ open class SimpleDomainEventRegistry {
                 }
             }
             val event = eventQueue.poll()
-            listenerMap[event.topic()]?.forEach { executorService.submit { it.handle(event) } }
+            asyncListenerMap[event.topic()]?.forEach {
+                executorService?.submit { it.invoke(event) } ?: it.invoke(event)
+            }
         }
     }
 

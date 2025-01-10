@@ -1,7 +1,8 @@
 package com.jstore.order.refund
 
-import com.jstore.com.jstore.framework.Entity
+
 import com.jstore.common.errors.CommonErrors
+import com.jstore.common.framework.Entity
 import com.jstore.common.properties.Id
 import com.jstore.order.saleorder.SaleOrderId
 import com.jstore.common.properties.Price
