@@ -1,26 +1,24 @@
 package com.jstore.order.saleorder
 
-import com.jstore.common.framework.DomainEvent
+import com.jstore.common.framework.DomainEventBase
+import com.jstore.common.framework.DomainEventId
 import java.time.LocalDateTime
 
 const val saleOrderTopic: String = "sale-order"
 
-data class NormalSaleOrderCreatedEvent(
-    val saleOrderId: SaleOrderId,
-    val createTime: LocalDateTime
-) : DomainEvent {
-    override fun topic(): String {
-        return saleOrderTopic
-    }
+data class SaleOrderCreatedEvent(
+    val orderId: SaleOrderId,
+    val createTime: LocalDateTime,
+    val orderType: OrderType,
+    override var id: DomainEventId? = null,
+) : DomainEventBase(id) {
+    override fun topic(): String = saleOrderTopic
 }
 
 data class FailToCreateSaleOrderEvent(
     val createCMD: NormalSaleOrderCreateCmd,
     val createTime: LocalDateTime,
-    val cause: Throwable,
-) : DomainEvent {
-    override fun topic(): String {
-        return saleOrderTopic
-    }
-
+    override val id: DomainEventId? = null,
+) : DomainEventBase(id) {
+    override fun topic(): String = saleOrderTopic
 }
