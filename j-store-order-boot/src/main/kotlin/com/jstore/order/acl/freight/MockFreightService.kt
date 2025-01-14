@@ -1,8 +1,8 @@
 package com.jstore.com.jstore.order.acl.freight
 
 import com.jstore.order.acl.FreightService
-import com.jstore.order.saleorder.SaleOrder
-import com.jstore.order.saleorder.properties.FreightBill
+import com.jstore.order.domain.saleorder.SaleOrder
+import com.jstore.order.domain.saleorder.properties.FreightBill
 import org.springframework.stereotype.Service
 
 

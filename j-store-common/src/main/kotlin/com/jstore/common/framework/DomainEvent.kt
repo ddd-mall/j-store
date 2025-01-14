@@ -9,8 +9,7 @@ interface DomainEvent : Entity<DomainEventId> {
     val mutex: Object
 }
 
-abstract class DomainEventBase(open val id: DomainEventId?) : DomainEvent {
-    override fun getId(): DomainEventId? = id
+abstract class DomainEventBase : DomainEvent {
     @Transient override val mutex = Object()
     private val successes = mutableListOf<String>()
     override fun markSuccess(listener: DomainEventListener) {

@@ -1,7 +1,7 @@
 package com.jstore.order.acl
 
-import com.jstore.order.saleorder.SaleOrder
-import com.jstore.order.saleorder.properties.FreightBill
+import com.jstore.order.domain.saleorder.SaleOrder
+import com.jstore.order.domain.saleorder.properties.FreightBill
 
 interface FreightService {
     fun delivery(saleOrder: SaleOrder)
