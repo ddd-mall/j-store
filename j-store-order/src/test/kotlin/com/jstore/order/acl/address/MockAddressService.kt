@@ -3,7 +3,7 @@ package com.jstore.order.acl.address
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.order.acl.GeoAddressService
-import com.jstore.order.saleorder.properties.GeoAddressInfo
+import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
 
 class MockAddressService : GeoAddressService {
     private val log: Logger = LoggerFactory.getLogger(MockAddressService::class)

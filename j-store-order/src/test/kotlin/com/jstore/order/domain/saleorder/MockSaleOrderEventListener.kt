@@ -1,4 +1,4 @@
-package com.jstore.order.saleorder
+package com.jstore.order.domain.saleorder
 
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.DomainEvent
