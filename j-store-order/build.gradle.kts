@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     implementation(libs.kotlin.stdlib)
+    implementation(libs.spring.data.jpa)
     implementation(libs.spirng.boot.boot)
     implementation(project(":j-store-common"))
     testImplementation(kotlin("test"))

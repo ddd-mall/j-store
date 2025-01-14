@@ -4,12 +4,13 @@ import cn.idev.excel.FastExcel
 import cn.idev.excel.annotation.ExcelProperty
 import cn.idev.excel.context.AnalysisContext
 import cn.idev.excel.read.listener.ReadListener
-import com.jstore.order.saleorder.properties.GeoAddressInfo
+
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.string.StringUtils
 import com.jstore.order.acl.GeoAddressService
+import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
 import org.springframework.stereotype.Service
 import org.springframework.util.ResourceUtils
 import java.io.FileInputStream
