@@ -1,4 +1,4 @@
-package com.jstore.order.saleorder
+package com.jstore.order.domain.saleorder
 
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
@@ -6,9 +6,9 @@ import com.jstore.common.properties.PhoneNumber
 import com.jstore.order.acl.address.MockAddressService
 import com.jstore.order.acl.goods.MockGoodsService
 import com.jstore.order.config.TestBeanConfig
-import com.jstore.order.saleorder.properties.UserInfo
-import com.jstore.order.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
-import com.jstore.order.saleorder.validator.SaleOrderRiskValidator
+import com.jstore.order.domain.saleorder.properties.UserInfo
+import com.jstore.order.domain.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
+import com.jstore.order.domain.saleorder.validator.SaleOrderRiskValidator
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
