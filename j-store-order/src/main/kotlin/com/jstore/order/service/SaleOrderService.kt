@@ -2,9 +2,12 @@ package com.jstore.order.service
 
 import com.jstore.common.errors.CommonErrors
 import com.jstore.order.acl.GoodsId
+import com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmd
+import com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmdHandler
 import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCMDHandler
 import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCmd
 import com.jstore.order.domain.saleorder.SaleOrder
+import com.jstore.order.domain.stock.StockPreDeductHandler
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Propagation
@@ -13,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 open class SaleOrderService(
     private val normalSaleOrderCreateCMDHandler: NormalSaleOrderCreateCMDHandler,
-    private val saleOrderCreateRiskVerifyCmdHandler: com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmdHandler,
-    private val stockPreDeductHandler: com.jstore.order.domain.stock.StockPreDeductHandler
+    private val saleOrderCreateRiskVerifyCmdHandler: SaleOrderCreateRiskVerifyCmdHandler,
+    private val stockPreDeductHandler: StockPreDeductHandler
 ) {
 
     @Transactional(
@@ -24,14 +27,14 @@ open class SaleOrderService(
         propagation = Propagation.REQUIRED
     )
     open fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
-        val riskVerifyCmd = com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmd(
+        val riskVerifyCmd = SaleOrderCreateRiskVerifyCmd(
             token = cmd.token,
             uid = cmd.buyerUserInfo.uid
         )
 
         saleOrderCreateRiskVerifyCmdHandler.verify(riskVerifyCmd)
         val saleOrder = normalSaleOrderCreateCMDHandler.create(cmd)
-        val preDeductCmd = saleOrder.getId()?.let { id ->
+        val preDeductCmd = saleOrder.id()?.let { id ->
             com.jstore.order.domain.stock.StockPreDeductCmd(
                 orderId = id,
                 goodsIdsQuantityMap = saleOrder.orderItems.associate { GoodsId(it.spuId, it.skuId) to it.count })

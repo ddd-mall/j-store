@@ -13,6 +13,8 @@ dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.spring.data.jpa)
     implementation(libs.spirng.boot.boot)
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.mockito)
     implementation(project(":j-store-common"))
     testImplementation(kotlin("test"))
 }

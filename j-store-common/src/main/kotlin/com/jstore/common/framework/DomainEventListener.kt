@@ -8,6 +8,8 @@ interface DomainEventListener {
     fun invoke(event: DomainEvent) {
         handle(event)
         event.markSuccess(this)
-        event.mutex.notifyAll()
+        synchronized(event.mutex) {
+            event.mutex.notifyAll()
+        }
     }
 }

@@ -9,7 +9,7 @@ slf4j = "2.0.16"
 jackson = "2.18.2"
 fastexcel = "1.0.0"
 junit = "1.11.4"
-transaction-api = "2.0.1"
+mockito = "5.14.0"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
@@ -29,13 +29,13 @@ kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref =
 kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
 
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
-
+mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
-transaction-api = { module = "jakarta.transaction:jakarta.transaction-api", version.ref = "transaction-api" }
+
 
 
 

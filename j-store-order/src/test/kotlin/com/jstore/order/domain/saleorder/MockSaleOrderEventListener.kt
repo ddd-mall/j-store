@@ -10,8 +10,6 @@ import com.jstore.common.logging.LoggerFactory
 class MockSaleOrderCreatedEventListener : DomainEventListener {
     private var domainEventRegistry: DomainEventRegistry? = null
 
-
-
     companion object {
         private const val NAME = "mockSaleOrderCreatedEventListener"
         val log: Logger = LoggerFactory.getLogger(MockSaleOrderCreatedEventListener::class)

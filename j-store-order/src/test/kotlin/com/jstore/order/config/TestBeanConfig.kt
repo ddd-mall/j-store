@@ -3,7 +3,6 @@ package com.jstore.order.config
 import com.jstore.common.framework.DomainEventRegistry
 import com.jstore.common.framework.SimpleDomainEventRegistry
 
-
 object TestBeanConfig {
 
     private var domainEventRegistry: SimpleDomainEventRegistry? = null

@@ -37,14 +37,14 @@ class MockSaleOrderRepository: SaleOrderRepository {
 
     override fun save(entity: SaleOrder): SaleOrder {
         val now = LocalDateTime.now()
-        entity.getId()?.let {
-            idxSaleOrderIdIndex[entity.getId()]?.let { index -> saleOrderList[index] = entity }
+        entity.id()?.let {
+            idxSaleOrderIdIndex[entity.id()]?.let { index -> saleOrderList[index] = entity }
             return entity
         }
         val saleOrder = SaleOrderImpl(
             SaleOrderId(snowFlakSequence.nextId()),
             entity.buyerInfo,
-            entity.orderItems ?: listOf(),
+            entity.orderItems,
             entity.deliveryAddressInfo,
             entity.freightBills,
             entity.positiveStatus,
@@ -54,7 +54,7 @@ class MockSaleOrderRepository: SaleOrderRepository {
             now,
             now
         )
-        idxSaleOrderIdIndex.putIfAbsent(saleOrder.getId()!!, saleOrderList.size)
+        idxSaleOrderIdIndex.putIfAbsent(saleOrder.id()!!, saleOrderList.size)
         saleOrderList.add(saleOrder)
         return saleOrder
 

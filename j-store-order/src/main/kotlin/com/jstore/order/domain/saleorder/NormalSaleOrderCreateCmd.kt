@@ -45,7 +45,7 @@ class NormalSaleOrderCreateCMDHandler(
     fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
         val saleOrder = this.normalSaleOrderFactory.create(cmd)
         val saved = saleOrderRepository.save(saleOrder)
-        saleOrderEventPublisher?.publish(SaleOrderCreatedEvent(saved.getId()!!, saved.createTime!!, saleOrder.type))
+        saleOrderEventPublisher?.publish(SaleOrderCreatedEvent(saved.id()!!, saved.createTime!!, saleOrder.type))
         return saved
     }
 }

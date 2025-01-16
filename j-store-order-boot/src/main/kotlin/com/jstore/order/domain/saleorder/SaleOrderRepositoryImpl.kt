@@ -136,7 +136,7 @@ object SaleOrderConverter {
     fun entity2POHolder(saleOrder: SaleOrder): SaleOrderPOHolder {
         return SaleOrderPOHolder().apply {
             saleOrderPO = SaleOrderPO().apply {
-                saleOrder.getId()?.value?.also { saleOrderId = it }
+                saleOrder.id()?.value?.also { saleOrderId = it }
                 saleOrder.buyerInfo.uid.also { uid = it }
                 saleOrder.buyerInfo.phoneNumber?.value?.also { phoneNumber = it }
                 saleOrder.buyerInfo.userName?.also { userName = it }
