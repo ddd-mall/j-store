@@ -60,7 +60,7 @@ class Stock(
         }
     }
 
-    override fun getId(): StockId? {
+    override fun id(): StockId? {
         return id
     }
 }

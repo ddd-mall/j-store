@@ -11,11 +11,11 @@ class SaleOrderCreateRiskVerifyCmd(
 
 @Component
 class SaleOrderCreateRiskVerifyCmdHandler(
-    private val riskFactory: com.jstore.order.domain.risk.RiskFactory
+    private val riskFactory: RiskFactory
 ) {
     private val log: Logger = LoggerFactory.getLogger(this::class)
 
-    fun verify(cmd: com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmd) {
+    fun verify(cmd: SaleOrderCreateRiskVerifyCmd) {
         val risk = riskFactory.get(cmd)
         risk.checkRisk()
         risk.handleRisk()

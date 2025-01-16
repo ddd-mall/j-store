@@ -10,7 +10,7 @@ interface DomainEvent : Entity<DomainEventId> {
 }
 
 abstract class DomainEventBase : DomainEvent {
-    @Transient override val mutex = Object()
+    override val mutex = Object()
     private val successes = mutableListOf<String>()
     override fun markSuccess(listener: DomainEventListener) {
         synchronized(successes) {

@@ -43,7 +43,7 @@ data class SaleOrderImpl(
     override val type: OrderType = OrderType.NORMAL
 ) : SaleOrder {
 
-    override fun getId(): SaleOrderId? {
+    override fun id(): SaleOrderId? {
         return id
     }
 }

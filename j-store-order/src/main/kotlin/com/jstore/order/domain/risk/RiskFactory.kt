@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component
 class RiskFactory {
     private val log: Logger = LoggerFactory.getLogger(this::class)
 
-    fun get(cmd: com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmd): Risk {
+    fun get(cmd: SaleOrderCreateRiskVerifyCmd): Risk {
         log.error("sale order create risk verification not implemented yet")
         return RiskImpl()
     }

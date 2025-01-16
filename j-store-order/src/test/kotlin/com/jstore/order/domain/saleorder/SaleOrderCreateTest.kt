@@ -16,9 +16,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.asserter
 
-class SaleOrderTest {
+class SaleOrderCreateTest {
     companion object {
-        private val logger: Logger = LoggerFactory.getLogger(SaleOrderTest::class.java)
+        private val logger: Logger = LoggerFactory.getLogger(SaleOrderCreateTest::class.java)
         private val listener = MockSaleOrderCreatedEventListener()
         @JvmStatic
         @BeforeAll
@@ -70,13 +70,13 @@ class SaleOrderTest {
                 detailAddress = "MOCK detail address"
             }
         val saleOrder = normalSaleOrderCreateCMDHandler.create(createCMD)
-        assertNotNull(saleOrder.getId(), "订单创建后ID仍然为空")
-        logger.info("订单创建成功，订单ID： {}", arrayOf(saleOrder.getId()))
+        assertNotNull(saleOrder.id(), "订单创建后ID仍然为空")
+        logger.info("订单创建成功，订单ID： {}", arrayOf(saleOrder.id()))
         asserter.assertSame("用户信息与创建时不一致", saleOrder.buyerInfo, createCMD.buyerUserInfo)
-        asserter.assertSame("订单项数量与传参中不一致", saleOrder.orderItems.size, createCMD.purchaseItemList?.size)
+        asserter.assertSame("订单项数量与传参中不一致", saleOrder.orderItems.size, createCMD.purchaseItemList.size)
         saleOrder.orderItems.forEach { item -> logger.info("订单项目金额： ${item.totalPrice}, 单位：${item.totalPrice.getCurrencyUnit()}") }
         logger.info("订单总金额: ${saleOrder.amount}, 单位：${saleOrder.amount.getCurrencyUnit()}")
-        val findOrder = saleOrderRepository.findById(saleOrder.getId()!!)
+        val findOrder = saleOrderRepository.findById(saleOrder.id()!!)
         assertNotNull(findOrder, "订单没有成功被保存")
         assertSame(OrderPositiveStatus.WAIT_PAY, findOrder.positiveStatus, "订单状态不正确")
         logger.info("订单{}", findOrder)
