@@ -1,35 +1,24 @@
-package com.jstore.order.domain.saleorder
+package com.jstore.order.service
 
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.order.config.TestBeanConfig.domainEventRegistry
-import com.jstore.order.config.TestBeanConfig.normalSaleOrderCreateCMDHandler
 import com.jstore.order.config.TestBeanConfig.saleOrderRepository
+import com.jstore.order.config.TestBeanConfig.saleOrderService
+import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCmd
+import com.jstore.order.domain.saleorder.OrderPositiveStatus
 import com.jstore.order.domain.saleorder.properties.UserInfo
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.asserter
 
-class SaleOrderCreateTest {
-    companion object {
-        private val logger: Logger = LoggerFactory.getLogger(SaleOrderCreateTest::class.java)
-        private val listener = MockSaleOrderCreatedEventListener()
-        @JvmStatic
-        @BeforeAll
-        fun setUp() {
-            listener.register(domainEventRegistry)
-        }
-    }
-
-
-
+class SaleOrderServiceTest {
+    private val logger: Logger = LoggerFactory.getLogger(this::class)
 
     @Test
-    fun createSaleOrderTest() {
+    fun saleOrderCreateServiceTest() {
         val createCMD = NormalSaleOrderCreateCmd("mock token")
             .apply {
                 buyerUserInfo = UserInfo(
@@ -54,7 +43,7 @@ class SaleOrderCreateTest {
                 districtCode = "110106"
                 detailAddress = "MOCK detail address"
             }
-        val saleOrder = normalSaleOrderCreateCMDHandler.create(createCMD)
+        val saleOrder = saleOrderService.create(createCMD)
         assertNotNull(saleOrder.id(), "订单创建后ID仍然为空")
         logger.info("订单创建成功，订单ID： {}", arrayOf(saleOrder.id()))
         asserter.assertSame("用户信息与创建时不一致", saleOrder.buyerInfo, createCMD.buyerUserInfo)

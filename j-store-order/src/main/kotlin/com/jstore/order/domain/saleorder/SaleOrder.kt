@@ -14,38 +14,26 @@ import java.time.LocalDateTime
 
 data class SaleOrderId(override val value: Long) : Id<Long>(value)
 
-interface SaleOrder : Entity<SaleOrderId> {
-    val buyerInfo: UserInfo
-    val orderItems: List<OrderItem>
-    var deliveryAddressInfo: GeoAddressInfo
-    val freightBills: List<FreightBill>?
-    var positiveStatus: OrderPositiveStatus?
-    var reverseStatus: OrderReverseStatus?
-    var amount: Price
-    var actualPay: Price
-    val createTime: LocalDateTime?
-    val updateTime: LocalDateTime?
-    val type: OrderType
-}
-
-data class SaleOrderImpl(
+data class SaleOrder(
     private val id: SaleOrderId?,
-    override val buyerInfo: UserInfo,
-    override val orderItems: List<OrderItem>,
-    override var deliveryAddressInfo: GeoAddressInfo,
-    override val freightBills: List<FreightBill>?,
-    override var positiveStatus: OrderPositiveStatus? = null,
-    override var reverseStatus: OrderReverseStatus? = null,
-    override var amount: Price,
-    override var actualPay: Price,
-    override val createTime: LocalDateTime? = null,
-    override val updateTime: LocalDateTime? = null,
-    override val type: OrderType = OrderType.NORMAL
-) : SaleOrder {
+    val buyerInfo: UserInfo,
+    val orderItems: List<OrderItem>,
+    var deliveryAddressInfo: GeoAddressInfo,
+    val freightBills: List<FreightBill>?,
+    var positiveStatus: OrderPositiveStatus? = null,
+    var reverseStatus: OrderReverseStatus? = null,
+    var amount: Price,
+    var actualPay: Price,
+    val createTime: LocalDateTime? = null,
+    val updateTime: LocalDateTime? = null,
+    val type: OrderType = OrderType.NORMAL
+) : Entity<SaleOrderId> {
+
 
     override fun id(): SaleOrderId? {
         return id
     }
+
 }
 
 

@@ -24,7 +24,7 @@ class StockRepositoryImpl(
         TODO("Not yet implemented")
     }
 
-    override fun saveBatch(stocks: Collection<Stock>) {
+    override fun saveBatch(stocks: Collection<Stock>) : List<Stock> {
         TODO("Not yet implemented")
     }
 

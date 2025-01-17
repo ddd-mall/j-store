@@ -7,5 +7,5 @@ import com.jstore.order.domain.saleorder.SaleOrderId
 interface StockRepository : Repository<StockId, Stock> {
     fun findAllByOrderId(orderId: SaleOrderId): List<Stock>
     fun findByOrderIdAndGoodsId(orderId: SaleOrderId, goodsId: GoodsId): Stock?
-    fun saveBatch(stocks: Collection<Stock>)
+    fun saveBatch(stocks: Collection<Stock>) : List<Stock>
 }

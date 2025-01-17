@@ -30,14 +30,14 @@ open class NormalSaleOrderFactory(
         saleOrderValidChain.appendAll(saleOrderRiskValidator)
     }
 
-    fun create(createParam: NormalSaleOrderCreateCmd): SaleOrderImpl {
+    fun create(createParam: NormalSaleOrderCreateCmd): SaleOrder {
         createParamValidChain.accept(createParam)
         val saleOrder = convertParamToNormalSaleOrder(createParam)
         saleOrderValidChain.accept(saleOrder)
         return saleOrder
     }
 
-    private fun convertParamToNormalSaleOrder(createParam: NormalSaleOrderCreateCmd): SaleOrderImpl {
+    private fun convertParamToNormalSaleOrder(createParam: NormalSaleOrderCreateCmd): SaleOrder {
         val userInfo: UserInfo = createParam.buyerUserInfo
         val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createParam)
         val deliveryAddressInfo: GeoAddressInfo = geoAddressService
@@ -45,7 +45,7 @@ open class NormalSaleOrderFactory(
             .apply { detailAddress = createParam.detailAddress }
 
         val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
-        return SaleOrderImpl(
+        return SaleOrder(
             null,
             userInfo,
             orderItems,

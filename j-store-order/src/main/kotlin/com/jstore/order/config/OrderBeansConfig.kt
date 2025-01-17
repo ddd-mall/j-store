@@ -13,7 +13,7 @@ open class OrderBeansConfig {
     @Bean(name = ["businessExecutor"])
     open fun businessExecutor(): ThreadPoolTaskExecutor {
         val executorService = ThreadPoolTaskExecutor()
-        executorService.setThreadNamePrefix("domain-event-registry-default-")
+        executorService.setThreadNamePrefix("businessExecutor-")
         executorService.corePoolSize = 1
         executorService.maxPoolSize = 30
         executorService.queueCapacity = 1000
