@@ -95,7 +95,7 @@ object SaleOrderConverter {
             .apply { detailAddress = saleOrderPO.detailAddress }
 
         val freightBillIds = JsonUtils.deserialize(saleOrderPO.freightBillId, object : TypeReference<List<String>>() {})
-        return SaleOrderImpl(
+        return SaleOrder(
             id,
             buyerInfo,
             items,

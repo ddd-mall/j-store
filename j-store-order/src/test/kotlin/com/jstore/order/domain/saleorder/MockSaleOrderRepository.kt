@@ -1,68 +1,52 @@
 package com.jstore.order.domain.saleorder
 
-import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.Page
-import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.order.common.MockPage
+import com.jstore.order.config.TestBeanConfig.snowFlakSequence
+import com.jstore.order.framwork.AbstractMockRepository
 import java.time.LocalDateTime
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.max
 import kotlin.math.min
 
-class MockSaleOrderRepository: SaleOrderRepository {
-    companion object {
-
-        private val saleOrderList: MutableList<SaleOrder> = ArrayList()
-        private val idxSaleOrderIdIndex: MutableMap<SaleOrderId, Int> = ConcurrentHashMap()
-        private val snowFlakSequence: SnowFlakSequence = SnowFlakSequence()
-    }
+class MockSaleOrderRepository: SaleOrderRepository, AbstractMockRepository<SaleOrderId, SaleOrder>() {
 
     override fun findByBuyerUserId(uid: Long): List<SaleOrder> {
-        return saleOrderList.filter { saleOrder -> saleOrder.buyerInfo.uid == uid }.toList()
+        return super.objList.filter { saleOrder -> saleOrder.buyerInfo.uid == uid }.toList()
     }
 
     override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<SaleOrder> {
         val actualPageSize: Int = max(1, pageSize)
         val fromOffset: Int = max(0, currentPage - 1) *  actualPageSize
-        val toOffSet: Int = min(saleOrderList.size, fromOffset + actualPageSize)
+        val toOffSet: Int = min(super.objList.size, fromOffset + actualPageSize)
 
-        if (fromOffset >= saleOrderList.size) {
+        if (fromOffset >= super.objList.size) {
             return MockPage(currentPage, 0 , listOf())
         }
 
         val saleOrders =
-            saleOrderList.filter { saleOrder -> saleOrder.buyerInfo.uid == uid }.subList(fromOffset, toOffSet)
+            super.objList.filter { saleOrder -> saleOrder.buyerInfo.uid == uid }.subList(fromOffset, toOffSet)
         return MockPage(currentPage, saleOrders.size, saleOrders)
     }
 
-    override fun save(entity: SaleOrder): SaleOrder {
-        val now = LocalDateTime.now()
-        entity.id()?.let {
-            idxSaleOrderIdIndex[entity.id()]?.let { index -> saleOrderList[index] = entity }
-            return entity
-        }
-        val saleOrder = SaleOrderImpl(
-            SaleOrderId(snowFlakSequence.nextId()),
-            entity.buyerInfo,
-            entity.orderItems,
-            entity.deliveryAddressInfo,
-            entity.freightBills,
-            entity.positiveStatus,
-            entity.reverseStatus,
-            entity.amount,
-            entity.actualPay,
-            now,
-            now
-        )
-        idxSaleOrderIdIndex.putIfAbsent(saleOrder.id()!!, saleOrderList.size)
-        saleOrderList.add(saleOrder)
-        return saleOrder
 
+    override fun nextId(): SaleOrderId {
+        return SaleOrderId(snowFlakSequence.nextId())
     }
 
-    override fun findById(id: SaleOrderId): SaleOrder {
-        val index = idxSaleOrderIdIndex[id]
-            ?: throw CommonErrors.RESOURCE_NOT_FOUND.to("没有找到id为 $id 的订单")
-        return saleOrderList[index]
+    override fun copyAnEntity(nextId: SaleOrderId, entity: SaleOrder): SaleOrder {
+        val now = LocalDateTime.now()
+        return SaleOrder(
+            id = nextId,
+            buyerInfo = entity.buyerInfo,
+            orderItems = entity.orderItems,
+            deliveryAddressInfo = entity.deliveryAddressInfo,
+            freightBills = entity.freightBills,
+            positiveStatus = entity.positiveStatus,
+            reverseStatus = entity.reverseStatus,
+            amount = entity.amount,
+            actualPay = entity.actualPay,
+            createTime = now,
+            updateTime = now
+        )
     }
 }

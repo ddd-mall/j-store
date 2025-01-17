@@ -15,29 +15,30 @@ class StockPreDeductCmd(
 
 @Component
 open class StockPreDeductHandler(
-    private val stockRepository: com.jstore.order.domain.stock.StockRepository,
-    private val stockFactory: com.jstore.order.domain.stock.StockFactory
+    private val stockRepository: StockRepository,
+    private val stockFactory: StockFactory
 ) {
     private val log: Logger = LoggerFactory.getLogger(this::class)
 
 
-    open fun handle(cmd: com.jstore.order.domain.stock.StockPreDeductCmd) {
+    open fun handle(cmd: StockPreDeductCmd) {
 
-        val stockList = stockRepository.findAllByOrderId(cmd.orderId).let {
-            if (it.any { stock -> cmd.goodsIdsQuantityMap.keys.contains(stock.goodsId) }) {
+        val stockList = stockRepository.findAllByOrderId(cmd.orderId).let { find ->
+            if (find.any { stock -> cmd.goodsIdsQuantityMap.keys.contains(stock.goodsId) }) {
                 throw CommonErrors.ILLEGAL_STATE.to("order ${cmd.orderId}'s stock already exists")
             }
-            it.ifEmpty {
+            find.ifEmpty {
                 stockFactory.create(cmd)
             }
         }
 
 
+
         try {
-            stockList.forEach(com.jstore.order.domain.stock.Stock::preDeduct)
-            stockList.let(stockRepository::saveBatch)
+            stockList.map(Stock::preDeduct).map { it.get() }.toList().let(stockRepository::saveBatch)
         } catch (e: Exception) {
-            stockList.forEach(com.jstore.order.domain.stock.Stock::rollback)
+            log.error("error occurred when pre deduct stock", e)
+            stockList.map(Stock::rollback).map {it.get() }.toList().let(stockRepository::saveBatch)
             throw CommonErrors.INTERNAL_ERROR.to("order ${cmd.orderId}'s stock pre deduct failed", e)
         }
 

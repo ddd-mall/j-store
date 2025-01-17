@@ -9,7 +9,7 @@ import com.jstore.order.acl.StockServiceACL
 import com.jstore.order.domain.saleorder.SaleOrderId
 import java.math.BigDecimal
 import java.util.concurrent.CompletableFuture
-
+import java.util.concurrent.Executor
 
 
 data class StockId(override val value: String) : Id<String>(value)
@@ -19,21 +19,22 @@ class Stock(
     val orderId: SaleOrderId,
     val goodsId: GoodsId,
     val amount: BigDecimal,
-    @Transient private val stockServiceACL: StockServiceACL,
     var currentStatus: StockStatus = StockStatus.CREATED,
     var lastStatus: StockStatus = currentStatus,
-
-    ) : Entity<StockId> {
+    @Transient val stockServiceACL: StockServiceACL,
+    @Transient val executor: Executor? = null,
+) : Entity<StockId> {
     fun preDeduct(): CompletableFuture<Stock> {
         if (currentStatus != StockStatus.CREATED) {
             throw CommonErrors.ILLEGAL_STATE.to("库存当前状态不允许进行此操作")
         }
-        return CompletableFuture.supplyAsync {
+        val supplier = {
             this.id = stockServiceACL.preDeduct(goodsId, amount)
             lastStatus = currentStatus
             currentStatus = StockStatus.PRE_DEDUCTED
             this
         }
+        return executor?.let { CompletableFuture.supplyAsync(supplier, it) } ?: CompletableFuture.supplyAsync(supplier)
     }
 
     fun deduct(): CompletableFuture<Stock> {
@@ -41,12 +42,13 @@ class Stock(
             throw CommonErrors.ILLEGAL_STATE.to("库存当前状态不允许进行此操作")
         }
         id ?: throw CommonErrors.ILLEGAL_STATE.to("库存操作未初始化")
-        return CompletableFuture.supplyAsync {
+        val supplier = {
             stockServiceACL.deduct(id!!)
             lastStatus = currentStatus
             currentStatus = StockStatus.DEDUCTED
             this
         }
+        return executor?.let { CompletableFuture.supplyAsync(supplier, it) } ?: CompletableFuture.supplyAsync(supplier)
     }
 
     fun rollback(): CompletableFuture<Stock> {
