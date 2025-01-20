@@ -1,6 +1,7 @@
 package com.jstore.order.domain.saleorder
 
-import com.jstore.common.errors.CommonErrors
+import com.jstore.common.framework.DomainEventId
+import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
 import com.jstore.order.acl.*
@@ -11,11 +12,14 @@ import com.jstore.order.domain.saleorder.validator.SaleOrderCreateCMDValidChain
 import com.jstore.order.domain.saleorder.validator.SaleOrderRiskValidator
 import com.jstore.order.domain.saleorder.validator.SaleOrderValidChain
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
 
 @Service
 open class NormalSaleOrderFactory(
     private val goodsService: GoodsService,
     private val geoAddressService: GeoAddressService,
+    private val saleOrderEventPublisher: SaleOrderEventPublisher,
+    private val snowFlakSequence: SnowFlakSequence,
     saleOrderCreateCMDValidator: SaleOrderCreateCMDUserInfoValidator,
     saleOrderRiskValidator: SaleOrderRiskValidator
 
@@ -34,6 +38,12 @@ open class NormalSaleOrderFactory(
         createParamValidChain.accept(createParam)
         val saleOrder = convertParamToNormalSaleOrder(createParam)
         saleOrderValidChain.accept(saleOrder)
+        saleOrderEventPublisher.publish(
+            SaleOrderCreatedEvent(
+                id = DomainEventId(snowFlakSequence.nextId()),
+                order = saleOrder,
+            )
+        )
         return saleOrder
     }
 
@@ -46,15 +56,17 @@ open class NormalSaleOrderFactory(
 
         val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
         return SaleOrder(
-            null,
-            userInfo,
-            orderItems,
-            deliveryAddressInfo,
-            null,
-            OrderPositiveStatus.WAIT_PAY,
-            OrderReverseStatus.NONE,
-            amount,
-            Price.Companion.Commonly.of(0)
+            id = SaleOrderId(snowFlakSequence.nextId()),
+            buyerInfo = userInfo,
+            orderItems = orderItems,
+            deliveryAddressInfo = deliveryAddressInfo,
+            freightBills = null,
+            positiveStatus = OrderPositiveStatus.WAIT_PAY,
+            reverseStatus = OrderReverseStatus.NONE,
+            amount = amount,
+            actualPay = Price.Companion.Commonly.of(0),
+            createTime = LocalDateTime.now(),
+            updateTime = LocalDateTime.now()
         )
     }
 
@@ -66,18 +78,17 @@ open class NormalSaleOrderFactory(
         return purchaseItemList.map { purchaseItem: NormalSaleOrderCreateCmd.PurchaseItem ->
             val goodsInfo =
                 goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
-                    ?: throw CommonErrors.RESOURCE_NOT_FOUND.to("the goods corresponding to purchase item $purchaseItem not found")
+                    ?: throw SaleOrderErrors.CorrespondingGoodsNotFound.msg("purchase item $purchaseItem corresponding goods not found")
 
-            val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.count)
+            val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.quantity)
             val item = OrderItem(
-                null,
-
-                goodsInfo.id.spuId,
-                goodsInfo.id.skuId,
-                goodsInfo.version,
-                purchaseItem.count,
-                goodsInfo.price,
-                totalPrice
+                id = OrderItemId(snowFlakSequence.nextId()),
+                spuId = goodsInfo.id.spuId,
+                skuId = goodsInfo.id.skuId,
+                skuVersion = goodsInfo.version,
+                count = purchaseItem.quantity,
+                unitPrice = goodsInfo.price,
+                totalPrice = totalPrice
             )
             item
         }

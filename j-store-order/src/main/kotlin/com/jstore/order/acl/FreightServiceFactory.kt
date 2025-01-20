@@ -12,6 +12,6 @@ object FreightServiceFactory {
         if (services.isNotEmpty()) {
             return services.first()
         }
-        throw CommonErrors.INTERNAL_ERROR.to("没有找到可用的RefundService")
+        throw CommonErrors.INTERNAL_ERROR.msg("没有找到可用的RefundService")
     }
 }

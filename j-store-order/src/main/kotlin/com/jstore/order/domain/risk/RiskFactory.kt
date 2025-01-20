@@ -9,7 +9,7 @@ class RiskFactory {
     private val log: Logger = LoggerFactory.getLogger(this::class)
 
     fun get(cmd: SaleOrderCreateRiskVerifyCmd): Risk {
-        log.error("sale order create risk verification not implemented yet")
+        log.warn("[TODO] - sale order create risk verification not implemented yet")
         return RiskImpl()
     }
 }

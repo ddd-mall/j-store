@@ -7,10 +7,12 @@ import java.time.LocalDateTime
 
 const val saleOrderTopic: String = "sale-order"
 
+data class SaleOrderPrepareEvent(
+    val createCMD: NormalSaleOrderCreateCmd
+)
+
 data class SaleOrderCreatedEvent(
-    val orderId: SaleOrderId,
-    val createTime: LocalDateTime,
-    val orderType: OrderType,
+    val order: SaleOrder,
     var id: DomainEventId? = null,
 ) : DomainEventBase(), DomainEvent {
     override fun topic(): String = saleOrderTopic

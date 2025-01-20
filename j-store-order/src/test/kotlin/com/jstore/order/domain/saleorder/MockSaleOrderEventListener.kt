@@ -22,13 +22,13 @@ class MockSaleOrderCreatedEventListener : DomainEventListener {
     override fun handle(event: DomainEvent) {
         when (event) {
             is SaleOrderCreatedEvent -> {
-                log.info("order ${event.orderId} has been created")
+                log.info("order ${event.order.id().value} has been created")
             }
         }
     }
 
     fun register(domainEventRegistry: DomainEventRegistry) {
-        this.domainEventRegistry?.let { throw CommonErrors.ILLEGAL_STATE.to("已经注册过了") }
+        this.domainEventRegistry?.let { throw CommonErrors.ILLEGAL_STATE.msg("已经注册过了") }
         domainEventRegistry.register(this)
         this.domainEventRegistry = domainEventRegistry
     }
@@ -39,6 +39,6 @@ class MockSaleOrderCreatedEventListener : DomainEventListener {
             domainEventRegistry = null
             return
         }
-        throw CommonErrors.ILLEGAL_STATE.to("未注册")
+        throw CommonErrors.ILLEGAL_STATE.msg("未注册")
     }
 }

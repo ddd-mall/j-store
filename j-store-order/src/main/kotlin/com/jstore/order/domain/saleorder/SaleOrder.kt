@@ -15,22 +15,22 @@ import java.time.LocalDateTime
 data class SaleOrderId(override val value: Long) : Id<Long>(value)
 
 data class SaleOrder(
-    private val id: SaleOrderId?,
+    private val id: SaleOrderId,
     val buyerInfo: UserInfo,
     val orderItems: List<OrderItem>,
     var deliveryAddressInfo: GeoAddressInfo,
     val freightBills: List<FreightBill>?,
-    var positiveStatus: OrderPositiveStatus? = null,
-    var reverseStatus: OrderReverseStatus? = null,
+    var positiveStatus: OrderPositiveStatus,
+    var reverseStatus: OrderReverseStatus,
     var amount: Price,
     var actualPay: Price,
-    val createTime: LocalDateTime? = null,
-    val updateTime: LocalDateTime? = null,
+    val createTime: LocalDateTime,
+    val updateTime: LocalDateTime,
     val type: OrderType = OrderType.NORMAL
 ) : Entity<SaleOrderId> {
 
 
-    override fun id(): SaleOrderId? {
+    override fun id(): SaleOrderId {
         return id
     }
 

@@ -19,10 +19,10 @@ open class SnowFlakSequence {
 
     constructor(workerId: Long, datacenterId: Long) {
         if (workerId > maxWorkerId || workerId < 0) {
-            throw CommonErrors.INVALID_PARAM.to("worker Id can't be greater than $maxWorkerId or less than 0")
+            throw CommonErrors.INVALID_PARAM.msg("worker Id can't be greater than $maxWorkerId or less than 0")
         }
         if (datacenterId > maxDatacenterId || datacenterId < 0) {
-            throw CommonErrors.INVALID_PARAM.to("datacenter Id can't be greater than $maxDatacenterId or less than 0")
+            throw CommonErrors.INVALID_PARAM.msg("datacenter Id can't be greater than $maxDatacenterId or less than 0")
         }
         this.workerId = workerId
         this.datacenterId = datacenterId

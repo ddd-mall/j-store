@@ -9,7 +9,7 @@ interface SaleOrderEventPublisher : DomainEventPublisher
 
 @Component
 class SaleOrderEventPublisherImpl(
-    private val domainEventRegistry: DomainEventRegistry
+    private var domainEventRegistry: DomainEventRegistry
 ) : SaleOrderEventPublisher {
 
     override fun publish(event: DomainEvent) {

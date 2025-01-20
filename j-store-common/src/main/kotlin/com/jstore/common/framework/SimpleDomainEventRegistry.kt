@@ -95,11 +95,11 @@ open class SimpleDomainEventRegistry : DomainEventRegistry {
 
     override fun publish(event: DomainEvent) {
         domainEventRepository?.save(event)
-        syncEventHandlerMap[event.topic()]?.forEach { it.invoke(event) }
-        async(event)
+        syncEventHandlerMap[event.topic()]?.forEach { it.handle(event) }
+        asyncInvoke(event)
     }
 
-    private fun async(event: DomainEvent) {
+    private fun asyncInvoke(event: DomainEvent) {
         if (dispatcher.isInterrupted) {
             log.error("dispatcher is interrupted")
             return
@@ -119,7 +119,7 @@ open class SimpleDomainEventRegistry : DomainEventRegistry {
             }
             val event = eventQueue.poll()
             asyncListenerMap[event.topic()]?.forEach {
-                executorService?.submit { it.invoke(event) } ?: it.invoke(event)
+                executorService?.submit { it.handle(event) } ?: it.handle(event)
             }
         }
     }

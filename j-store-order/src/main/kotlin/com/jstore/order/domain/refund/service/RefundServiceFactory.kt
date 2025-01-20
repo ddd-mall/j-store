@@ -11,7 +11,7 @@ object RefundServiceFactory {
     }
     fun getOne(): RefundService {
         if (refundServiceHolder.isEmpty()) {
-            throw CommonErrors.INTERNAL_ERROR.to("没有找到可用的 refund service")
+            throw CommonErrors.INTERNAL_ERROR.msg("没有找到可用的 refund service")
         }
         return refundServiceHolder.first()
     }

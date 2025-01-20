@@ -19,7 +19,7 @@ open class StockDeductCmdHandler(
 
     open fun handle(cmd: StockDeductCmd) {
         val orderStocks = stockRepository.findAllByOrderId(cmd.orderId)
-        orderStocks.ifEmpty { throw CommonErrors.ILLEGAL_STATE.to("order ${cmd.orderId}'s stock not exists") }
+        orderStocks.ifEmpty { throw CommonErrors.ILLEGAL_STATE.msg("order ${cmd.orderId}'s stock not exists") }
 
         try {
             orderStocks.forEach(Stock::deduct)
@@ -29,7 +29,7 @@ open class StockDeductCmdHandler(
             orderStocks.forEach(Stock::rollback)
             stockRepository.saveBatch(orderStocks)
             log.error("stock deduct failed, order: ${cmd.orderId}")
-            throw CommonErrors.INTERNAL_ERROR.to("stock deduct failed, order ${cmd.orderId}")
+            throw CommonErrors.INTERNAL_ERROR.msg("stock deduct failed, order ${cmd.orderId}")
         }
 
     }
