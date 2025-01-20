@@ -5,7 +5,6 @@ import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.StockServiceACL
-import com.jstore.order.domain.stock.StockId
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 
@@ -14,18 +13,18 @@ class StockServiceACLImpl(
     private val snowFlakSequence: SnowFlakSequence
 ) : StockServiceACL {
     private val log: Logger = LoggerFactory.getLogger(this::class)
-    override fun preDeduct(goodsId: GoodsId, amount: BigDecimal): StockId {
-        log.info("goods: ${goodsId}'s stock pre deducted with total $amount")
-        return StockId(snowFlakSequence.nextId().toString())
+    override fun preDeduct(goodsId: GoodsId, quantity: BigDecimal) : String {
+        log.info("goods: ${goodsId}'s stock pre deducted with total $quantity")
+        return snowFlakSequence.nextId().toString()
     }
 
-    override fun deduct(stockId: StockId): Boolean {
-        log.info("stock ${stockId.value} have been deducted")
+    override fun deduct(stockId: String): Boolean {
+        log.info("stock $stockId have been deducted")
         return true
     }
 
-    override fun rollback(stockId: StockId): Boolean {
-        log.info("stock ${stockId.value} haven rollback for deduct")
+    override fun rollback(stockId: String): Boolean {
+        log.info("stock $stockId haven rollback for deduct")
         return true
     }
 }

@@ -20,7 +20,7 @@ class NormalSaleOrderCreateCmd(val token: String) {
     class PurchaseItem {
         var spuId: Long? = null
         var skuId: Long? = null
-        var count: BigDecimal = BigDecimal.ZERO
+        var quantity: BigDecimal = BigDecimal.ZERO
 
         fun mapToGoodsId(): GoodsId {
             return GoodsId(
@@ -30,7 +30,7 @@ class NormalSaleOrderCreateCmd(val token: String) {
         }
 
         override fun toString(): String {
-            return "PurchaseItem(spuId=$spuId, skuId=$skuId, count=$count)"
+            return "PurchaseItem(spuId=$spuId, skuId=$skuId, count=$quantity)"
         }
     }
 }
@@ -45,7 +45,6 @@ class NormalSaleOrderCreateCMDHandler(
     fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
         val saleOrder = this.normalSaleOrderFactory.create(cmd)
         val saved = saleOrderRepository.save(saleOrder)
-        saleOrderEventPublisher?.publish(SaleOrderCreatedEvent(saved.id()!!, saved.createTime!!, saleOrder.type))
         return saved
     }
 }

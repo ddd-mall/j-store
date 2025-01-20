@@ -3,21 +3,15 @@ package com.jstore.order.config
 import com.jstore.common.framework.DomainEventRegistry
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.order.acl.StockServiceACL
-import com.jstore.order.domain.stock.MockStockRepositoryImpl
 import com.jstore.order.acl.address.MockAddressService
 import com.jstore.order.acl.goods.MockGoodsService
 import com.jstore.order.acl.stock.MockStockServiceACLImpl
 import com.jstore.order.domain.risk.RiskFactory
 import com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmdHandler
-import com.jstore.order.domain.saleorder.MockSaleOrderEventPublisher
-import com.jstore.order.domain.saleorder.MockSaleOrderRepository
-import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCMDHandler
-import com.jstore.order.domain.saleorder.NormalSaleOrderFactory
+import com.jstore.order.domain.saleorder.*
 import com.jstore.order.domain.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
 import com.jstore.order.domain.saleorder.validator.SaleOrderRiskValidator
-import com.jstore.order.domain.stock.StockFactory
-import com.jstore.order.domain.stock.StockPreDeductHandler
-import com.jstore.order.domain.stock.StockRepository
+import com.jstore.order.domain.stock.*
 import com.jstore.order.service.SaleOrderService
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 
@@ -29,11 +23,15 @@ object TestBeanConfig {
     val goodsService = MockGoodsService()
     val saleOrderRepository = MockSaleOrderRepository()
     val mockNormalSaleOrderFactory: NormalSaleOrderFactory = NormalSaleOrderFactory(
-        goodsService,
-        MockAddressService(),
-        SaleOrderCreateCMDUserInfoValidator(),
-        SaleOrderRiskValidator()
+        goodsService = goodsService,
+        geoAddressService = MockAddressService(),
+        saleOrderCreateCMDValidator = SaleOrderCreateCMDUserInfoValidator(),
+        saleOrderRiskValidator = SaleOrderRiskValidator(),
+        saleOrderEventPublisher = SaleOrderEventPublisherImpl(domainEventRegistry),
+        snowFlakSequence = snowFlakSequence
     )
+
+
 
     val normalSaleOrderCreateCMDHandler: NormalSaleOrderCreateCMDHandler = NormalSaleOrderCreateCMDHandler(
         saleOrderRepository,
@@ -44,7 +42,8 @@ object TestBeanConfig {
     val saleOrderCreateRiskVerifyCmdHandler: SaleOrderCreateRiskVerifyCmdHandler = SaleOrderCreateRiskVerifyCmdHandler(riskFactory)
     val stockRepository: StockRepository = MockStockRepositoryImpl()
     val stockServiceACL: StockServiceACL = MockStockServiceACLImpl()
-    val stockFactory: StockFactory = StockFactory(stockAclService = stockServiceACL, businessExecutor = businessExecutor)
+    val stockFactory: StockFactory = StockFactory(stockAclService = stockServiceACL, businessExecutor = businessExecutor, snowFlakSequence = snowFlakSequence)
     val stockPreDeductHandler: StockPreDeductHandler = StockPreDeductHandler(stockRepository, stockFactory)
     val saleOrderService: SaleOrderService = SaleOrderService(normalSaleOrderCreateCMDHandler, saleOrderCreateRiskVerifyCmdHandler, stockPreDeductHandler)
+    val preDeductWhenOrderCreatedPolicy = PreDeductWhenOrderCreatedPolicy(stockPreDeductHandler = stockPreDeductHandler, domainEventRegistry = domainEventRegistry)
 }

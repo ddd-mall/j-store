@@ -30,17 +30,9 @@ open class SaleOrderService(
     open fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
         val riskVerifyCmd = SaleOrderCreateRiskVerifyCmd(
             token = cmd.token,
-            uid = cmd.buyerUserInfo.uid
-        )
-
+            userInfo = cmd.buyerUserInfo)
         saleOrderCreateRiskVerifyCmdHandler.verify(riskVerifyCmd)
         val saleOrder = normalSaleOrderCreateCMDHandler.create(cmd)
-        val preDeductCmd = saleOrder.id()?.let { id ->
-            StockPreDeductCmd(
-                orderId = id,
-                goodsIdsQuantityMap = saleOrder.orderItems.associate { GoodsId(it.spuId, it.skuId) to it.count })
-        } ?: throw CommonErrors.ILLEGAL_STATE.to("sale order id is null")
-        stockPreDeductHandler.handle(preDeductCmd)
         return saleOrder
     }
 }

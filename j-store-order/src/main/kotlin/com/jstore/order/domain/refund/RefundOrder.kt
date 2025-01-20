@@ -19,7 +19,7 @@ data class RefundOrder(
     val updateTime: LocalDateTime? = null,
 ) : Entity<RefundOrderId> {
     override fun id(): RefundOrderId {
-        return id ?: throw CommonErrors.ILLEGAL_STATE.to("退款单尚未创建完成")
+        return id ?: throw CommonErrors.ILLEGAL_STATE.msg("退款单尚未创建完成")
     }
 }
 

@@ -136,19 +136,18 @@ object SaleOrderConverter {
     fun entity2POHolder(saleOrder: SaleOrder): SaleOrderPOHolder {
         return SaleOrderPOHolder().apply {
             saleOrderPO = SaleOrderPO().apply {
-                saleOrder.id()?.value?.also { saleOrderId = it }
+                saleOrder.id().value.also { saleOrderId = it }
                 saleOrder.buyerInfo.uid.also { uid = it }
-                saleOrder.buyerInfo.phoneNumber?.value?.also { phoneNumber = it }
-                saleOrder.buyerInfo.userName?.also { userName = it }
-                saleOrder.deliveryAddressInfo.districtCode.also { districtCode = it }
-                saleOrder.deliveryAddressInfo.detailAddress?.also { detailAddress = it }
-                saleOrder.freightBills?.map { it.id }?.toList()
+                phoneNumber = saleOrder.buyerInfo.phoneNumber?.value ?: ""
+                userName = saleOrder.buyerInfo.userName ?: ""
+                districtCode = saleOrder.deliveryAddressInfo.districtCode
+                detailAddress = saleOrder.deliveryAddressInfo.detailAddress ?: ""
+                freightBillId = saleOrder.freightBills?.map { it.id }?.toList()
                     .let { JsonUtils.toJsonString(it ?: listOf<String>()) }
-                    .also { freightBillId = it }
-                saleOrder.positiveStatus?.name?.also { positiveStatus = it }
-                saleOrder.reverseStatus?.name?.also { reverseStatus = it }
-                saleOrder.amount.getBasicValue().also { amount = it }
-                saleOrder.actualPay.getBasicValue().also { actualPay = it }
+                positiveStatus = saleOrder.positiveStatus.name
+                reverseStatus = saleOrder.reverseStatus.name
+                amount = saleOrder.amount.getBasicValue()
+                actualPay = saleOrder.actualPay.getBasicValue()
             }
 
             saleOrderItemPOs = saleOrder.orderItems.map {

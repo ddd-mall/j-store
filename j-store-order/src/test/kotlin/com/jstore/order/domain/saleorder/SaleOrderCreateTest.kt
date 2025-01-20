@@ -41,12 +41,12 @@ class SaleOrderCreateTest {
                     NormalSaleOrderCreateCmd.PurchaseItem().apply {
                         spuId = 1
                         skuId = 1
-                        count = BigDecimal.TWO
+                        quantity = BigDecimal.TWO
                     },
                     NormalSaleOrderCreateCmd.PurchaseItem().apply {
                         skuId = 2
                         spuId = 2
-                        count = BigDecimal.ONE
+                        quantity = BigDecimal.ONE
                     }
                 )
 
@@ -61,7 +61,7 @@ class SaleOrderCreateTest {
         asserter.assertSame("订单项数量与传参中不一致", saleOrder.orderItems.size, createCMD.purchaseItemList.size)
         saleOrder.orderItems.forEach { item -> logger.info("订单项目金额： ${item.totalPrice}, 单位：${item.totalPrice.getCurrencyUnit()}") }
         logger.info("订单总金额: ${saleOrder.amount}, 单位：${saleOrder.amount.getCurrencyUnit()}")
-        val findOrder = saleOrderRepository.findById(saleOrder.id()!!)
+        val findOrder = saleOrderRepository.findById(saleOrder.id())
         assertNotNull(findOrder, "订单没有成功被保存")
         assertSame(OrderPositiveStatus.WAIT_PAY, findOrder.positiveStatus, "订单状态不正确")
         logger.info("订单{}", findOrder)

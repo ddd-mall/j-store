@@ -1,6 +1,7 @@
 package com.jstore.order.domain.stock
 
 import com.jstore.order.acl.GoodsId
+import com.jstore.order.config.TestBeanConfig.snowFlakSequence
 import com.jstore.order.domain.saleorder.SaleOrderId
 import com.jstore.order.framwork.AbstractMockRepository
 
@@ -19,10 +20,8 @@ class MockStockRepositoryImpl : StockRepository, AbstractMockRepository<StockId,
         return stocks.map(::save)
     }
 
-
-
     override fun nextId(): StockId {
-        throw IllegalAccessError()
+        return StockId(snowFlakSequence.nextId().toString())
     }
 
     override fun copyAnEntity(nextId: StockId, entity: Stock): Stock {

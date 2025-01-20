@@ -1,58 +1,93 @@
 package com.jstore.order.acl.stock
 
-import com.jstore.common.errors.CommonErrors
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.StockServiceACL
 import com.jstore.order.config.TestBeanConfig.snowFlakSequence
-import com.jstore.order.domain.stock.StockId
+import com.jstore.order.domain.stock.StockErrors
+import com.jstore.order.domain.stock.StockErrors.StockResourceNotFound
+import com.jstore.order.domain.stock.StockStatus
 import java.math.BigDecimal
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 class MockStockServiceACLImpl : StockServiceACL {
     private val stockMap: ConcurrentHashMap<GoodsId, AtomicReference<BigDecimal>> = ConcurrentHashMap()
-    private val preDeductedStock: ConcurrentHashMap<StockId, BigDecimal> = ConcurrentHashMap()
-    private val deductedStock: ConcurrentHashMap<StockId, BigDecimal> = ConcurrentHashMap()
+    private val stockPOMap: ConcurrentHashMap<String, StockPO> = ConcurrentHashMap()
 
     private val log = LoggerFactory.getLogger(this::class)
-    override fun preDeduct(goodsId: GoodsId, amount: BigDecimal): StockId {
+
+    init {
+        stockMap[GoodsId(1, 1)] = AtomicReference(BigDecimal(2))
+        stockMap[GoodsId(2, 2)] = AtomicReference(BigDecimal(1))
+    }
+
+    override fun preDeduct(goodsId: GoodsId, quantity: BigDecimal): String {
         stockMap[goodsId]?.let { stock ->
-            if (stock.get() < amount) {
-                throw CommonErrors.ILLEGAL_STATE.to("$goodsId corresponding stocks not enough")
+            if (stock.get() < quantity) {
+                throw StockErrors.StockInsufficient.msg("the corresponding stocks of $goodsId not enough")
             }
             synchronized(stock) {
-                if (stock.get() < amount) {
-                    throw CommonErrors.ILLEGAL_STATE.to("$goodsId corresponding stocks not enough")
+                if (stock.get() < quantity) {
+                    throw StockErrors.StockInsufficient.msg("the corresponding stocks of $goodsId not enough")
                 }
-                val afterSub = stock.accumulateAndGet(amount) { pre, sub ->
+                val afterSub = stock.accumulateAndGet(quantity) { pre, sub ->
                     pre.subtract(sub)
                 }
                 if (afterSub.toDouble() >= 0) {
                     stock.compareAndSet(stock.get(), afterSub)
                 } else {
-                    throw CommonErrors.INTERNAL_ERROR.to("failed to pre deduct $goodsId corresponding stocks")
+                    throw StockErrors.StockInsufficient.msg("failed to pre deduct $goodsId corresponding stocks")
                 }
+                log.info("goods $goodsId's stock has been pre deducted with quantity $quantity, remind $afterSub")
             }
-        } ?: throw CommonErrors.RESOURCE_NOT_FOUND.to("$goodsId corresponding stocks not found")
+        } ?: throw StockResourceNotFound.msg("$goodsId corresponding stocks not found")
 
-        val stockId = StockId(snowFlakSequence.nextId().toString())
-        preDeductedStock[stockId] = amount
-        log.info("goods $goodsId have been pre deduct with amount $amount")
-        return stockId
+        val outerStockId = snowFlakSequence.nextId().toString()
+        stockPOMap[outerStockId] = StockPO(
+            stockId = outerStockId,
+            goodsId = goodsId,
+            quantity = quantity,
+            status = StockStatus.PRE_DEDUCTED
+        )
+        return outerStockId
     }
 
-    override fun deduct(stockId: StockId): Boolean {
+    override fun deduct(stockId: String): Boolean {
 
-        val stock = preDeductedStock.remove(stockId)
-            ?: throw CommonErrors.ILLEGAL_STATE.to("$stockId corresponding stock not found")
-        deductedStock.putIfAbsent(stockId, stock)?.let {
-            throw CommonErrors.ILLEGAL_STATE.to("$stockId corresponding stock has been deducted ")
-        }
+        val stockPO = stockPOMap[stockId] ?:
+            throw StockResourceNotFound.msg("$stockId corresponding stock not found")
+        stockPO.status = StockStatus.DEDUCTED
+        stockPOMap[stockId] = stockPO
         return true
     }
 
-    override fun rollback(stockId: StockId): Boolean {
-        TODO("Not yet implemented")
+    override fun rollback(stockId: String): Boolean {
+
+        val stockPO = stockPOMap[stockId] ?: return true
+        when (stockPO.status) {
+            StockStatus.CREATED -> return true
+            StockStatus.PRE_DEDUCTED -> {
+                val atomicReference = stockMap[stockPO.goodsId] ?: throw StockResourceNotFound
+                val stockQuantity = atomicReference.get()
+                atomicReference.compareAndSet(stockQuantity, stockQuantity.add(stockPO.quantity))
+                stockMap[stockPO.goodsId] = atomicReference
+                return true
+            }
+            StockStatus.DEDUCTED -> {
+                stockPO.status = StockStatus.PRE_DEDUCTED
+                stockPOMap[stockId] = stockPO
+                return true
+            }
+        }
+    }
+
+    private class StockPO(
+        val stockId: String,
+        val goodsId: GoodsId,
+        val quantity: BigDecimal,
+        var status: StockStatus
+    ) {
+
     }
 }

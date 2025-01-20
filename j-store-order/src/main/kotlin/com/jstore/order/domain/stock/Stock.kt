@@ -1,7 +1,6 @@
 package com.jstore.order.domain.stock
 
 
-import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.Entity
 import com.jstore.common.properties.Id
 import com.jstore.order.acl.GoodsId
@@ -10,6 +9,7 @@ import com.jstore.order.domain.saleorder.SaleOrderId
 import java.math.BigDecimal
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 
 
 data class StockId(override val value: String) : Id<String>(value)
@@ -21,46 +21,62 @@ class Stock(
     val amount: BigDecimal,
     var currentStatus: StockStatus = StockStatus.CREATED,
     var lastStatus: StockStatus = currentStatus,
+
+    private var outerStockId: String? = null,
     @Transient val stockServiceACL: StockServiceACL,
     @Transient val executor: Executor? = null,
+    @Transient val allowedRollback: AtomicBoolean = AtomicBoolean(false)
 ) : Entity<StockId> {
+
+
     fun preDeduct(): CompletableFuture<Stock> {
         if (currentStatus != StockStatus.CREATED) {
-            throw CommonErrors.ILLEGAL_STATE.to("库存当前状态不允许进行此操作")
+            throw StockErrors.IllegalState
         }
-        val supplier = {
-            this.id = stockServiceACL.preDeduct(goodsId, amount)
+
+        val futureStock = {
+            this.outerStockId = stockServiceACL.preDeduct(goodsId, amount)
             lastStatus = currentStatus
             currentStatus = StockStatus.PRE_DEDUCTED
+            allowedRollback.set(true)
             this
         }
-        return executor?.let { CompletableFuture.supplyAsync(supplier, it) } ?: CompletableFuture.supplyAsync(supplier)
+        return executor?.let { CompletableFuture.supplyAsync(futureStock, it) } ?: CompletableFuture.supplyAsync(futureStock)
     }
+
 
     fun deduct(): CompletableFuture<Stock> {
         if (currentStatus != StockStatus.PRE_DEDUCTED) {
-            throw CommonErrors.ILLEGAL_STATE.to("库存当前状态不允许进行此操作")
+            throw StockErrors.IllegalState
         }
-        id ?: throw CommonErrors.ILLEGAL_STATE.to("库存操作未初始化")
-        val supplier = {
-            stockServiceACL.deduct(id!!)
+        val futureStock = {
+            stockServiceACL.deduct(outerStockId!!)
             lastStatus = currentStatus
             currentStatus = StockStatus.DEDUCTED
+            allowedRollback.set(true)
             this
         }
-        return executor?.let { CompletableFuture.supplyAsync(supplier, it) } ?: CompletableFuture.supplyAsync(supplier)
+        return executor?.let { CompletableFuture.supplyAsync(futureStock, it) } ?: CompletableFuture.supplyAsync(futureStock)
     }
 
+
     fun rollback(): CompletableFuture<Stock> {
-        id ?: throw CommonErrors.ILLEGAL_STATE.to("库存操作未初始化")
+        if (currentStatus == lastStatus) {
+            return CompletableFuture.completedFuture(this)
+        }
+
         return CompletableFuture.supplyAsync {
-            stockServiceACL.rollback(id!!)
+            if (!allowedRollback.compareAndSet(true, false)) {
+                return@supplyAsync this
+            }
+            stockServiceACL.rollback(outerStockId!!)
             val temp = currentStatus
             currentStatus = lastStatus
             lastStatus = temp
             this
         }
     }
+
 
     override fun id(): StockId? {
         return id
