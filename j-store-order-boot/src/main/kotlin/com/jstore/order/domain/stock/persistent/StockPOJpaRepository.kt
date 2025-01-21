@@ -4,7 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface StockPOJpaRepository : JpaRepository<Long, StockPO> {
+interface StockPOJpaRepository : JpaRepository<StockPO, Long> {
     fun findAllByOrderId(orderId: Long): List<StockPO>
 
 }

@@ -35,15 +35,18 @@ open class NormalSaleOrderFactory(
     }
 
     fun create(createParam: NormalSaleOrderCreateCmd): SaleOrder {
-        createParamValidChain.accept(createParam)
-        val saleOrder = convertParamToNormalSaleOrder(createParam)
-        saleOrderValidChain.accept(saleOrder)
-        saleOrderEventPublisher.publish(
-            SaleOrderCreatedEvent(
-                id = DomainEventId(snowFlakSequence.nextId()),
-                order = saleOrder,
-            )
+        val saleOrderPrepareToCreateEvent = SaleOrderPrepareToCreateEvent(
+            createCMD = createParam
         )
+        saleOrderEventPublisher.publish(saleOrderPrepareToCreateEvent)
+
+        val saleOrder = convertParamToNormalSaleOrder(createParam)
+
+        val saleOrderCreatedEvent = SaleOrderCreatedEvent(
+            id = DomainEventId(snowFlakSequence.nextId()),
+            order = saleOrder,
+        )
+        saleOrderEventPublisher.publish(saleOrderCreatedEvent)
         return saleOrder
     }
 

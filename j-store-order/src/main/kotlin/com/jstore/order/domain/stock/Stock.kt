@@ -41,7 +41,9 @@ class Stock(
             allowedRollback.set(true)
             this
         }
-        return executor?.let { CompletableFuture.supplyAsync(futureStock, it) } ?: CompletableFuture.supplyAsync(futureStock)
+        return executor?.let { CompletableFuture.supplyAsync(futureStock, it) } ?: CompletableFuture.supplyAsync(
+            futureStock
+        )
     }
 
 
@@ -56,7 +58,9 @@ class Stock(
             allowedRollback.set(true)
             this
         }
-        return executor?.let { CompletableFuture.supplyAsync(futureStock, it) } ?: CompletableFuture.supplyAsync(futureStock)
+        return executor?.let { CompletableFuture.supplyAsync(futureStock, it) } ?: CompletableFuture.supplyAsync(
+            futureStock
+        )
     }
 
 
