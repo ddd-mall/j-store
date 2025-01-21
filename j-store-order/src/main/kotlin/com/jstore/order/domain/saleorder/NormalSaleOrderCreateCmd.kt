@@ -36,10 +36,10 @@ class NormalSaleOrderCreateCmd(val token: String) {
 @Service
 class NormalSaleOrderCreateCMDHandler(
     private val saleOrderRepository: SaleOrderRepository,
-    private val normalSaleOrderFactory: NormalSaleOrderFactory,
+    private val saleOrderFactory: SaleOrderFactory,
 ) {
     fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
-        val saleOrder = this.normalSaleOrderFactory.create(cmd)
+        val saleOrder = this.saleOrderFactory.create(cmd)
         val saved = saleOrderRepository.save(saleOrder)
         return saved
     }

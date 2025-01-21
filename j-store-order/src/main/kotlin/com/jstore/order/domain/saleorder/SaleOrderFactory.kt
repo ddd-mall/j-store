@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
 @Service
-open class NormalSaleOrderFactory(
+open class SaleOrderFactory(
     private val goodsService: GoodsService,
     private val geoAddressService: GeoAddressService,
     private val saleOrderEventPublisher: SaleOrderEventPublisher,
