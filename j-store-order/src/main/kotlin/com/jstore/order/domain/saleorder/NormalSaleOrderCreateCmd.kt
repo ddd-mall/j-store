@@ -2,8 +2,6 @@ package com.jstore.order.domain.saleorder
 
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.domain.saleorder.properties.UserInfo
-
-import org.springframework.lang.Nullable
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 
@@ -39,8 +37,6 @@ class NormalSaleOrderCreateCmd(val token: String) {
 class NormalSaleOrderCreateCMDHandler(
     private val saleOrderRepository: SaleOrderRepository,
     private val normalSaleOrderFactory: NormalSaleOrderFactory,
-    @Nullable
-    private val saleOrderEventPublisher: SaleOrderEventPublisher?
 ) {
     fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
         val saleOrder = this.normalSaleOrderFactory.create(cmd)
