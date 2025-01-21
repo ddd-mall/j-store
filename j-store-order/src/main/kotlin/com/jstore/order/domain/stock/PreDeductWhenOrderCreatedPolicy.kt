@@ -11,10 +11,10 @@ import org.springframework.stereotype.Component
 @Component
 class PreDeductWhenOrderCreatedPolicy(
     private val stockPreDeductHandler: StockPreDeductHandler,
-    domainEventRegistry: DomainEventRegistry
+    domainEventRegistry: DomainEventRegistry?
 ) : DomainEventListener {
     init {
-        domainEventRegistry.register(this)
+        domainEventRegistry?.register(this)
     }
 
     override fun name(): String {
