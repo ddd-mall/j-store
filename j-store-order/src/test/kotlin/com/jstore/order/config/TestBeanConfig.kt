@@ -9,7 +9,7 @@ import com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmdHandler
 import com.jstore.order.domain.risk.VerifyWhenSaleOrderPrepareToCreatePolicy
 import com.jstore.order.domain.saleorder.MockSaleOrderRepository
 import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCMDHandler
-import com.jstore.order.domain.saleorder.NormalSaleOrderFactory
+import com.jstore.order.domain.saleorder.SaleOrderFactory
 import com.jstore.order.domain.saleorder.SaleOrderEventPublisherImpl
 import com.jstore.order.domain.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
 import com.jstore.order.domain.saleorder.validator.SaleOrderRiskValidator
@@ -29,7 +29,7 @@ object TestBeanConfig {
     val saleOrderEventPublisher = SaleOrderEventPublisherImpl(
         domainEventRegistry = domainEventRegistry
     )
-    val mockNormalSaleOrderFactory = NormalSaleOrderFactory(
+    val mockSaleOrderFactory = SaleOrderFactory(
         goodsService = goodsService,
         geoAddressService = MockAddressService(),
         saleOrderCreateCMDValidator = SaleOrderCreateCMDUserInfoValidator(),
@@ -41,7 +41,7 @@ object TestBeanConfig {
 
     val normalSaleOrderCreateCMDHandler = NormalSaleOrderCreateCMDHandler(
         saleOrderRepository = saleOrderRepository,
-        normalSaleOrderFactory = mockNormalSaleOrderFactory,
+        saleOrderFactory = mockSaleOrderFactory,
     )
     val riskFactory = RiskFactory()
     val saleOrderCreateRiskVerifyCmdHandler = SaleOrderCreateRiskVerifyCmdHandler(
