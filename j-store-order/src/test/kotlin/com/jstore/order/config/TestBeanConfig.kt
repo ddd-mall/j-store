@@ -22,13 +22,11 @@ import com.jstore.order.service.SaleOrderService
 object TestBeanConfig {
     private val orderBeansConfig = OrderBeansConfig()
     val businessExecutor = orderBeansConfig.businessExecutor()
-    val domainEventRegistry = orderBeansConfig.domainEventRegistry(businessExecutor)
+
     val snowFlakSequence: SnowFlakSequence = SnowFlakSequence()
     val goodsService = MockGoodsService()
     val saleOrderRepository = MockSaleOrderRepository()
-    val saleOrderEventPublisher = SaleOrderEventPublisherImpl(
-        domainEventRegistry = domainEventRegistry
-    )
+    val saleOrderEventPublisher = SaleOrderEventPublisherImpl()
     val mockSaleOrderFactory = SaleOrderFactory(
         goodsService = goodsService,
         geoAddressService = MockAddressService(),
@@ -64,7 +62,7 @@ object TestBeanConfig {
     )
     val verifyWhenSaleOrderPrepareToCreatePolicy = VerifyWhenSaleOrderPrepareToCreatePolicy(
         saleOrderCreateRiskVerifyCmdHandler = saleOrderCreateRiskVerifyCmdHandler,
-        domainEventRegistry = domainEventRegistry
+
     )
     val preDeductWhenOrderCreatedPolicy = PreDeductWhenOrderCreatedPolicy(
         stockPreDeductHandler = stockPreDeductHandler,

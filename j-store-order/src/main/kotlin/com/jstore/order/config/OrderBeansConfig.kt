@@ -22,11 +22,6 @@ open class OrderBeansConfig {
         return executorService
     }
 
-    @Bean(name = ["domainEventRegistry"])
-    open fun domainEventRegistry(businessExecutor : ThreadPoolTaskExecutor): DomainEventRegistry {
-        return SimpleDomainEventRegistry(businessExecutor)
-    }
-
 
 
 }
