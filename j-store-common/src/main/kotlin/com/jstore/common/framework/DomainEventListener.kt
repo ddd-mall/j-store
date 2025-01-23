@@ -1,9 +1,5 @@
 package com.jstore.common.framework
 
-interface DomainEventListener {
-    fun name(): String
-    fun onTopics(): List<String>
-    fun async(): Boolean
-    fun handle(event: DomainEvent)
+import org.springframework.context.ApplicationListener
 
-}
+interface DomainEventListener<T : DomainEvent> : ApplicationListener<T>
