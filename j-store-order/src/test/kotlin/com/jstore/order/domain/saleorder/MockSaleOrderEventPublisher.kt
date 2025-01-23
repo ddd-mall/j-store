@@ -1,10 +1,12 @@
 package com.jstore.order.domain.saleorder
 
-import com.jstore.order.config.TestBeanConfig.domainEventRegistry
+import org.springframework.context.ApplicationEventPublisher
 
-class MockSaleOrderEventPublisher : SaleOrderEventPublisher {
+class MockSaleOrderEventPublisher(
+    private val applicationEventPublisher: ApplicationEventPublisher
+) : SaleOrderEventPublisher {
 
     override fun publishEvent(event: Any) {
-        domainEventRegistry.publishEvent(event)
+        return applicationEventPublisher.publishEvent(event)
     }
 }
