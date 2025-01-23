@@ -38,7 +38,7 @@ open class SaleOrderFactory(
         val saleOrderPrepareToCreateEvent = SaleOrderPrepareToCreateEvent(
             createCMD = createParam
         )
-        saleOrderEventPublisher.publish(saleOrderPrepareToCreateEvent)
+        saleOrderEventPublisher.publishEvent(saleOrderPrepareToCreateEvent)
 
         val saleOrder = convertParamToNormalSaleOrder(createParam)
 
@@ -46,7 +46,7 @@ open class SaleOrderFactory(
             id = DomainEventId(snowFlakSequence.nextId()),
             order = saleOrder,
         )
-        saleOrderEventPublisher.publish(saleOrderCreatedEvent)
+        saleOrderEventPublisher.publishEvent(saleOrderCreatedEvent)
         return saleOrder
     }
 
