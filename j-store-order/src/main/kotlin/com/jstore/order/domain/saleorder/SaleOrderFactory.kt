@@ -33,7 +33,7 @@ open class SaleOrderFactory(
         saleOrderValidChain.appendAll(saleOrderRiskValidator)
     }
 
-    fun create(createParam: NormalSaleOrderCreateCmd): SaleOrder {
+    fun create(createParam: SaleOrderCreateCmd): SaleOrder {
         val saleOrderPrepareToCreateEvent = SaleOrderPrepareToCreateEvent(
             createCMD = createParam,
             this
@@ -50,7 +50,7 @@ open class SaleOrderFactory(
         return saleOrder
     }
 
-    private fun convertParamToNormalSaleOrder(createParam: NormalSaleOrderCreateCmd): SaleOrder {
+    private fun convertParamToNormalSaleOrder(createParam: SaleOrderCreateCmd): SaleOrder {
         val userInfo: UserInfo = createParam.buyerUserInfo
         val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createParam)
         val deliveryAddressInfo: GeoAddressInfo = geoAddressService
@@ -73,12 +73,12 @@ open class SaleOrderFactory(
         )
     }
 
-    private fun getOrderItemsFromCreateParam(createParam: NormalSaleOrderCreateCmd): List<OrderItem> {
+    private fun getOrderItemsFromCreateParam(createParam: SaleOrderCreateCmd): List<OrderItem> {
         val purchaseItemList = createParam.purchaseItemList
         val goodsIdList: List<GoodsId> = purchaseItemList.map { it.mapToGoodsId() }
         val goodsQueryResult: List<GoodsInfo> = goodsService.queryGoods(goodsIdList)
 
-        return purchaseItemList.map { purchaseItem: NormalSaleOrderCreateCmd.PurchaseItem ->
+        return purchaseItemList.map { purchaseItem: SaleOrderCreateCmd.PurchaseItem ->
             val goodsInfo =
                 goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
                     ?: throw SaleOrderErrors.CorrespondingGoodsNotFound.msg("purchase item $purchaseItem corresponding goods not found")

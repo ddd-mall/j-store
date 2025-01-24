@@ -3,7 +3,7 @@ package com.jstore.order.domain.saleorder
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.order.config.TestBeanConfig.normalSaleOrderCreateCMDHandler
+import com.jstore.order.config.TestBeanConfig.saleOrderCreateCMDHandler
 import com.jstore.order.config.TestBeanConfig.saleOrderRepository
 import com.jstore.order.domain.saleorder.properties.UserInfo
 import org.junit.jupiter.api.Test
@@ -18,7 +18,7 @@ class SaleOrderCreateTest {
 
     @Test
     fun createSaleOrderTest() {
-        val createCMD = NormalSaleOrderCreateCmd("mock token")
+        val createCMD = SaleOrderCreateCmd("mock token")
             .apply {
                 buyerUserInfo = UserInfo(
                     1L,
@@ -26,12 +26,12 @@ class SaleOrderCreateTest {
                     "MockUser——A"
                 )
                 purchaseItemList = listOf(
-                    NormalSaleOrderCreateCmd.PurchaseItem().apply {
+                    SaleOrderCreateCmd.PurchaseItem().apply {
                         spuId = 1
                         skuId = 1
                         quantity = BigDecimal.TWO
                     },
-                    NormalSaleOrderCreateCmd.PurchaseItem().apply {
+                    SaleOrderCreateCmd.PurchaseItem().apply {
                         skuId = 2
                         spuId = 2
                         quantity = BigDecimal.ONE
@@ -42,7 +42,7 @@ class SaleOrderCreateTest {
                 districtCode = "110106"
                 detailAddress = "MOCK detail address"
             }
-        val saleOrder = normalSaleOrderCreateCMDHandler.create(createCMD)
+        val saleOrder = saleOrderCreateCMDHandler.create(createCMD)
         assertNotNull(saleOrder.id(), "订单创建后ID仍然为空")
         logger.info("订单创建成功，订单ID： {}", arrayOf(saleOrder.id()))
         asserter.assertSame("用户信息与创建时不一致", saleOrder.buyerInfo, createCMD.buyerUserInfo)

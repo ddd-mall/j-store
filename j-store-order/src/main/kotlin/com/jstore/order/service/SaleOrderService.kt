@@ -1,7 +1,7 @@
 package com.jstore.order.service
 
-import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCMDHandler
-import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCmd
+import com.jstore.order.domain.saleorder.SaleOrderCreateCMDHandler
+import com.jstore.order.domain.saleorder.SaleOrderCreateCmd
 import com.jstore.order.domain.saleorder.SaleOrder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Isolation
@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 open class SaleOrderService(
-    private val normalSaleOrderCreateCMDHandler: NormalSaleOrderCreateCMDHandler,
+    private val saleOrderCreateCMDHandler: SaleOrderCreateCMDHandler,
 ) {
 
     @Transactional(
@@ -19,9 +19,9 @@ open class SaleOrderService(
         isolation = Isolation.READ_COMMITTED,
         propagation = Propagation.REQUIRED
     )
-    open fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
+    open fun create(cmd: SaleOrderCreateCmd): SaleOrder {
 
-        val saleOrder = normalSaleOrderCreateCMDHandler.create(cmd)
+        val saleOrder = saleOrderCreateCMDHandler.create(cmd)
         return saleOrder
     }
 }
