@@ -1,6 +1,5 @@
 package com.jstore.order.domain.saleorder
 
-import com.jstore.common.framework.DomainEventId
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
@@ -36,15 +35,16 @@ open class SaleOrderFactory(
 
     fun create(createParam: NormalSaleOrderCreateCmd): SaleOrder {
         val saleOrderPrepareToCreateEvent = SaleOrderPrepareToCreateEvent(
-            createCMD = createParam
+            createCMD = createParam,
+            this
         )
         saleOrderEventPublisher.publishEvent(saleOrderPrepareToCreateEvent)
 
         val saleOrder = convertParamToNormalSaleOrder(createParam)
 
         val saleOrderCreatedEvent = SaleOrderCreatedEvent(
-            id = DomainEventId(snowFlakSequence.nextId()),
             order = saleOrder,
+            this
         )
         saleOrderEventPublisher.publishEvent(saleOrderCreatedEvent)
         return saleOrder

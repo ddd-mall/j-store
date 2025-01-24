@@ -3,11 +3,9 @@ package com.jstore.order.domain.saleorder
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.order.config.TestBeanConfig.domainEventRegistry
 import com.jstore.order.config.TestBeanConfig.normalSaleOrderCreateCMDHandler
 import com.jstore.order.config.TestBeanConfig.saleOrderRepository
 import com.jstore.order.domain.saleorder.properties.UserInfo
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import kotlin.test.assertNotNull
@@ -15,17 +13,7 @@ import kotlin.test.assertSame
 import kotlin.test.asserter
 
 class SaleOrderCreateTest {
-    companion object {
-        private val logger: Logger = LoggerFactory.getLogger(SaleOrderCreateTest::class.java)
-        private val listener = MockSaleOrderCreatedEventListener()
-        @JvmStatic
-        @BeforeAll
-        fun setUp() {
-            listener.register(domainEventRegistry)
-        }
-    }
-
-
+    private val logger: Logger = LoggerFactory.getLogger(SaleOrderCreateTest::class.java)
 
 
     @Test
