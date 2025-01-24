@@ -7,16 +7,14 @@ import com.jstore.order.acl.stock.MockStockServiceACLImpl
 import com.jstore.order.domain.risk.RiskFactory
 import com.jstore.order.domain.risk.SaleOrderCreateRiskVerifyCmdHandler
 import com.jstore.order.domain.risk.VerifyWhenSaleOrderPrepareToCreatePolicy
-import com.jstore.order.domain.saleorder.MockSaleOrderRepository
-import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCMDHandler
-import com.jstore.order.domain.saleorder.SaleOrderFactory
-import com.jstore.order.domain.saleorder.SaleOrderEventPublisherImpl
+import com.jstore.order.domain.saleorder.*
 import com.jstore.order.domain.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
 import com.jstore.order.domain.saleorder.validator.SaleOrderRiskValidator
 import com.jstore.order.domain.stock.MockStockRepositoryImpl
 import com.jstore.order.domain.stock.PreDeductWhenOrderCreatedPolicy
 import com.jstore.order.domain.stock.StockFactory
 import com.jstore.order.domain.stock.StockPreDeductHandler
+import com.jstore.order.framwork.MockDomainEventRegistry
 import com.jstore.order.service.SaleOrderService
 
 object TestBeanConfig {
@@ -24,10 +22,11 @@ object TestBeanConfig {
     val businessExecutor = orderBeansConfig.businessExecutor()
 
     val snowFlakSequence: SnowFlakSequence = SnowFlakSequence()
-    val goodsService = MockGoodsService()
+    private val goodsService = MockGoodsService()
     val saleOrderRepository = MockSaleOrderRepository()
-    val saleOrderEventPublisher = SaleOrderEventPublisherImpl()
-    val mockSaleOrderFactory = SaleOrderFactory(
+    private val eventRegistry = MockDomainEventRegistry(businessExecutor)
+    private val saleOrderEventPublisher = SaleOrderEventPublisherImpl(eventRegistry)
+    private val mockSaleOrderFactory = SaleOrderFactory(
         goodsService = goodsService,
         geoAddressService = MockAddressService(),
         saleOrderCreateCMDValidator = SaleOrderCreateCMDUserInfoValidator(),
@@ -59,13 +58,24 @@ object TestBeanConfig {
     val saleOrderService = SaleOrderService(
         normalSaleOrderCreateCMDHandler = normalSaleOrderCreateCMDHandler,
 
-    )
-    val verifyWhenSaleOrderPrepareToCreatePolicy = VerifyWhenSaleOrderPrepareToCreatePolicy(
-        saleOrderCreateRiskVerifyCmdHandler = saleOrderCreateRiskVerifyCmdHandler,
+        )
 
-    )
-    val preDeductWhenOrderCreatedPolicy = PreDeductWhenOrderCreatedPolicy(
-        stockPreDeductHandler = stockPreDeductHandler,
-        domainEventRegistry = domainEventRegistry
-    )
+
+    init {
+        registerListener()
+    }
+
+
+
+    private fun registerListener() {
+        VerifyWhenSaleOrderPrepareToCreatePolicy(
+            saleOrderCreateRiskVerifyCmdHandler = saleOrderCreateRiskVerifyCmdHandler
+        ).let { eventRegistry.register(it) }
+
+        PreDeductWhenOrderCreatedPolicy(
+            stockPreDeductHandler = stockPreDeductHandler,
+        ).let { eventRegistry.register(it) }
+
+        MockSaleOrderCreatedEventListener().let { eventRegistry.register(it) }
+    }
 }
