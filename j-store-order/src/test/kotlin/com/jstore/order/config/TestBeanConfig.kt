@@ -36,7 +36,7 @@ object TestBeanConfig {
     )
 
 
-    val normalSaleOrderCreateCMDHandler = NormalSaleOrderCreateCMDHandler(
+    val saleOrderCreateCMDHandler = SaleOrderCreateCMDHandler(
         saleOrderRepository = saleOrderRepository,
         saleOrderFactory = mockSaleOrderFactory,
     )
@@ -56,7 +56,7 @@ object TestBeanConfig {
         stockFactory = stockFactory
     )
     val saleOrderService = SaleOrderService(
-        normalSaleOrderCreateCMDHandler = normalSaleOrderCreateCMDHandler,
+        saleOrderCreateCMDHandler = saleOrderCreateCMDHandler,
 
         )
 

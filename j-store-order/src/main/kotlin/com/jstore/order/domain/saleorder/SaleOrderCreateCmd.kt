@@ -8,7 +8,7 @@ import java.math.BigDecimal
 /**
  * 普通订单创建命令，
  */
-class NormalSaleOrderCreateCmd(val token: String) {
+class SaleOrderCreateCmd(val token: String) {
 
     lateinit var buyerUserInfo: UserInfo
     lateinit var purchaseItemList: List<PurchaseItem>
@@ -34,11 +34,11 @@ class NormalSaleOrderCreateCmd(val token: String) {
 }
 
 @Service
-class NormalSaleOrderCreateCMDHandler(
+class SaleOrderCreateCMDHandler(
     private val saleOrderRepository: SaleOrderRepository,
     private val saleOrderFactory: SaleOrderFactory,
 ) {
-    fun create(cmd: NormalSaleOrderCreateCmd): SaleOrder {
+    fun create(cmd: SaleOrderCreateCmd): SaleOrder {
         val saleOrder = this.saleOrderFactory.create(cmd)
         val saved = saleOrderRepository.save(saleOrder)
         return saved

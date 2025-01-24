@@ -4,7 +4,7 @@ import com.jstore.common.framework.DomainEvent
 
 
 class SaleOrderPrepareToCreateEvent(
-    val createCMD: NormalSaleOrderCreateCmd,
+    val createCMD: SaleOrderCreateCmd,
     source: Any
     ) : DomainEvent(source)
 
@@ -14,6 +14,6 @@ class SaleOrderCreatedEvent(
 ) : DomainEvent(source)
 
 class FailToCreateSaleOrderEvent(
-    val createCMD: NormalSaleOrderCreateCmd,
+    val createCMD: SaleOrderCreateCmd,
     source: Any
 ) : DomainEvent(source)

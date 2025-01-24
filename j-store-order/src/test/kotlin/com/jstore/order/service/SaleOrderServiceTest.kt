@@ -5,7 +5,7 @@ import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.order.config.TestBeanConfig.saleOrderRepository
 import com.jstore.order.config.TestBeanConfig.saleOrderService
-import com.jstore.order.domain.saleorder.NormalSaleOrderCreateCmd
+import com.jstore.order.domain.saleorder.SaleOrderCreateCmd
 import com.jstore.order.domain.saleorder.OrderPositiveStatus
 import com.jstore.order.domain.saleorder.properties.UserInfo
 import org.junit.jupiter.api.Test
@@ -19,7 +19,7 @@ class SaleOrderServiceTest {
 
     @Test
     fun saleOrderCreateServiceTest() {
-        val createCMD = NormalSaleOrderCreateCmd("mock token")
+        val createCMD = SaleOrderCreateCmd("mock token")
             .apply {
                 buyerUserInfo = UserInfo(
                     1L,
@@ -27,12 +27,12 @@ class SaleOrderServiceTest {
                     "MockUser——A"
                 )
                 purchaseItemList = listOf(
-                    NormalSaleOrderCreateCmd.PurchaseItem().apply {
+                    SaleOrderCreateCmd.PurchaseItem().apply {
                         spuId = 1
                         skuId = 1
                         quantity = BigDecimal.TWO
                     },
-                    NormalSaleOrderCreateCmd.PurchaseItem().apply {
+                    SaleOrderCreateCmd.PurchaseItem().apply {
                         skuId = 2
                         spuId = 2
                         quantity = BigDecimal.ONE
