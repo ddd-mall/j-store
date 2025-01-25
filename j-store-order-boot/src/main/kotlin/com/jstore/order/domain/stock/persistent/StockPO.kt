@@ -23,27 +23,27 @@ import java.time.LocalDateTime
         jakarta.persistence.UniqueConstraint(columnNames = ["order_id", "spu_id", "sku_id"])
     ],
 )
-open class StockPO : Serializable {
+class StockPO : Serializable {
     companion object {
         private const val serialVersionUID = 1L
     }
 
     @Id
     @SnowFlakeId
-    open var id: String = ""
+    var id: String = ""
     @Column(name = "order_id", nullable = false, updatable = false)
-    open var orderId: Long = 0
-    open var spuId: Long = 0
-    open var skuId: Long = 0
-    open var amount: BigDecimal = BigDecimal.ZERO
-    open var currentStatus: StockStatus = StockStatus.CREATED
-    open var lastStatus: StockStatus = StockStatus.CREATED
+    var orderId: Long = 0
+    var spuId: Long = 0
+    var skuId: Long = 0
+    var quantity: BigDecimal = BigDecimal.ZERO
+    var currentStatus: StockStatus = StockStatus.CREATED
+    var lastStatus: StockStatus = StockStatus.CREATED
     @CreatedDate
     @Column(name = "create_time", updatable = false, insertable = true)
-    open lateinit var createTime: LocalDateTime
+    lateinit var createTime: LocalDateTime
     @LastModifiedDate
     @Column(name = "update_time", nullable = false, updatable = true, insertable = true)
-    open lateinit var updateTime: LocalDateTime
+    lateinit var updateTime: LocalDateTime
 
 
 
@@ -52,10 +52,21 @@ open class StockPO : Serializable {
             id = StockId(id),
             orderId = SaleOrderId(orderId),
             goodsId = GoodsId(spuId, skuId),
-            amount = amount,
+            quantity = quantity,
             currentStatus = currentStatus,
             lastStatus = lastStatus,
             stockServiceACL = stockAclService
         )
+    }
+
+    constructor()
+    constructor(stock: Stock) : this() {
+        this.id = stock.id.value
+        this.quantity = stock.quantity
+        this.spuId = stock.goodsId.spuId
+        this.skuId = stock.goodsId.skuId
+        this.currentStatus = stock.currentStatus
+        this.lastStatus = stock.lastStatus
+
     }
 }

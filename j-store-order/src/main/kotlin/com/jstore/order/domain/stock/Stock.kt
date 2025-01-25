@@ -15,10 +15,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 data class StockId(override val value: String) : Id<String>(value)
 
 class Stock(
-    var id: StockId?,
+    var id: StockId,
     val orderId: SaleOrderId,
     val goodsId: GoodsId,
-    val amount: BigDecimal,
+    val quantity: BigDecimal,
     var currentStatus: StockStatus = StockStatus.CREATED,
     var lastStatus: StockStatus = currentStatus,
 
@@ -35,7 +35,7 @@ class Stock(
         }
 
         val futureStock = {
-            this.outerStockId = stockServiceACL.preDeduct(goodsId, amount)
+            this.outerStockId = stockServiceACL.preDeduct(goodsId, quantity)
             lastStatus = currentStatus
             currentStatus = StockStatus.PRE_DEDUCTED
             allowedRollback.set(true)

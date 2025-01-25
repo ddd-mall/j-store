@@ -20,7 +20,7 @@ class StockFactory(
                 id = StockId(snowFlakSequence.nextId().toString()),
                 orderId = cmd.orderId,
                 goodsId = it.key,
-                amount = it.value,
+                quantity = it.value,
                 stockServiceACL = stockAclService,
                 executor = businessExecutor
             )
