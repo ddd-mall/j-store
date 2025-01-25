@@ -1,5 +1,6 @@
 package com.jstore.com.jstore.order.domain.stock
 
+import com.jstore.com.jstore.order.domain.stock.persistent.StockPO
 import com.jstore.com.jstore.order.domain.stock.persistent.StockPOJpaRepository
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.StockServiceACL
@@ -11,28 +12,30 @@ import org.springframework.stereotype.Repository
 
 @Repository
 class StockRepositoryImpl(
-    private val orderStockRepository: StockPOJpaRepository,
+    private val stockPOJpaRepository: StockPOJpaRepository,
     private val stockServiceACL: StockServiceACL
 ) : StockRepository {
     override fun findAllByOrderId(orderId: SaleOrderId): List<Stock> {
-        return orderStockRepository.findAllByOrderId(orderId.value).map {
+        return stockPOJpaRepository.findAllByOrderId(orderId.value).map {
             it.toStock(stockServiceACL)
         }
     }
 
     override fun findByOrderIdAndGoodsId(orderId: SaleOrderId, goodsId: GoodsId): Stock? {
-        TODO("Not yet implemented")
+
     }
 
     override fun saveBatch(stocks: Collection<Stock>) : List<Stock> {
-        TODO("Not yet implemented")
+        val poList = stocks.map { StockPO(it) }.toList()
+        return stockPOJpaRepository.saveAll(poList).map { it.toStock(stockServiceACL) }
     }
 
     override fun save(entity: Stock): Stock {
-        TODO("Not yet implemented")
+        val po = StockPO(entity)
+        return stockPOJpaRepository.save(po).toStock(stockServiceACL)
     }
 
     override fun findById(id: StockId): Stock? {
-        TODO("Not yet implemented")
+        return stockPOJpaRepository.findById(id.value).map { it.toStock(stockServiceACL) }.orElse(null)
     }
 }
