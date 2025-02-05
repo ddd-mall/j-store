@@ -16,27 +16,24 @@ class StockPreDeductCmd(
 @Component
 open class StockPreDeductHandler(
     private val stockRepository: StockRepository,
-    private val stockFactory: StockFactory
+    private val stockFactory: StockFactory,
 ) {
     private val log: Logger = LoggerFactory.getLogger(this::class)
 
 
     open fun handle(cmd: StockPreDeductCmd) {
-
-        val stockList = stockRepository.findAllByOrderId(cmd.orderId).let { find ->
-            if (find.any { stock -> cmd.goodsIdsQuantityMap.keys.contains(stock.goodsId) }) {
-                throw CommonErrors.ILLEGAL_STATE.msg("order ${cmd.orderId}'s stock already exists")
-            }
-            find.ifEmpty {
-                stockFactory.create(cmd)
-            }
-        }
-
         try {
-            stockList.map(Stock::preDeduct).map { it.get() }.toList().let(stockRepository::saveBatch)
+            val stockList = stockRepository.findAllByOrderId(cmd.orderId).let { find ->
+                if (find.any { stock -> cmd.goodsIdsQuantityMap.keys.contains(stock.goodsId) }) {
+                    throw CommonErrors.ILLEGAL_STATE.msg("order ${cmd.orderId}'s stock already exists")
+                }
+                find.ifEmpty {
+                    stockFactory.create(cmd)
+                }
+            }
+            stockRepository.saveBatch(stockList)
         } catch (e: Exception) {
             log.error("error occurred when pre deduct stock", e)
-            stockList.map(Stock::rollback).map {it.get() }.toList().let(stockRepository::saveBatch)
             throw StockErrors.StockInsufficient.msgAndCause("order ${cmd.orderId}'s stock pre deduct failed", e)
         }
 

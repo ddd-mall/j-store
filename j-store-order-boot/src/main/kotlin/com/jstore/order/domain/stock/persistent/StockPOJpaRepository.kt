@@ -6,6 +6,6 @@ import org.springframework.stereotype.Repository
 @Repository
 interface StockPOJpaRepository : JpaRepository<StockPO, String> {
     fun findAllByOrderId(orderId: Long): List<StockPO>
-    fun findStockPOByOrderIdAnd
+    fun findStockPOByOrderIdAndSpuIdAndSkuId(orderId: Long, spuId: Long, skuId: Long): StockPO?
 
 }

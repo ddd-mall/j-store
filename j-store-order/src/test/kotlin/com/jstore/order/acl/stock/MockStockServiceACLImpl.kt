@@ -53,18 +53,18 @@ class MockStockServiceACLImpl : StockServiceACL {
         return outerStockId
     }
 
-    override fun deduct(stockId: String): Boolean {
+    override fun deduct(outerStockId: String): Boolean {
 
-        val stockPO = stockPOMap[stockId] ?:
-            throw StockResourceNotFound.msg("$stockId corresponding stock not found")
+        val stockPO = stockPOMap[outerStockId] ?:
+            throw StockResourceNotFound.msg("$outerStockId corresponding stock not found")
         stockPO.status = StockStatus.DEDUCTED
-        stockPOMap[stockId] = stockPO
+        stockPOMap[outerStockId] = stockPO
         return true
     }
 
-    override fun rollback(stockId: String): Boolean {
+    override fun rollback(outerStockId: String): Boolean {
 
-        val stockPO = stockPOMap[stockId] ?: return true
+        val stockPO = stockPOMap[outerStockId] ?: return true
         when (stockPO.status) {
             StockStatus.CREATED -> return true
             StockStatus.PRE_DEDUCTED -> {
@@ -76,7 +76,7 @@ class MockStockServiceACLImpl : StockServiceACL {
             }
             StockStatus.DEDUCTED -> {
                 stockPO.status = StockStatus.PRE_DEDUCTED
-                stockPOMap[stockId] = stockPO
+                stockPOMap[outerStockId] = stockPO
                 return true
             }
         }

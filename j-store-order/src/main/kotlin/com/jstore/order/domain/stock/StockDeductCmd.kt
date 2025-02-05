@@ -3,6 +3,7 @@ package com.jstore.order.domain.stock
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
+import com.jstore.order.acl.StockServiceACL
 import com.jstore.order.domain.saleorder.SaleOrderId
 import org.springframework.stereotype.Component
 
@@ -12,6 +13,7 @@ data class StockDeductCmd(
 
 @Component
 open class StockDeductCmdHandler(
+    private val stockServiceACL: StockServiceACL,
     private val stockRepository: StockRepository
 ) {
     private val log: Logger = LoggerFactory.getLogger(this::class)
@@ -22,7 +24,10 @@ open class StockDeductCmdHandler(
         orderStocks.ifEmpty { throw CommonErrors.ILLEGAL_STATE.msg("order ${cmd.orderId}'s stock not exists") }
 
         try {
-            orderStocks.forEach(Stock::deduct)
+            orderStocks.forEach{
+                stockServiceACL.deduct(it.outerStockId!!)
+                it.deduct()
+            }
             stockRepository.saveBatch(orderStocks)
             log.info("stock deduct success, order: ${cmd.orderId}")
         } catch (e: Exception) {

@@ -4,11 +4,8 @@ package com.jstore.order.domain.stock
 import com.jstore.common.framework.Entity
 import com.jstore.common.properties.Id
 import com.jstore.order.acl.GoodsId
-import com.jstore.order.acl.StockServiceACL
 import com.jstore.order.domain.saleorder.SaleOrderId
 import java.math.BigDecimal
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 
@@ -21,68 +18,44 @@ class Stock(
     val quantity: BigDecimal,
     var currentStatus: StockStatus = StockStatus.CREATED,
     var lastStatus: StockStatus = currentStatus,
-
-    private var outerStockId: String? = null,
-    @Transient val stockServiceACL: StockServiceACL,
-    @Transient val executor: Executor? = null,
-    @Transient val allowedRollback: AtomicBoolean = AtomicBoolean(false)
+    var outerStockId: String? = null,
 ) : Entity<StockId> {
+    private val rollbackAble: AtomicBoolean = AtomicBoolean(false)
 
-
-    fun preDeduct(): CompletableFuture<Stock> {
+    fun preDeduct(outerStockId: String) {
         if (currentStatus != StockStatus.CREATED) {
             throw StockErrors.IllegalState
         }
+        this.outerStockId = outerStockId
 
-        val futureStock = {
-            this.outerStockId = stockServiceACL.preDeduct(goodsId, quantity)
-            lastStatus = currentStatus
-            currentStatus = StockStatus.PRE_DEDUCTED
-            allowedRollback.set(true)
-            this
-        }
-        return executor?.let { CompletableFuture.supplyAsync(futureStock, it) } ?: CompletableFuture.supplyAsync(
-            futureStock
-        )
+        lastStatus = currentStatus
+        currentStatus = StockStatus.PRE_DEDUCTED
+        rollbackAble.set(true)
     }
 
 
-    fun deduct(): CompletableFuture<Stock> {
+    fun deduct() {
         if (currentStatus != StockStatus.PRE_DEDUCTED) {
             throw StockErrors.IllegalState
         }
-        val futureStock = {
-            stockServiceACL.deduct(outerStockId!!)
-            lastStatus = currentStatus
-            currentStatus = StockStatus.DEDUCTED
-            allowedRollback.set(true)
-            this
-        }
-        return executor?.let { CompletableFuture.supplyAsync(futureStock, it) } ?: CompletableFuture.supplyAsync(
-            futureStock
-        )
+        lastStatus = currentStatus
+        currentStatus = StockStatus.DEDUCTED
+        rollbackAble.set(true)
     }
 
 
-    fun rollback(): CompletableFuture<Stock> {
-        if (currentStatus == lastStatus) {
-            return CompletableFuture.completedFuture(this)
+    fun rollback() {
+        if (currentStatus == lastStatus || !rollbackAble.compareAndSet(true, false)) {
+            return
         }
 
-        return CompletableFuture.supplyAsync {
-            if (!allowedRollback.compareAndSet(true, false)) {
-                return@supplyAsync this
-            }
-            stockServiceACL.rollback(outerStockId!!)
-            val temp = currentStatus
-            currentStatus = lastStatus
-            lastStatus = temp
-            this
-        }
+        val temp = currentStatus
+        currentStatus = lastStatus
+        lastStatus = temp
     }
 
 
-    override fun id(): StockId? {
+    override fun id(): StockId {
         return id
     }
 }

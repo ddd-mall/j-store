@@ -1,7 +1,5 @@
 package com.jstore.order.config
 
-import com.jstore.common.framework.DomainEventRegistry
-import com.jstore.common.framework.SimpleDomainEventRegistry
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
