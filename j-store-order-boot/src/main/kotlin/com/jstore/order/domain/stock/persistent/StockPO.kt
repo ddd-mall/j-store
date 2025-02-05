@@ -47,7 +47,7 @@ class StockPO : Serializable {
 
 
 
-    fun toStock(stockAclService: StockServiceACL): Stock {
+    fun toStock(): Stock {
         return Stock(
             id = StockId(id),
             orderId = SaleOrderId(orderId),
@@ -55,7 +55,6 @@ class StockPO : Serializable {
             quantity = quantity,
             currentStatus = currentStatus,
             lastStatus = lastStatus,
-            stockServiceACL = stockAclService
         )
     }
 
