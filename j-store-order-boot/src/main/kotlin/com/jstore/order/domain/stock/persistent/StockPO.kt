@@ -30,7 +30,9 @@ class StockPO(
     var spuId: Long,
     var skuId: Long,
     var quantity: BigDecimal,
+    @Enumerated(EnumType.STRING)
     var currentStatus: StockStatus = StockStatus.CREATED,
+    @Enumerated(EnumType.STRING)
     var lastStatus: StockStatus = StockStatus.CREATED,
 ) : Serializable {
     companion object {

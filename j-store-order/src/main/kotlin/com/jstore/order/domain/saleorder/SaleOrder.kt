@@ -23,7 +23,6 @@ data class SaleOrder(
     var actualPay: Price,
     val createTime: LocalDateTime,
     val updateTime: LocalDateTime,
-    val type: OrderType = OrderType.NORMAL
 ) : Entity<SaleOrderId> {
 
 
@@ -50,12 +49,6 @@ enum class OrderReverseStatus {
     CLOSE
 }
 
-enum class OrderType {
-    NORMAL,
-    GROUP,
-    SEC_KILL,
-    PRE_SELL
-}
 
 
 data class OrderItemId(override val value: Long) : Id<Long>(value)
