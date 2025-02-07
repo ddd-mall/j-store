@@ -22,15 +22,17 @@ open class StockPreDeductHandler(
 
 
     open fun handle(cmd: StockPreDeductCmd) {
-        try {
-            val stockList = stockRepository.findAllByOrderId(cmd.orderId).let { find ->
-                if (find.any { stock -> cmd.goodsIdsQuantityMap.keys.contains(stock.goodsId) }) {
-                    throw CommonErrors.ILLEGAL_STATE.msg("order ${cmd.orderId}'s stock already exists")
-                }
-                find.ifEmpty {
-                    stockFactory.create(cmd)
-                }
+
+        val stockList = stockRepository.findAllByOrderId(cmd.orderId).let { find ->
+            if (find.any { stock -> cmd.goodsIdsQuantityMap.keys.contains(stock.goodsId) }) {
+                throw CommonErrors.ILLEGAL_STATE.msg("order ${cmd.orderId}'s stock already exists")
             }
+            find.ifEmpty {
+                stockFactory.create(cmd)
+            }
+        }
+        try {
+            stockList.forEach(Stock::preDeduct)
             stockRepository.saveBatch(stockList)
         } catch (e: Exception) {
             log.error("error occurred when pre deduct stock", e)

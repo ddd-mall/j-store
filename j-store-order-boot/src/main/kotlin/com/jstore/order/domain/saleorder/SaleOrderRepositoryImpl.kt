@@ -153,7 +153,7 @@ object SaleOrderConverter {
             saleOrderItemPOs = saleOrder.orderItems.map {
                 SaleOrderItemPO().apply {
                     it.id?.also { saleOrderId = it.value }
-                    it.count.also { count = it }
+                    it.quantity.also { count = it }
                     it.skuId.also { skuId = it.toString() }
                     it.spuId.also { spuId = it.toString() }
                     it.skuVersion.also { skuVersion = it }
