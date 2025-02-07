@@ -16,21 +16,21 @@ import java.math.BigDecimal
     ],
 )
 
-open class SaleOrderItemPO : Serializable {
-    companion object {
-        private const val serialVersionUID: Long = 1
-    }
-
+class SaleOrderItemPO(
     @Id
     @SnowFlakeId
     @Column(name = "sale_order_item_id", nullable = false, unique = true, updatable = false)
-    open var saleOrderItemId: Long = 0L
+    val saleOrderItemId: Long,
     @Column(name = "sale_order_id", nullable = false, updatable = false)
-    open var saleOrderId: Long = 0L
-    open var spuId: String = ""
-    open var skuId: String = ""
-    open var skuVersion: Long = 0L
-    open var count: BigDecimal = BigDecimal.ZERO
-    open var unitPrice: BigDecimal = BigDecimal.ZERO
-    open var totalPrice: BigDecimal = BigDecimal.ZERO
+    var saleOrderId: Long,
+    var spuId: String,
+    var skuId: String,
+    var goodsVersion: Long,
+    var quantity: BigDecimal,
+    var unitPrice: BigDecimal,
+    var totalPrice: BigDecimal,
+) : Serializable {
+    companion object {
+        private const val serialVersionUID: Long = 1
+    }
 }

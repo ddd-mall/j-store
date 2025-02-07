@@ -20,28 +20,29 @@ import java.time.LocalDateTime
     ]
 )
 
-open class SaleOrderPO : Serializable {
+class SaleOrderPO(
+    @Id
+    @Column(name = "sale_order_id", unique = true, nullable = false, updatable = false)
+    val saleOrderId: Long,
+    val uid: Long,
+    val phoneNumber: String,
+    val userName: String,
+    val districtCode: String,
+    val detailAddress: String,
+    val positiveStatus: String,
+    val reverseStatus: String,
+    val amount: BigDecimal = BigDecimal.ZERO,
+    val actualPay: BigDecimal = BigDecimal.ZERO,
+) : Serializable {
     companion object {
         private const val serialVersionUID: Long = 1
     }
 
-    @Id
-    @Column(name = "sale_order_id", unique = true, nullable = false, updatable = false)
-    open var saleOrderId: Long = 0
-    open var uid: Long = 0
-    open var phoneNumber: String = ""
-    open var userName: String = ""
-    open var districtCode: String = ""
-    open var detailAddress: String = ""
-    open var freightBillId: String = "[]"
-    open var positiveStatus: String = ""
-    open var reverseStatus: String = ""
-    open var amount: BigDecimal = BigDecimal.ZERO
-    open var actualPay: BigDecimal = BigDecimal.ZERO
     @CreatedDate
     @Column(name = "create_time", updatable = false, insertable = true)
-    open lateinit var createTime: LocalDateTime
+    lateinit var createTime: LocalDateTime
+
     @LastModifiedDate
     @Column(name = "update_time", nullable = false, updatable = true, insertable = true)
-    open lateinit var updateTime: LocalDateTime
+    lateinit var updateTime: LocalDateTime
 }

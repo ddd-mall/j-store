@@ -1,6 +1,5 @@
 package com.jstore.com.jstore.order.domain.saleorder
 
-import com.fasterxml.jackson.core.type.TypeReference
 import com.jstore.com.jstore.order.acl.geo.address.GeoAddressServiceProxy
 import com.jstore.com.jstore.order.domain.saleorder.persistence.SaleOrderItemPO
 import com.jstore.com.jstore.order.domain.saleorder.persistence.SaleOrderItemPOJpaRepository
@@ -10,7 +9,6 @@ import com.jstore.common.framework.Page
 import com.jstore.common.framework.SortedPage
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
-import com.jstore.common.utils.json.JsonUtils
 import com.jstore.order.domain.saleorder.*
 import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
 import com.jstore.order.domain.saleorder.properties.UserInfo
@@ -56,7 +54,8 @@ class SaleOrderRepositoryImpl(
     override fun save(entity: SaleOrder): SaleOrder {
         val holder: SaleOrderPOHolder = SaleOrderConverter.entity2POHolder(entity)
 
-        val savedSaleOrderPO = holder.saleOrderPO.let { saleOrderPOJpaRepository.save(it.apply { updateTime = LocalDateTime.now() }) }
+        val savedSaleOrderPO =
+            holder.saleOrderPO.let { saleOrderPOJpaRepository.save(it.apply { updateTime = LocalDateTime.now() }) }
         val savedSaleOrderItemPOs = if (holder.saleOrderItemPOs.isNotEmpty()) {
             saleOrderItemPOJpaRepository.saveAll(holder.saleOrderItemPOs)
         } else {
@@ -83,9 +82,6 @@ open class SaleOrderPOHolder {
 
 
 object SaleOrderConverter {
-    fun poHolder2Entity(saleOrderPOHolder: SaleOrderPOHolder): SaleOrder {
-        return po2Entity(saleOrderPOHolder.saleOrderPO, saleOrderPOHolder.saleOrderItemPOs)
-    }
 
     fun po2Entity(saleOrderPO: SaleOrderPO, saleOrderItemPOList: Collection<SaleOrderItemPO>): SaleOrder {
         val id = SaleOrderId(saleOrderPO.saleOrderId)
@@ -94,13 +90,11 @@ object SaleOrderConverter {
         val addressInfo: GeoAddressInfo = GeoAddressServiceProxy.getByDistrictCode(saleOrderPO.districtCode)
             .apply { detailAddress = saleOrderPO.detailAddress }
 
-        val freightBillIds = JsonUtils.deserialize(saleOrderPO.freightBillId, object : TypeReference<List<String>>() {})
         return SaleOrder(
             id,
             buyerInfo,
             items,
             addressInfo,
-            null,
             OrderPositiveStatus.valueOf(saleOrderPO.positiveStatus),
             OrderReverseStatus.valueOf(saleOrderPO.reverseStatus),
             Price(saleOrderPO.amount),
@@ -122,44 +116,43 @@ object SaleOrderConverter {
 
     private fun orderItemPO2Entity(itemPO: SaleOrderItemPO): OrderItem {
         return OrderItem(
-            itemPO.saleOrderItemId.let { OrderItemId(it) },
-            itemPO.spuId.toLong(),
-            itemPO.skuId.toLong(),
-            itemPO.skuVersion,
-            itemPO.count,
-            Price(itemPO.unitPrice),
-            Price(itemPO.totalPrice)
+            id = OrderItemId(itemPO.saleOrderItemId),
+            spuId = itemPO.spuId.toLong(),
+            skuId = itemPO.skuId.toLong(),
+            goodsVersion = itemPO.goodsVersion,
+            quantity = itemPO.quantity,
+            unitPrice = Price(itemPO.unitPrice),
+            totalPrice = Price(itemPO.totalPrice)
         )
     }
 
 
     fun entity2POHolder(saleOrder: SaleOrder): SaleOrderPOHolder {
         return SaleOrderPOHolder().apply {
-            saleOrderPO = SaleOrderPO().apply {
-                saleOrder.id().value.also { saleOrderId = it }
-                saleOrder.buyerInfo.uid.also { uid = it }
-                phoneNumber = saleOrder.buyerInfo.phoneNumber?.value ?: ""
-                userName = saleOrder.buyerInfo.userName ?: ""
-                districtCode = saleOrder.deliveryAddressInfo.districtCode
-                detailAddress = saleOrder.deliveryAddressInfo.detailAddress ?: ""
-                freightBillId = saleOrder.freightBills?.map { it.id }?.toList()
-                    .let { JsonUtils.toJsonString(it ?: listOf<String>()) }
-                positiveStatus = saleOrder.positiveStatus.name
-                reverseStatus = saleOrder.reverseStatus.name
-                amount = saleOrder.amount.getBasicValue()
-                actualPay = saleOrder.actualPay.getBasicValue()
-            }
+            saleOrderPO = SaleOrderPO(
+                saleOrderId = saleOrder.id().value,
+                uid = saleOrder.buyerInfo.uid,
+                phoneNumber = saleOrder.buyerInfo.phoneNumber?.value ?: "",
+                userName = saleOrder.buyerInfo.userName ?: "",
+                districtCode = saleOrder.deliveryAddressInfo.districtCode,
+                detailAddress = saleOrder.deliveryAddressInfo.detailAddress ?: "",
+                positiveStatus = saleOrder.positiveStatus.name,
+                reverseStatus = saleOrder.reverseStatus.name,
+                amount = saleOrder.amount.getBasicValue(),
+                actualPay = saleOrder.actualPay.getBasicValue(),
+            )
 
             saleOrderItemPOs = saleOrder.orderItems.map {
-                SaleOrderItemPO().apply {
-                    it.id?.also { saleOrderId = it.value }
-                    it.quantity.also { count = it }
-                    it.skuId.also { skuId = it.toString() }
-                    it.spuId.also { spuId = it.toString() }
-                    it.skuVersion.also { skuVersion = it }
-                    it.unitPrice.also { unitPrice = it.getBasicValue() }
-                    it.totalPrice.also { totalPrice = it.getBasicValue() }
-                }
+                SaleOrderItemPO(
+                    saleOrderItemId = it.id.value,
+                    saleOrderId = saleOrder.id().value,
+                    quantity = it.quantity,
+                    skuId = it.skuId.toString(),
+                    spuId = it.spuId.toString(),
+                    goodsVersion = it.goodsVersion,
+                    unitPrice = it.unitPrice.getBasicValue(),
+                    totalPrice = it.totalPrice.getBasicValue(),
+                )
             }
         }
     }
