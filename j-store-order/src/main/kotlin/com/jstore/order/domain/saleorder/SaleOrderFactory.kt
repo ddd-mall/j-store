@@ -3,7 +3,10 @@ package com.jstore.order.domain.saleorder
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
-import com.jstore.order.acl.*
+import com.jstore.order.acl.GeoAddressService
+import com.jstore.order.acl.GoodsId
+import com.jstore.order.acl.GoodsInfo
+import com.jstore.order.acl.GoodsService
 import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
 import com.jstore.order.domain.saleorder.properties.UserInfo
 import com.jstore.order.domain.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
@@ -63,7 +66,6 @@ open class SaleOrderFactory(
             buyerInfo = userInfo,
             orderItems = orderItems,
             deliveryAddressInfo = deliveryAddressInfo,
-            freightBills = null,
             positiveStatus = OrderPositiveStatus.WAIT_PAY,
             reverseStatus = OrderReverseStatus.NONE,
             amount = amount,
@@ -88,7 +90,7 @@ open class SaleOrderFactory(
                 id = OrderItemId(snowFlakSequence.nextId()),
                 spuId = goodsInfo.id.spuId,
                 skuId = goodsInfo.id.skuId,
-                skuVersion = goodsInfo.version,
+                goodsVersion = goodsInfo.version,
                 quantity = purchaseItem.quantity,
                 unitPrice = goodsInfo.price,
                 totalPrice = totalPrice
