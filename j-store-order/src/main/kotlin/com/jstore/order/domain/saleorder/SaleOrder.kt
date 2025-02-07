@@ -67,7 +67,7 @@ data class OrderItem(
     val spuId: Long,
     val skuId: Long,
     val skuVersion: Long,
-    val count: BigDecimal,
+    val quantity: BigDecimal,
     val unitPrice: Price,
     val totalPrice: Price,
 )

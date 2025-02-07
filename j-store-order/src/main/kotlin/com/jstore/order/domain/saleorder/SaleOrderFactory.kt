@@ -89,7 +89,7 @@ open class SaleOrderFactory(
                 spuId = goodsInfo.id.spuId,
                 skuId = goodsInfo.id.skuId,
                 skuVersion = goodsInfo.version,
-                count = purchaseItem.quantity,
+                quantity = purchaseItem.quantity,
                 unitPrice = goodsInfo.price,
                 totalPrice = totalPrice
             )

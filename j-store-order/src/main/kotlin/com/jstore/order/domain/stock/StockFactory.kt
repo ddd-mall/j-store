@@ -9,18 +9,17 @@ import org.springframework.stereotype.Component
 class StockFactory(
     private val snowFlakSequence: SnowFlakSequence,
     private val stockServiceACL: StockServiceACL,
-) {
+
+    ) {
     fun create(cmd: StockPreDeductCmd): List<Stock> {
         return cmd.goodsIdsQuantityMap.map {
-            val outerStockId = stockServiceACL.preDeduct(it.key, it.value)
-            val stock = Stock(
+            Stock(
                 id = StockId(snowFlakSequence.nextId().toString()),
                 orderId = cmd.orderId,
                 goodsId = it.key,
                 quantity = it.value,
+                stockServiceACL = stockServiceACL
             )
-            stock.preDeduct(outerStockId)
-            stock
         }.toList()
     }
 }

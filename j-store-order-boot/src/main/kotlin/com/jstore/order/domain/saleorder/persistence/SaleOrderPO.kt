@@ -1,6 +1,5 @@
 package com.jstore.com.jstore.order.domain.saleorder.persistence
 
-import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
 import jakarta.persistence.*
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
@@ -27,7 +26,6 @@ open class SaleOrderPO : Serializable {
     }
 
     @Id
-    @SnowFlakeId
     @Column(name = "sale_order_id", unique = true, nullable = false, updatable = false)
     open var saleOrderId: Long = 0
     open var uid: Long = 0

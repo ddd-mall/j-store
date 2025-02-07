@@ -1,6 +1,5 @@
 package com.jstore.com.jstore.order.domain.stock.persistent
 
-import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.StockServiceACL
 import com.jstore.order.domain.saleorder.SaleOrderId
@@ -23,31 +22,31 @@ import java.time.LocalDateTime
         jakarta.persistence.UniqueConstraint(columnNames = ["order_id", "spu_id", "sku_id"])
     ],
 )
-class StockPO : Serializable {
+class StockPO(
+    @Id
+    val id: String,
+    @Column(name = "order_id", nullable = false, updatable = false)
+    var orderId: Long,
+    var spuId: Long,
+    var skuId: Long,
+    var quantity: BigDecimal,
+    var currentStatus: StockStatus = StockStatus.CREATED,
+    var lastStatus: StockStatus = StockStatus.CREATED,
+) : Serializable {
     companion object {
         private const val serialVersionUID = 1L
     }
 
-    @Id
-    @SnowFlakeId
-    var id: String = ""
-    @Column(name = "order_id", nullable = false, updatable = false)
-    var orderId: Long = 0
-    var spuId: Long = 0
-    var skuId: Long = 0
-    var quantity: BigDecimal = BigDecimal.ZERO
-    var currentStatus: StockStatus = StockStatus.CREATED
-    var lastStatus: StockStatus = StockStatus.CREATED
     @CreatedDate
     @Column(name = "create_time", updatable = false, insertable = true)
     lateinit var createTime: LocalDateTime
+
     @LastModifiedDate
     @Column(name = "update_time", nullable = false, updatable = true, insertable = true)
     lateinit var updateTime: LocalDateTime
 
 
-
-    fun toStock(): Stock {
+    fun toStock(stockServiceACL: StockServiceACL,): Stock {
         return Stock(
             id = StockId(id),
             orderId = SaleOrderId(orderId),
@@ -55,17 +54,18 @@ class StockPO : Serializable {
             quantity = quantity,
             currentStatus = currentStatus,
             lastStatus = lastStatus,
+            stockServiceACL = stockServiceACL
         )
     }
 
-    constructor()
-    constructor(stock: Stock) : this() {
-        this.id = stock.id.value
-        this.quantity = stock.quantity
-        this.spuId = stock.goodsId.spuId
-        this.skuId = stock.goodsId.skuId
-        this.currentStatus = stock.currentStatus
-        this.lastStatus = stock.lastStatus
 
-    }
+    constructor(stock: Stock) : this(
+        id = stock.id.value,
+        orderId = stock.orderId.value,
+        quantity = stock.quantity,
+        spuId = stock.goodsId.spuId,
+        skuId = stock.goodsId.skuId,
+        currentStatus = stock.currentStatus,
+        lastStatus = stock.lastStatus,
+    )
 }
