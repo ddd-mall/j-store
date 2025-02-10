@@ -1,7 +1,8 @@
-package com.jstore.goods.stock
+package com.jstore.goods.domain.stock
 
 import com.jstore.common.framework.Repository
-import com.jstore.goods.spu.SkuId
+import com.jstore.goods.domain.sku.SkuId
+
 
 interface StockRepository : Repository<SkuId, Stock> {
 }

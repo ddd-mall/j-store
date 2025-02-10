@@ -17,7 +17,7 @@ class MockSaleOrderCreatedEventListener : DomainEventListener {
     override fun onApplicationEvent(event: ApplicationEvent) {
         when (event) {
             is SaleOrderCreatedEvent -> {
-                log.info("order ${event.order.id().value} has been created")
+                log.info("order ${event.order.id.value} has been created")
             }
         }
     }

@@ -13,7 +13,7 @@ import java.time.LocalDateTime
 data class SaleOrderId(override val value: Long) : Id<Long>(value)
 
 data class SaleOrder(
-    private val id: SaleOrderId,
+    val id: SaleOrderId,
     val buyerInfo: UserInfo,
     val orderItems: List<OrderItem>,
     var deliveryAddressInfo: GeoAddressInfo,
