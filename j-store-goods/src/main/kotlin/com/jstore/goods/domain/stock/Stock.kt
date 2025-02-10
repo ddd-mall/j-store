@@ -1,7 +1,8 @@
-package com.jstore.goods.stock
+package com.jstore.goods.domain.stock
 
-import com.jstore.com.jstore.framework.Entity
-import com.jstore.goods.spu.SkuId
+
+import com.jstore.common.framework.Entity
+import com.jstore.goods.domain.sku.SkuId
 import java.math.BigDecimal
 
 interface Stock : Entity<SkuId> {
