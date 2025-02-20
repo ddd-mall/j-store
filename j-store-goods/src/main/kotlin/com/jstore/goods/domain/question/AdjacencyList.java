@@ -1,16 +1,22 @@
 package com.jstore.goods.domain.question;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class AdjacencyList<T> {
     private final Map<T, Set<T>> connectionMap = new HashMap<>();
 
     public Set<T> getConnectedNodes(T current) {
         return connectionMap.get(current);
+    }
+
+    public Set<T> getConnectedNodes(Collection<T> from) {
+         return from.stream().map(connectionMap::get).flatMap(Set::stream).collect(Collectors.toSet());
     }
 
     public void connect(T a, T b) {
@@ -30,20 +36,6 @@ public class AdjacencyList<T> {
         if ((alreadyExist = connectionMap.putIfAbsent(a, new HashSet<>(Collections.singleton(b)))) != null) {
             alreadyExist.add(b);
         }
-    }
-
-    public static void main(String[] args) {
-        AdjacencyList<String> adjacencyList = new AdjacencyList<>();
-
-
-        String a = "A";
-        String b = "B";
-        String c = "C";
-        adjacencyList.connect(a, b);
-        adjacencyList.connect(a, c);
-        adjacencyList.connect(b, c);
-
-        adjacencyList.getConnectedNodes(c).forEach(System.out::println);
     }
 
 }

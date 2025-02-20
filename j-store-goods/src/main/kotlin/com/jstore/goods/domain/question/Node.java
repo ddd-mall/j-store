@@ -1,41 +1,33 @@
 package com.jstore.goods.domain.question;
 
 
+import java.util.Objects;
+
 public class Node {
     public Long id;
-    public String title;
     public int layer;
+    public int order;
     public NodeType type;
+    public String content;
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
 
     public int getLayer() {
         return layer;
     }
 
-    public void setLayer(int layer) {
-        this.layer = layer;
+    public int getOrder() {
+        return order;
     }
 
-    public NodeType getType() {
-        return type;
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Node node = (Node) o;
+        return layer == node.layer && order == node.order && Objects.equals(id, node.id) && type == node.type && Objects.equals(content, node.content);
     }
 
-    public void setType(NodeType type) {
-        this.type = type;
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, layer, order, type, content);
     }
 }
