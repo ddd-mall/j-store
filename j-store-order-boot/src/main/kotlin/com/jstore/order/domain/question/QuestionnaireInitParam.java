@@ -5,50 +5,29 @@ import lombok.Data;
 import java.util.List;
 
 
+/**
+ * 问卷模型初始化参数
+ */
 @Data
 public class QuestionnaireInitParam {
 
+    /**
+     * 问卷基本元素，问题列表
+     */
     public List<Question> questions;
 
+    /**
+     * 问卷各个元素的依赖关系
+     */
     public List<Dependency> dependencies;
 
-    @Data
-    public static class Question {
-        public Long id;
-        public String title;
-        public String subTitle;
-        public String img;
-        public Integer min;
-        public Integer max;
-        public List<Option> options;
-
-        public boolean valid() {
-            return 0 < min && min <= max && max <= options.size();
-        }
-    }
 
 
-    @Data
-    public static class Option {
-        public Long id;
-        public String key;
-        public String title;
-        public String subTitle;
-        public String img;
-        public String content;
-    }
 
 
-    /**
-     * 元素的依赖因子，
-     */
-    @Data
-    public static class Dependency {
-        private Long itemId;
-        private DependentFactorSet dependentFactorSet;
 
 
-    }
+
 
 
 
