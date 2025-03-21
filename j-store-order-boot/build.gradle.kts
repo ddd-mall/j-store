@@ -2,8 +2,18 @@ plugins {
     alias(libs.plugins.jvm)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
-    alias(libs.plugins.springframework) apply(true)
-    alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.springframework)
+//    alias(libs.plugins.spring.dependency.management)
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 group = "com.jstore"
@@ -18,6 +28,8 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(project(":j-store-common"))
     implementation(project(":j-store-order"))
+
+    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.data.commons)
     implementation(libs.spring.boot.starter.data.jpa)
@@ -47,6 +59,5 @@ tasks.test {
 tasks.withType<Tar> {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-kotlin {
-    jvmToolchain(21)
-}
+
+

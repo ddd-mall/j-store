@@ -91,16 +91,16 @@ object SaleOrderConverter {
             .apply { detailAddress = saleOrderPO.detailAddress }
 
         return SaleOrder(
-            id,
-            buyerInfo,
-            items,
-            addressInfo,
-            OrderPositiveStatus.valueOf(saleOrderPO.positiveStatus),
-            OrderReverseStatus.valueOf(saleOrderPO.reverseStatus),
-            Price(saleOrderPO.amount),
-            Price(saleOrderPO.actualPay),
-            saleOrderPO.createTime,
-            saleOrderPO.updateTime
+            id = id,
+            buyerInfo = buyerInfo,
+            orderItems = items,
+            deliveryAddressInfo = addressInfo,
+            positiveStatus = OrderPositiveStatus.valueOf(saleOrderPO.positiveStatus),
+            reverseStatus = OrderReverseStatus.valueOf(saleOrderPO.reverseStatus),
+            amount = Price(saleOrderPO.amount),
+            actualPay = Price(saleOrderPO.actualPay),
+            createTime = saleOrderPO.createTime,
+            updateTime = saleOrderPO.updateTime
         )
     }
 
@@ -110,7 +110,10 @@ object SaleOrderConverter {
     ): List<SaleOrder> {
         val itemMap: Map<Long, List<SaleOrderItemPO>> = saleOrderItemPOs.groupBy { item -> item.saleOrderId }
         return saleOrderPOs.map { saleOrderPO ->
-            po2Entity(saleOrderPO, itemMap[saleOrderPO.saleOrderId] ?: listOf())
+            po2Entity(
+                saleOrderPO = saleOrderPO,
+                saleOrderItemPOList = itemMap[saleOrderPO.saleOrderId] ?: listOf()
+            )
         }
     }
 

@@ -1,5 +1,9 @@
 plugins {
-    kotlin("jvm") version "1.9.20"
+    alias(libs.plugins.jvm)
+    alias(libs.plugins.kotlin.plugin.spring)
+    alias(libs.plugins.kotlin.plugin.jpa)
+    alias(libs.plugins.springframework) apply(true)
+
 }
 
 group = "com.jstore"
@@ -11,6 +15,7 @@ repositories {
 
 dependencies {
     implementation(libs.kotlin.stdlib)
+    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.jpa)
     implementation(libs.spirng.boot.boot)
     testImplementation(libs.spring.boot.starter.test)

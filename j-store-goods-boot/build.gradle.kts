@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.springframework) apply(true)
-    alias(libs.plugins.spring.dependency.management)
 
 }
 
@@ -28,6 +27,7 @@ repositories {
 
 
 dependencies {
+    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
     implementation(project(":j-store-common"))

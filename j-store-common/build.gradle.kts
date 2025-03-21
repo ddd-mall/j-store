@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.jvm)
-
+    alias(libs.plugins.kotlin.plugin.spring)
+    alias(libs.plugins.kotlin.plugin.jpa)
+    alias(libs.plugins.springframework)
 }
 
 group = "com.jstore"
@@ -14,10 +16,13 @@ repositories {
 dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlin.stdlib)
+    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.guava)
     implementation(libs.slf4j.api)
+
+    implementation(libs.jackson.bom)
     implementation(libs.jackson.core)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.annotations)
