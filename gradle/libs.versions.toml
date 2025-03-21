@@ -1,49 +1,68 @@
 [versions]
 guava = "33.3.1-jre"
-springBoot = "3.4.1"
-spring-dependency-management = '1.1.7'
+spring-boot = "3.4.3"
+spring-modulith-bom = "1.3.3"
+spring-cloud = "2024.0.1"
+
 postgresql = "42.7.4"
-kotlin-jvm = "1.9.20"
-kotlin = "1.9.0"
+kotlin = "2.1.20"
 slf4j = "2.0.16"
 jackson = "2.18.2"
-fastexcel = "1.0.0"
+fastexcel = "1.1.0"
 junit = "1.11.4"
 mockito = "5.14.0"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
-spirng-boot-boot = { module = "org.springframework.boot:spring-boot", version.ref = "springBoot" }
-spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa", version.ref = "springBoot" }
-spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
-spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot" }
-spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools", version.ref = "springBoot" }
-spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "springBoot" }
-spring-data-jpa = { module = "org.springframework.data:spring-data-jpa", version.ref = "springBoot" }
-spring-data-commons = { module = "org.springframework.data:spring-data-commons", version.ref = "springBoot" }
+
+spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-bom", version.ref = "spring-modulith-bom" }
+spring-modulith-starter-test = {module = "org.springframework.modulith:spring-modulith-starter-test"}
+spring-modulith-starter-core = { module = "org.springframework.modulith:spring-modulith-starter-core" }
+
+
+spring-boot-dependencies = {module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot"}
+spirng-boot-boot = { module = "org.springframework.boot:spring-boot" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools" }
+spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "spring-boot" }
+spring-data-jpa = { module = "org.springframework.data:spring-data-jpa" }
+spring-data-commons = { module = "org.springframework.data:spring-data-commons" }
+
+
+spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
+spring-cloud-function-context = { module = "org.springframework.cloud:spring-cloud-function-context" }
+spring-cloud-starter = { module = "org.springframework.cloud:spring-cloud-starter" }
+spring-cloud-starter-netflix-eureka-client = { module = "org.springframework.cloud:spring-cloud-starter-netflix-eureka-client" }
+spring-cloud-starter-netflix-eureka-server = { module = "org.springframework.cloud:spring-cloud-starter-netflix-eureka-server" }
+spring-cloud-starter-task = { module = "org.springframework.cloud:spring-cloud-starter-task" }
+spring-cloud-starter-zookeeper-discovery = { module = "org.springframework.cloud:spring-cloud-starter-zookeeper-discovery" }
+
 
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
-kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
-kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
+
+#kotlin-gradle-plugin-bom = {module = "org.jetbrains.kotlin:kotlin-gradle-plugins-bom", version.ref = "kotlin"}
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
+
 
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
 mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
-jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
-jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
-jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+
+jackson-bom = {module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson"}
+jackson-core = { module = "com.fasterxml.jackson.core:jackson-core" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
+
 fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
 
 
-
-
-
-
 [plugins]
-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-jvm" }
-springframework = { id = "org.springframework.boot", version.ref = "springBoot" }
-spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+springframework = { id = "org.springframework.boot", version.ref = "spring-boot" }
+jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-plugin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 kotlin-plugin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }

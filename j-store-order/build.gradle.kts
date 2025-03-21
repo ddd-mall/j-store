@@ -1,5 +1,8 @@
 plugins {
     alias(libs.plugins.jvm)
+    alias(libs.plugins.kotlin.plugin.spring)
+    alias(libs.plugins.kotlin.plugin.jpa)
+    alias(libs.plugins.springframework)
 }
 
 group = "com.jstore"
@@ -12,6 +15,7 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.spring.data.jpa)
+    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spirng.boot.boot)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockito)
