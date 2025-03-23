@@ -22,7 +22,7 @@ class Stock(
     var currentStatus: StockStatus = StockStatus.CREATED,
     var lastStatus: StockStatus = currentStatus,
     var outerStockId: String? = null,
-    @Transient private val stockServiceACL: StockServiceACL,
+    @Transient val stockServiceACL: StockServiceACL,
 ) : Entity<StockId> {
     private val rollbackAble: AtomicBoolean = AtomicBoolean(false)
     private val log: Logger = LoggerFactory.getLogger(this::class)
