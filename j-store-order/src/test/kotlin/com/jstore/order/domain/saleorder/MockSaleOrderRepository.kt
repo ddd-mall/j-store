@@ -40,7 +40,7 @@ class MockSaleOrderRepository: SaleOrderRepository, AbstractMockRepository<SaleO
             buyerInfo = entity.buyerInfo,
             orderItems = entity.orderItems,
             deliveryAddressInfo = entity.deliveryAddressInfo,
-            freightBills = entity.freightBills,
+
             positiveStatus = entity.positiveStatus,
             reverseStatus = entity.reverseStatus,
             amount = entity.amount,

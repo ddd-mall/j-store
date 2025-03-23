@@ -6,7 +6,6 @@ import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
 import com.jstore.order.domain.saleorder.properties.UserInfo
-import java.math.BigDecimal
 import java.time.LocalDateTime
 
 
@@ -25,11 +24,9 @@ data class SaleOrder(
     val updateTime: LocalDateTime,
 ) : Entity<SaleOrderId> {
 
-
     override fun id(): SaleOrderId {
         return id
     }
-
 }
 
 
@@ -48,22 +45,5 @@ enum class OrderReverseStatus {
     CANCELED,
     CLOSE
 }
-
-
-
-data class OrderItemId(override val value: Long) : Id<Long>(value)
-data class OrderItem(
-    val id: OrderItemId,
-    val spuId: Long,
-    val skuId: Long,
-    val goodsVersion: Long,
-    val quantity: BigDecimal,
-    val unitPrice: Price,
-    val totalPrice: Price,
-)
-
-
-
-
 
 

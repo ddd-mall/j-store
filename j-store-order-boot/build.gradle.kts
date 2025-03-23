@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.jvm)
+    alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.springframework)
@@ -28,6 +28,8 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(project(":j-store-common"))
     implementation(project(":j-store-order"))
+
+
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.jpa)

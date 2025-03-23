@@ -1,5 +1,5 @@
 plugins {
-	alias(libs.plugins.jvm)
+	alias(libs.plugins.kotlin.jvm)
 	alias(libs.plugins.kotlin.plugin.spring)
 	alias(libs.plugins.springframework)
 }
@@ -27,6 +27,10 @@ dependencies {
 	implementation(platform(libs.spring.cloud.dependencies))
 	implementation(platform(libs.spring.boot.dependencies))
 	implementation(platform(libs.spring.modulith.bom))
+	implementation(libs.spring.modulith.starter.core)
+	testImplementation(libs.spring.modulith.starter.test)
+	implementation(libs.spring.modulith.core)
+
 
 	implementation(libs.kotlin.reflect)
 	implementation(libs.spring.cloud.function.context)
@@ -35,11 +39,10 @@ dependencies {
 	implementation(libs.spring.cloud.starter.netflix.eureka.server)
 	implementation(libs.spring.cloud.starter.task)
 	implementation(libs.spring.cloud.starter.zookeeper.discovery)
-	implementation(libs.spring.modulith.starter.core)
 	annotationProcessor(libs.spring.boot.configuration.processor)
 	testImplementation(libs.spring.boot.starter.test)
 	testImplementation(libs.kotlin.test.junit5)
-	testImplementation(libs.spring.modulith.starter.test)
+
 	testRuntimeOnly(libs.junit.platform.launcher)
 }
 
