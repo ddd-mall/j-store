@@ -133,7 +133,7 @@ object SaleOrderConverter {
     fun entity2POHolder(saleOrder: SaleOrder): SaleOrderPOHolder {
         return SaleOrderPOHolder().apply {
             saleOrderPO = SaleOrderPO(
-                saleOrderId = saleOrder.id().value,
+                saleOrderId = saleOrder.id.value,
                 uid = saleOrder.buyerInfo.uid,
                 phoneNumber = saleOrder.buyerInfo.phoneNumber?.value ?: "",
                 userName = saleOrder.buyerInfo.userName ?: "",
@@ -148,7 +148,7 @@ object SaleOrderConverter {
             saleOrderItemPOs = saleOrder.orderItems.map {
                 SaleOrderItemPO(
                     saleOrderItemId = it.id.value,
-                    saleOrderId = saleOrder.id().value,
+                    saleOrderId = saleOrder.id.value,
                     quantity = it.quantity,
                     skuId = it.skuId.toString(),
                     spuId = it.spuId.toString(),

@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.jvm)
+    alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.springframework)
@@ -22,7 +22,7 @@ dependencies {
     implementation(libs.guava)
     implementation(libs.slf4j.api)
 
-    implementation(libs.jackson.bom)
+    implementation(platform(libs.jackson.bom))
     implementation(libs.jackson.core)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.annotations)

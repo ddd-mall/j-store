@@ -22,7 +22,7 @@ class PreDeductWhenOrderCreatedPolicy(
         when (event) {
             is SaleOrderCreatedEvent -> {
                 val preDeductCmd = StockPreDeductCmd(
-                    orderId = event.order.id(),
+                    orderId = event.order.id,
                     goodsIdsQuantityMap = event.order.orderItems.associate { GoodsId(it.spuId, it.skuId) to it.quantity })
                 stockPreDeductHandler.handle(preDeductCmd)
             }
