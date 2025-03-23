@@ -47,8 +47,7 @@ object TestBeanConfig {
     val stockRepository = MockStockRepositoryImpl()
     val stockServiceACL = MockStockServiceACLImpl()
     val stockFactory = StockFactory(
-        stockAclService = stockServiceACL,
-        businessExecutor = businessExecutor,
+        stockServiceACL = stockServiceACL,
         snowFlakSequence = snowFlakSequence
     )
     val stockPreDeductHandler = StockPreDeductHandler(

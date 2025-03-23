@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-open class SaleOrderService(
+class SaleOrderService(
     private val saleOrderCreateCMDHandler: SaleOrderCreateCMDHandler,
 ) {
 
@@ -17,7 +17,7 @@ open class SaleOrderService(
         rollbackFor = [Exception::class],
         propagation = Propagation.REQUIRES_NEW
     )
-    open fun create(cmd: SaleOrderCreateCmd): SaleOrder {
+    fun create(cmd: SaleOrderCreateCmd): SaleOrder {
         val saleOrder = saleOrderCreateCMDHandler.create(cmd)
         return saleOrder
     }
