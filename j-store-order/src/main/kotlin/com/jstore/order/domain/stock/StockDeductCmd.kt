@@ -25,7 +25,7 @@ open class StockDeductCmdHandler(
 
         try {
             orderStocks.forEach{
-                stockServiceACL.deduct(it.outerStockId!!)
+                stockServiceACL.confirm(it.outerStockId!!)
                 it.deduct()
             }
             stockRepository.saveBatch(orderStocks)

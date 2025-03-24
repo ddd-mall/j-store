@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.kotlin.plugin.jpa)
-    alias(libs.plugins.springframework) apply(true)
+    alias(libs.plugins.springframework)
 
 }
 

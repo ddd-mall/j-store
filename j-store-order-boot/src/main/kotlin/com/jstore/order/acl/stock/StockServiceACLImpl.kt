@@ -18,12 +18,12 @@ class StockServiceACLImpl(
         return snowFlakSequence.nextId().toString()
     }
 
-    override fun deduct(outerStockId: String): Boolean {
+    override fun confirm(outerStockId: String): Boolean {
         log.info("stock $outerStockId have been deducted")
         return true
     }
 
-    override fun rollback(outerStockId: String): Boolean {
+    override fun cancel(outerStockId: String): Boolean {
         log.info("stock $outerStockId haven rollback for deduct")
         return true
     }

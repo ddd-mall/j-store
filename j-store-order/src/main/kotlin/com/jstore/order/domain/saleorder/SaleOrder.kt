@@ -12,7 +12,7 @@ import java.time.LocalDateTime
 data class SaleOrderId(override val value: Long) : Id<Long>(value)
 
 data class SaleOrder(
-    val id: SaleOrderId,
+    override val id: SaleOrderId,
     val buyerInfo: UserInfo,
     val orderItems: List<OrderItem>,
     var deliveryAddressInfo: GeoAddressInfo,
@@ -23,10 +23,6 @@ data class SaleOrder(
     val createTime: LocalDateTime,
     val updateTime: LocalDateTime,
 ) : Entity<SaleOrderId> {
-
-    override fun id(): SaleOrderId {
-        return id
-    }
 }
 
 

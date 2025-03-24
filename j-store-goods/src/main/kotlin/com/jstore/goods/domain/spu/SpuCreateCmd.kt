@@ -4,7 +4,6 @@ import org.springframework.stereotype.Component
 
 data class SpuCreateCmd(
     val spuName: String,
-    val goodsCategory: GoodsCategory
 )
 
 @Component
