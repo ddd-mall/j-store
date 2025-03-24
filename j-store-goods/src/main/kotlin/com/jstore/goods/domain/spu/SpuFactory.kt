@@ -8,10 +8,9 @@ class SpuFactory(
     private val snowFlakSequence: SnowFlakSequence
 ) {
     fun create(createCmd: SpuCreateCmd): Spu {
-        return Spu(
+        return SpuImpl(
             id = SpuId(snowFlakSequence.nextId()),
             spuName = createCmd.spuName,
-            goodsCategory = createCmd.goodsCategory
         )
     }
 }

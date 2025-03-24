@@ -6,10 +6,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.concurrent.ThreadPoolExecutor
 
 @Configuration
-open class OrderBeansConfig {
+class OrderBeansConfig {
 
     @Bean(name = ["businessExecutor"])
-    open fun businessExecutor(): ThreadPoolTaskExecutor {
+    fun businessExecutor(): ThreadPoolTaskExecutor {
         val executorService = ThreadPoolTaskExecutor()
         executorService.setThreadNamePrefix("businessExecutor-")
         executorService.corePoolSize = 1

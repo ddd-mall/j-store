@@ -14,14 +14,14 @@ class StockPreDeductCmd(
 )
 
 @Component
-open class StockPreDeductHandler(
+class StockPreDeductHandler(
     private val stockRepository: StockRepository,
     private val stockFactory: StockFactory,
 ) {
     private val log: Logger = LoggerFactory.getLogger(this::class)
 
 
-    open fun handle(cmd: StockPreDeductCmd) {
+    fun handle(cmd: StockPreDeductCmd) {
 
         val stockList = stockRepository.findAllByOrderId(cmd.orderId).let { find ->
             if (find.any { stock -> cmd.goodsIdsQuantityMap.keys.contains(stock.goodsId) }) {

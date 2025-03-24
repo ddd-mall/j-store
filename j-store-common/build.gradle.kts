@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.guava)
     implementation(libs.slf4j.api)
+    implementation(libs.seata.all)
 
     implementation(platform(libs.jackson.bom))
     implementation(libs.jackson.core)

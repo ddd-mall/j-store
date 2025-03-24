@@ -2,12 +2,11 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.kotlin.plugin.jpa)
-    alias(libs.plugins.springframework) apply(true)
-
+    alias(libs.plugins.springframework)
 }
 
 group = "com.jstore"
-version = "unspecified"
+version = "0.0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -19,6 +18,7 @@ dependencies {
     implementation(libs.spring.data.jpa)
     implementation(libs.spirng.boot.boot)
     testImplementation(libs.spring.boot.starter.test)
+    implementation(libs.seata.all)
     implementation(project(":j-store-common"))
     testImplementation(kotlin("test"))
 }

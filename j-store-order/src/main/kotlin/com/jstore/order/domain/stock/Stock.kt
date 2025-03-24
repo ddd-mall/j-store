@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 data class StockId(override val value: String) : Id<String>(value)
 
 class Stock(
-    var id: StockId,
+    override val id: StockId,
     val orderId: SaleOrderId,
     val goodsId: GoodsId,
     val quantity: BigDecimal,
@@ -26,6 +26,7 @@ class Stock(
 ) : Entity<StockId> {
     private val rollbackAble: AtomicBoolean = AtomicBoolean(false)
     private val log: Logger = LoggerFactory.getLogger(this::class)
+
 
     fun preDeduct() {
         if (currentStatus != StockStatus.CREATED) {
@@ -58,11 +59,6 @@ class Stock(
         val temp = currentStatus
         currentStatus = lastStatus
         lastStatus = temp
-    }
-
-
-    override fun id(): StockId {
-        return id
     }
 }
 

@@ -1,5 +1,5 @@
 package com.jstore.common.framework
 
 interface Entity<I : Identify> {
-    fun id(): I?
+    val id: I?
 }
