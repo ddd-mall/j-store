@@ -1,7 +1,8 @@
 package com.jstore.common.utils
 
-interface Lock {
-    fun isAcquire(): Boolean
+import java.io.Closeable
 
+
+interface Lock : Closeable {
     fun unlock(): Result<Boolean, Throwable>
 }
