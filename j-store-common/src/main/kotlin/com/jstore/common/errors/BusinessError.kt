@@ -5,6 +5,7 @@ class BusinessError(
     val errorCode: String,
     val httpCode: Int,
 ) {
+
     fun msg(message: String): BusinessError {
         return BusinessError(message, this.errorCode, this.httpCode)
     }
