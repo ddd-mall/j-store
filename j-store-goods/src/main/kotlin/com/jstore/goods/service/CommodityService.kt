@@ -4,12 +4,12 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.framework.DomainEventPublisher
 import com.jstore.common.utils.*
-import com.jstore.goods.domain.commodity.*
-import com.jstore.goods.domain.commodity.comand.SKUAppendCMD
+import com.jstore.goods.domain.commodity.Spu
+import com.jstore.goods.domain.commodity.SpuFactory
+import com.jstore.goods.domain.commodity.SpuId
+import com.jstore.goods.domain.commodity.SpuRepository
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
-import com.jstore.goods.domain.commodity.event.CommodityOffSaleEvent
-import com.jstore.goods.domain.commodity.event.CommodityOnSaleEvent
-import com.jstore.goods.domain.commodity.event.CommodityPublishedEvent
+import com.jstore.goods.domain.commodity.comand.SKUAppendCMD
 import org.springframework.stereotype.Service
 
 @Service
@@ -51,13 +51,12 @@ class CommodityService(
     }
 
     /**
-     * 发布商品
+     * 发布商品: 由草稿态转换为下架
      */
     fun publish(spuId: SpuId): Result<Boolean, BusinessError> {
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
         spu.publish().onFailure { e -> return Failure(e) }
         spuRepository.save(spu)
-        domainEventPublisher.publishEvent(CommodityPublishedEvent(spu, spu.id))
         return Success(true)
     }
 
@@ -68,7 +67,6 @@ class CommodityService(
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
         spu.putOnSale().onFailure { e -> return Failure(e) }
         spuRepository.save(spu)
-        domainEventPublisher.publishEvent(CommodityOnSaleEvent(spu, spuId))
         return Success(true)
     }
 
@@ -79,7 +77,6 @@ class CommodityService(
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
         spu.tackOffSale().onFailure { e -> return Failure(e) }
         spuRepository.save(spu)
-        domainEventPublisher.publishEvent(CommodityOffSaleEvent(spu, spuId))
         return Success(true)
     }
 
