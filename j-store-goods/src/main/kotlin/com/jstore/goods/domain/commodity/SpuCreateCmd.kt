@@ -1,4 +1,4 @@
-package com.jstore.goods.domain.spu
+package com.jstore.goods.domain.commodity
 
 import org.springframework.stereotype.Component
 

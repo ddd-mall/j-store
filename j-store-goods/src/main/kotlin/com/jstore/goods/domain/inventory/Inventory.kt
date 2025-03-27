@@ -1,12 +1,12 @@
-package com.jstore.goods.domain.storage
+package com.jstore.goods.domain.inventory
 
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.Entity
-import com.jstore.common.logging.Logger
-import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.Id
+import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
+import com.jstore.common.utils.Success
 import java.math.BigDecimal
 
 data class CommodityCode(override val value: Long) : Id<Long>(value)
@@ -32,31 +32,44 @@ interface Inventory : Entity<CommodityCode> {
     /**
      * 增加 (prepare)
      */
-    fun add(amount: BigDecimal): Result<Boolean, BusinessError>
+    fun add(quantity: BigDecimal): Result<Boolean, BusinessError>
 }
 
 class InventoryImpl(
     override val id: CommodityCode,
-
+    private var availableQuantity: BigDecimal = BigDecimal.ZERO,
+    private var reservedQuantity: BigDecimal = BigDecimal.ZERO,
+    private val version: Long = 0
 ) : Inventory {
-    companion object {
-        private val log: Logger = LoggerFactory.getLogger(this::class)
-    }
-
     override fun reserve(amount: BigDecimal):  Result<Boolean, BusinessError> {
-        TODO("Not yet implemented")
+        if (availableQuantity < amount) {
+            return Failure(StorageErrors.INSUFFICIENT_INVENTORY)
+        }
+        availableQuantity -= amount
+        reservedQuantity += amount
+        return Success(true)
     }
 
     override fun deduct(amount: BigDecimal): Result<Boolean, BusinessError> {
-        TODO("Not yet implemented")
+        if (reservedQuantity < amount) {
+            return Failure(StorageErrors.STORAGE_OPERATION_FAILED.msg("inventory deduct failed! because insufficient reserved inventor"))
+        }
+        reservedQuantity -= amount
+        return Success(true)
     }
 
     override fun release(amount: BigDecimal): Result<Boolean, BusinessError> {
-        TODO("Not yet implemented")
+        if (reservedQuantity < amount) {
+            return Failure(StorageErrors.STORAGE_OPERATION_FAILED.msg("inventory release failed! because insufficient reserved inventor"))
+        }
+        reservedQuantity -= amount
+        availableQuantity += amount
+        return Success(true)
     }
 
-    override fun add(amount: BigDecimal): Result<Boolean, BusinessError> {
-        TODO("Not yet implemented")
+    override fun add(quantity: BigDecimal): Result<Boolean, BusinessError> {
+        availableQuantity += quantity
+        return Success(true)
     }
 
 
