@@ -5,14 +5,14 @@ import com.jstore.common.framework.DomainEventPublisher
 import com.jstore.common.framework.DomainEventRegistry
 import org.springframework.stereotype.Component
 
-interface SaleOrderEventPublisher : DomainEventPublisher<DomainEvent>
+interface SaleOrderEventPublisher : DomainEventPublisher
 
 @Component
 class SaleOrderEventPublisherImpl(
     private val eventRegistry: DomainEventRegistry
 ) : SaleOrderEventPublisher {
 
-    override fun publishEvent(event: DomainEvent) {
+    override fun <T : DomainEvent> publishEvent(event: T) {
         eventRegistry.publishEvent(event)
     }
 }
