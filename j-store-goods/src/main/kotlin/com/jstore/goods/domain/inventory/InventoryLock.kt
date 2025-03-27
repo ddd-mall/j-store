@@ -1,4 +1,4 @@
-package com.jstore.goods.domain.storage
+package com.jstore.goods.domain.inventory
 
 import com.jstore.common.utils.Lock
 import com.jstore.common.utils.Result

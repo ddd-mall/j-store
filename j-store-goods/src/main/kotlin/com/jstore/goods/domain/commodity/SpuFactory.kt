@@ -1,4 +1,4 @@
-package com.jstore.goods.domain.spu
+package com.jstore.goods.domain.commodity
 
 import com.jstore.common.persistent.SnowFlakSequence
 import org.springframework.stereotype.Component
