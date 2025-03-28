@@ -2,7 +2,7 @@ package com.jstore.goods.service
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.errors.CommonBusinessError
-import com.jstore.common.framework.DomainEventPublisher
+import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.utils.*
 import com.jstore.goods.domain.commodity.Spu
 import com.jstore.goods.domain.commodity.SpuFactory

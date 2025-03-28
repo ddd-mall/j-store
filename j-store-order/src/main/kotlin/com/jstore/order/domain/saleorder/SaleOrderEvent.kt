@@ -1,19 +1,19 @@
 package com.jstore.order.domain.saleorder
 
-import com.jstore.common.framework.DomainEvent
+import com.jstore.common.framework.event.DomainEvent
 
 
 class SaleOrderPrepareToCreateEvent(
     val createCMD: SaleOrderCreateCmd,
     source: Any
-    ) : DomainEvent(source)
+    ) : DomainEvent
 
 class SaleOrderCreatedEvent(
     val order: SaleOrder,
     source: Any
-) : DomainEvent(source)
+) : DomainEvent
 
 class FailToCreateSaleOrderEvent(
     val createCMD: SaleOrderCreateCmd,
     source: Any
-) : DomainEvent(source)
+) : DomainEvent

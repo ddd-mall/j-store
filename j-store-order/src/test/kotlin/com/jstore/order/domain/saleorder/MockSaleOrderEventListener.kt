@@ -1,9 +1,9 @@
 package com.jstore.order.domain.saleorder
 
-import com.jstore.common.framework.DomainEventListener
+import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
-import org.springframework.context.ApplicationEvent
 import org.springframework.core.ResolvableType
 
 class MockSaleOrderCreatedEventListener : DomainEventListener {
@@ -14,7 +14,7 @@ class MockSaleOrderCreatedEventListener : DomainEventListener {
         return true
     }
 
-    override fun onApplicationEvent(event: ApplicationEvent) {
+    override fun onDomainEvent(event: DomainEvent) {
         when (event) {
             is SaleOrderCreatedEvent -> {
                 log.info("order ${event.order.id.value} has been created")

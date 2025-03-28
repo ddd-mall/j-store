@@ -1,5 +1,6 @@
 package com.jstore.order.domain.saleorder
 
+import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
@@ -20,7 +21,7 @@ import java.time.LocalDateTime
 class SaleOrderFactory(
     private val goodsService: GoodsService,
     private val geoAddressService: GeoAddressService,
-    private val saleOrderEventPublisher: SaleOrderEventPublisher,
+    private val saleOrderEventPublisher: DomainEventPublisher,
     private val snowFlakSequence: SnowFlakSequence,
     saleOrderCreateCMDValidator: SaleOrderCreateCMDUserInfoValidator,
     saleOrderRiskValidator: SaleOrderRiskValidator
