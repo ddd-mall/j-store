@@ -8,7 +8,7 @@ import com.jstore.order.domain.saleorder.SaleOrderId
 import java.time.LocalDateTime
 
 data class RefundOrder(
-    override val id: RefundOrderId?,
+    override val id: RefundOrderId,
     val refundType: RefundType,
     val saleOrderId: SaleOrderId,
     val reason: String?,

@@ -1,6 +1,7 @@
 package com.jstore.order.domain.stock
 
-import com.jstore.common.framework.DomainEventListener
+import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.domain.saleorder.SaleOrderCreatedEvent
 import org.springframework.context.ApplicationEvent
@@ -18,7 +19,7 @@ class PreDeductWhenOrderCreatedPolicy(
         return eventType.type == SaleOrderCreatedEvent::class.java
     }
 
-    override fun onApplicationEvent(event: ApplicationEvent) {
+    override fun onDomainEvent(event: DomainEvent) {
         when (event) {
             is SaleOrderCreatedEvent -> {
                 val preDeductCmd = StockPreDeductCmd(

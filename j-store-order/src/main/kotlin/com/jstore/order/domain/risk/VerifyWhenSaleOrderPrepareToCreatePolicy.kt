@@ -1,6 +1,7 @@
 package com.jstore.order.domain.risk
 
-import com.jstore.common.framework.DomainEventListener
+import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.order.domain.saleorder.SaleOrderPrepareToCreateEvent
 import org.springframework.context.ApplicationEvent
 import org.springframework.core.ResolvableType
@@ -16,7 +17,7 @@ class VerifyWhenSaleOrderPrepareToCreatePolicy(
         return eventType.type == SaleOrderPrepareToCreateEvent::class.java
     }
 
-    override fun onApplicationEvent(event: ApplicationEvent) {
+    override fun onDomainEvent(event: DomainEvent) {
         when(event) {
             is SaleOrderPrepareToCreateEvent -> {
                 val riskVerifyCmd = SaleOrderCreateRiskVerifyCmd(

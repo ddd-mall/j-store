@@ -1,5 +1,0 @@
-package com.jstore.common.framework
-
-import org.springframework.context.event.GenericApplicationListener
-
-interface DomainEventListener: GenericApplicationListener
