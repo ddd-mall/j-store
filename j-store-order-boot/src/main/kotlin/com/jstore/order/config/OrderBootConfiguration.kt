@@ -1,7 +1,6 @@
 package com.jstore.com.jstore.order.config
 
-import com.jstore.com.jstore.order.framework.SpringDomainEventPublisher
-import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.framework.event.*
 import com.jstore.common.persistent.SnowFlakSequence
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -15,8 +14,23 @@ class OrderBootConfiguration {
     }
 
     @Bean
-    fun domainEventPublisher() : DomainEventPublisher {
-        return SpringDomainEventPublisher()
+    fun springDomainEventListenerRegistry() : SpringDomainEventListenerRegistry {
+        return SpringDomainEventListenerRegistry()
+    }
+
+    @Bean
+    fun springDomainEventDispatcher(): SpringDomainEventDispatcher {
+        return SpringDomainEventDispatcher()
+    }
+
+    @Bean
+    fun springDomainEventBus(springDomainEventRegistry: SpringDomainEventListenerRegistry, springDomainEventDispatcher: SpringDomainEventDispatcher): SpringDomainEventBus {
+        return SpringDomainEventBus(springDomainEventRegistry, springDomainEventDispatcher)
+    }
+
+    @Bean
+    fun domainEventPublisher(springDomainEventBus: SpringDomainEventBus) : DomainEventPublisher {
+        return SpringDomainEventPublisher(springDomainEventBus)
     }
 
 }

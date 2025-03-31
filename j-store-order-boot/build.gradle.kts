@@ -27,6 +27,7 @@ dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
     implementation(project(":j-store-common"))
+    implementation(project(":j-store-common-spring"))
     implementation(project(":j-store-order"))
 
 

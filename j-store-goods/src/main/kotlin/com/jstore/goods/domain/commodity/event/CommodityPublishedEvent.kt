@@ -4,6 +4,6 @@ import com.jstore.common.framework.event.DomainEvent
 import com.jstore.goods.domain.commodity.SpuId
 
 class CommodityPublishedEvent(
-    source: Any,
+    override val source: Any,
     val spuId: SpuId
 ): DomainEvent

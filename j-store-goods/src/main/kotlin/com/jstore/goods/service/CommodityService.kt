@@ -31,7 +31,8 @@ class CommodityService(
                     return@map spuRepository.save(update)
                 }
                 val spu = spuFactory.create(cmd)
-                spuRepository.save(spu)
+                val saved = spuRepository.save(spu)
+                saved
             }
     }
 
@@ -57,6 +58,7 @@ class CommodityService(
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
         spu.publish().onFailure { e -> return Failure(e) }
         spuRepository.save(spu)
+
         return Success(true)
     }
 

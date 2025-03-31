@@ -5,15 +5,15 @@ import com.jstore.common.framework.event.DomainEvent
 
 class SaleOrderPrepareToCreateEvent(
     val createCMD: SaleOrderCreateCmd,
-    source: Any
+    override val source: Any,
     ) : DomainEvent
 
 class SaleOrderCreatedEvent(
     val order: SaleOrder,
-    source: Any
+    override val source: Any,
 ) : DomainEvent
 
 class FailToCreateSaleOrderEvent(
     val createCMD: SaleOrderCreateCmd,
-    source: Any
+    override val source: Any,
 ) : DomainEvent
