@@ -2,8 +2,8 @@ package com.jstore.goods.domain.commodity
 
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.goods.domain.commodity.comand.SKUAppendCMD
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
+import com.jstore.goods.domain.commodity.comand.SKUAppendCMD
 import org.springframework.stereotype.Component
 
 
@@ -25,7 +25,8 @@ class SpuFactoryImpl(
             id = SpuId(snowFlakSequence.nextId()),
             status = CommodityStatus.DRAFT,
             skus = ArrayList(),
-            name =  createCmd.spuName
+            name =  createCmd.spuName,
+            domainEventPublisher = domainEventPublisher,
         )
     }
 
@@ -35,6 +36,7 @@ class SpuFactoryImpl(
             name = createCmd.spuName,
             status = CommodityStatus.DRAFT,
             skus = ArrayList(),
+            domainEventPublisher = domainEventPublisher,
         )
         if (old is SpuImpl) {
             spuImpl.status = old.status

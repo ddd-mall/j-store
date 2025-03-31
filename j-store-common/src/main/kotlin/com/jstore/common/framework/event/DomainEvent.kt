@@ -1,3 +1,5 @@
 package com.jstore.common.framework.event
 
-interface DomainEvent
+interface DomainEvent {
+    val source: Any
+}

@@ -4,11 +4,14 @@ package com.jstore.goods.domain.commodity
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.framework.Entity
+import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.properties.Id
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.common.utils.onFailure
+import com.jstore.goods.domain.commodity.event.CommodityOffSaleEvent
+import com.jstore.goods.domain.commodity.event.CommodityPublishedEvent
 
 
 class SpuId(override val value: Long) : Id<Long>(value)
@@ -40,6 +43,7 @@ class SpuImpl(
     var status: CommodityStatus,
     val name: String,
     val skus: MutableList<Sku>,
+    private val domainEventPublisher: DomainEventPublisher,
 ) : Spu {
 
     override fun addSku(sku: Sku): Result<Boolean, BusinessError> {
@@ -55,6 +59,7 @@ class SpuImpl(
             return Failure(CommonBusinessError.ILLEGAL_STATE.msg("current commodity is in draft, can not operate!!"))
         }
         this.status = CommodityStatus.ON_SALE
+        domainEventPublisher.publishEvent(CommodityPublishedEvent(this, this.id))
         return Success(true)
     }
 
@@ -65,8 +70,8 @@ class SpuImpl(
         if (CommodityStatus.DRAFT == status) {
             return Failure(CommonBusinessError.ILLEGAL_STATE.msg("current commodity is in draft, can not operate!!"))
         }
-
         this.status = CommodityStatus.OFF_SALE
+        domainEventPublisher.publishEvent(CommodityOffSaleEvent(this, this.id))
         return Success(true)
     }
 
@@ -76,6 +81,7 @@ class SpuImpl(
         }
         verifyBeforePublish().onFailure { return Failure(it) }
         this.status = CommodityStatus.OFF_SALE
+        domainEventPublisher.publishEvent(CommodityPublishedEvent(this, this.id))
         return Success(true)
     }
 
