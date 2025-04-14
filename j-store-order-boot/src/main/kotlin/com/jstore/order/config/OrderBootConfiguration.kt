@@ -2,6 +2,7 @@ package com.jstore.com.jstore.order.config
 
 import com.jstore.common.framework.event.*
 import com.jstore.common.persistent.SnowFlakSequence
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -19,8 +20,8 @@ class OrderBootConfiguration {
     }
 
     @Bean
-    fun springDomainEventDispatcher(): SpringDomainEventDispatcher {
-        return SpringDomainEventDispatcher()
+    fun springDomainEventDispatcher(applicationEventPublisher: ApplicationEventPublisher): SpringDomainEventDispatcher {
+        return SpringDomainEventDispatcher(applicationEventPublisher)
     }
 
     @Bean
