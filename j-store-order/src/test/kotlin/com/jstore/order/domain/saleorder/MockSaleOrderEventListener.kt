@@ -11,7 +11,7 @@ class MockSaleOrderCreatedEventListener : DomainEventListener {
 
 
     override fun supportsEventType(eventType: ResolvableType): Boolean {
-        return true
+        return eventType.type.typeName == SaleOrderCreatedEvent::class.java.typeName
     }
 
     override fun onDomainEvent(event: DomainEvent) {

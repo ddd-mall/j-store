@@ -1,6 +1,7 @@
 package com.jstore.common.framework.event
 
 import org.springframework.context.ApplicationEvent
+import org.springframework.context.PayloadApplicationEvent
 import org.springframework.context.event.GenericApplicationListener
 import org.springframework.core.ResolvableType
 
@@ -8,8 +9,10 @@ class DomainListenerSpringWrapper(
     private val domainEventListener: DomainEventListener,
 ) : GenericApplicationListener {
     override fun onApplicationEvent(event: ApplicationEvent) {
-        (event as? DomainEventSpringWrapper)?.let {
-            domainEventListener.onDomainEvent(it.domainEvent)
+        (event as? PayloadApplicationEvent<*>)?.let {
+            (it.payload as? DomainEvent)?.let { domainEvent ->
+                domainEventListener.onDomainEvent(domainEvent)
+            }
         }
     }
 
