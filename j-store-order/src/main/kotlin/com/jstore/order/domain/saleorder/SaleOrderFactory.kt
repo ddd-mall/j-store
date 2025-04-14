@@ -1,6 +1,5 @@
 package com.jstore.order.domain.saleorder
 
-import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
@@ -10,10 +9,6 @@ import com.jstore.order.acl.GoodsInfo
 import com.jstore.order.acl.GoodsService
 import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
 import com.jstore.order.domain.saleorder.properties.UserInfo
-import com.jstore.order.domain.saleorder.validator.SaleOrderCreateCMDUserInfoValidator
-import com.jstore.order.domain.saleorder.validator.SaleOrderCreateCMDValidChain
-import com.jstore.order.domain.saleorder.validator.SaleOrderRiskValidator
-import com.jstore.order.domain.saleorder.validator.SaleOrderValidChain
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
@@ -21,45 +16,18 @@ import java.time.LocalDateTime
 class SaleOrderFactory(
     private val goodsService: GoodsService,
     private val geoAddressService: GeoAddressService,
-    private val saleOrderEventPublisher: DomainEventPublisher,
     private val snowFlakSequence: SnowFlakSequence,
-    saleOrderCreateCMDValidator: SaleOrderCreateCMDUserInfoValidator,
-    saleOrderRiskValidator: SaleOrderRiskValidator
-
 ) {
-    companion object {
-        private val createParamValidChain: SaleOrderCreateCMDValidChain = SaleOrderCreateCMDValidChain()
-        private val saleOrderValidChain: SaleOrderValidChain = SaleOrderValidChain()
-    }
 
-    init {
-        createParamValidChain.appendAll(saleOrderCreateCMDValidator)
-        saleOrderValidChain.appendAll(saleOrderRiskValidator)
-    }
 
-    fun create(createParam: SaleOrderCreateCmd): SaleOrder {
-        val saleOrderPrepareToCreateEvent = SaleOrderPrepareToCreateEvent(
-            createCMD = createParam,
-            this
-        )
-        saleOrderEventPublisher.publishEvent(saleOrderPrepareToCreateEvent)
 
-        val saleOrder = convertParamToNormalSaleOrder(createParam)
 
-        val saleOrderCreatedEvent = SaleOrderCreatedEvent(
-            order = saleOrder,
-            this
-        )
-        saleOrderEventPublisher.publishEvent(saleOrderCreatedEvent)
-        return saleOrder
-    }
-
-    private fun convertParamToNormalSaleOrder(createParam: SaleOrderCreateCmd): SaleOrder {
-        val userInfo: UserInfo = createParam.buyerUserInfo
-        val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createParam)
+    fun create(createCmd: SaleOrderCreateCmd): SaleOrder {
+        val userInfo: UserInfo = createCmd.buyerUserInfo
+        val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createCmd)
         val deliveryAddressInfo: GeoAddressInfo = geoAddressService
-            .getByDistrictCode(createParam.districtCode)
-            .apply { detailAddress = createParam.detailAddress }
+            .getByDistrictCode(createCmd.districtCode)
+            .apply { detailAddress = createCmd.detailAddress }
 
         val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
         return SaleOrder(
@@ -76,8 +44,9 @@ class SaleOrderFactory(
         )
     }
 
-    private fun getOrderItemsFromCreateParam(createParam: SaleOrderCreateCmd): List<OrderItem> {
-        val purchaseItemList = createParam.purchaseItemList
+
+    private fun getOrderItemsFromCreateParam(createCmd: SaleOrderCreateCmd): List<OrderItem> {
+        val purchaseItemList = createCmd.purchaseItemList
         val goodsIdList: List<GoodsId> = purchaseItemList.map { it.mapToGoodsId() }
         val goodsQueryResult: List<GoodsInfo> = goodsService.queryGoods(goodsIdList)
 

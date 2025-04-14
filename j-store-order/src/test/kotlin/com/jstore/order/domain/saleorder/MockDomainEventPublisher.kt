@@ -4,7 +4,7 @@ import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventBus
 import com.jstore.common.framework.event.DomainEventPublisher
 
-class MockSaleOrderEventPublisher(
+class MockDomainEventPublisher(
     private val domainEventBus: DomainEventBus
 ) : DomainEventPublisher {
 

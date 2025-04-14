@@ -4,8 +4,10 @@ import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventBus
 import com.jstore.common.framework.event.DomainEventListener
 import org.springframework.context.ApplicationEvent
-import org.springframework.context.ApplicationListener
+import org.springframework.context.PayloadApplicationEvent
+import org.springframework.context.event.GenericApplicationListener
 import org.springframework.context.event.SimpleApplicationEventMulticaster
+import org.springframework.core.ResolvableType
 import java.util.concurrent.Executor
 
 class SpringMockDomainEventBus(executor: Executor? = null) : DomainEventBus {
@@ -16,7 +18,7 @@ class SpringMockDomainEventBus(executor: Executor? = null) : DomainEventBus {
     }
 
     override fun publishEvent(domainEvent: DomainEvent) {
-        registry.multicastEvent(SpringApplicationDomainEvent(this, domainEvent))
+        registry.multicastEvent(PayloadApplicationEvent(domainEvent.source, domainEvent), ResolvableType.forClass(domainEvent.javaClass))
     }
 
     override fun register(domainEventListener: DomainEventListener) {
@@ -28,31 +30,40 @@ class SpringMockDomainEventBus(executor: Executor? = null) : DomainEventBus {
     }
 
 
-    class SpringApplicationDomainEvent(
-        source: Any,
-        val event: DomainEvent,
-    ) : ApplicationEvent(source)
-
 
     class SpringApplicationEventListener(
-        private val domainListener: DomainEventListener,
-    ) : ApplicationListener<SpringApplicationDomainEvent> {
-        override fun onApplicationEvent(event: SpringApplicationDomainEvent) {
-            domainListener.onDomainEvent(event.event)
+        private val domainEventListener: DomainEventListener,
+    ) : GenericApplicationListener {
+        override fun onApplicationEvent(event: ApplicationEvent) {
+            (event as? PayloadApplicationEvent<*>)?.let {
+                (event.payload as? DomainEvent)?.let { domainEvent ->
+                    domainEventListener.onDomainEvent(domainEvent)
+                }
+            }
+        }
+
+        override fun supportsEventType(eventType: ResolvableType): Boolean {
+            return domainEventListener.supportsEventType(eventType)
+        }
+
+        override fun supportsAsyncExecution(): Boolean {
+            return domainEventListener.supportsAsyncExecution()
         }
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is SpringApplicationEventListener) return false
 
-            if (domainListener != other.domainListener) return false
+            if (domainEventListener != other.domainEventListener) return false
 
             return true
         }
 
         override fun hashCode(): Int {
-            return domainListener.hashCode()
+            return domainEventListener.hashCode()
         }
+
+
     }
 }
 
