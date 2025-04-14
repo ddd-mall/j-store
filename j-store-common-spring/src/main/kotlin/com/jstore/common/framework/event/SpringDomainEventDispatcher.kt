@@ -2,6 +2,7 @@ package com.jstore.common.framework.event
 
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationContextAware
+import org.springframework.context.PayloadApplicationEvent
 import org.springframework.context.support.AbstractApplicationContext
 import org.springframework.stereotype.Component
 
@@ -11,7 +12,7 @@ class SpringDomainEventDispatcher : DomainEventDispatcher, ApplicationContextAwa
 
     override fun dispatch(domainEvent: DomainEvent, listeners: Iterable<DomainEventListener>) {
         applicationContext.applicationListeners
-        applicationContext.publishEvent(DomainEventSpringWrapper(domainEvent))
+        applicationContext.publishEvent(PayloadApplicationEvent(domainEvent.source, domainEvent))
     }
 
     override fun setApplicationContext(applicationContext: ApplicationContext) {
