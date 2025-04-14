@@ -20,6 +20,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockito)
     implementation(project(":j-store-common"))
+    testImplementation(project(":j-store-common-spring"))
     testImplementation(kotlin("test"))
 }
 

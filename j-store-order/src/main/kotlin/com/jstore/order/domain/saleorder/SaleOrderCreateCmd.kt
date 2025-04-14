@@ -1,6 +1,8 @@
 package com.jstore.order.domain.saleorder
 
+import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.order.acl.GoodsId
+import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
 import com.jstore.order.domain.saleorder.properties.UserInfo
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
@@ -13,6 +15,8 @@ class SaleOrderCreateCmd(val token: String) {
     lateinit var buyerUserInfo: UserInfo
     lateinit var purchaseItemList: List<PurchaseItem>
     var districtCode: String = ""
+
+    val addressInfo: GeoAddressInfo? = null
     var detailAddress: String = ""
 
     class PurchaseItem {
@@ -37,10 +41,12 @@ class SaleOrderCreateCmd(val token: String) {
 class SaleOrderCreateCMDHandler(
     private val saleOrderRepository: SaleOrderRepository,
     private val saleOrderFactory: SaleOrderFactory,
+    private val domainEventPublisher: DomainEventPublisher,
 ) {
     fun create(cmd: SaleOrderCreateCmd): SaleOrder {
         val saleOrder = this.saleOrderFactory.create(cmd)
         val saved = saleOrderRepository.save(saleOrder)
+        domainEventPublisher.publishEvent(SaleOrderCreatedEvent(order = saved, this))
         return saved
     }
 }
