@@ -27,9 +27,6 @@ object GeoAddressServiceProxy : GeoAddressService {
 }
 
 
-
-
-
 open class ChinaGeoAddressServiceExcelImpl : GeoAddressService {
 
     companion object {
@@ -76,7 +73,7 @@ open class ChinaGeoAddressServiceExcelImpl : GeoAddressService {
         if (districtCode.length < 6) {
             throw AddressErrors.IllegalAddressCode.msg("地区编码${districtCode}格式错误，长度不能小于6位")
         }
-        val address = dataStorage[districtCode] ?: throw AddressErrors.IllegalAddressCode.msg("未能找到编码${districtCode}对应的地址")
+        dataStorage[districtCode] ?: throw AddressErrors.IllegalAddressCode.msg("未能找到编码${districtCode}对应的地址")
         val provinceCode = GeoAddressInfo.getProvinceCode(districtCode)
         val cityCode = GeoAddressInfo.getCityCode(districtCode)
         val countyCode = GeoAddressInfo.getCountyCode(districtCode)
