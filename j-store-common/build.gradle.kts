@@ -19,15 +19,15 @@ dependencies {
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.boot.starter.data.jpa)
-    implementation(libs.guava)
+    api(libs.guava)
     implementation(libs.slf4j.api)
-    implementation(libs.seata.all)
+    api(libs.seata.all)
 
     implementation(platform(libs.jackson.bom))
-    implementation(libs.jackson.core)
-    implementation(libs.jackson.databind)
-    implementation(libs.jackson.annotations)
-    implementation(libs.jackson.module.kotlin)
+    api(libs.jackson.core)
+    api(libs.jackson.databind)
+    api(libs.jackson.annotations)
+    api(libs.jackson.module.kotlin)
     testImplementation(kotlin("test"))
 }
 

@@ -2,7 +2,7 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
-import com.jstore.order.service.acl.GoodsId
+import com.jstore.order.domain.acl.GoodsId
 import java.math.BigDecimal
 
 data class OrderItem(

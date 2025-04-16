@@ -1,6 +1,11 @@
 package com.jstore.order.acl.stock
 
+import com.jstore.common.errors.BusinessError
+import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.logging.LoggerFactory
+import com.jstore.common.utils.Failure
+import com.jstore.common.utils.Result
+import com.jstore.common.utils.Success
 import com.jstore.common.utils.string.StringUtils
 import com.jstore.order.config.TestBeanConfig.snowFlakSequence
 import com.jstore.order.domain.inventory.Inventory
@@ -9,8 +14,8 @@ import com.jstore.order.domain.inventory.InventoryErrors.InventoryNotFound
 import com.jstore.order.domain.inventory.InventoryErrors.IllegalState
 import com.jstore.order.domain.inventory.InventoryStatus
 
-import com.jstore.order.service.acl.GoodsId
-import com.jstore.order.service.acl.OuterInventoryServiceACL
+import com.jstore.order.domain.acl.GoodsId
+import com.jstore.order.domain.acl.OuterInventoryServiceACL
 import java.math.BigDecimal
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
@@ -26,81 +31,88 @@ class MockOuterInventoryServiceServiceACLImpl : OuterInventoryServiceACL {
         stockMap[GoodsId(2, 2)] = AtomicReference(BigDecimal(1))
     }
 
-    override fun reserveAll(inventories: Iterable<Inventory>): Boolean {
-        inventories.forEach { require ->
-            stockMap[require.goodsId]?.also { stock ->
-                if (stock.get() < require.quantity) {
-                    throw InventoryInsufficient.msg("the corresponding stocks of ${require.goodsId} not enough")
-                }
-                synchronized(stock) {
-                    if (stock.get() < require.quantity) {
-                        throw InventoryInsufficient.msg("the corresponding stocks of ${require.goodsId} not enough")
-                    }
-                    val afterSub = stock.accumulateAndGet(require.quantity) { pre, sub ->
-                        pre.subtract(sub)
-                    }
-                    if (afterSub.toDouble() >= 0) {
-                        stock.compareAndSet(stock.get(), afterSub)
-                    } else {
-                        throw InventoryInsufficient.msg("failed to reserve ${require.goodsId} corresponding stocks")
-                    }
-                    log.info("goods ${require.goodsId}'s stock has been reserved with quantity ${require.quantity}, remind $afterSub")
-                }
-            } ?: throw InventoryNotFound.msg("${require.goodsId} corresponding stocks not found")
-
-            val outerStockId = snowFlakSequence.nextId().toString()
-            stockPOMap[outerStockId] = StockPO(
-                stockId = outerStockId,
-                goodsId = require.goodsId,
-                quantity = require.quantity,
-                status = InventoryStatus.RESERVED
-            )
-            require.outerInventoryId = outerStockId
-            require.reserve()
-        }
-
-        return true
+    override fun reserveAll(inventories: Iterable<Inventory>): Result<Boolean, BusinessError> {
+        inventories.forEach(this::reserve)
+        return Success(true)
     }
 
-    override fun confirmAll(inventories: Iterable<Inventory>): Boolean {
-        inventories.forEach { require ->
-            if (require.outerInventoryId.isEmpty()) {
-                throw  IllegalState.msg("外部库存ID为空")
+    override fun reserve(inventory: Inventory): Result<Boolean, BusinessError> {
+        stockMap[inventory.goodsId]?.also { stock ->
+            if (stock.get() < inventory.quantity) {
+                throw InventoryInsufficient.msg("the corresponding stocks of ${inventory.goodsId} not enough")
             }
-            val stockPO = stockPOMap[require.outerInventoryId] ?:
-            throw InventoryNotFound.msg("${require.outerInventoryId} corresponding stock not found")
-            stockPO.status = InventoryStatus.CONFIRMED
-            require.confirm()
-        }
-        return true
+            synchronized(stock) {
+                if (stock.get() < inventory.quantity) {
+                    throw InventoryInsufficient.msg("the corresponding stocks of ${inventory.goodsId} not enough")
+                }
+                val afterSub = stock.accumulateAndGet(inventory.quantity) { pre, sub ->
+                    pre.subtract(sub)
+                }
+                if (afterSub.toDouble() >= 0) {
+                    stock.compareAndSet(stock.get(), afterSub)
+                } else {
+                    throw InventoryInsufficient.msg("failed to reserve ${inventory.goodsId} corresponding stocks")
+                }
+                log.info("goods ${inventory.goodsId}'s stock has been reserved with quantity ${inventory.quantity}, remind $afterSub")
+            }
+        } ?: throw InventoryNotFound.msg("${inventory.goodsId} corresponding stocks not found")
+
+        val outerStockId = snowFlakSequence.nextId().toString()
+        stockPOMap[outerStockId] = StockPO(
+            stockId = outerStockId,
+            goodsId = inventory.goodsId,
+            quantity = inventory.quantity,
+            status = InventoryStatus.RESERVED
+        )
+        inventory.outerInventoryId = outerStockId
+        inventory.reserve()
+        return Success(true)
     }
 
-    override fun cancelAll(inventories: Iterable<Inventory>): Boolean {
-        for (inventory in inventories) {
+    override fun confirmAll(inventories: Iterable<Inventory>): Result<Boolean, BusinessError> {
+        inventories.forEach(this::confirm)
+        return Success(true)
+    }
 
-
-            if (StringUtils.isEmpty(inventory.outerInventoryId)) {
-                continue
-            }
-            val stockPO: StockPO = stockPOMap[inventory.outerInventoryId] ?: continue
-
-            when (stockPO.status) {
-                InventoryStatus.CREATED -> continue
-                InventoryStatus.RESERVED -> {
-                    val atomicReference = stockMap[stockPO.goodsId] ?: throw InventoryNotFound
-                    val stockQuantity = atomicReference.get()
-                    atomicReference.compareAndSet(stockQuantity, stockQuantity.add(stockPO.quantity))
-                    stockMap[stockPO.goodsId] = atomicReference
-                    return true
-                }
-                InventoryStatus.CONFIRMED -> {
-                    stockPO.status = InventoryStatus.RESERVED
-                    return true
-                }
-            }
+    override fun confirm(inventory: Inventory): Result<Boolean, BusinessError> {
+        if (inventory.outerInventoryId.isEmpty()) {
+            throw  IllegalState.msg("外部库存ID为空")
         }
+        val stockPO = stockPOMap[inventory.outerInventoryId] ?:
+        throw InventoryNotFound.msg("${inventory.outerInventoryId} corresponding stock not found")
+        stockPO.status = InventoryStatus.CONFIRMED
+        inventory.confirm()
+        return Success(true)
+    }
 
-        return true
+    override fun cancelAll(inventories: Iterable<Inventory>): Result<Boolean, BusinessError> {
+        inventories.forEach(this::cancel)
+        return Success(true)
+    }
+
+    override fun cancel(inventory: Inventory): Result<Boolean, BusinessError> {
+        if (StringUtils.isEmpty(inventory.outerInventoryId)) {
+            return Failure(CommonBusinessError.ILLEGAL_STATE)
+        }
+        val stockPO: StockPO = stockPOMap[inventory.outerInventoryId] ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
+
+        when (stockPO.status) {
+            InventoryStatus.CREATED -> return Failure(CommonBusinessError.ILLEGAL_STATE)
+            InventoryStatus.RESERVED -> {
+                val atomicReference = stockMap[stockPO.goodsId] ?: throw InventoryNotFound
+                val stockQuantity = atomicReference.get()
+                atomicReference.compareAndSet(stockQuantity, stockQuantity.add(stockPO.quantity))
+                stockMap[stockPO.goodsId] = atomicReference
+                stockPO.status = InventoryStatus.CANCELED
+                return Success(true)
+            }
+            InventoryStatus.CONFIRMED -> {
+                stockPO.status = InventoryStatus.CANCELED
+                return Success(true)
+            }
+
+            InventoryStatus.CANCELED -> return Success(true)
+        }
     }
 
     private class StockPO(

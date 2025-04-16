@@ -6,7 +6,7 @@ import org.springframework.context.event.GenericApplicationListener
 import org.springframework.core.ResolvableType
 
 class DomainListenerSpringWrapper(
-    private val domainEventListener: DomainEventListener,
+    private val domainEventListener: DomainEventListener<*>,
 ) : GenericApplicationListener {
     override fun onApplicationEvent(event: ApplicationEvent) {
         (event as? PayloadApplicationEvent<*>)?.let {

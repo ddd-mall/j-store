@@ -1,6 +1,6 @@
 package com.jstore.com.jstore.order.domain.inventory.persistent
 
-import com.jstore.order.service.acl.GoodsId
+import com.jstore.order.domain.acl.GoodsId
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.inventory.Inventory
 import com.jstore.order.domain.inventory.InventoryId
@@ -23,7 +23,7 @@ import java.time.LocalDateTime
 )
 class InventoryPO(
     @Id
-    val id: String,
+    val id: Long,
     @Column(name = "order_id", nullable = false, updatable = false)
     var orderId: Long,
     var spuId: Long,
@@ -51,7 +51,7 @@ class InventoryPO(
             orderId = OrderId(orderId),
             goodsId = GoodsId(spuId, skuId),
             quantity = quantity,
-            inventoryStatus = currentStatus,
+            status = currentStatus,
         )
     }
 
@@ -62,6 +62,6 @@ class InventoryPO(
         quantity = inventory.quantity,
         spuId = inventory.goodsId.spuId,
         skuId = inventory.goodsId.skuId,
-        currentStatus = inventory.inventoryStatus,
+        currentStatus = inventory.status,
     )
 }

@@ -6,7 +6,7 @@ import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import org.springframework.core.ResolvableType
 
-class MockOrderCreatedEventListener : DomainEventListener {
+class MockOrderCreatedEventListener : DomainEventListener<OrderCreatedEvent> {
     private val log: Logger = LoggerFactory.getLogger(MockOrderCreatedEventListener::class)
 
 

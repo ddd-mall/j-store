@@ -1,4 +1,4 @@
-package com.jstore.order.service.acl
+package com.jstore.order.domain.acl
 
 import com.jstore.common.properties.Price
 

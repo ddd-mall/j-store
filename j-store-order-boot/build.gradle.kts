@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.springframework)
-//    alias(libs.plugins.spring.dependency.management)
 }
 
 java {
@@ -26,8 +25,6 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
-    implementation(project(":j-store-common"))
-    implementation(project(":j-store-common-spring"))
     implementation(project(":j-store-order"))
 
 
@@ -42,7 +39,7 @@ dependencies {
     developmentOnly(libs.spring.boot.devtools)
     runtimeOnly(libs.postgresql)
     implementation(libs.fastexcel)
-    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
 

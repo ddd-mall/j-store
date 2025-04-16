@@ -3,12 +3,12 @@ package com.jstore.order.service
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.order.config.TestBeanConfig.orderRepository
 import com.jstore.order.config.TestBeanConfig.orderCreationService
+import com.jstore.order.config.TestBeanConfig.orderRepository
 import com.jstore.order.domain.order.OrderStatus
-import com.jstore.order.domain.order.command.PurchaseItem
-import com.jstore.order.domain.order.command.OrderCreateCmd
 import com.jstore.order.domain.order.UserInfo
+import com.jstore.order.domain.order.command.OrderCreateCmd
+import com.jstore.order.domain.order.command.PurchaseItem
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import kotlin.test.assertNotNull

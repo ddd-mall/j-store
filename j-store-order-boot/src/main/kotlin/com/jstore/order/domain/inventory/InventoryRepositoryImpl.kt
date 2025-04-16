@@ -6,7 +6,7 @@ import com.jstore.order.domain.inventory.Inventory
 import com.jstore.order.domain.inventory.InventoryId
 import com.jstore.order.domain.inventory.InventoryRepository
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.service.acl.GoodsId
+import com.jstore.order.domain.acl.GoodsId
 import org.springframework.stereotype.Repository
 
 @Repository

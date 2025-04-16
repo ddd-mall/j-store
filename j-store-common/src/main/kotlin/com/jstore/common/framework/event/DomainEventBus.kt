@@ -5,6 +5,6 @@ package com.jstore.common.framework.event
  */
 interface DomainEventBus {
     fun publishEvent(domainEvent: DomainEvent)
-    fun register(domainEventListener: DomainEventListener)
-    fun unregister(domainEventListener: DomainEventListener)
+    fun register(domainEventListener: DomainEventListener<*>)
+    fun unregister(domainEventListener: DomainEventListener<*>)
 }
