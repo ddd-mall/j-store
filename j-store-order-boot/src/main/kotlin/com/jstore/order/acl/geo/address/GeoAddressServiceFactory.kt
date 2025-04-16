@@ -1,7 +1,7 @@
 package com.jstore.com.jstore.order.acl.geo.address
 
 import com.jstore.common.utils.AbstractFactory
-import com.jstore.order.acl.GeoAddressService
+import com.jstore.order.service.acl.GeoAddressService
 
 class GeoAddressServiceFactory : AbstractFactory<GeoAddressService>(
     listOf(

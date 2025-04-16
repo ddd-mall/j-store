@@ -1,8 +1,5 @@
 package com.jstore.common.framework.event
 
-import org.springframework.stereotype.Component
-
-@Component
 class SpringDomainEventPublisher(
     private val springDomainEventBus: SpringDomainEventBus,
 ) : DomainEventPublisher {

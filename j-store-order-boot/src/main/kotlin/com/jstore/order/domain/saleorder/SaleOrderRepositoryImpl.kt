@@ -5,26 +5,34 @@ import com.jstore.com.jstore.order.domain.saleorder.persistence.SaleOrderItemPO
 import com.jstore.com.jstore.order.domain.saleorder.persistence.SaleOrderItemPOJpaRepository
 import com.jstore.com.jstore.order.domain.saleorder.persistence.SaleOrderPO
 import com.jstore.com.jstore.order.domain.saleorder.persistence.SaleOrderPOJpaRepository
+import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.Page
 import com.jstore.common.framework.SortedPage
+import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.framework.event.DomainEventRepository
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.saleorder.*
 import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
 import com.jstore.order.domain.saleorder.properties.UserInfo
+import com.jstore.order.service.acl.GoodsId
 import jakarta.transaction.Transactional
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.domain.Sort.Order
 import org.springframework.data.repository.findByIdOrNull
+import org.springframework.lang.Nullable
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
 
 
 @Repository
 class SaleOrderRepositoryImpl(
+    @Nullable
+    private val domainEventRepository: DomainEventRepository?,
+    private val domainEventPublisher: DomainEventPublisher,
     private val saleOrderPOJpaRepository: SaleOrderPOJpaRepository,
-    private val saleOrderItemPOJpaRepository: SaleOrderItemPOJpaRepository
+    private val saleOrderItemPOJpaRepository: SaleOrderItemPOJpaRepository,
 ) : SaleOrderRepository {
 
     override fun findByBuyerUserId(uid: Long): List<SaleOrder> {
@@ -46,23 +54,28 @@ class SaleOrderRepositoryImpl(
         val saleOrderItemPOList = saleOrderPOPage.get().map { it.saleOrderId }.toList().let { saleOrderIds ->
             saleOrderItemPOJpaRepository.findAllBySaleOrderIdIsIn(saleOrderIds)
         }
-
         return SortedPage(currentPage, pageSize, SaleOrderConverter.pos2Entities(saleOrderPOS, saleOrderItemPOList))
     }
 
     @Transactional(rollbackOn = [Exception::class])
     override fun save(entity: SaleOrder): SaleOrder {
-        val holder: SaleOrderPOHolder = SaleOrderConverter.entity2POHolder(entity)
+        (entity as? SaleOrder)?.let {
+            val holder: SaleOrderPOHolder = SaleOrderConverter.entity2POHolder(entity)
 
-        val savedSaleOrderPO =
-            holder.saleOrderPO.let { saleOrderPOJpaRepository.save(it.apply { updateTime = LocalDateTime.now() }) }
-        val savedSaleOrderItemPOs = if (holder.saleOrderItemPOs.isNotEmpty()) {
-            saleOrderItemPOJpaRepository.saveAll(holder.saleOrderItemPOs)
-        } else {
-            listOf()
+            val savedSaleOrderPO = holder.saleOrderPO.let {
+                saleOrderPOJpaRepository.save(it.apply { updateTime = LocalDateTime.now() })
+            }
+            val savedSaleOrderItemPOs = if (holder.saleOrderItemPOs.isNotEmpty()) {
+                saleOrderItemPOJpaRepository.saveAll(holder.saleOrderItemPOs)
+            } else {
+                listOf()
+            }
+            val unpublishedDomainEvent = entity.getUnpublishedDomainEvent()
+            unpublishedDomainEvent.forEach(domainEventPublisher::publishEvent)
+            domainEventRepository?.saveAll(unpublishedDomainEvent)
+            return SaleOrderConverter.po2Entity(savedSaleOrderPO, savedSaleOrderItemPOs)
         }
-        return SaleOrderConverter.po2Entity(savedSaleOrderPO, savedSaleOrderItemPOs)
-
+        throw CommonErrors.INVALID_PARAM
     }
 
     override fun findById(id: SaleOrderId): SaleOrder? {
@@ -95,8 +108,8 @@ object SaleOrderConverter {
             buyerInfo = buyerInfo,
             orderItems = items,
             deliveryAddressInfo = addressInfo,
-            positiveStatus = OrderPositiveStatus.valueOf(saleOrderPO.positiveStatus),
-            reverseStatus = OrderReverseStatus.valueOf(saleOrderPO.reverseStatus),
+            status = OrderStatus.valueOf(saleOrderPO.positiveStatus),
+
             amount = Price(saleOrderPO.amount),
             actualPay = Price(saleOrderPO.actualPay),
             createTime = saleOrderPO.createTime,
@@ -106,7 +119,7 @@ object SaleOrderConverter {
 
     fun pos2Entities(
         saleOrderPOs: Collection<SaleOrderPO>,
-        saleOrderItemPOs: Collection<SaleOrderItemPO>
+        saleOrderItemPOs: Collection<SaleOrderItemPO>,
     ): List<SaleOrder> {
         val itemMap: Map<Long, List<SaleOrderItemPO>> = saleOrderItemPOs.groupBy { item -> item.saleOrderId }
         return saleOrderPOs.map { saleOrderPO ->
@@ -120,8 +133,7 @@ object SaleOrderConverter {
     private fun orderItemPO2Entity(itemPO: SaleOrderItemPO): OrderItem {
         return OrderItem(
             id = OrderItemId(itemPO.saleOrderItemId),
-            spuId = itemPO.spuId.toLong(),
-            skuId = itemPO.skuId.toLong(),
+            goodsId = GoodsId(itemPO.spuId.toLong(), itemPO.skuId.toLong()),
             goodsVersion = itemPO.goodsVersion,
             quantity = itemPO.quantity,
             unitPrice = Price(itemPO.unitPrice),
@@ -139,8 +151,7 @@ object SaleOrderConverter {
                 userName = saleOrder.buyerInfo.userName ?: "",
                 districtCode = saleOrder.deliveryAddressInfo.districtCode,
                 detailAddress = saleOrder.deliveryAddressInfo.detailAddress ?: "",
-                positiveStatus = saleOrder.positiveStatus.name,
-                reverseStatus = saleOrder.reverseStatus.name,
+                positiveStatus = saleOrder.status.name,
                 amount = saleOrder.amount.getBasicValue(),
                 actualPay = saleOrder.actualPay.getBasicValue(),
             )
@@ -150,8 +161,8 @@ object SaleOrderConverter {
                     saleOrderItemId = it.id.value,
                     saleOrderId = saleOrder.id.value,
                     quantity = it.quantity,
-                    skuId = it.skuId.toString(),
-                    spuId = it.spuId.toString(),
+                    skuId = it.goodsId.skuId.toString(),
+                    spuId = it.goodsId.spuId.toString(),
                     goodsVersion = it.goodsVersion,
                     unitPrice = it.unitPrice.getBasicValue(),
                     totalPrice = it.totalPrice.getBasicValue(),

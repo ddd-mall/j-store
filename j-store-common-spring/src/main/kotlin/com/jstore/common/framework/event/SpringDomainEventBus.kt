@@ -1,11 +1,9 @@
 package com.jstore.common.framework.event
 
-import org.springframework.stereotype.Component
 
-@Component
 class SpringDomainEventBus(
     private val registry: SpringDomainEventListenerRegistry,
-    private val dispatcher: SpringDomainEventDispatcher
+    private val dispatcher: SpringDomainEventDispatcher,
 ) : DomainEventBus {
 
     override fun publishEvent(domainEvent: DomainEvent) {
@@ -19,8 +17,6 @@ class SpringDomainEventBus(
     override fun unregister(domainEventListener: DomainEventListener) {
         registry.unregister(domainEventListener)
     }
-
-
 
 
 }

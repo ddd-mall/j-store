@@ -30,7 +30,6 @@ class SaleOrderPO(
     val districtCode: String,
     val detailAddress: String,
     val positiveStatus: String,
-    val reverseStatus: String,
     val amount: BigDecimal = BigDecimal.ZERO,
     val actualPay: BigDecimal = BigDecimal.ZERO,
 ) : Serializable {
