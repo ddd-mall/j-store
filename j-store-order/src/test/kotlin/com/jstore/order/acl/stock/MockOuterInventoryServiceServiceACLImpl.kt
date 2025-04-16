@@ -14,8 +14,8 @@ import com.jstore.order.domain.inventory.InventoryErrors.InventoryNotFound
 import com.jstore.order.domain.inventory.InventoryErrors.IllegalState
 import com.jstore.order.domain.inventory.InventoryStatus
 
-import com.jstore.order.domain.acl.GoodsId
-import com.jstore.order.domain.acl.OuterInventoryServiceACL
+import com.jstore.order.acl.GoodsId
+import com.jstore.order.acl.OuterInventoryServiceACL
 import java.math.BigDecimal
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference

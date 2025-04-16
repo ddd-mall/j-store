@@ -6,7 +6,7 @@ import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.Id
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.acl.GoodsId
+import com.jstore.order.acl.GoodsId
 import java.math.BigDecimal
 
 

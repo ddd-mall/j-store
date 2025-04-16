@@ -1,6 +1,6 @@
 package com.jstore.order.domain.inventory
 
-import com.jstore.order.domain.acl.GoodsId
+import com.jstore.order.acl.GoodsId
 import com.jstore.order.config.TestBeanConfig.snowFlakSequence
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.framwork.AbstractMockRepository

@@ -1,7 +1,7 @@
 package com.jstore.order.domain.inventory
 
 import com.jstore.common.framework.Repository
-import com.jstore.order.domain.acl.GoodsId
+import com.jstore.order.acl.GoodsId
 import com.jstore.order.domain.order.OrderId
 
 interface InventoryRepository : Repository<InventoryId, Inventory> {

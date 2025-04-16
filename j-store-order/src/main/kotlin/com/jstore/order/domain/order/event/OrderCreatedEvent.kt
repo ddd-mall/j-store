@@ -1,8 +1,9 @@
-package com.jstore.order.domain.order
+package com.jstore.order.domain.order.event
 
 import com.jstore.common.framework.event.DomainEvent
+import com.jstore.order.domain.order.OrderId
 
-class OrderCanceledEvent(
+class OrderCreatedEvent(
     override val source: Any,
     val orderId: OrderId,
 ) : DomainEvent

@@ -1,4 +1,4 @@
-package com.jstore.order.service
+package com.jstore.order.domain.order.service
 
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderFactory

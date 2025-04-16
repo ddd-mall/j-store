@@ -1,4 +1,4 @@
-package com.jstore.order.domain.acl
+package com.jstore.order.acl
 
 import com.jstore.order.domain.order.GeoAddressInfo
 

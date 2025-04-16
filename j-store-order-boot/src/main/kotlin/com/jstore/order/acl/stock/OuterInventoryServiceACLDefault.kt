@@ -6,7 +6,7 @@ import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.inventory.Inventory
-import com.jstore.order.domain.acl.OuterInventoryServiceACL
+import com.jstore.order.acl.OuterInventoryServiceACL
 import org.springframework.stereotype.Service
 
 @Service

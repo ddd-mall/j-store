@@ -1,6 +1,6 @@
 package com.jstore.com.jstore.order.domain.inventory.persistent
 
-import com.jstore.order.domain.acl.GoodsId
+import com.jstore.order.acl.GoodsId
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.inventory.Inventory
 import com.jstore.order.domain.inventory.InventoryId
