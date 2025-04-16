@@ -1,9 +1,9 @@
 package com.jstore.order.service.acl
 
-import com.jstore.order.domain.saleorder.SaleOrder
-import com.jstore.order.domain.saleorder.properties.FreightBill
+import com.jstore.order.domain.order.Order
+import com.jstore.order.domain.order.FreightBill
 
 interface FreightService {
-    fun delivery(saleOrder: SaleOrder)
+    fun delivery(order: Order)
     fun queryByIds( ids: Collection<String>) : List<FreightBill>
 }

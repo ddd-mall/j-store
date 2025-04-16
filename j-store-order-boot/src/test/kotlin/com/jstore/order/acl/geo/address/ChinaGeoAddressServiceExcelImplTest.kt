@@ -2,9 +2,9 @@ package com.jstore.order.acl.geo.address
 
 import com.jstore.com.jstore.order.acl.geo.address.GeoAddressServiceProxy
 import com.jstore.common.errors.Errors
-import com.jstore.order.saleorder.properties.DistrictLevel
+import com.jstore.order.domain.order.DistrictLevel
 import com.jstore.common.logging.LoggerFactory
-import com.jstore.order.saleorder.properties.GeoAddressInfo
+import com.jstore.order.domain.order.GeoAddressInfo
 import org.junit.jupiter.api.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.asserter
