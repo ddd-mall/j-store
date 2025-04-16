@@ -35,5 +35,10 @@ class OrderBootConfiguration {
         return SpringDomainEventPublisher(springDomainEventBus)
     }
 
+    @Bean
+    fun springDomainEventListenerRegistrationMachine(springDomainEventBus: SpringDomainEventBus, domainEventListeners: List<DomainEventListener<*>>): SpringDomainEventListenerRegistrationMachine {
+        return SpringDomainEventListenerRegistrationMachine(springDomainEventBus, domainEventListeners)
+    }
+
 
 }

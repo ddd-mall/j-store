@@ -26,7 +26,7 @@ class Order(
     override val domainEventQueue: Queue<DomainEvent> = LinkedBlockingQueue()
     fun initial() {
         this.status = OrderStatus.WAIT_PAY
-        publishEvent(OrderCreatedEvent(this, id))
+        publishEvent(OrderCreatedEvent(this, this))
     }
 
     fun cancel() {

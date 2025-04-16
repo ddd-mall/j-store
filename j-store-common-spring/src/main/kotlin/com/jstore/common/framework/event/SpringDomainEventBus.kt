@@ -1,6 +1,5 @@
 package com.jstore.common.framework.event
 
-
 class SpringDomainEventBus(
     private val registry: SpringDomainEventListenerRegistry,
     private val dispatcher: SpringDomainEventDispatcher,
