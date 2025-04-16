@@ -1,7 +1,7 @@
 package com.jstore.order.domain.order.command
 
 import com.jstore.order.domain.order.UserInfo
-import com.jstore.order.domain.acl.GoodsId
+import com.jstore.order.acl.GoodsId
 import java.math.BigDecimal
 
 /**

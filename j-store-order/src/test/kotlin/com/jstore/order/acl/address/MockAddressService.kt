@@ -2,7 +2,7 @@ package com.jstore.order.acl.address
 
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
-import com.jstore.order.domain.acl.GeoAddressService
+import com.jstore.order.acl.GeoAddressService
 import com.jstore.order.domain.order.GeoAddressInfo
 
 class MockAddressService : GeoAddressService {

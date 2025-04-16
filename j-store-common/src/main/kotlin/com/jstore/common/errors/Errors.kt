@@ -35,7 +35,7 @@ object CommonErrors {
     val INVALID_PARAM: Errors = Errors("非法参数", "Parameters.Invalid", 400)
     val ILLEGAL_STATE: Errors = Errors("非法状态", "App.IllegalState", 500)
     val INTERNAL_ERROR: Errors = Errors("内部错误", "App.InternalError", 500)
-    val RESOURCE_NOT_FOUND: Errors = Errors("访问的资源不存在", "Resource.notfound", 404)
+    val OBJECT_NOT_FOUND: Errors = Errors("访问的资源不存在", "Resource.notfound", 404)
 }
 
 

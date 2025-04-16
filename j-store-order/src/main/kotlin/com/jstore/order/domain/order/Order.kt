@@ -5,6 +5,8 @@ import com.jstore.common.framework.AgreeGate
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
+import com.jstore.order.domain.order.event.OrderCanceledEvent
+import com.jstore.order.domain.order.event.OrderCreatedEvent
 import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
@@ -24,7 +26,7 @@ class Order(
     override val domainEventQueue: Queue<DomainEvent> = LinkedBlockingQueue()
     fun initial() {
         this.status = OrderStatus.WAIT_PAY
-        publishEvent(OrderCreatedEvent(this, this))
+        publishEvent(OrderCreatedEvent(this, id))
     }
 
     fun cancel() {

@@ -1,6 +1,6 @@
 package com.jstore.com.jstore.order.controller
 
-import com.jstore.order.service.OrderCreationService
+import com.jstore.order.domain.order.service.OrderCreationService
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.command.OrderCreateCmd
 import org.springframework.validation.annotation.Validated
