@@ -16,11 +16,12 @@ repositories {
 dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlin.stdlib)
+    testImplementation(libs.kotlin.test)
     implementation(platform(libs.spring.boot.dependencies))
-    implementation(libs.spring.data.jpa)
-    implementation(libs.spring.boot.starter.data.jpa)
+    api(libs.spring.data.jpa)
+    api(libs.spring.boot.starter.data.jpa)
     api(libs.guava)
-    implementation(libs.slf4j.api)
+    api(libs.slf4j.api)
     api(libs.seata.all)
 
     implementation(platform(libs.jackson.bom))
@@ -28,7 +29,7 @@ dependencies {
     api(libs.jackson.databind)
     api(libs.jackson.annotations)
     api(libs.jackson.module.kotlin)
-    testImplementation(kotlin("test"))
+
 }
 
 tasks.withType<Test> {
