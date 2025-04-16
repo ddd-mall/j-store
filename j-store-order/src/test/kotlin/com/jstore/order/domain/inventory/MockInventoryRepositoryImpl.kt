@@ -1,6 +1,6 @@
 package com.jstore.order.domain.inventory
 
-import com.jstore.order.service.acl.GoodsId
+import com.jstore.order.domain.acl.GoodsId
 import com.jstore.order.config.TestBeanConfig.snowFlakSequence
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.framwork.AbstractMockRepository
@@ -21,7 +21,7 @@ class MockInventoryRepositoryImpl : InventoryRepository, AbstractMockRepository<
     }
 
     override fun nextId(): InventoryId {
-        return InventoryId(snowFlakSequence.nextId().toString())
+        return InventoryId(snowFlakSequence.nextId())
     }
 
     override fun copyAnEntity(nextId: InventoryId, entity: Inventory): Inventory {
@@ -30,7 +30,7 @@ class MockInventoryRepositoryImpl : InventoryRepository, AbstractMockRepository<
             orderId = entity.orderId,
             goodsId = entity.goodsId,
             quantity = entity.quantity,
-            inventoryStatus = entity.inventoryStatus,
+            status = entity.status,
         )
     }
 }

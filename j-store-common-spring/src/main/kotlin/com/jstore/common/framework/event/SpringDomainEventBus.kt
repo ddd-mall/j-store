@@ -10,11 +10,11 @@ class SpringDomainEventBus(
         dispatcher.dispatch(domainEvent, registry.getListeners())
     }
 
-    override fun register(domainEventListener: DomainEventListener) {
+    override fun register(domainEventListener: DomainEventListener<*>) {
         registry.register(domainEventListener)
     }
 
-    override fun unregister(domainEventListener: DomainEventListener) {
+    override fun unregister(domainEventListener: DomainEventListener<*>) {
         registry.unregister(domainEventListener)
     }
 

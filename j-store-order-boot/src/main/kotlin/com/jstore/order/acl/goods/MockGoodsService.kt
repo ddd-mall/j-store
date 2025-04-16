@@ -1,9 +1,9 @@
 package com.jstore.com.jstore.order.acl.goods
 
 import com.jstore.common.properties.Price
-import com.jstore.order.service.acl.GoodsId
-import com.jstore.order.service.acl.GoodsInfo
-import com.jstore.order.service.acl.GoodsService
+import com.jstore.order.domain.acl.GoodsId
+import com.jstore.order.domain.acl.GoodsInfo
+import com.jstore.order.domain.acl.GoodsService
 import org.springframework.stereotype.Service
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random

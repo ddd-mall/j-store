@@ -21,18 +21,18 @@ class SpringMockDomainEventBus(executor: Executor? = null) : DomainEventBus {
         registry.multicastEvent(PayloadApplicationEvent(domainEvent.source, domainEvent), ResolvableType.forClass(domainEvent.javaClass))
     }
 
-    override fun register(domainEventListener: DomainEventListener) {
+    override fun register(domainEventListener: DomainEventListener<*>) {
         registry.addApplicationListener(SpringApplicationEventListener(domainEventListener))
     }
 
-    override fun unregister(domainEventListener: DomainEventListener) {
+    override fun unregister(domainEventListener: DomainEventListener<*>) {
         registry.removeApplicationListener(SpringApplicationEventListener(domainEventListener))
     }
 
 
 
     class SpringApplicationEventListener(
-        private val domainEventListener: DomainEventListener,
+        private val domainEventListener: DomainEventListener<*>,
     ) : GenericApplicationListener {
         override fun onApplicationEvent(event: ApplicationEvent) {
             (event as? PayloadApplicationEvent<*>)?.let {
