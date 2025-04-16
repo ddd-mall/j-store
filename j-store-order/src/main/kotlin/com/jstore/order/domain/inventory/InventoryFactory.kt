@@ -1,7 +1,7 @@
 package com.jstore.order.domain.inventory
 
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.order.domain.saleorder.SaleOrder
+import com.jstore.order.domain.order.Order
 import org.springframework.stereotype.Component
 
 
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component
 class InventoryFactory(
     private val snowFlakSequence: SnowFlakSequence,
 ) {
-    fun create(salOrder: SaleOrder): List<Inventory> {
+    fun create(salOrder: Order): List<Inventory> {
         return salOrder.orderItems.map { orderItem ->
             Inventory(
                 id = InventoryId(snowFlakSequence.nextId().toString()),

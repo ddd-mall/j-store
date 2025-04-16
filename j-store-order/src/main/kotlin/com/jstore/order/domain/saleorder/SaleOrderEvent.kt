@@ -1,9 +1,0 @@
-package com.jstore.order.domain.saleorder
-
-import com.jstore.common.framework.event.DomainEvent
-
-class SaleOrderCreatedEvent(
-    override val source: Any,
-    val order: SaleOrder,
-
-) : DomainEvent

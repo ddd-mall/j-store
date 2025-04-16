@@ -1,7 +1,7 @@
 package com.jstore.com.jstore.order.domain.inventory.persistent
 
 import com.jstore.order.service.acl.GoodsId
-import com.jstore.order.domain.saleorder.SaleOrderId
+import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.inventory.Inventory
 import com.jstore.order.domain.inventory.InventoryId
 import com.jstore.order.domain.inventory.InventoryStatus
@@ -48,7 +48,7 @@ class InventoryPO(
     fun toInventory(): Inventory {
         return Inventory(
             id = InventoryId(id),
-            orderId = SaleOrderId(orderId),
+            orderId = OrderId(orderId),
             goodsId = GoodsId(spuId, skuId),
             quantity = quantity,
             inventoryStatus = currentStatus,

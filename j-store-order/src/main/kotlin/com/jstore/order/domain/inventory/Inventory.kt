@@ -5,7 +5,7 @@ import com.jstore.common.framework.Entity
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.Id
-import com.jstore.order.domain.saleorder.SaleOrderId
+import com.jstore.order.domain.order.OrderId
 import com.jstore.order.service.acl.GoodsId
 import java.math.BigDecimal
 
@@ -14,7 +14,7 @@ data class InventoryId(override val value: String) : Id<String>(value)
 
 class Inventory(
     override val id: InventoryId,
-    val orderId: SaleOrderId,
+    val orderId: OrderId,
     val goodsId: GoodsId,
     val quantity: BigDecimal,
     var inventoryStatus: InventoryStatus,

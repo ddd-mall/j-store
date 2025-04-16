@@ -2,17 +2,17 @@ package com.jstore.order.domain.inventory
 
 import com.jstore.order.service.acl.GoodsId
 import com.jstore.order.config.TestBeanConfig.snowFlakSequence
-import com.jstore.order.domain.saleorder.SaleOrderId
+import com.jstore.order.domain.order.OrderId
 import com.jstore.order.framwork.AbstractMockRepository
 
 class MockInventoryRepositoryImpl : InventoryRepository, AbstractMockRepository<InventoryId, Inventory>() {
 
 
-    override fun findAllByOrderId(orderId: SaleOrderId): List<Inventory> {
+    override fun findAllByOrderId(orderId: OrderId): List<Inventory> {
         return super.objList.filter { it.orderId == orderId }
     }
 
-    override fun findByOrderIdAndGoodsId(orderId: SaleOrderId, goodsId: GoodsId): Inventory? {
+    override fun findByOrderIdAndGoodsId(orderId: OrderId, goodsId: GoodsId): Inventory? {
         return super.objList.find { it.orderId == orderId && it.goodsId == goodsId }
     }
 

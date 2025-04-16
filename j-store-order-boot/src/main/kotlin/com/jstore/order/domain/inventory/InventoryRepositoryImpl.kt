@@ -5,7 +5,7 @@ import com.jstore.com.jstore.order.domain.inventory.persistent.InventoryPOJpaRep
 import com.jstore.order.domain.inventory.Inventory
 import com.jstore.order.domain.inventory.InventoryId
 import com.jstore.order.domain.inventory.InventoryRepository
-import com.jstore.order.domain.saleorder.SaleOrderId
+import com.jstore.order.domain.order.OrderId
 import com.jstore.order.service.acl.GoodsId
 import org.springframework.stereotype.Repository
 
@@ -13,13 +13,13 @@ import org.springframework.stereotype.Repository
 class InventoryRepositoryImpl(
     private val inventoryPOJpaRepository: InventoryPOJpaRepository,
 ) : InventoryRepository {
-    override fun findAllByOrderId(orderId: SaleOrderId): List<Inventory> {
+    override fun findAllByOrderId(orderId: OrderId): List<Inventory> {
         return inventoryPOJpaRepository.findAllByOrderId(orderId.value).map {
             it.toInventory()
         }
     }
 
-    override fun findByOrderIdAndGoodsId(orderId: SaleOrderId, goodsId: GoodsId): Inventory? {
+    override fun findByOrderIdAndGoodsId(orderId: OrderId, goodsId: GoodsId): Inventory? {
         return inventoryPOJpaRepository.findStockPOByOrderIdAndSpuIdAndSkuId(orderId.value, goodsId.skuId, goodsId.spuId)
             ?.toInventory()
     }

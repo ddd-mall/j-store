@@ -2,7 +2,7 @@ package com.jstore.order.service
 
 import com.jstore.order.domain.inventory.InventoryFactory
 import com.jstore.order.domain.inventory.InventoryRepository
-import com.jstore.order.domain.saleorder.SaleOrder
+import com.jstore.order.domain.order.Order
 import com.jstore.order.service.acl.OuterInventoryServiceACL
 import org.springframework.stereotype.Service
 
@@ -12,8 +12,8 @@ class InventoryService(
     private val inventoryRepository: InventoryRepository,
     private val outerInventoryServiceACL: OuterInventoryServiceACL,
 ) {
-    fun createAndReserve(saleOrder: SaleOrder) {
-        val inventories = inventoryFactory.create(saleOrder)
+    fun createAndReserve(order: Order) {
+        val inventories = inventoryFactory.create(order)
         outerInventoryServiceACL.reserveAll(inventories)
         inventoryRepository.saveAll(inventories)
     }
