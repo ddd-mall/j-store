@@ -3,12 +3,11 @@ package com.jstore.order.domain.saleorder
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
-import com.jstore.order.acl.GeoAddressService
-import com.jstore.order.acl.GoodsId
-import com.jstore.order.acl.GoodsInfo
-import com.jstore.order.acl.GoodsService
+import com.jstore.order.service.acl.GeoAddressService
+import com.jstore.order.service.acl.GoodsId
+import com.jstore.order.service.acl.GoodsInfo
+import com.jstore.order.service.acl.GoodsService
 import com.jstore.order.domain.saleorder.properties.GeoAddressInfo
-import com.jstore.order.domain.saleorder.properties.UserInfo
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
@@ -19,55 +18,60 @@ class SaleOrderFactory(
     private val snowFlakSequence: SnowFlakSequence,
 ) {
 
-
-
-
     fun create(createCmd: SaleOrderCreateCmd): SaleOrder {
-        val userInfo: UserInfo = createCmd.buyerUserInfo
-        val orderItems: List<OrderItem> = getOrderItemsFromCreateParam(createCmd)
-        val deliveryAddressInfo: GeoAddressInfo = geoAddressService
-            .getByDistrictCode(createCmd.districtCode)
-            .apply { detailAddress = createCmd.detailAddress }
 
-        val amount: Price = sumOf(orderItems.map { orderItem -> orderItem.totalPrice })
+        val orderItems: List<OrderItem> = createOrderItems(createCmd)
+
         return SaleOrder(
             id = SaleOrderId(snowFlakSequence.nextId()),
-            buyerInfo = userInfo,
+            buyerInfo = createCmd.buyerUserInfo,
             orderItems = orderItems,
-            deliveryAddressInfo = deliveryAddressInfo,
-            positiveStatus = OrderPositiveStatus.WAIT_PAY,
-            reverseStatus = OrderReverseStatus.NONE,
-            amount = amount,
+            deliveryAddressInfo = queryAddressInfoDetail(createCmd).also { it.detailAddress = createCmd.detailAddress },
+            status = OrderStatus.NONE,
+            amount = sumOf(orderItems.map { orderItem -> orderItem.totalPrice }),
             actualPay = Price.Companion.Commonly.of(0),
             createTime = LocalDateTime.now(),
             updateTime = LocalDateTime.now()
         )
     }
 
+    private fun queryAddressInfoDetail(createCmd: SaleOrderCreateCmd): GeoAddressInfo {
+        return geoAddressService.getByDistrictCode(createCmd.districtCode)
+    }
 
-    private fun getOrderItemsFromCreateParam(createCmd: SaleOrderCreateCmd): List<OrderItem> {
-        val purchaseItemList = createCmd.purchaseItemList
-        val goodsIdList: List<GoodsId> = purchaseItemList.map { it.mapToGoodsId() }
-        val goodsQueryResult: List<GoodsInfo> = goodsService.queryGoods(goodsIdList)
 
-        return purchaseItemList.map { purchaseItem: SaleOrderCreateCmd.PurchaseItem ->
-            val goodsInfo =
-                goodsQueryResult.find { it.id.spuId == purchaseItem.spuId && it.id.skuId == purchaseItem.skuId }
-                    ?: throw SaleOrderErrors.CorrespondingGoodsNotFound.msg("purchase item $purchaseItem corresponding goods not found")
+    private fun createOrderItems(createCmd: SaleOrderCreateCmd): List<OrderItem> {
+        val goodsInfoQueryHelper: GoodsInfoQueryHelper = queryGoodsInfo(createCmd)
 
-            val totalPrice: Price = goodsInfo.price.multiple(purchaseItem.quantity)
-            val item = OrderItem(
-                id = OrderItemId(snowFlakSequence.nextId()),
-                spuId = goodsInfo.id.spuId,
-                skuId = goodsInfo.id.skuId,
-                goodsVersion = goodsInfo.version,
-                quantity = purchaseItem.quantity,
-                unitPrice = goodsInfo.price,
-                totalPrice = totalPrice
-            )
-            item
+        return createCmd.purchaseItemList.map { purchaseItem: PurchaseItem ->
+            val goodsInfo = goodsInfoQueryHelper.find(purchaseItem.spuId, purchaseItem.skuId)
+            createOrderItem(purchaseItem, goodsInfo)
         }
     }
+
+    private fun createOrderItem(purchaseItem: PurchaseItem, goodsInfo: GoodsInfo): OrderItem {
+        return OrderItem(
+            id = OrderItemId(snowFlakSequence.nextId()),
+            goodsId = goodsInfo.id,
+            goodsVersion = goodsInfo.version,
+            quantity = purchaseItem.quantity,
+            unitPrice = goodsInfo.price,
+            totalPrice = goodsInfo.price.multiple(purchaseItem.quantity)
+        )
+    }
+
+    private fun queryGoodsInfo(createCmd: SaleOrderCreateCmd): GoodsInfoQueryHelper {
+        val goodsIdList: List<GoodsId> = createCmd.purchaseItemList.map { it.mapToGoodsId() }.toList()
+        return GoodsInfoQueryHelper(goodsService.queryGoods(goodsIdList))
+    }
+
+    class GoodsInfoQueryHelper(private val goodsQueryResult: List<GoodsInfo>) {
+        fun find(spuId: Long, skuId: Long): GoodsInfo {
+            return goodsQueryResult.find { it.id.spuId == spuId && it.id.skuId == skuId }
+                ?: throw SaleOrderErrors.CorrespondingGoodsNotFound.msg("spuId: $spuId and skuId: $skuId corresponding goods not found")
+        }
+    }
+
 }
 
 

@@ -14,7 +14,7 @@ abstract class AbstractMockRepository<I : Identify, E : Entity<I>> : Repository<
     abstract fun copyAnEntity(nextId: I, entity: E): E
 
     override fun save(entity: E): E {
-        entity.id?.let { id ->
+        entity.id.let { id ->
             idxMap[id]?.let { index ->
                 objList[index] = entity
                 return entity
@@ -29,10 +29,6 @@ abstract class AbstractMockRepository<I : Identify, E : Entity<I>> : Repository<
                 return entity
             }
         }
-        val e = copyAnEntity(nextId(), entity)
-        idxMap.putIfAbsent(e.id!!, objList.size)
-        objList.add(e)
-        return e
     }
 
     override fun findById(id: I): E? {
