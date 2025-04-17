@@ -11,7 +11,7 @@ import com.jstore.order.domain.order.MockOrderCreatedEventListener
 import com.jstore.order.domain.order.MockOrderRepository
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.framwork.SpringMockDomainEventBus
-import com.jstore.order.domain.order.service.OrderCreationService
+import com.jstore.order.domain.order.command.OrderCreateHandler
 
 object TestBeanConfig {
     private val orderBeansConfig = OrderBeansConfig()
@@ -36,7 +36,7 @@ object TestBeanConfig {
     )
 
 
-    val orderCreationService = OrderCreationService(
+    val orderCreateHandler = OrderCreateHandler(
         orderRepository = orderRepository,
         orderFactory = mockOrderFactory,
     )

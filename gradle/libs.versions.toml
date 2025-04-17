@@ -13,18 +13,19 @@ jackson = "2.18.2"
 fastexcel = "1.1.0"
 junit = "1.11.4"
 mockito = "5.14.0"
+lombok = "1.18.36"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 
 spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-bom", version.ref = "spring-modulith-bom" }
-spring-modulith-starter-test = {module = "org.springframework.modulith:spring-modulith-starter-test"}
+spring-modulith-starter-test = { module = "org.springframework.modulith:spring-modulith-starter-test" }
 spring-modulith-starter-core = { module = "org.springframework.modulith:spring-modulith-starter-core" }
 spring-modulith-core = { module = "org.springframework.modulith:spring-modulith-core" }
 spring-modulith-api = { module = "org.springframework.modulith:spring-modulith-api" }
 
 
-spring-boot-dependencies = {module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot"}
+spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 spirng-boot-boot = { module = "org.springframework.boot:spring-boot" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
@@ -42,7 +43,7 @@ spring-cloud-starter-netflix-eureka-client = { module = "org.springframework.clo
 spring-cloud-starter-netflix-eureka-server = { module = "org.springframework.cloud:spring-cloud-starter-netflix-eureka-server" }
 spring-cloud-starter-task = { module = "org.springframework.cloud:spring-cloud-starter-task" }
 spring-cloud-starter-zookeeper-discovery = { module = "org.springframework.cloud:spring-cloud-starter-zookeeper-discovery" }
-spring-cloud-starter-kubernetes-fabric8 = { module = "org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8"}
+spring-cloud-starter-kubernetes-fabric8 = { module = "org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8" }
 spring-cloud-starter-kubernetes-fabric8-config = { module = "org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config" }
 spring-cloud-starter-kubernetes-client = { module = "org.springframework.cloud:spring-cloud-starter-kubernetes-client" }
 spring-cloud-starter-kubernetes-client-config = { module = "org.springframework.cloud:spring-cloud-starter-kubernetes-client-config" }
@@ -56,7 +57,6 @@ seata-all = { module = "org.apache.seata:seata-all", version.ref = "seata" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 
-#kotlin-gradle-plugin-bom = {module = "org.jetbrains.kotlin:kotlin-gradle-plugins-bom", version.ref = "kotlin"}
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
 kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
@@ -66,7 +66,7 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
 mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 
-jackson-bom = {module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson"}
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
@@ -74,8 +74,8 @@ jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-
 
 fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
 
-commons-lang3 = { module = "org.apache.commons:commons-lang3", version = "3.17.0"}
-
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version = "3.17.0" }
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 
 [plugins]
 springframework = { id = "org.springframework.boot", version.ref = "spring-boot" }

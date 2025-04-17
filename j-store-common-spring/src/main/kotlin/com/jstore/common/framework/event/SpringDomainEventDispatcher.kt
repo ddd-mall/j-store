@@ -1,7 +1,6 @@
 package com.jstore.common.framework.event
 
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.context.PayloadApplicationEvent
 
 
 class SpringDomainEventDispatcher(
@@ -10,6 +9,6 @@ class SpringDomainEventDispatcher(
 
 
     override fun dispatch(domainEvent: DomainEvent, listeners: Iterable<DomainEventListener<*>>) {
-        applicationEventPublisher.publishEvent(PayloadApplicationEvent(domainEvent.source, domainEvent))
+        applicationEventPublisher.publishEvent(domainEvent)
     }
 }

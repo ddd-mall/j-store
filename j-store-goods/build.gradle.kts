@@ -14,14 +14,15 @@ repositories {
 
 dependencies {
     implementation(libs.kotlin.stdlib)
+    testImplementation(libs.kotlin.test)
     implementation(platform(libs.spring.boot.dependencies))
-    implementation(libs.spring.data.jpa)
-    implementation(libs.spirng.boot.boot)
+    api(libs.spring.data.jpa)
+    api(libs.spirng.boot.boot)
     testImplementation(libs.spring.boot.starter.test)
     implementation(libs.seata.all)
-    implementation(project(":j-store-common"))
-    implementation(project(":j-store-common-spring"))
-    testImplementation(kotlin("test"))
+    api(project(":j-store-common"))
+    api(project(":j-store-common-spring"))
+
 }
 
 tasks.test {

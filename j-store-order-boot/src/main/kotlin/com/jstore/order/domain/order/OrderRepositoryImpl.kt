@@ -137,7 +137,8 @@ object OrderConverter {
             goodsVersion = itemPO.goodsVersion,
             quantity = itemPO.quantity,
             unitPrice = Price(itemPO.unitPrice),
-            totalPrice = Price(itemPO.totalPrice)
+            totalPrice = Price(itemPO.totalPrice),
+            itemStatus = itemPO.itemStatus
         )
     }
 
@@ -154,6 +155,8 @@ object OrderConverter {
                 positiveStatus = order.status.name,
                 amount = order.amount.getBasicValue(),
                 actualPay = order.actualPay.getBasicValue(),
+                createTime = order.createTime,
+                updateTime = order.updateTime
             )
 
             orderItemPOS = order.orderItems.map {
@@ -166,6 +169,7 @@ object OrderConverter {
                     goodsVersion = it.goodsVersion,
                     unitPrice = it.unitPrice.getBasicValue(),
                     totalPrice = it.totalPrice.getBasicValue(),
+                    itemStatus = it.itemStatus,
                 )
             }
         }

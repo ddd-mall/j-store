@@ -3,11 +3,11 @@ package com.jstore.order.service
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.order.config.TestBeanConfig.orderCreationService
+import com.jstore.order.config.TestBeanConfig.orderCreateHandler
 import com.jstore.order.config.TestBeanConfig.orderRepository
 import com.jstore.order.domain.order.OrderStatus
 import com.jstore.order.domain.order.UserInfo
-import com.jstore.order.domain.order.command.OrderCreateCmd
+import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.domain.order.command.PurchaseItem
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -15,12 +15,12 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.asserter
 
-class OrderCreationServiceTest {
+class OrderCreateHandlerTest {
     private val logger: Logger = LoggerFactory.getLogger(this::class)
 
     @Test
     fun orderCreateServiceTest() {
-        val createCMD = OrderCreateCmd(
+        val createCMD = OrderCreateCMD(
             token = "mock token",
             buyerUserInfo = UserInfo(
                 1L,
@@ -42,7 +42,7 @@ class OrderCreationServiceTest {
             districtCode = "110106",
             detailAddress = "MOCK detail address"
         )
-        val order = orderCreationService.create(createCMD)
+        val order = orderCreateHandler.create(createCMD)
 
 
         assertNotNull(order.id, "订单创建后ID仍然为空")

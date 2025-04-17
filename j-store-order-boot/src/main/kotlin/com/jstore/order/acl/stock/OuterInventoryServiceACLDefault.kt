@@ -5,14 +5,15 @@ import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.order.domain.inventory.Inventory
 import com.jstore.order.acl.OuterInventoryServiceACL
+import com.jstore.order.domain.inventory.Inventory
 import org.springframework.stereotype.Service
 
 @Service
 class OuterInventoryServiceACLDefault : OuterInventoryServiceACL {
     private val log: Logger = LoggerFactory.getLogger(this::class)
     override fun reserveAll(inventories: Iterable<Inventory>): Result<Boolean, BusinessError> {
+        inventories.forEach(::reserve)
         return Success(true)
     }
 

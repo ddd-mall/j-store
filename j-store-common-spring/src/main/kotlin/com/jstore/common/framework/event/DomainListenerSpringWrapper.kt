@@ -21,7 +21,9 @@ class DomainListenerSpringWrapper(
     }
 
     override fun supportsEventType(eventType: ResolvableType): Boolean {
-        return eventType.rawClass?.typeName == PayloadApplicationEvent::class.java.typeName
+        val isPayLoadApplicationEvent = eventType.rawClass?.typeName == PayloadApplicationEvent::class.java.typeName
+        val isSupportsPayLoad = eventType.generics.size == 1 && domainEventListener.supportsEventType(eventType.generics[0])
+        return isPayLoadApplicationEvent && isSupportsPayLoad
     }
 
 
