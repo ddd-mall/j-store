@@ -32,16 +32,17 @@ class OrderPO(
     val positiveStatus: String,
     val amount: BigDecimal = BigDecimal.ZERO,
     val actualPay: BigDecimal = BigDecimal.ZERO,
+    @CreatedDate
+    @Column(name = "create_time", updatable = false, insertable = true)
+    var createTime: LocalDateTime?,
+
+    @LastModifiedDate
+    @Column(name = "update_time", nullable = false, updatable = true, insertable = true)
+    var updateTime: LocalDateTime?,
 ) : Serializable {
     companion object {
         private const val serialVersionUID: Long = 1
     }
 
-    @CreatedDate
-    @Column(name = "create_time", updatable = false, insertable = true)
-    lateinit var createTime: LocalDateTime
 
-    @LastModifiedDate
-    @Column(name = "update_time", nullable = false, updatable = true, insertable = true)
-    lateinit var updateTime: LocalDateTime
 }

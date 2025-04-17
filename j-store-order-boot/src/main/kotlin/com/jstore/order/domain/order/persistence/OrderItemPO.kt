@@ -1,6 +1,7 @@
 package com.jstore.com.jstore.order.domain.order.persistence
 
 import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
+import com.jstore.order.domain.order.OrderItemStatus
 import jakarta.persistence.*
 import java.io.Serializable
 import java.math.BigDecimal
@@ -12,7 +13,7 @@ import java.math.BigDecimal
         UniqueConstraint(name = "uk_order_item_id", columnNames = ["order_item_id"])
     ],
     indexes = [
-        Index(name = "idx_order_id", columnList = "、order_id")
+        Index(name = "idx_order_id", columnList = "order_id")
     ],
 )
 
@@ -29,6 +30,8 @@ class OrderItemPO(
     var quantity: BigDecimal,
     var unitPrice: BigDecimal,
     var totalPrice: BigDecimal,
+    @Enumerated(EnumType.STRING)
+    var itemStatus: OrderItemStatus,
 ) : Serializable {
     companion object {
         private const val serialVersionUID: Long = 1

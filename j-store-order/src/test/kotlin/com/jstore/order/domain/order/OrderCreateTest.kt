@@ -5,9 +5,9 @@ import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
 
 import com.jstore.order.config.TestBeanConfig.orderRepository
-import com.jstore.order.config.TestBeanConfig.orderCreationService
+import com.jstore.order.config.TestBeanConfig.orderCreateHandler
 import com.jstore.order.domain.order.command.PurchaseItem
-import com.jstore.order.domain.order.command.OrderCreateCmd
+import com.jstore.order.domain.order.command.OrderCreateCMD
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import kotlin.test.assertNotNull
@@ -20,7 +20,7 @@ class OrderCreateTest {
 
     @Test
     fun createOrderTest() {
-        val createCMD = OrderCreateCmd(
+        val createCMD = OrderCreateCMD(
             "mock token",
             buyerUserInfo = UserInfo(
                 uid = 1L,
@@ -43,7 +43,7 @@ class OrderCreateTest {
             detailAddress = "MOCK detail address",
         )
 
-        val order = orderCreationService.create(createCMD)
+        val order = orderCreateHandler.create(createCMD)
         assertNotNull(order.id, "订单创建后ID仍然为空")
         logger.info("订单创建成功，订单ID： {}", arrayOf(order.id))
         asserter.assertSame("用户信息与创建时不一致", order.buyerInfo, createCMD.buyerUserInfo)

@@ -4,7 +4,7 @@ import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
 import com.jstore.order.domain.order.command.PurchaseItem
-import com.jstore.order.domain.order.command.OrderCreateCmd
+import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.acl.GeoAddressService
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.GoodsInfo
@@ -19,7 +19,7 @@ class OrderFactory(
     private val snowFlakSequence: SnowFlakSequence,
 ) {
 
-    fun create(createCmd: OrderCreateCmd): Order {
+    fun create(createCmd: OrderCreateCMD): Order {
 
         val orderItems: List<OrderItem> = createOrderItems(createCmd)
 
@@ -36,12 +36,12 @@ class OrderFactory(
         )
     }
 
-    private fun queryAddressInfoDetail(createCmd: OrderCreateCmd): GeoAddressInfo {
+    private fun queryAddressInfoDetail(createCmd: OrderCreateCMD): GeoAddressInfo {
         return geoAddressService.getByDistrictCode(createCmd.districtCode)
     }
 
 
-    private fun createOrderItems(createCmd: OrderCreateCmd): List<OrderItem> {
+    private fun createOrderItems(createCmd: OrderCreateCMD): List<OrderItem> {
         val goodsInfoQueryHelper: GoodsInfoQueryHelper = queryGoodsInfo(createCmd)
 
         return createCmd.purchaseItemList.map { purchaseItem: PurchaseItem ->
@@ -57,11 +57,12 @@ class OrderFactory(
             goodsVersion = goodsInfo.version,
             quantity = purchaseItem.quantity,
             unitPrice = goodsInfo.price,
-            totalPrice = goodsInfo.price.multiple(purchaseItem.quantity)
+            totalPrice = goodsInfo.price.multiple(purchaseItem.quantity),
+            itemStatus = OrderItemStatus.WAIT_SHIPPING
         )
     }
 
-    private fun queryGoodsInfo(createCmd: OrderCreateCmd): GoodsInfoQueryHelper {
+    private fun queryGoodsInfo(createCmd: OrderCreateCMD): GoodsInfoQueryHelper {
         val goodsIdList: List<GoodsId> = createCmd.purchaseItemList.map { it.mapToGoodsId() }.toList()
         return GoodsInfoQueryHelper(goodsService.queryGoods(goodsIdList))
     }
@@ -69,7 +70,7 @@ class OrderFactory(
     class GoodsInfoQueryHelper(private val goodsQueryResult: List<GoodsInfo>) {
         fun find(spuId: Long, skuId: Long): GoodsInfo {
             return goodsQueryResult.find { it.id.spuId == spuId && it.id.skuId == skuId }
-                ?: throw OrderErrors.CorrespondingGoodsNotFound.msg("spuId: $spuId and skuId: $skuId corresponding goods not found")
+                ?: throw OrderErrors.CORRESPONDING_GOODS_NOT_FOUND.msg("spuId: $spuId and skuId: $skuId corresponding goods not found")
         }
     }
 

@@ -16,7 +16,7 @@ import java.time.LocalDateTime
 @Entity
 @EntityListeners(AuditingEntityListener::class)
 @Table(
-    name = "order_stock",
+    name = "order_inventory",
     uniqueConstraints = [
         jakarta.persistence.UniqueConstraint(columnNames = ["order_id", "spu_id", "sku_id"])
     ],
@@ -30,7 +30,7 @@ class InventoryPO(
     var skuId: Long,
     var quantity: BigDecimal,
     @Enumerated(EnumType.STRING)
-    var currentStatus: InventoryStatus = InventoryStatus.CREATED,
+    var currentStatus: InventoryStatus,
 ) : Serializable {
     companion object {
         private const val serialVersionUID = 1L
