@@ -11,8 +11,6 @@ import com.jstore.common.utils.string.StringUtils
 import com.jstore.order.acl.GeoAddressService
 import com.jstore.order.domain.order.GeoAddressInfo
 import org.springframework.stereotype.Service
-import org.springframework.util.ResourceUtils
-import java.io.FileInputStream
 import java.util.concurrent.ConcurrentHashMap
 
 @Service
@@ -35,9 +33,8 @@ open class ChinaGeoAddressServiceExcelImpl : GeoAddressService {
 
         init {
             val excelPath = "data/district.xlsx"
-            val file = ResourceUtils.getFile("classpath:${excelPath}")
-            val fileInputStream = FileInputStream(file)
-            fileInputStream.use { fis ->
+            val resource = this::class.java.classLoader.getResourceAsStream(excelPath)
+            resource.use { fis ->
                 FastExcel.read(fis, DistrictData::class.java, DistrictDataListener(dataStorage))
                     .sheet()
                     .doRead()
