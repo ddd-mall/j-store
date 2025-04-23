@@ -22,7 +22,7 @@ dependencies {
     testImplementation(libs.mockito)
     api(project(":j-store-common"))
     api(project(":j-store-common-spring"))
-    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlin.test)
 }
 
 tasks.test {

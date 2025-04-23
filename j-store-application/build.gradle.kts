@@ -1,32 +1,24 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.kotlin.plugin.jpa)
+    alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.springframework)
-
 }
 
 group = "com.jstore"
-version = "0.0.1-SNAPSHOT"
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
-
-configurations {
-    compileOnly {
-        extendsFrom(configurations.annotationProcessor.get())
-    }
-}
+version = "0.1.0-SNAPSHOT"
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
-
 dependencies {
+    implementation(project(":j-store-order"))
+    implementation(project(":j-store-order-infrastructure"))
+    implementation(project(":j-store-goods"))
+
+
     implementation(platform(libs.spring.cloud.dependencies))
     implementation(libs.spring.cloud.loadbalancer)
 
@@ -49,19 +41,9 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.addAll("-Xjsr305=strict")
-    }
-}
-
-allOpen {
-    annotation("jakarta.persistence.Entity")
-    annotation("jakarta.persistence.MappedSuperclass")
-    annotation("jakarta.persistence.Embeddable")
-}
-
-tasks.withType<Test> {
+tasks.test {
     useJUnitPlatform()
 }
-tasks.register("prepareKotlinBuildScriptModel"){}
+kotlin {
+    jvmToolchain(21)
+}
