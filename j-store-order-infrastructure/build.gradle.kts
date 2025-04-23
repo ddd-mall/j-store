@@ -1,38 +1,20 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.plugin.jpa)
-    alias(libs.plugins.kotlin.plugin.spring)
-    alias(libs.plugins.springframework)
+    kotlin("jvm")
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
-
-kotlin {
-    jvmToolchain(21)
-}
 
 group = "com.jstore"
-version = "0.0.1-SNAPSHOT"
+version = "0.1.0-SNAPSHOT"
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
-    implementation(project(":j-store-order-infrastructure"))
-
-    implementation(platform(libs.spring.cloud.dependencies))
-    implementation(libs.spring.cloud.loadbalancer)
-
-    implementation(platform(libs.spring.cloud.alibaba.dependencies))
-    implementation(libs.spring.cloud.starter.alibaba.nacos.discovery)
-    implementation(libs.spring.cloud.starter.alibaba.nacos.config)
+    api(project(":j-store-order"))
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)
@@ -51,15 +33,11 @@ dependencies {
     testCompileOnly(libs.lombok)
     testAnnotationProcessor(libs.lombok)
 
-    implementation(libs.fastexcel)
 }
 
 tasks.test {
     useJUnitPlatform()
 }
-
-tasks.withType<Tar> {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+kotlin {
+    jvmToolchain(21)
 }
-
-
