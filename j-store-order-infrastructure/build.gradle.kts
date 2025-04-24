@@ -19,7 +19,8 @@ dependencies {
     implementation(libs.kotlin.reflect)
     api(project(":j-store-order"))
 
-    implementation(platform(libs.spring.boot.dependencies))
+    implementation(platform(
+        libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.webflux)
