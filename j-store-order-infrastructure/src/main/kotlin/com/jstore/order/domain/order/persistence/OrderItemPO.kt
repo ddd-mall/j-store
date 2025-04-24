@@ -33,17 +33,6 @@ class OrderItemPO(
     @Enumerated(EnumType.STRING)
     var itemStatus: OrderItemStatus,
 ) : Serializable {
-    constructor() : this(
-        orderItemId = 0,
-        orderId = 0,
-        spuId = "",
-        skuId = "",
-        goodsVersion = 0,
-        quantity = BigDecimal.ZERO,
-        unitPrice = BigDecimal.ZERO,
-        totalPrice = BigDecimal.ZERO,
-        itemStatus = OrderItemStatus.NONE
-    )
 
     companion object {
         private const val serialVersionUID: Long = 1
