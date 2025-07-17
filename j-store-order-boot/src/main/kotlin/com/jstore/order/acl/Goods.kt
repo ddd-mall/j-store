@@ -1,8 +1,8 @@
 package com.jstore.com.jstore.order.acl
 
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.cloud.client.loadbalancer.LoadBalanced
-import org.springframework.cloud.context.config.annotation.RefreshScope
+//import org.springframework.cloud.client.loadbalancer.LoadBalanced
+//import org.springframework.cloud.context.config.annotation.RefreshScope
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.ResponseEntity
@@ -24,7 +24,7 @@ interface Goods {
 @Configuration
 class ResetTemplateConfig {
 
-    @LoadBalanced
+//    @LoadBalanced
     @Bean
     fun loadBalancerWebClientBuilder(): WebClient.Builder {
         return WebClient.builder().codecs { configurer ->
@@ -40,7 +40,7 @@ class ResetTemplateConfig {
     }
 }
 
-@RefreshScope
+//@RefreshScope
 @RestController
 @RequestMapping("/test")
 class TestController(

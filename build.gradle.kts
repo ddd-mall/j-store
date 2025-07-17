@@ -15,5 +15,8 @@ java {
 
 repositories {
     mavenCentral()
+    maven {
+        setUrl("https://maven.aliyun.com/repository/public")
+    }
     mavenLocal()
 }
