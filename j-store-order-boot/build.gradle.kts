@@ -1,4 +1,5 @@
 plugins {
+    id("java")
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
@@ -27,12 +28,15 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(project(":j-store-order-infrastructure"))
 
-    implementation(platform(libs.spring.cloud.dependencies))
-    implementation(libs.spring.cloud.loadbalancer)
+//    implementation(platform(libs.spring.cloud.dependencies))
+//    implementation(libs.spring.cloud.loadbalancer)
 
-    implementation(platform(libs.spring.cloud.alibaba.dependencies))
-    implementation(libs.spring.cloud.starter.alibaba.nacos.discovery)
-    implementation(libs.spring.cloud.starter.alibaba.nacos.config)
+//    implementation(platform(libs.spring.cloud.alibaba.dependencies))
+//    implementation(libs.spring.cloud.starter.alibaba.nacos.discovery)
+//    implementation(libs.spring.cloud.starter.alibaba.nacos.config)
+
+    implementation(libs.spring.data.redis)
+    implementation(libs.spring.boot.starter.data.redis)
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)

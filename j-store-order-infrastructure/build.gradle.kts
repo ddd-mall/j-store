@@ -19,13 +19,14 @@ dependencies {
     implementation(libs.kotlin.reflect)
     api(project(":j-store-order"))
 
-    implementation(platform(
-        libs.spring.boot.dependencies))
+    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)
+    implementation(libs.spring.data.redis)
+    implementation(libs.spring.boot.starter.data.redis)
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.test)
-    annotationProcessor(libs.spring.boot.configuration.processor)
+//    annotationProcessor(libs.spring.boot.configuration.processor)
 
     runtimeOnly(libs.postgresql)
     testImplementation(libs.kotlin.test)
