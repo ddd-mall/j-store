@@ -10,38 +10,34 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.List;
+import java.util.concurrent.ThreadPoolExecutor;
 
 
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "timer.job")
+@SuppressWarnings("rawtypes")
 public class TimerJobConfig {
     /**
      * 槽位数量
      */
     private Integer slotAmount = 8;
-    /**
-     * worker的数量（一个worker一个线程）
-     */
-    private Integer workersAmount = 2;
-    /**
-     * 任务的time to live，也就是能重试的次数（包括第一次执行）
-     */
-    private Integer initialTtl = 5;
+    public static final String EXPIRE_CENTER_POOL = "expireCenterPool";
+    public static final String JOB_KEY_PREFIX = "timer:job:";
 
-    @Bean(name = "moveToPrepare")
+    @Bean(name = "pickOneOutAndPrepare")
     public RedisScript<List> moveToPrepare() {
         DefaultRedisScript<List> redisScript = new DefaultRedisScript<>();
-        redisScript.setLocation(new ClassPathResource("/script/MoveToPrepare.lua"));
+        redisScript.setLocation(new ClassPathResource("/script/PickOneOutAndPrepare.lua"));
         redisScript.setResultType(List.class);
         return redisScript;
     }
 
 
-    @Bean(name = "rollback")
+    @Bean(name = "rollbackTimerJob")
     public RedisScript<Boolean> rollback() {
         DefaultRedisScript<Boolean> redisScript = new DefaultRedisScript<>();
-        redisScript.setLocation(new ClassPathResource("/script/Rollback.lua"));
+        redisScript.setLocation(new ClassPathResource("/script/RollbackTimerJob.lua"));
         redisScript.setResultType(Boolean.class);
         return redisScript;
     }
@@ -55,15 +51,17 @@ public class TimerJobConfig {
         return redisScript;
     }
 
-    public static final String EXPIRE_CENTER_POOL = "expireCenterPool";
 
     @Bean(name = EXPIRE_CENTER_POOL)
     public ThreadPoolTaskExecutor expireCenterPool() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         // 最大线程数
-        executor.setMaxPoolSize(10);
+        executor.setMaxPoolSize(20);
         // 核心线程数
         executor.setCorePoolSize(3);
+        executor.setQueueCapacity(100);
+        executor.setKeepAliveSeconds(30);
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         // 线程前缀名
         executor.setThreadNamePrefix(EXPIRE_CENTER_POOL + "-");
         executor.initialize();
