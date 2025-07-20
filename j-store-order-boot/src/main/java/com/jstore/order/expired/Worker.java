@@ -28,6 +28,7 @@ public class Worker {
         if (job.getTtl() <= 0) {
             try {
                 jobRepository.markAsFailure(job, slot);
+                log.warn("任务 {} ttl 耗尽", job.getId());
             } catch (Exception e) {
                 log.warn("Failed to mark job as failure during shutdown: {}", e.getMessage());
             }
@@ -47,7 +48,7 @@ public class Worker {
                 jobRepository.rollbackOnFailure(job, slot);
             }
         } catch (Exception e) {
-            log.warn("Failed to handle job or update status, possibly during shutdown: {}", e.getMessage());
+            log.warn("定时任务处理过程发生异常: {}", e.getMessage());
             jobRepository.rollbackOnFailure(job, slot);
         }
     }

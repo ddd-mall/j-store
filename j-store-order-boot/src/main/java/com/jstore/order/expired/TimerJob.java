@@ -25,10 +25,10 @@ public class TimerJob {
      * 可重试的次数
      */
     @JsonIgnore
-    public long ttl;
+    public int ttl;
 
 
-    public TimerJob(TimerJobPO po) {
+    public TimerJob(TimerJobJpaPO po) {
         this.id = po.getId();
         this.topic = po.getTopic();
         this.content = po.getContent();
@@ -38,7 +38,8 @@ public class TimerJob {
     public enum TimerJobStatus {
         UNHANDLED,
         HANDLING,
-        HANDLED
+        HANDLED,
+        FAILED
     }
 
     public static TimerJob fromJsonStr(String timerJobJsonStr) {

@@ -12,12 +12,12 @@ import java.util.Date;
 import java.util.List;
 
 @Repository
-public interface TimerJobPOMapper extends JpaRepository<TimerJobPO, Long> {
+public interface TimerJobJpaRepository extends JpaRepository<TimerJobJpaPO, Long> {
 
 
-    Page<TimerJobPO> findAllByExecuteTimeBeforeAndStatus(Date executeTimeBefore, String status, Pageable pageable);
+    Page<TimerJobJpaPO> findAllByExecuteTimeBeforeAndStatus(Date executeTimeBefore, String status, Pageable pageable);
 
     @Modifying
-    @Query("UPDATE TimerJobPO t SET t.status = :status WHERE t.id IN (:ids)")
+    @Query("UPDATE TimerJobJpaPO t SET t.status = :status WHERE t.id IN (:ids)")
     void updateStatusToHandlingByIds(List<Long> ids, String status);
 }

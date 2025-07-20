@@ -1,8 +1,6 @@
 package com.jstore.order.expired;
 
 
-
-
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -12,20 +10,19 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * 负责将prepare中的超时未处理任务回滚到store中
  */
 @Component
-public abstract class RollbackExpiredTask implements Runnable {
+public abstract class JobTimeoutMonitor implements Runnable {
     private final RedisTemplate<Object, Object> redisTemplate;
     private final RedisScript<Boolean> rollbackExpired;
 
     private final List<String> topics;
-    private final List<Integer> slots;
+    private final TimerJobConfig timerJobConfig;
 
-    public RollbackExpiredTask(
+    public JobTimeoutMonitor(
             RedisTemplate<Object, Object> redisTemplate,
             @Qualifier("rollbackExpired") RedisScript<Boolean> rollbackExpired,
             TimerJobConfig timerJobConfig,
@@ -34,31 +31,29 @@ public abstract class RollbackExpiredTask implements Runnable {
         this.redisTemplate = redisTemplate;
         this.rollbackExpired = rollbackExpired;
         this.topics = timerJobHandlers.stream().map(TimerJobHandler::topic).collect(Collectors.toList());
-        this.slots = Stream.iterate(0, i -> i + 1).limit(timerJobConfig.getSlotAmount()).collect(Collectors.toList());
+        this.timerJobConfig = timerJobConfig;
     }
 
     private List<String> topics() {
         return topics;
     }
-    private List<Integer> slots() {
-       return slots;
-    }
+
 
     @Scheduled(cron = "${timer.job.expire.cron: */5 * * * * ?}")
-    public void scheduled() {
+    public void findTimeOutJobAndRollItBackToWaitingQueue() {
         run();
     }
 
     @Override
     public void run() {
-        long thirtySecondsBefore = System.currentTimeMillis() - (1000 * 30);
+        long tenSecondsBefore = System.currentTimeMillis() - (1000 * 10);
         for (String topic : topics()) {
-            for (Integer slot : slots()) {
+            for (int slot = 0; slot < timerJobConfig.getSlotAmount(); slot++) {
                 while (true) {
                     Boolean result = redisTemplate.execute(
                             rollbackExpired,
-                            Arrays.asList(TimerJobRepository.WaitingQueue.key(topic, slot), TimerJobRepository.PrepareQueue.key(topic, slot)),
-                            thirtySecondsBefore
+                            Arrays.asList(TimerJobRepository.PrepareQueue.key(topic, slot), TimerJobRepository.WaitingQueue.key(topic, slot)),
+                            tenSecondsBefore
                     );
                     if (!result) {
                         break;
