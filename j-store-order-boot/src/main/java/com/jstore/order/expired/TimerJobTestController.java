@@ -34,8 +34,9 @@ public class TimerJobTestController {
     }
 
     @PostMapping("/add/new")
-    public boolean addNew(@RequestBody JobCreateParam jobCreateParam) {
-        return timerJobRepository.addNewOneToDB(jobCreateParam.toTimerJob());
+    public TimerJob addNew(@RequestBody JobCreateParam jobCreateParam) {
+        TimerJobJpaPO po = timerJobRepository.addNewOneToDB(jobCreateParam.toTimerJob());
+        return new TimerJob(po);
     }
 
     @Data

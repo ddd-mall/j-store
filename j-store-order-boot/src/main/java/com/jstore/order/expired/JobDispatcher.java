@@ -68,23 +68,20 @@ public class JobDispatcher {
 
                     try {
                         if (TimerJobCoordinator.stoped.get()) {
-                            log.info("定时任务中心已停止，调度器将不再分配任务");
+                            log.info("定时任务中心-调度器已停止，将不再分配任务");
                             return;
                         }
                         job = jobRepository.getOneJobFromWaitingQueue(topic, slot);
                         job.ifPresent(timerJob -> {
                             TimerJobCoordinator.handlingJobs.incrementAndGet();
-                            try {
-                                executorService.execute(() -> {
-                                    try {
-                                        new Worker(jobRepository, handlers).handle(timerJob, finalSlot);
-                                    } finally {
-                                        TimerJobCoordinator.handlingJobs.decrementAndGet();
-                                    }
-                                });
-                            } finally {
-                                allows.getAndDecrement();
-                            }
+                            executorService.execute(() -> {
+                                try {
+                                    new Worker(jobRepository, handlers).handle(timerJob, finalSlot);
+                                } finally {
+                                    TimerJobCoordinator.handlingJobs.decrementAndGet();
+                                }
+                            });
+
                         });
                     } catch (Exception e) {
                         if (job != null && job.isPresent()) {
@@ -95,6 +92,7 @@ public class JobDispatcher {
                             log.warn("Failed to dispatch job in topic: {} at slot: {}, possibly during shutdown: {}", topic, finalSlot, e.getMessage());
                         }
                     } finally {
+                        allows.getAndDecrement();
                         /// ========= 离开临界区
                         TimerJobCoordinator.lifeCycleLock.readLock().unlock();
                     }
@@ -125,16 +123,16 @@ public class JobDispatcher {
             // 记录详细信息用于调试
             if (log.isDebugEnabled()) {
                 log.debug("线程池状态 - 最大线程数: {}, 当前活跃线程: {}, 当前线程池大小: {}, " +
-                         "队列中任务数: {}, 队列剩余容量: {}, 计算可用容量: {}, 安全容量: {}",
-                         maxPoolSize, activeCount, poolSize, queueSize, queueCapacity,
-                         availableCapacity, safeCapacity);
+                                "队列中任务数: {}, 队列剩余容量: {}, 计算可用容量: {}, 安全容量: {}",
+                        maxPoolSize, activeCount, poolSize, queueSize, queueCapacity,
+                        availableCapacity, safeCapacity);
             }
 
             // 如果线程池接近饱和，额外检查线程池状态
             if (safeCapacity <= 1) {
                 // 检查线程池是否正在关闭
                 if (executorService.getThreadPoolExecutor().isShutdown() ||
-                    executorService.getThreadPoolExecutor().isTerminating()) {
+                        executorService.getThreadPoolExecutor().isTerminating()) {
                     log.warn("线程池正在关闭，停止分配新任务");
                     return 0;
                 }

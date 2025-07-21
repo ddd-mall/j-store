@@ -30,7 +30,7 @@ public class Worker {
                 jobRepository.markAsFailure(job, slot);
                 log.warn("任务 {} ttl 耗尽", job.getId());
             } catch (Exception e) {
-                log.warn("Failed to mark job as failure during shutdown: {}", e.getMessage());
+                log.error("Failed to mark job as failure during shutdown", e);
             }
             return;
         }
@@ -48,7 +48,7 @@ public class Worker {
                 jobRepository.rollbackOnFailure(job, slot);
             }
         } catch (Exception e) {
-            log.warn("定时任务处理过程发生异常: {}", e.getMessage());
+            log.error("定时任务处理过程发生异常", e);
             jobRepository.rollbackOnFailure(job, slot);
         }
     }
