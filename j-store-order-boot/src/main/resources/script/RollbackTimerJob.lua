@@ -8,8 +8,9 @@
 -- 2. 计算新ttl
 -- 3. 将member添加到zseta中，使用新ttl作为score
 -- 4. 从zsetb中删除该member
-
+-- from
 local zsetb_key = KEYS[1]
+-- to
 local zseta_key = KEYS[2]
 local target_member = ARGV[1]
 

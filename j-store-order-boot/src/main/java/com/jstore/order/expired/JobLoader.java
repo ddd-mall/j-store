@@ -1,12 +1,11 @@
 package com.jstore.order.expired;
 
 
+import com.jstore.common.utils.json.JsonUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -19,23 +18,21 @@ import java.util.zip.CRC32;
  * 负责将任务从数据库中取出并放置到redis中
  */
 @Component
+@Slf4j
 public class JobLoader {
     private final TimerJobRepository timerJobRepository;
     private final TimerJobConfig timerJobConfig;
     private final TimerJobRepository timerJobQueue;
-    private final PlatformTransactionManager transactionManager;
-
 
 
     public JobLoader(TimerJobRepository timerJobRepository,
                      TimerJobConfig timerJobConfig,
-                     TimerJobRepository jobRepository, PlatformTransactionManager transactionManager
+                     TimerJobRepository jobRepository
     ) {
         this.timerJobRepository = timerJobRepository;
         this.timerJobConfig = timerJobConfig;
         this.timerJobQueue = jobRepository;
 
-        this.transactionManager = transactionManager;
     }
 
     /**
@@ -51,7 +48,8 @@ public class JobLoader {
             acquired.set(
                     TimerJobCoordinator.lifeCycleLock.readLock().tryLock(300, TimeUnit.MILLISECONDS)
             );
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
         if (!acquired.get()) {
             return;
         }
@@ -60,17 +58,18 @@ public class JobLoader {
             long tenSecondsLater = System.currentTimeMillis() + 1000 * 10;
             Iterator<List<TimerJob>> iterator = timerJobRepository.getIteratorOfUnhandledAndBefore(new Date(tenSecondsLater), 100);
             while (iterator.hasNext() && !TimerJobCoordinator.stoped.get()) {
-                DefaultTransactionDefinition transactionDefinition = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-                TransactionStatus transaction = transactionManager.getTransaction(transactionDefinition);
+                List<TimerJob> next = iterator.next();
                 try {
-                    List<TimerJob> next = iterator.next();
                     next.forEach(timerJob -> {
                         long slot = slot(timerJob);
                         timerJobQueue.addOneJobToWaitingQueue(timerJob, slot);
                     });
-                    transactionManager.commit(transaction);
                 } catch (Exception e) {
-                    transactionManager.rollback(transaction);
+                    if (next != null && !next.isEmpty()) {
+                        List<TimerJob> timerJobs = timerJobRepository.updateStatus(next, TimerJob.TimerJobStatus.UNHANDLED.name());
+                        List<Long> list = timerJobs.parallelStream().map(TimerJob::getId).toList();
+                        log.warn("加载任务 {} 过程发生错误，已回滚", JsonUtils.INSTANCE.toJsonString(list));
+                    }
                 }
             }
         } finally {

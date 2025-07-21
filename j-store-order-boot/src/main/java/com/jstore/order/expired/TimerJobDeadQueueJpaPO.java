@@ -10,7 +10,10 @@ import java.util.Date;
 @Table(
         name = "timer_job_dead_queue",
         indexes = {
-                @Index(name = "idx_execute_time_topic", columnList = "execute_time")
+                @Index(name = "idx_execute_time_topic", columnList = "execute_time, topic")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name="uk_job_id", columnNames = "timer_job_id")
         }
 )
 public class TimerJobDeadQueueJpaPO {
