@@ -1,10 +1,15 @@
 package com.jstore.order.expired;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 import java.util.Date;
-import java.util.Optional;
 
 @Data
 @Entity
@@ -32,15 +37,10 @@ public class TimerJobJpaPO {
     @Column(name = "execute_time", nullable = false)
     public Date executeTime;
 
-    @Version
-    @Column(name = "version", nullable = false)
-    private Long version;
-
     public TimerJobJpaPO(TimerJob timerJob, String status) {
         this.topic = timerJob.getTopic();
         this.content = timerJob.getContent();
         this.executeTime = timerJob.getExecuteTime();
-        this.version = Optional.ofNullable(timerJob.getVersion()).orElse(0L);
         this.status = status;
     }
 
