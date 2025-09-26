@@ -68,7 +68,7 @@ jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
 fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
-commons-lang3 = { module = "org.apache.commons:commons-lang3", version = "3.17.0" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version = "3.19.0" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 
 [plugins]
