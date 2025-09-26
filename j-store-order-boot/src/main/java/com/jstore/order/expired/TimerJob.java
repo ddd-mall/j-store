@@ -19,7 +19,6 @@ public class TimerJob {
     private String topic;
     private Date executeTime;
     private String content;
-    private Long version;
 
 
     /**
@@ -34,7 +33,6 @@ public class TimerJob {
         this.topic = po.getTopic();
         this.content = po.getContent();
         this.executeTime = po.getExecuteTime();
-        this.version = po.getVersion();
     }
 
     public enum TimerJobStatus {

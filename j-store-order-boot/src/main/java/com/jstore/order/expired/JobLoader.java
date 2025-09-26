@@ -1,11 +1,13 @@
 package com.jstore.order.expired;
 
 
-import com.jstore.common.utils.json.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -23,16 +25,19 @@ public class JobLoader {
     private final TimerJobRepository timerJobRepository;
     private final TimerJobConfig timerJobConfig;
     private final TimerJobRepository timerJobQueue;
+    private final PlatformTransactionManager transactionManager;
 
 
     public JobLoader(TimerJobRepository timerJobRepository,
                      TimerJobConfig timerJobConfig,
-                     TimerJobRepository jobRepository
+                     TimerJobRepository jobRepository,
+                     PlatformTransactionManager transactionManager
     ) {
         this.timerJobRepository = timerJobRepository;
         this.timerJobConfig = timerJobConfig;
         this.timerJobQueue = jobRepository;
 
+        this.transactionManager = transactionManager;
     }
 
     /**
@@ -58,24 +63,25 @@ public class JobLoader {
             long tenSecondsLater = System.currentTimeMillis() + 1000 * 10;
             Iterator<List<TimerJob>> iterator = timerJobRepository.getIteratorOfUnhandledAndBefore(new Date(tenSecondsLater), 100);
             while (iterator.hasNext() && !TimerJobCoordinator.stoped.get()) {
-                List<TimerJob> next = iterator.next();
+                TransactionStatus transaction = transactionManager.getTransaction(new DefaultTransactionAttribute(TransactionDefinition.PROPAGATION_REQUIRED));
+                List<TimerJob> next;
                 try {
+                    next = iterator.next();
                     next.forEach(timerJob -> {
                         long slot = slot(timerJob);
                         timerJobQueue.addOneJobToWaitingQueue(timerJob, slot);
                     });
+                    transactionManager.commit(transaction);
                 } catch (Exception e) {
-                    if (next != null && !next.isEmpty()) {
-                        List<TimerJob> timerJobs = timerJobRepository.updateStatus(next, TimerJob.TimerJobStatus.UNHANDLED.name());
-                        List<Long> list = timerJobs.parallelStream().map(TimerJob::getId).toList();
-                        log.warn("加载任务 {} 过程发生错误，已回滚", JsonUtils.INSTANCE.toJsonString(list));
-                    }
+                    transactionManager.rollback(transaction);
+                    log.warn("加载任务 过程发生错误，已回滚");
                 }
             }
         } finally {
             if (acquired.get()) {
                 TimerJobCoordinator.lifeCycleLock.readLock().unlock();
             }
+
         }
     }
 
