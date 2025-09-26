@@ -49,6 +49,7 @@ public class JobDispatcher {
                 } catch (Exception e) {
                     log.info(e.getMessage());
                 }
+                Thread.yield();
             }
         });
         dispatcherThread.setName("dispatcher");

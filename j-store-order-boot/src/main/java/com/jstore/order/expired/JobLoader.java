@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -36,7 +36,6 @@ public class JobLoader {
         this.timerJobRepository = timerJobRepository;
         this.timerJobConfig = timerJobConfig;
         this.timerJobQueue = jobRepository;
-
         this.transactionManager = transactionManager;
     }
 
@@ -63,10 +62,11 @@ public class JobLoader {
             long tenSecondsLater = System.currentTimeMillis() + 1000 * 10;
             Iterator<List<TimerJob>> iterator = timerJobRepository.getIteratorOfUnhandledAndBefore(new Date(tenSecondsLater), 100);
             while (iterator.hasNext() && !TimerJobCoordinator.stoped.get()) {
-                TransactionStatus transaction = transactionManager.getTransaction(new DefaultTransactionAttribute(TransactionDefinition.PROPAGATION_REQUIRED));
-                List<TimerJob> next;
+
+                DefaultTransactionDefinition transactionDefinition = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRED);
+                TransactionStatus transaction = transactionManager.getTransaction(transactionDefinition);
                 try {
-                    next = iterator.next();
+                    List<TimerJob> next = iterator.next();
                     next.forEach(timerJob -> {
                         long slot = slot(timerJob);
                         timerJobQueue.addOneJobToWaitingQueue(timerJob, slot);
@@ -74,14 +74,12 @@ public class JobLoader {
                     transactionManager.commit(transaction);
                 } catch (Exception e) {
                     transactionManager.rollback(transaction);
-                    log.warn("加载任务 过程发生错误，已回滚");
                 }
             }
         } finally {
             if (acquired.get()) {
                 TimerJobCoordinator.lifeCycleLock.readLock().unlock();
             }
-
         }
     }
 
