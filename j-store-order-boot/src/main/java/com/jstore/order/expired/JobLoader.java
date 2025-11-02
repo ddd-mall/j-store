@@ -44,7 +44,7 @@ public class JobLoader {
      */
     @Scheduled(cron = "${timer.job.producer.cron: */5 * * * * ?}")
     public void loadJobsFromDbToRedis() {
-        if (TimerJobCoordinator.stoped.get()) {
+        if (TimerJobCoordinator.stopped.get()) {
             return;
         }
         AtomicBoolean acquired = new AtomicBoolean(false);
@@ -61,7 +61,7 @@ public class JobLoader {
         try {
             long tenSecondsLater = System.currentTimeMillis() + 1000 * 10;
             Iterator<List<TimerJob>> iterator = timerJobRepository.getIteratorOfUnhandledAndBefore(new Date(tenSecondsLater), 100);
-            while (iterator.hasNext() && !TimerJobCoordinator.stoped.get()) {
+            while (iterator.hasNext() && !TimerJobCoordinator.stopped.get()) {
 
                 DefaultTransactionDefinition transactionDefinition = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRED);
                 TransactionStatus transaction = transactionManager.getTransaction(transactionDefinition);

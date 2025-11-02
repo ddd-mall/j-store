@@ -43,7 +43,7 @@ public class JobDispatcher {
 
     public void start() {
         Thread dispatcherThread = new Thread(() -> {
-            while (!TimerJobCoordinator.stoped.get()) {
+            while (!TimerJobCoordinator.stopped.get()) {
                 try {
                     dispatch();
                 } catch (Exception e) {
@@ -68,26 +68,23 @@ public class JobDispatcher {
                     TimerJobCoordinator.lifeCycleLock.readLock().lock();
 
                     try {
-                        if (TimerJobCoordinator.stoped.get()) {
+                        if (TimerJobCoordinator.stopped.get()) {
                             log.info("定时任务中心-调度器已停止，将不再分配任务");
                             return;
                         }
                         job = jobRepository.getOneJobFromWaitingQueue(topic, slot);
-                        job.ifPresent(timerJob -> {
-                            TimerJobCoordinator.handlingJobs.incrementAndGet();
-                            executorService.execute(() -> {
-                                try {
-                                    new Worker(jobRepository, handlers).handle(timerJob, finalSlot);
-                                } finally {
-                                    TimerJobCoordinator.handlingJobs.decrementAndGet();
-                                }
-                            });
-
-                        });
+                        job.ifPresent(timerJob -> executorService.execute(() -> {
+                            try {
+                                TimerJobCoordinator.handlingJobs.incrementAndGet();
+                                new Worker(jobRepository, handlers).handle(timerJob, finalSlot);
+                            } finally {
+                                TimerJobCoordinator.handlingJobs.decrementAndGet();
+                            }
+                        }));
                     } catch (Exception e) {
                         if (job != null && job.isPresent()) {
                             log.error("Failed to dispatch job: {} in topic: {} at slot: {}", job.get(), topic, finalSlot, e);
-                            TimerJobCoordinator.handlingJobs.decrementAndGet();
+
                             jobRepository.rollbackOnFailure(job.get(), finalSlot);
                         } else {
                             log.warn("Failed to dispatch job in topic: {} at slot: {}, possibly during shutdown: {}", topic, finalSlot, e.getMessage());
