@@ -15,7 +15,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class TimerJobCoordinator implements SmartLifecycle {
     public static final ReentrantReadWriteLock lifeCycleLock = new ReentrantReadWriteLock();
     public static final AtomicLong handlingJobs = new AtomicLong(0);
-    public static volatile AtomicBoolean stoped = new AtomicBoolean(true);
+    public static volatile AtomicBoolean stopped = new AtomicBoolean(true);
 
     private final JobDispatcher jobDispatcher;
 
@@ -27,7 +27,7 @@ public class TimerJobCoordinator implements SmartLifecycle {
 
     @Override
     public void start() {
-        if (stoped.compareAndSet(true, false)) {
+        if (stopped.compareAndSet(true, false)) {
             jobDispatcher.start();
             log.info("定时任务中心已启动");
         } else {
@@ -39,7 +39,7 @@ public class TimerJobCoordinator implements SmartLifecycle {
 
     @Override
     public void stop() {
-        if (!stoped.compareAndSet(false, true)) {
+        if (!stopped.compareAndSet(false, true)) {
             log.info("定时任务中心已经是关闭状态");
         }
         log.info("定时任务中心正在关闭");
@@ -64,6 +64,6 @@ public class TimerJobCoordinator implements SmartLifecycle {
 
     @Override
     public boolean isRunning() {
-        return !stoped.get();
+        return !stopped.get();
     }
 }

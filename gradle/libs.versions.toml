@@ -14,6 +14,7 @@ fastexcel = "1.1.0"
 junit = "1.11.4"
 mockito = "5.14.0"
 lombok = "1.18.36"
+redisson = "3.52.0"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
@@ -30,7 +31,7 @@ spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-star
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
 spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools" }
 spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux" }
-spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "spring-boot" }
+spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
 spring-data-commons = { module = "org.springframework.data:spring-data-commons" }
 spring-data-redis = { module = "org.springframework.data:spring-data-redis" }
 spring-data-jpa = { module = "org.springframework.data:spring-data-jpa" }
@@ -70,6 +71,7 @@ jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-
 fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version = "3.19.0" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+redisson-spring-boot-starter = { module = "org.redisson:redisson-spring-boot-starter", version.ref = "redisson" }
 
 [plugins]
 springframework = { id = "org.springframework.boot", version.ref = "spring-boot" }

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: j-store-order-service
+spec:
+  selector:
+    app: j-store-order
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: NodePort
+

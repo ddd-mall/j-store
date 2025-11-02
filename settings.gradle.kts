@@ -10,3 +10,6 @@ include("j-store-goods-boot")
 include("j-store-common-spring")
 include("j-store-application")
 include("j-store-order-infrastructure")
+
+include("j-store-order-infrastructure:j-store-rate-limiter")
+include("j-store-rate-limiter")

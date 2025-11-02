@@ -68,7 +68,7 @@ public class TimerJobRepository {
 
     public Optional<TimerJob> getOneJobFromWaitingQueue(String topic, long slot) {
         long currentTimeStamp = System.currentTimeMillis();
-        if (TimerJobCoordinator.stoped.get()) {
+        if (TimerJobCoordinator.stopped.get()) {
             return Optional.empty();
         }
         List<Object> result;
