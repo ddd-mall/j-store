@@ -51,9 +51,12 @@ spring-cloud-starter-kubernetes-fabric8 = { module = "org.springframework.cloud:
 spring-cloud-starter-kubernetes-fabric8-config = { module = "org.springframework.cloud:spring-cloud-starter-kubernetes-fabric8-config" }
 spring-cloud-starter-kubernetes-client = { module = "org.springframework.cloud:spring-cloud-starter-kubernetes-client" }
 spring-cloud-starter-kubernetes-client-config = { module = "org.springframework.cloud:spring-cloud-starter-kubernetes-client-config" }
+
 spring-cloud-alibaba-dependencies = { module = "com.alibaba.cloud:spring-cloud-alibaba-dependencies", version.ref = "spring-cloud-alibaba" }
 spring-cloud-starter-alibaba-nacos-discovery = { module = "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery" }
 spring-cloud-starter-alibaba-nacos-config = { module = "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config" }
+spring-cloud-starter-alibaba-sentinel = {module = "com.alibaba.cloud:spring-cloud-starter-alibaba-sentinel"}
+
 seata-all = { module = "org.apache.seata:seata-all", version.ref = "seata" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }

@@ -39,6 +39,7 @@ dependencies {
     implementation(libs.spring.boot.starter.data.redis)
 
     implementation(platform(libs.spring.boot.dependencies))
+    annotationProcessor(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.webflux)
