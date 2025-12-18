@@ -1,9 +1,9 @@
 package com.jstore.order.domain.order.event
 
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.order.domain.order.Order
+import com.jstore.order.domain.order.OrderImpl
 
 class OrderCreatedEvent(
     override val source: Any,
-    val order: Order,
+    val orderImpl: OrderImpl,
 ) : DomainEvent

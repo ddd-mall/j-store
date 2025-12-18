@@ -3,11 +3,11 @@ package com.jstore.order.domain.inventory.command
 import com.jstore.order.acl.OuterInventoryServiceACL
 import com.jstore.order.domain.inventory.InventoryFactory
 import com.jstore.order.domain.inventory.InventoryRepository
-import com.jstore.order.domain.order.Order
+import com.jstore.order.domain.order.OrderImpl
 import org.springframework.stereotype.Service
 
 class BatchCreateAndReserveCMD(
-    val order: Order,
+    val orderImpl: OrderImpl,
 )
 
 
@@ -19,16 +19,16 @@ class BatchCreateAndReserveHandler(
 ) {
 
     fun handle(cmd: BatchCreateAndReserveCMD) {
-        val inventories = getInventoryBatchCreateCMD(cmd.order).map(inventoryFactory::create)
+        val inventories = getInventoryBatchCreateCMD(cmd.orderImpl).map(inventoryFactory::create)
         outerInventoryServiceACL.reserveAll(inventories)
         inventories.forEach { inventory -> inventory.reserve() }
         inventoryRepository.saveAll(inventories)
     }
 
-    private fun getInventoryBatchCreateCMD(order: Order): List<CreateInventoryCMD> {
-        return order.orderItems.map { orderItem ->
+    private fun getInventoryBatchCreateCMD(orderImpl: OrderImpl): List<CreateInventoryCMD> {
+        return orderImpl.orderItemImpls.map { orderItem ->
             CreateInventoryCMD(
-                order.id,
+                orderImpl.id,
                 orderItem.goodsId,
                 orderItem.quantity
             )

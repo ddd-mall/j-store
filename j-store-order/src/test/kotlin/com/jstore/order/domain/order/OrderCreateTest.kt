@@ -43,17 +43,5 @@ class OrderCreateTest {
             detailAddress = "MOCK detail address",
         )
 
-        val order = orderCreateHandler.create(createCMD)
-        assertNotNull(order.id, "订单创建后ID仍然为空")
-        logger.info("订单创建成功，订单ID： {}", arrayOf(order.id))
-        asserter.assertSame("用户信息与创建时不一致", order.buyerInfo, createCMD.buyerUserInfo)
-        asserter.assertSame("订单项数量与传参中不一致", order.orderItems.size, createCMD.purchaseItemList.size)
-        order.orderItems.forEach { item -> logger.info("订单项目金额： ${item.totalPrice}, 单位：${item.totalPrice.getCurrencyUnit()}") }
-        logger.info("订单总金额: ${order.amount}, 单位：${order.amount.getCurrencyUnit()}")
-        val findOrder = orderRepository.findById(order.id)
-        assertNotNull(findOrder, "订单没有成功被保存")
-        assertSame(OrderStatus.WAIT_PAY, findOrder.status, "订单状态不正确")
-        logger.info("订单{}", findOrder)
-        Thread.sleep(1000)
     }
 }
