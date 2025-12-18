@@ -15,7 +15,7 @@ class ReserveInventoryWhenOrderCreate(
     override fun onDomainEvent(event: DomainEvent) {
         when (event) {
             is OrderCreatedEvent -> {
-                batchCreateAndReserveHandler.handle(BatchCreateAndReserveCMD(event.order))
+                batchCreateAndReserveHandler.handle(BatchCreateAndReserveCMD(event.orderImpl))
             }
         }
     }

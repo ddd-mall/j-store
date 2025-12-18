@@ -2,7 +2,7 @@ package com.jstore.order.domain.order.command
 
 import com.jstore.order.domain.order.UserInfo
 import com.jstore.order.acl.GoodsId
-import com.jstore.order.domain.order.Order
+import com.jstore.order.domain.order.OrderImpl
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderRepository
 import org.springframework.stereotype.Service
@@ -47,9 +47,8 @@ class OrderCreateHandler(
         rollbackFor = [Exception::class],
         propagation = Propagation.REQUIRED
     )
-    fun create(cmd: OrderCreateCMD): Order {
+    fun create(cmd: OrderCreateCMD): OrderImpl {
         val order = this.orderFactory.create(cmd)
-        order.initial()
         return orderRepository.save(order)
     }
 }

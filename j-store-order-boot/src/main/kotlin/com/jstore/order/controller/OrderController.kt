@@ -1,7 +1,7 @@
 package com.jstore.com.jstore.order.controller
 
 import com.jstore.order.domain.order.command.OrderCreateHandler
-import com.jstore.order.domain.order.Order
+import com.jstore.order.domain.order.OrderImpl
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCancelHandler
 import com.jstore.order.domain.order.command.OrderCreateCMD
@@ -19,7 +19,7 @@ class OrderController(
     private val orderCancelHandler: OrderCancelHandler,
 ) {
     @PostMapping("/create")
-    fun create(@RequestBody @Validated orderCreateCMD: OrderCreateCMD): Order {
+    fun create(@RequestBody @Validated orderCreateCMD: OrderCreateCMD): OrderImpl {
         return orderCreateHandler.create(orderCreateCMD)
     }
 
