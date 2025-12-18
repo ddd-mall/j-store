@@ -2,10 +2,12 @@ package com.jstore.common.framework
 
 import com.jstore.common.framework.event.DomainEvent
 import java.util.*
-import kotlin.collections.ArrayList
+import java.util.concurrent.LinkedBlockingQueue
 
-interface AgreeGate<I : Identify> : Entity<I>  {
+interface AgreeGate<I : Identify> : Entity<I> {
     val domainEventQueue: Queue<DomainEvent>
+        get() = LinkedBlockingQueue()
+
     fun publishEvent(domainEvent: DomainEvent) {
         domainEventQueue.add(domainEvent)
     }

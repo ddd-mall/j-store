@@ -1,11 +1,8 @@
 package com.jstore.order.domain.order
 
-import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.item.OrderItem
 import java.time.LocalDateTime
-import java.util.*
-import java.util.concurrent.LinkedBlockingQueue
 
 
 class OrderImpl(
@@ -19,7 +16,6 @@ class OrderImpl(
     val createTime: LocalDateTime?,
     val updateTime: LocalDateTime?,
 ) : Order {
-    override val domainEventQueue: Queue<DomainEvent> = LinkedBlockingQueue()
 
 
     override fun reserve(): Order {
