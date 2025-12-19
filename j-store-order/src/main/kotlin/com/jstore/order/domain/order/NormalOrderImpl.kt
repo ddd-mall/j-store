@@ -1,21 +1,24 @@
 package com.jstore.order.domain.order
 
+import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.item.OrderItem
 import java.time.LocalDateTime
+import java.util.*
 
 
-class OrderImpl(
+class NormalOrderImpl(
     override val id: OrderId,
-    val buyerInfo: UserInfo,
-    val orderItemImpls: List<OrderItem>,
-    var shippingAddressInfo: GeoAddressInfo,
-    var status: OrderStatus,
-    var amount: Price,
-    var actualPay: Price,
-    val createTime: LocalDateTime?,
-    val updateTime: LocalDateTime?,
+    override val buyerInfo: UserInfo,
+    override val orderItemImpls: List<OrderItem>,
+    override var shippingAddressInfo: GeoAddressInfo,
+    override var status: OrderStatus,
+    override var amount: Price,
+    override var actualPay: Price,
+    override val createTime: LocalDateTime?,
+    override val updateTime: LocalDateTime?,
 ) : Order {
+    override val domainEventQueue: Queue<DomainEvent> = ArrayDeque<DomainEvent>()
 
 
     override fun reserve(): Order {

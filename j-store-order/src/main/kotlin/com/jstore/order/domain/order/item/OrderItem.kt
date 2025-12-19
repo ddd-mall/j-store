@@ -12,7 +12,4 @@ interface OrderItem {
     val totalPrice: Price
     var itemStatus: OrderItemStatus
 
-    fun cancel()
-
-    fun shipping()
 }

@@ -18,7 +18,7 @@ class MockOrderCreatedEventListener : DomainEventListener<OrderCreatedEvent> {
     override fun onDomainEvent(event: DomainEvent) {
         when (event) {
             is OrderCreatedEvent -> {
-                log.info("order ${event.orderImpl.id.value} has been created")
+                log.info("order ${event.order.id.value} has been created")
             }
         }
     }

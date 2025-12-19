@@ -5,14 +5,12 @@ import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.order.config.TestBeanConfig.orderCreateHandler
 import com.jstore.order.config.TestBeanConfig.orderRepository
-import com.jstore.order.domain.order.OrderStatus
 import com.jstore.order.domain.order.UserInfo
-import com.jstore.order.domain.order.command.OrderCreateCMD
+import com.jstore.order.domain.order.command.NormalOrderCreateCMD
 import com.jstore.order.domain.order.command.PurchaseItem
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import kotlin.test.assertNotNull
-import kotlin.test.assertSame
 import kotlin.test.asserter
 
 class OrderCreateHandlerTest {
@@ -20,7 +18,7 @@ class OrderCreateHandlerTest {
 
     @Test
     fun orderCreateServiceTest() {
-        val createCMD = OrderCreateCMD(
+        val createCMD = NormalOrderCreateCMD(
             token = "mock token",
             buyerUserInfo = UserInfo(
                 1L,
