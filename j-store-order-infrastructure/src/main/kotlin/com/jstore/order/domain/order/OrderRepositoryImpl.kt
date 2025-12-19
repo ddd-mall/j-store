@@ -8,8 +8,8 @@ import com.jstore.common.framework.event.DomainEventRepository
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.json.JsonUtils
-import com.jstore.order.acl.GoodsId
 import com.jstore.order.domain.order.item.NormalItem
+import com.jstore.order.domain.order.item.OrderItemId
 import com.jstore.order.domain.order.persistence.OrderItemPO
 import com.jstore.order.domain.order.persistence.OrderItemPOJpaRepository
 import com.jstore.order.domain.order.persistence.OrderPO
@@ -25,14 +25,14 @@ import java.time.LocalDateTime
 
 @Repository
 class OrderRepositoryImpl(
-    @Nullable
+    @param:Nullable
     private val domainEventRepository: DomainEventRepository?,
     private val domainEventPublisher: DomainEventPublisher,
     private val orderPOJpaRepository: OrderPOJpaRepository,
     private val orderItemPOJpaRepository: OrderItemPOJpaRepository,
 ) : OrderRepository {
 
-    override fun findByBuyerUserId(uid: Long): List<OrderImpl> {
+    override fun findByBuyerUserId(uid: Long): List<NormalOrderImpl> {
         val orderPOS = orderPOJpaRepository.findOrderPOSByUid(uid)
         if (orderPOS.isEmpty()) {
             return listOf()
@@ -42,7 +42,7 @@ class OrderRepositoryImpl(
         return OrderConverter.pos2Entities(orderPOS, orderItemPOS)
     }
 
-    override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<OrderImpl> {
+    override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<NormalOrderImpl> {
         val orderPOPage = orderPOJpaRepository.findAllByUidOrderByCreateTimeDesc(
             uid,
             PageRequest.of(currentPage, pageSize, Sort.by(listOf(Sort.Order.desc("create_time"))))
@@ -55,27 +55,24 @@ class OrderRepositoryImpl(
     }
 
     @Transactional(rollbackOn = [Exception::class])
-    override fun save(entity: OrderImpl): OrderImpl {
-        (entity as? OrderImpl)?.let {
-            val holder: OrderPOHolder = OrderConverter.entity2POHolder(entity)
+    override fun save(entity: NormalOrderImpl): NormalOrderImpl {
+        val holder: OrderPOHolder = OrderConverter.entity2POHolder(entity)
 
-            val savedOrderPO = holder.orderPO.let {
-                orderPOJpaRepository.save(it.apply { updateTime = LocalDateTime.now() })
-            }
-            val savedOrderItemPOs = if (holder.orderItemPOS.isNotEmpty()) {
-                orderItemPOJpaRepository.saveAll(holder.orderItemPOS)
-            } else {
-                listOf()
-            }
-            val unpublishedDomainEvent = entity.getUnpublishedDomainEvent()
-            unpublishedDomainEvent.forEach(domainEventPublisher::publishEvent)
-            domainEventRepository?.saveAll(unpublishedDomainEvent)
-            return OrderConverter.po2Entity(savedOrderPO, savedOrderItemPOs)
+        holder.orderPO.updateTime = LocalDateTime.now()
+        val savedOrderPO = orderPOJpaRepository.save(holder.orderPO)
+
+        val savedOrderItemPOs = if (holder.orderItemPOS.isNotEmpty()) {
+            orderItemPOJpaRepository.saveAll(holder.orderItemPOS)
+        } else {
+            listOf()
         }
-        throw CommonErrors.INVALID_PARAM
+        val unpublishedDomainEvent = entity.getDomainEvent()
+        domainEventRepository?.saveAll(unpublishedDomainEvent)
+        unpublishedDomainEvent.forEach(domainEventPublisher::publishEvent)
+        return OrderConverter.po2Entity(savedOrderPO, savedOrderItemPOs)
     }
 
-    override fun findById(id: OrderId): OrderImpl? {
+    override fun findById(id: OrderId): NormalOrderImpl? {
         orderPOJpaRepository.findByIdOrNull(id.value)?.let { orderPO ->
             orderItemPOJpaRepository.findAllByOrderId(id.value).let { orderItemPOs ->
                 return OrderConverter.po2Entity(orderPO, orderItemPOs)
@@ -93,19 +90,18 @@ open class OrderPOHolder {
 
 object OrderConverter {
 
-    fun po2Entity(orderPO: OrderPO, orderItemPOList: Collection<OrderItemPO>): OrderImpl {
+    fun po2Entity(orderPO: OrderPO, orderItemPOList: Collection<OrderItemPO>): NormalOrderImpl {
         val id = OrderId(orderPO.orderId)
         val buyerInfo = UserInfo(orderPO.uid, PhoneNumber(orderPO.phoneNumber), orderPO.userName)
         val items: List<NormalItem> = orderItemPOList.map { orderItemPO2Entity(it) }.toList()
         val addressInfo: GeoAddressInfo = json2AddressInfo(orderPO.addressInfo)
 
-        return OrderImpl(
+        return NormalOrderImpl(
             id = id,
             buyerInfo = buyerInfo,
             orderItemImpls = items,
             shippingAddressInfo = addressInfo,
             status = OrderStatus.valueOf(orderPO.positiveStatus),
-
             amount = Price(orderPO.amount),
             actualPay = Price(orderPO.actualPay),
             createTime = orderPO.createTime,
@@ -118,7 +114,7 @@ object OrderConverter {
     fun pos2Entities(
         orderPOS: Collection<OrderPO>,
         orderItemPOS: Collection<OrderItemPO>,
-    ): List<OrderImpl> {
+    ): List<NormalOrderImpl> {
         val itemMap: Map<Long, List<OrderItemPO>> = orderItemPOS.groupBy { item -> item.orderId }
         return orderPOS.map { orderPO ->
             po2Entity(
@@ -131,8 +127,6 @@ object OrderConverter {
     private fun orderItemPO2Entity(itemPO: OrderItemPO): NormalItem {
         return NormalItem(
             id = OrderItemId(itemPO.orderItemId),
-            goodsId = GoodsId(itemPO.spuId.toLong(), itemPO.skuId.toLong()),
-            goodsVersion = itemPO.goodsVersion,
             quantity = itemPO.quantity,
             unitPrice = Price(itemPO.unitPrice),
             totalPrice = Price(itemPO.totalPrice),
@@ -141,29 +135,26 @@ object OrderConverter {
     }
 
 
-    fun entity2POHolder(orderImpl: OrderImpl): OrderPOHolder {
+    fun entity2POHolder(normalOrderImpl: NormalOrderImpl): OrderPOHolder {
         return OrderPOHolder().apply {
             orderPO = OrderPO(
-                orderId = orderImpl.id.value,
-                uid = orderImpl.buyerInfo.uid,
-                phoneNumber = orderImpl.buyerInfo.phoneNumber?.value ?: "",
-                userName = orderImpl.buyerInfo.userName ?: "",
-                addressInfo = AddressInfo2JsonString(orderImpl.shippingAddressInfo),
-                positiveStatus = orderImpl.status.name,
-                amount = orderImpl.amount.getBasicValue(),
-                actualPay = orderImpl.actualPay.getBasicValue(),
-                createTime = orderImpl.createTime,
-                updateTime = orderImpl.updateTime
+                orderId = normalOrderImpl.id.value,
+                uid = normalOrderImpl.buyerInfo.uid,
+                phoneNumber = normalOrderImpl.buyerInfo.phoneNumber?.value ?: "",
+                userName = normalOrderImpl.buyerInfo.userName ?: "",
+                addressInfo = AddressInfo2JsonString(normalOrderImpl.shippingAddressInfo),
+                positiveStatus = normalOrderImpl.status.name,
+                amount = normalOrderImpl.amount.getBasicValue(),
+                actualPay = normalOrderImpl.actualPay.getBasicValue(),
+                createTime = normalOrderImpl.createTime,
+                updateTime = normalOrderImpl.updateTime
             )
 
-            orderItemPOS = orderImpl.orderItemImpls.map {
+            orderItemPOS = normalOrderImpl.orderItemImpls.map {
                 OrderItemPO(
                     orderItemId = it.id.value,
-                    orderId = orderImpl.id.value,
+                    orderId = normalOrderImpl.id.value,
                     quantity = it.quantity,
-                    skuId = it.goodsId.skuId.toString(),
-                    spuId = it.goodsId.spuId.toString(),
-                    goodsVersion = it.goodsVersion,
                     unitPrice = it.unitPrice.getBasicValue(),
                     totalPrice = it.totalPrice.getBasicValue(),
                     itemStatus = it.itemStatus,

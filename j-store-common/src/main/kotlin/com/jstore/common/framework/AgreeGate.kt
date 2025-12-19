@@ -2,21 +2,19 @@ package com.jstore.common.framework
 
 import com.jstore.common.framework.event.DomainEvent
 import java.util.*
-import java.util.concurrent.LinkedBlockingQueue
 
 interface AgreeGate<I : Identify> : Entity<I> {
     val domainEventQueue: Queue<DomainEvent>
-        get() = LinkedBlockingQueue()
 
     fun publishEvent(domainEvent: DomainEvent) {
         domainEventQueue.add(domainEvent)
     }
 
-    fun getUnpublishedDomainEvent(): List<DomainEvent> {
+    fun getDomainEvent(): List<DomainEvent> {
         val mutableDomainEvents: MutableList<DomainEvent> = ArrayList()
 
-        while (true) {
-            val domainEvent = domainEventQueue.poll() ?: break
+        while (domainEventQueue.isNotEmpty()) {
+            val domainEvent = domainEventQueue.poll()
             mutableDomainEvents.add(domainEvent)
         }
         return mutableDomainEvents.toList()

@@ -10,21 +10,4 @@ class NormalItem(
     override val unitPrice: Price,
     override val totalPrice: Price,
     override var itemStatus: OrderItemStatus,
-) : OrderItem {
-    override fun cancel() {
-        if (itemStatus == OrderItemStatus.CANCELED) {
-            return
-        }
-        itemStatus = OrderItemStatus.CANCELED
-    }
-
-    override fun shipping() {
-        if (itemStatus == OrderItemStatus.SHIPPING) {
-            return
-        }
-        if (itemStatus == OrderItemStatus.CANCELED) {
-            return
-        }
-        itemStatus = OrderItemStatus.SHIPPING
-    }
-}
+) : OrderItem

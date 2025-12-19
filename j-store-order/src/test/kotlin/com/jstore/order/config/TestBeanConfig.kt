@@ -9,7 +9,7 @@ import com.jstore.order.domain.inventory.MockInventoryRepositoryImpl
 import com.jstore.order.domain.order.MockDomainEventPublisher
 import com.jstore.order.domain.order.MockOrderCreatedEventListener
 import com.jstore.order.domain.order.MockOrderRepository
-import com.jstore.order.domain.order.OrderFactory
+import com.jstore.order.domain.order.NormalOrderFactory
 import com.jstore.order.framwork.SpringMockDomainEventBus
 import com.jstore.order.domain.order.command.OrderCreateHandler
 
@@ -22,7 +22,7 @@ object TestBeanConfig {
     val orderRepository = MockOrderRepository()
     private val springMockDomainEventBus = SpringMockDomainEventBus(businessExecutor)
     private val mockDomainEventPublisher = MockDomainEventPublisher(springMockDomainEventBus)
-    private val mockOrderFactory = OrderFactory(
+    private val mockNormalOrderFactory = NormalOrderFactory(
         goodsService = goodsService,
         geoAddressService = MockAddressService(),
         snowFlakSequence = snowFlakSequence
@@ -38,7 +38,7 @@ object TestBeanConfig {
 
     val orderCreateHandler = OrderCreateHandler(
         orderRepository = orderRepository,
-        orderFactory = mockOrderFactory,
+        normalOrderFactory = mockNormalOrderFactory,
     )
 
 

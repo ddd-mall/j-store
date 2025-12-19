@@ -1,10 +1,10 @@
 package com.jstore.com.jstore.order.controller
 
 import com.jstore.order.domain.order.command.OrderCreateHandler
-import com.jstore.order.domain.order.OrderImpl
+import com.jstore.order.domain.order.NormalOrderImpl
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCancelHandler
-import com.jstore.order.domain.order.command.OrderCreateCMD
+import com.jstore.order.domain.order.command.NormalOrderCreateCMD
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -19,8 +19,8 @@ class OrderController(
     private val orderCancelHandler: OrderCancelHandler,
 ) {
     @PostMapping("/create")
-    fun create(@RequestBody @Validated orderCreateCMD: OrderCreateCMD): OrderImpl {
-        return orderCreateHandler.create(orderCreateCMD)
+    fun create(@RequestBody @Validated normalOrderCreateCMD: NormalOrderCreateCMD): NormalOrderImpl {
+        return orderCreateHandler.create(normalOrderCreateCMD)
     }
 
     @PutMapping("/cancel")

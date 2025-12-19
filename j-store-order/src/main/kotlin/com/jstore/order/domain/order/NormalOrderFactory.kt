@@ -4,28 +4,29 @@ import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.properties.Price.Companion.Commonly.sumOf
 import com.jstore.order.domain.order.command.PurchaseItem
-import com.jstore.order.domain.order.command.OrderCreateCMD
+import com.jstore.order.domain.order.command.NormalOrderCreateCMD
 import com.jstore.order.acl.GeoAddressService
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.GoodsInfo
 import com.jstore.order.acl.GoodsService
+import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.item.NormalItem
 import com.jstore.order.domain.order.item.OrderItemId
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
 @Service
-class OrderFactory(
+class NormalOrderFactory(
     private val goodsService: GoodsService,
     private val geoAddressService: GeoAddressService,
     private val snowFlakSequence: SnowFlakSequence,
 ) {
 
-    fun create(createCmd: OrderCreateCMD): OrderImpl {
+    fun create(createCmd: NormalOrderCreateCMD): NormalOrderImpl {
 
-        val orderItemImpls: List<NormalItem> = createOrderItems(createCmd)
+        val orderItemImpls: List<NormalItem> = buildOrderItems(createCmd)
 
-        return OrderImpl(
+        val normalOrderImpl = NormalOrderImpl(
             id = OrderId(snowFlakSequence.nextId()),
             buyerInfo = createCmd.buyerUserInfo,
             orderItemImpls = orderItemImpls,
@@ -36,14 +37,16 @@ class OrderFactory(
             createTime = LocalDateTime.now(),
             updateTime = LocalDateTime.now()
         )
+        normalOrderImpl.publishEvent(OrderCreatedEvent(this, normalOrderImpl))
+        return normalOrderImpl
     }
 
-    private fun queryAddressInfoDetail(createCmd: OrderCreateCMD): GeoAddressInfo {
+    private fun queryAddressInfoDetail(createCmd: NormalOrderCreateCMD): GeoAddressInfo {
         return geoAddressService.getByDistrictCode(createCmd.districtCode)
     }
 
 
-    private fun createOrderItems(createCmd: OrderCreateCMD): List<NormalItem> {
+    private fun buildOrderItems(createCmd: NormalOrderCreateCMD): List<NormalItem> {
         val goodsInfoQueryHelper: GoodsInfoQueryHelper = queryGoodsInfo(createCmd)
 
         return createCmd.purchaseItemList.map { purchaseItem: PurchaseItem ->
@@ -62,7 +65,7 @@ class OrderFactory(
         )
     }
 
-    private fun queryGoodsInfo(createCmd: OrderCreateCMD): GoodsInfoQueryHelper {
+    private fun queryGoodsInfo(createCmd: NormalOrderCreateCMD): GoodsInfoQueryHelper {
         val goodsIdList: List<GoodsId> = createCmd.purchaseItemList.map { it.mapToGoodsId() }.toList()
         return GoodsInfoQueryHelper(goodsService.queryGoods(goodsIdList))
     }

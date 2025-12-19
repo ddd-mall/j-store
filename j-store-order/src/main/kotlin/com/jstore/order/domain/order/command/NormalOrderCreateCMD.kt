@@ -1,19 +1,16 @@
 package com.jstore.order.domain.order.command
 
-import com.jstore.order.domain.order.UserInfo
 import com.jstore.order.acl.GoodsId
-import com.jstore.order.domain.order.OrderImpl
-import com.jstore.order.domain.order.OrderFactory
+import com.jstore.order.domain.order.NormalOrderFactory
+import com.jstore.order.domain.order.NormalOrderImpl
 import com.jstore.order.domain.order.OrderRepository
-import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
+import com.jstore.order.domain.order.UserInfo
 import java.math.BigDecimal
 
 /**
  * 普通订单创建命令，
  */
-class OrderCreateCMD(
+class NormalOrderCreateCMD(
     val token: String,
     val buyerUserInfo: UserInfo,
     val purchaseItemList: List<PurchaseItem>,
@@ -37,18 +34,13 @@ class PurchaseItem(
 }
 
 
-@Service
 class OrderCreateHandler(
     private val orderRepository: OrderRepository,
-    private val orderFactory: OrderFactory,
+    private val normalOrderFactory: NormalOrderFactory,
 ) {
 
-    @Transactional(
-        rollbackFor = [Exception::class],
-        propagation = Propagation.REQUIRED
-    )
-    fun create(cmd: OrderCreateCMD): OrderImpl {
-        val order = this.orderFactory.create(cmd)
+    fun create(cmd: NormalOrderCreateCMD): NormalOrderImpl {
+        val order = this.normalOrderFactory.create(cmd)
         return orderRepository.save(order)
     }
 }

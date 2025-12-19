@@ -24,9 +24,6 @@ class OrderItemPO(
     val orderItemId: Long,
     @Column(name = "order_id", nullable = false, updatable = false)
     var orderId: Long,
-    var spuId: String,
-    var skuId: String,
-    var goodsVersion: Long,
     var quantity: BigDecimal,
     var unitPrice: BigDecimal,
     var totalPrice: BigDecimal,

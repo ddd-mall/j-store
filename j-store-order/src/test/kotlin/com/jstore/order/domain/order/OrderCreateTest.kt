@@ -4,15 +4,10 @@ import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.properties.PhoneNumber
 
-import com.jstore.order.config.TestBeanConfig.orderRepository
-import com.jstore.order.config.TestBeanConfig.orderCreateHandler
 import com.jstore.order.domain.order.command.PurchaseItem
-import com.jstore.order.domain.order.command.OrderCreateCMD
+import com.jstore.order.domain.order.command.NormalOrderCreateCMD
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
-import kotlin.test.assertNotNull
-import kotlin.test.assertSame
-import kotlin.test.asserter
 
 class OrderCreateTest {
     private val logger: Logger = LoggerFactory.getLogger(OrderCreateTest::class.java)
@@ -20,7 +15,7 @@ class OrderCreateTest {
 
     @Test
     fun createOrderTest() {
-        val createCMD = OrderCreateCMD(
+        val createCMD = NormalOrderCreateCMD(
             "mock token",
             buyerUserInfo = UserInfo(
                 uid = 1L,
