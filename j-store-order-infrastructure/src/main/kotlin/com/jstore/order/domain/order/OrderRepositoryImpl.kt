@@ -1,6 +1,5 @@
 package com.jstore.order.domain.order
 
-import com.jstore.common.errors.CommonErrors
 import com.jstore.common.framework.Page
 import com.jstore.common.framework.SortedPage
 import com.jstore.common.framework.event.DomainEventPublisher
@@ -110,7 +109,6 @@ object OrderConverter {
     }
 
 
-
     fun pos2Entities(
         orderPOS: Collection<OrderPO>,
         orderItemPOS: Collection<OrderItemPO>,
@@ -130,8 +128,7 @@ object OrderConverter {
             quantity = itemPO.quantity,
             unitPrice = Price(itemPO.unitPrice),
             totalPrice = Price(itemPO.totalPrice),
-            itemStatus = itemPO.itemStatus
-        )
+            )
     }
 
 
@@ -157,7 +154,6 @@ object OrderConverter {
                     quantity = it.quantity,
                     unitPrice = it.unitPrice.getBasicValue(),
                     totalPrice = it.totalPrice.getBasicValue(),
-                    itemStatus = it.itemStatus,
                 )
             }
         }

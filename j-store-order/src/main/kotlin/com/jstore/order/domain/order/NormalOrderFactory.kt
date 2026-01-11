@@ -61,7 +61,6 @@ class NormalOrderFactory(
             quantity = purchaseItem.quantity,
             unitPrice = goodsInfo.price,
             totalPrice = goodsInfo.price.multiple(purchaseItem.quantity),
-            itemStatus = OrderItemStatus.WAIT_SHIPPING
         )
     }
 
