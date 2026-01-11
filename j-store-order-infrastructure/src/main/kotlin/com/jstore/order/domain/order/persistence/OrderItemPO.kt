@@ -1,7 +1,6 @@
 package com.jstore.order.domain.order.persistence
 
 import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
-import com.jstore.order.domain.order.OrderItemStatus
 import jakarta.persistence.*
 import java.io.Serializable
 import java.math.BigDecimal
@@ -27,8 +26,6 @@ class OrderItemPO(
     var quantity: BigDecimal,
     var unitPrice: BigDecimal,
     var totalPrice: BigDecimal,
-    @Enumerated(EnumType.STRING)
-    var itemStatus: OrderItemStatus,
 ) : Serializable {
 
     companion object {
