@@ -1,5 +1,5 @@
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 rootProject.name = "j-store"
 include("j-store-common-core")
@@ -9,8 +9,3 @@ include("j-store-order-boot")
 include("j-store-goods")
 include("j-store-order-infrastructure")
 include("j-store-goods-infrastructure")
-
-include("j-store-order-infrastructure:j-store-rate-limiter")
-include("j-store-rate-limiter")
-include("j-store-spring-cloud-dubbo-starter")
-include("j-store-monolithic-starter")

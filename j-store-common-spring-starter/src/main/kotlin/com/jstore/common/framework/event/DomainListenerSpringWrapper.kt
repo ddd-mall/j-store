@@ -11,7 +11,10 @@ class DomainListenerSpringWrapper(
     override fun onApplicationEvent(event: ApplicationEvent) {
         (event as? PayloadApplicationEvent<*>)?.let {
             (it.payload as? DomainEvent)?.let { domainEvent ->
-                domainEventListener.onDomainEvent(domainEvent)
+                if (DomainEventListenerUtils.supportsEvent(domainEventListener, domainEvent)) {
+                    @Suppress("UNCHECKED_CAST")
+                    (domainEventListener as DomainEventListener<DomainEvent>).onDomainEvent(domainEvent)
+                }
             }
         }
     }
@@ -21,9 +24,14 @@ class DomainListenerSpringWrapper(
     }
 
     override fun supportsEventType(eventType: ResolvableType): Boolean {
-        val isPayLoadApplicationEvent = eventType.rawClass?.typeName == PayloadApplicationEvent::class.java.typeName
-        val isSupportsPayLoad = eventType.generics.size == 1 && domainEventListener.supportsEventType(eventType.generics[0])
-        return isPayLoadApplicationEvent && isSupportsPayLoad
+        val isPayloadApplicationEvent = eventType.rawClass == PayloadApplicationEvent::class.java
+        if (!isPayloadApplicationEvent) {
+            return false
+        }
+
+        val payloadType = eventType.generics.firstOrNull()?.resolve() ?: return false
+        val listenerEventType = DomainEventListenerUtils.getListeningEventType(domainEventListener) ?: return false
+        return listenerEventType.isAssignableFrom(payloadType)
     }
 
 
