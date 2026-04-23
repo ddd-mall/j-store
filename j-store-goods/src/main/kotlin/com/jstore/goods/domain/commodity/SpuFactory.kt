@@ -4,18 +4,16 @@ import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.SKUAppendCMD
-import org.springframework.stereotype.Component
 
 
 interface SpuFactory {
     fun create(createCmd: CommodityCreateCmd): Spu
 
-    fun update(createCmd: CommodityCreateCmd, old: Spu) : Spu
+    fun update(createCmd: CommodityCreateCmd, old: Spu): Spu
 
-    fun createSKU(skuAppendCMD: SKUAppendCMD) : List<Sku>
+    fun createSKU(skuAppendCMD: SKUAppendCMD): List<Sku>
 }
 
-@Component
 class SpuFactoryImpl(
     private val snowFlakSequence: SnowFlakSequence,
     private val domainEventPublisher: DomainEventPublisher,
@@ -25,7 +23,7 @@ class SpuFactoryImpl(
             id = SpuId(snowFlakSequence.nextId()),
             status = CommodityStatus.DRAFT,
             skus = ArrayList(),
-            name =  createCmd.spuName,
+            name = createCmd.spuName,
             domainEventPublisher = domainEventPublisher,
         )
     }

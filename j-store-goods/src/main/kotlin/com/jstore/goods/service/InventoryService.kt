@@ -9,11 +9,10 @@ import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.utils.*
 import com.jstore.goods.domain.inventory.*
-import org.springframework.stereotype.Service
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
-@Service
+
 class InventoryService(
     private val inventoryRepository: InventoryRepository,
     private val reservationRecordRepository: ReservationRecordRepository,

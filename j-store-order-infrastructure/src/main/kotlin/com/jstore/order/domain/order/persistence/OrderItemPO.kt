@@ -1,7 +1,6 @@
 package com.jstore.order.domain.order.persistence
 
-import com.jstore.common.persistent.jpa.hibernate.SnowFlakeId
-import jakarta.persistence.*
+import com.jstore.common.persistent.SnowFlakeId
 import java.io.Serializable
 import java.math.BigDecimal
 
