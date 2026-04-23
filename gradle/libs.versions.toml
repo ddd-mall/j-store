@@ -16,6 +16,9 @@ mockito = "5.14.0"
 lombok = "1.18.36"
 redisson = "3.52.0"
 
+openai-version = "4.15.0"
+dashscope-sdk-java = "2.22.5"
+
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-bom", version.ref = "spring-modulith-bom" }
@@ -57,6 +60,7 @@ spring-cloud-starter-alibaba-nacos-discovery = { module = "com.alibaba.cloud:spr
 spring-cloud-starter-alibaba-nacos-config = { module = "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config" }
 spring-cloud-starter-alibaba-sentinel = {module = "com.alibaba.cloud:spring-cloud-starter-alibaba-sentinel"}
 
+
 seata-all = { module = "org.apache.seata:seata-all", version.ref = "seata" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -75,7 +79,14 @@ fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version = "3.19.0" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 redisson-spring-boot-starter = { module = "org.redisson:redisson-spring-boot-starter", version.ref = "redisson" }
+money-api = {group = "javax.money", name = "money-api", version = "1.1" }
 
+
+# =========================
+# AI
+# =========================
+openai-java = {module = "com.openai:openai-java", version.ref = "openai-version" }
+dashscope-sdk-java = {group = 'com.alibaba', name = 'dashscope-sdk-java', version.ref = 'dashscope-sdk-java'}
 [plugins]
 springframework = { id = "org.springframework.boot", version.ref = "spring-boot" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version = "2.1.21" }

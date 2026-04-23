@@ -13,11 +13,14 @@ repositories {
 }
 
 dependencies {
-    api(libs.kotlin.stdlib)
-    api(libs.kotlin.reflect)
-    testImplementation(libs.mockito)
-    api(project(":j-store-common-core"))
-    testImplementation(libs.kotlin.test)
+    testImplementation(kotlin("test"))
+    implementation(platform(libs.spring.boot.dependencies))
+    api(libs.spring.data.jpa)
+    api(libs.spring.boot.starter.data.jpa)
+    api(libs.spring.data.jpa)
+    api(libs.spring.boot.starter.data.jpa)
+    api(libs.seata.all)
+    implementation(project(":j-store-common-core"))
 }
 
 tasks.test {

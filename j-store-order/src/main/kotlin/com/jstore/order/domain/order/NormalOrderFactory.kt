@@ -12,10 +12,8 @@ import com.jstore.order.acl.GoodsService
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.item.NormalItem
 import com.jstore.order.domain.order.item.OrderItemId
-import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
-@Service
 class NormalOrderFactory(
     private val goodsService: GoodsService,
     private val geoAddressService: GeoAddressService,

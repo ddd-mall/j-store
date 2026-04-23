@@ -12,17 +12,29 @@ repositories {
     mavenCentral()
 }
 
+
 dependencies {
-    api(libs.kotlin.stdlib)
-    api(libs.kotlin.reflect)
-    testImplementation(libs.mockito)
-    api(project(":j-store-common-core"))
+    implementation(libs.kotlin.reflect)
+    implementation(libs.kotlin.stdlib)
     testImplementation(libs.kotlin.test)
+
+    api(libs.guava)
+    api(libs.slf4j.api)
+    api(libs.seata.all)
+
+    api(platform(libs.jackson.bom))
+    api(libs.jackson.core)
+    api(libs.jackson.databind)
+    api(libs.jackson.annotations)
+    api(libs.jackson.module.kotlin)
+    api(libs.money.api)
+
 }
 
-tasks.test {
+tasks.withType<Test> {
     useJUnitPlatform()
 }
+
 kotlin {
     jvmToolchain(21)
 }

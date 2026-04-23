@@ -3,6 +3,9 @@ package com.jstore.order.domain.order
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.utils.string.StringUtils
 
+/**
+ * TODO: move to common module
+ */
 data class
 GeoAddressInfo(
     val districtCode: String,
