@@ -1,14 +1,23 @@
 package com.jstore.common.framework.event
 
-import org.springframework.core.ResolvableType
-import kotlin.reflect.jvm.javaType
-
+/**
+ * 领域事件监听器接口
+ * 
+ * 设计原则：
+ * 1. 纯领域模型，完全脱离框架依赖
+ * 2. 泛型约束：T 为该监听器处理的具体事件类型
+ * 3. 具体实现类通过泛型参数声明支持的事件类型
+ */
 interface DomainEventListener<T : DomainEvent> {
-    fun supportsAsyncExecution() = false
-    fun supportsEventType(eventType: ResolvableType): Boolean {
-        val type = this::class.supertypes[0].arguments[0].type ?: return false
-        return type.javaType == eventType.type
-    }
+    /**
+     * 监听器是否支持异步执行
+     * @return true 表示可以异步处理该事件，false 表示必须同步处理
+     */
+    fun supportsAsyncExecution(): Boolean = false
 
-    fun onDomainEvent(event: DomainEvent)
+    /**
+     * 处理领域事件
+     * @param event 具体的领域事件实例
+     */
+    fun onDomainEvent(event: T)
 }
