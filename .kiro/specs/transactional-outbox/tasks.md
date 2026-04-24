@@ -108,49 +108,49 @@
     - 生成多条不同 createdAt 的 OutboxEntry，验证投递到 DomainEventBus 的顺序与 createdAt 升序一致
     - **验证: 需求 2.4**
 
-  - [ ] 6.4 编写 Property 5 的属性测试：批次大小限制
+  - [x] 6.4 编写 Property 5 的属性测试：批次大小限制
     - **Property 5: 批次大小限制**
     - 生成超过 batchSize 数量的待投递条目，验证每次轮询获取的条目数量不超过 batchSize
     - **验证: 需求 2.5**
 
-  - [ ] 6.5 编写 Property 6 的属性测试：失败处理与死信转换
+  - [x] 6.5 编写 Property 6 的属性测试：失败处理与死信转换
     - **Property 6: 失败处理与死信转换**
     - 生成不同 retryCount 的 OutboxEntry，模拟投递失败，验证 retryCount+1 < maxRetryCount 时状态为 FAILED，否则为 DEAD_LETTER
     - **验证: 需求 3.1, 3.3**
 
-  - [ ] 6.6 编写 OutboxPublisher 单元测试
+  - [x] 6.6 编写 OutboxPublisher 单元测试
     - 验证轮询、投递、状态更新的完整流程
     - 验证异常不中断调度（顶层异常捕获）
     - 验证日志输出（INFO/WARN/ERROR 级别）
     - _需求: 2.1, 2.2, 2.3, 3.1, 3.5, 7.1, 7.2, 7.3_
 
-- [ ] 7. 检查点 - 确保轮询投递逻辑测试通过
+- [x] 7. 检查点 - 确保轮询投递逻辑测试通过
   - 确保所有测试通过，如有问题请向用户确认。
 
-- [ ] 8. 在 j-store-common-spring 中实现 OutboxCleaner 和仓储属性测试
-  - [ ] 8.1 实现 OutboxCleaner 类
+- [x] 8. 在 j-store-common-spring 中实现 OutboxCleaner 和仓储属性测试
+  - [x] 8.1 实现 OutboxCleaner 类
     - 注入 OutboxEntryRepository 和 OutboxProperties
     - `cleanup` 方法：计算保留期限，调用 deletePublishedBefore 删除过期已发布条目
     - 记录清理日志
     - _需求: 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 8.2 编写 Property 7 的属性测试：重试资格查询
+  - [x] 8.2 编写 Property 7 的属性测试：重试资格查询
     - **Property 7: 重试资格查询**
     - 生成混合状态和重试次数的条目集合，验证 findPendingAndRetryable 仅返回 PENDING 或 (FAILED AND retryCount < maxRetryCount) 的条目
     - **验证: 需求 3.2**
 
-  - [ ] 8.3 编写 Property 8 的属性测试：清理仅删除符合条件的已发布条目
+  - [x] 8.3 编写 Property 8 的属性测试：清理仅删除符合条件的已发布条目
     - **Property 8: 清理仅删除符合条件的已发布条目**
     - 生成不同状态和创建时间的条目集合，验证清理操作仅删除 PUBLISHED 且过期的条目，不删除 DEAD_LETTER/PENDING/FAILED 条目
     - **验证: 需求 6.1, 6.3, 6.4**
 
-  - [ ] 8.4 编写 OutboxCleaner 单元测试
+  - [x] 8.4 编写 OutboxCleaner 单元测试
     - 验证清理逻辑的正确性
     - 验证不删除 DEAD_LETTER 状态的条目
     - _需求: 6.1, 6.4_
 
-- [ ] 9. 创建 OutboxAutoConfiguration 自动配置和 DDL 脚本
-  - [ ] 9.1 创建 OutboxAutoConfiguration 自动配置类
+- [x] 9. 创建 OutboxAutoConfiguration 自动配置和 DDL 脚本
+  - [x] 9.1 创建 OutboxAutoConfiguration 自动配置类
     - 使用 `@ConditionalOnProperty(prefix = "jstore.outbox", name = ["enabled"], havingValue = "true")` 条件注解
     - 注册 EventSerializer、OutboxEntryRepository、DomainEventPublisher（OutboxEventPublisher）、OutboxPublisher、OutboxCleaner 的 Bean
     - 使用 `@EnableScheduling` 启用调度
@@ -158,21 +158,21 @@
     - OutboxCleaner.cleanup 使用 `@Scheduled(cron)` 配置清理 cron
     - _需求: 5.1, 5.2, 5.3, 5.5_
 
-  - [ ] 9.2 在 j-store-boot 资源目录中创建 DDL 迁移脚本
+  - [x] 9.2 在 j-store-boot 资源目录中创建 DDL 迁移脚本
     - 在 `j-store-boot/src/main/resources/db/migration/` 下创建 outbox_entry 表的 DDL 脚本
     - 包含表创建语句和三个索引（轮询索引、清理索引、聚合根维度索引）
     - _需求: 8.4_
 
-  - [ ] 9.3 更新 j-store-common-spring 的 build.gradle.kts 依赖
+  - [x] 9.3 更新 j-store-common-spring 的 build.gradle.kts 依赖
     - 确保 jackson-databind 和 jackson-module-kotlin 依赖可用（通过 j-store-common-core 的 api 传递或显式添加）
     - _需求: 8.2_
 
-- [ ] 10. 集成验证与功能开关测试
-  - [ ] 10.1 编写集成测试：验证 enabled=true 时注册 OutboxEventPublisher
+- [x] 10. 集成验证与功能开关测试
+  - [x] 10.1 编写集成测试：验证 enabled=true 时注册 OutboxEventPublisher
     - 启动 Spring 上下文，配置 `jstore.outbox.enabled=true`，验证 DomainEventPublisher Bean 类型为 OutboxEventPublisher
     - _需求: 5.2, 5.5_
 
-  - [ ] 10.2 编写集成测试：验证 enabled=false 时回退到 SpringDomainEventPublisher
+  - [x] 10.2 编写集成测试：验证 enabled=false 时回退到 SpringDomainEventPublisher
     - 启动 Spring 上下文，配置 `jstore.outbox.enabled=false` 或不配置，验证 DomainEventPublisher Bean 类型为 SpringDomainEventPublisher
     - _需求: 5.4, 5.5_
 
@@ -180,7 +180,7 @@
     - 验证业务数据和 Outbox 条目在同一事务中提交/回滚
     - _需求: 1.2, 1.3_
 
-- [ ] 11. 最终检查点 - 确保所有测试通过
+- [x] 11. 最终检查点 - 确保所有测试通过
   - 确保所有测试通过，如有问题请向用户确认。
 
 ## 备注

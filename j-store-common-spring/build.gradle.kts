@@ -19,6 +19,9 @@ dependencies {
     api(libs.seata.all)
     implementation(project(":j-store-common-core"))
 
+    // Spring Boot autoconfigure (for @ConditionalOnProperty, @EnableScheduling, etc.)
+    implementation(libs.spirng.boot.boot)
+
     // Test dependencies
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
@@ -27,6 +30,7 @@ dependencies {
     testImplementation(libs.jackson.datatype.jsr310)
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.spring.boot.starter.test)
     testImplementation(project(":j-store-order"))
 }
 
