@@ -1,0 +1,25 @@
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: j-store-postgres:16-alpine
+    container_name: j-store-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: develop
+      POSTGRES_USER: develop
+      POSTGRES_PASSWORD: Jupeter104741
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U develop -d develop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

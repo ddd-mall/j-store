@@ -1,0 +1,15 @@
+package com.jstore.common.framework.event.outbox
+
+/**
+ * Outbox 条目状态
+ */
+enum class OutboxEntryStatus {
+    /** 待投递 */
+    PENDING,
+    /** 已投递 */
+    PUBLISHED,
+    /** 投递失败，待重试 */
+    FAILED,
+    /** 死信，超过最大重试次数 */
+    DEAD_LETTER
+}
