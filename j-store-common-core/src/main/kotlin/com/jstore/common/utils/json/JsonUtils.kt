@@ -34,7 +34,7 @@ object JsonUtils {
         try {
             return JSON.readValue(jsonStr, clazz)
         } catch (e: Exception) {
-            val errorMsg = "jackson反序列化简单对象异常,json:${jsonStr},valueType:${clazz},error:${e.message}"
+            val errorMsg = "Jackson反序列化简单对象异常,json:${jsonStr},valueType:${clazz},error:${e.message}"
             log.error(errorMsg, e)
             throw CommonErrors.INTERNAL_ERROR.msgAndCause(errorMsg, e)
         }
@@ -44,7 +44,7 @@ object JsonUtils {
         try {
             return JSON.readValue(jsonStr, typeReference)
         } catch (e: Exception) {
-            val errorMsg = "jackson反序列化异常，jsonStr: ${jsonStr}, error: ${e.message?:""}"
+            val errorMsg = "Jackson反序列化异常，jsonStr: ${jsonStr}, error: ${e.message?:""}"
             log.error(errorMsg, e)
             throw CommonErrors.INTERNAL_ERROR.msgAndCause(errorMsg, e)
         }
@@ -55,7 +55,7 @@ object JsonUtils {
         return try {
             JSON.readValue<T>(jsonStr)
         } catch (e: Exception) {
-            val errorMsg = "jackson反序列化异常，jsonStr: ${jsonStr}, error: ${e.message?:""}"
+            val errorMsg = "Jackson反序列化异常，jsonStr: ${jsonStr}, error: ${e.message?:""}"
             log.error(errorMsg, e)
             throw CommonErrors.INTERNAL_ERROR.msgAndCause(errorMsg, e)
         }
@@ -65,7 +65,7 @@ object JsonUtils {
         try {
             return JSON.writeValueAsString(obj)
         } catch (e: Exception) {
-            val errorMsg = "jackson 序列化对象异常"
+            val errorMsg = "Jackson 序列化对象异常"
             log.error(errorMsg, e)
             throw CommonErrors.INTERNAL_ERROR.msgAndCause(errorMsg, e)
         }

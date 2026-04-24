@@ -6,7 +6,9 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
+import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCompletedEvent
+import com.jstore.order.domain.order.event.OrderItemSnapshot
 import com.jstore.order.domain.order.event.OrderPaidEvent
 import com.jstore.order.domain.order.event.OrderShippedEvent
 import java.time.LocalDateTime
@@ -35,6 +37,25 @@ class OrderImpl(
     override val actualPay: Price get() = _actualPay
     override val updateTime: LocalDateTime get() = _updateTime
 
+    override fun confirmStock(): Result<Unit, BusinessError> {
+        if (!OrderStatusTransitionRules.isValidTransition(_status, OrderStatus.PENDING_PAYMENT)) {
+            return Failure(OrderErrors.ILLEGAL_STATE.msg("当前状态${_status.name}无法确认库存"))
+        }
+        _status = OrderStatus.PENDING_PAYMENT
+        _updateTime = LocalDateTime.now()
+        return Success(Unit)
+    }
+
+    override fun markStockInsufficient(reason: String): Result<Unit, BusinessError> {
+        if (!OrderStatusTransitionRules.isValidTransition(_status, OrderStatus.CANCELLED)) {
+            return Failure(OrderErrors.ILLEGAL_STATE.msg("当前状态${_status.name}无法取消"))
+        }
+        _status = OrderStatus.CANCELLED
+        _updateTime = LocalDateTime.now()
+        publishEvent(OrderCancelledEvent(orderId = id, reason = reason))
+        return Success(Unit)
+    }
+
     override fun pay(paidAmount: Price): Result<Unit, BusinessError> {
         if (!OrderStatusTransitionRules.isValidTransition(_status, OrderStatus.PAID)) {
             return Failure(OrderErrors.ILLEGAL_STATE.msg("当前状态${_status.name}无法执行支付"))
@@ -42,7 +63,11 @@ class OrderImpl(
         _status = OrderStatus.PAID
         _actualPay = paidAmount
         _updateTime = LocalDateTime.now()
-        publishEvent(OrderPaidEvent(orderId = id, paidAmount = paidAmount))
+        publishEvent(OrderPaidEvent(
+            orderId = id,
+            paidAmount = paidAmount,
+            items = _items.map { OrderItemSnapshot(skuId = it.skuId, quantity = it.quantity) }
+        ))
         return Success(Unit)
     }
 

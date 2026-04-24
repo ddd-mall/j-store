@@ -1,7 +1,6 @@
 package com.jstore.goods.service
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.errors.CommonBusinessError.CONCURRENT_CONFLICT_EXCEPTION
 import com.jstore.common.errors.CommonBusinessError.OBJECT_NOT_FOUNT
 import com.jstore.common.logging.Logger
@@ -69,19 +68,12 @@ class InventoryService(
         val reservationRecord = reservationRecordRepository.findByBizCode(bizCode)
             ?: return Failure(StorageErrors.RESERVATION_RECORD_NOT_FOUND)
 
-        if (reservationRecord.status == ReservationStatus.CONFIRMED) {
-            return Success(true)
-        }
-
-        if (reservationRecord.status == ReservationStatus.RELEASED || reservationRecord.expiryTime < LocalDateTime.now()) {
-            return Failure(CommonBusinessError.ILLEGAL_STATE.msg("reservation already released!!"))
-        }
+        reservationRecord.confirm().onFailure { return Failure(it) }
 
         val inventory = inventoryRepository.findById(reservationRecord.commodityCode)!!
         inventory.deduct(reservationRecord.amount).onFailure { return Failure(it) }
         inventoryRepository.save(inventory)
 
-        reservationRecord.status = ReservationStatus.CONFIRMED
         reservationRecordRepository.save(reservationRecord)
         return Success(true)
     }
@@ -89,20 +81,12 @@ class InventoryService(
     fun release(bizCode: String): Result<Boolean, BusinessError> {
         val reservationRecord = reservationRecordRepository.findByBizCode(bizCode)
             ?: return Failure(StorageErrors.RESERVATION_RECORD_NOT_FOUND)
-        if (reservationRecord.status == ReservationStatus.CONFIRMED) {
-            return Failure(CommonBusinessError.ILLEGAL_STATE.msg("reservation already deducted!!"))
-        }
-        if (reservationRecord.status == ReservationStatus.RELEASED) {
-            return Success(true)
-        }
+
+        reservationRecord.release().onFailure { return Failure(it) }
 
         val inventory = inventoryRepository.findById(reservationRecord.commodityCode)!!
-        val releaseResult = inventory.release(reservationRecord.amount)
-        if (releaseResult is Failure) {
-            return releaseResult
-        }
+        inventory.release(reservationRecord.amount).onFailure { return Failure(it) }
 
-        reservationRecord.status = ReservationStatus.RELEASED
         reservationRecordRepository.save(reservationRecord)
         return Success(true)
     }

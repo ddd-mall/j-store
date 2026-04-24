@@ -12,6 +12,7 @@ import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.GoodsService
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.domain.order.event.OrderCreatedEvent
+import com.jstore.order.domain.order.event.OrderItemSnapshot
 
 /**
  * 订单工厂
@@ -64,12 +65,16 @@ class OrderFactoryImpl(
             ),
             _items = orderItems.toMutableList(),
             shippingAddress = address,
-            _status = OrderStatus.PENDING_PAYMENT,
+            _status = OrderStatus.PENDING_STOCK,
             totalAmount = totalAmount,
             _actualPay = totalAmount,
         )
 
-        order.publishEvent(OrderCreatedEvent(orderId = order.id, totalAmount = totalAmount))
+        order.publishEvent(OrderCreatedEvent(
+            orderId = order.id,
+            totalAmount = totalAmount,
+            items = orderItems.map { OrderItemSnapshot(skuId = it.skuId, quantity = it.quantity) }
+        ))
         return Success(order)
     }
 }

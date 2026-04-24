@@ -1,6 +1,5 @@
 package com.jstore.goods.domain.commodity
 
-import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.SKUAppendCMD
@@ -16,31 +15,23 @@ interface SpuFactory {
 
 class SpuFactoryImpl(
     private val snowFlakSequence: SnowFlakSequence,
-    private val domainEventPublisher: DomainEventPublisher,
 ) : SpuFactory {
     override fun create(createCmd: CommodityCreateCmd): Spu {
         return SpuImpl(
             id = SpuId(snowFlakSequence.nextId()),
-            status = CommodityStatus.DRAFT,
-            skus = ArrayList(),
             name = createCmd.spuName,
-            domainEventPublisher = domainEventPublisher,
+            _status = CommodityStatus.DRAFT,
+            _skus = ArrayList(),
         )
     }
 
     override fun update(createCmd: CommodityCreateCmd, old: Spu): Spu {
-        val spuImpl = SpuImpl(
+        return SpuImpl(
             id = old.id,
             name = createCmd.spuName,
-            status = CommodityStatus.DRAFT,
-            skus = ArrayList(),
-            domainEventPublisher = domainEventPublisher,
+            _status = old.status,
+            _skus = old.skus.toMutableList(),
         )
-        if (old is SpuImpl) {
-            spuImpl.status = old.status
-        }
-        return spuImpl
-
     }
 
     override fun createSKU(skuAppendCMD: SKUAppendCMD): List<Sku> {
