@@ -1,10 +1,11 @@
 package com.jstore.order.domain.order
 
-import com.jstore.common.errors.Errors
+import com.jstore.common.errors.BusinessError
 
 object OrderErrors {
-    val ORDER_DOES_NOT_EXIST: Errors = Errors("order does not exist", "Order.Order.NotFound", 401)
-    val CORRESPONDING_GOODS_NOT_FOUND: Errors = Errors("corresponding goods resource not found", "Order.Resource.NotFound", 404)
-    val ILLEGAL_STATE: Errors = Errors("invalid order state", "Order.State.Invalid", 400)
-
+    val ORDER_NOT_FOUND = BusinessError("订单不存在", "Order.NotFound", 404)
+    val CORRESPONDING_GOODS_NOT_FOUND = BusinessError("对应商品资源不存在", "Order.Resource.NotFound", 404)
+    val ILLEGAL_STATE = BusinessError("订单状态不合法", "Order.State.Invalid", 400)
+    val ITEMS_EMPTY = BusinessError("订单商品不能为空", "Order.Items.Empty", 400)
+    val BUYER_INVALID = BusinessError("买家信息无效", "Order.Buyer.Invalid", 400)
 }

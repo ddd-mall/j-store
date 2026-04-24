@@ -18,11 +18,11 @@ open class SnowFlakSequence {
     private val datacenterId: Long
 
     constructor(workerId: Long, datacenterId: Long) {
-        if (workerId > maxWorkerId || workerId < 0) {
-            throw CommonErrors.INVALID_PARAM.msg("worker Id can't be greater than $maxWorkerId or less than 0")
+        if (workerId !in 0..MAX_WORKER_ID) {
+            throw CommonErrors.INVALID_PARAM.msg("worker Id can't be greater than $MAX_WORKER_ID or less than 0")
         }
-        if (datacenterId > maxDatacenterId || datacenterId < 0) {
-            throw CommonErrors.INVALID_PARAM.msg("datacenter Id can't be greater than $maxDatacenterId or less than 0")
+        if (datacenterId !in 0..MAX_DATACENTER_ID) {
+            throw CommonErrors.INVALID_PARAM.msg("datacenter Id can't be greater than $MAX_DATACENTER_ID or less than 0")
         }
         this.workerId = workerId
         this.datacenterId = datacenterId
@@ -45,37 +45,37 @@ open class SnowFlakSequence {
         /**
          * 基准
          */
-        private val twepoch: Long = 1733587936970
+        private const val TWEPOCH: Long = 1733587936970
 
         /**
          * 机器标识位
          */
-        private val workerIdBits: Int = 5
-        private val datacenterIdBits: Int = 5
-        private val maxWorkerId: Long = (-1L shl workerIdBits).inv()
-        private val maxDatacenterId: Long = (-1L shl datacenterIdBits).inv()
+        private const val WORKER_ID_BITS: Int = 5
+        private const val DATACENTER_ID_BITS: Int = 5
+        private const val MAX_WORKER_ID: Long = (-1L shl WORKER_ID_BITS).inv()
+        private const val MAX_DATACENTER_ID: Long = (-1L shl DATACENTER_ID_BITS).inv()
 
         /**
          * 毫秒内自增
          */
-        private val sequenceBits: Int = 12
-        private val workerIdShift: Int = sequenceBits
-        private val datacenterShift = sequenceBits + workerIdShift
+        private const val SEQUENCE_BITS: Int = 12
+        private const val WORKER_ID_SHIFT: Int = SEQUENCE_BITS
+        private const val DATACENTER_SHIFT = SEQUENCE_BITS + WORKER_ID_SHIFT
 
         /**
          * 时间戳左移位
          */
-        private val timestampShift: Int = sequenceBits + workerIdShift + datacenterIdBits
-        private val sequenceMask: Long = (-1L shl sequenceBits).inv()
+        private const val TIMESTAMP_SHIFT: Int = SEQUENCE_BITS + WORKER_ID_SHIFT + DATACENTER_ID_BITS
+        private const val SEQUENCE_MASK: Long = (-1L shl SEQUENCE_BITS).inv()
 
         private fun getDefaultWorkerId(datacenterId: Long): Long {
-            val mpid = StringBuilder()
-            mpid.append(datacenterId)
+            val mid = StringBuilder()
+            mid.append(datacenterId)
             val name = ManagementFactory.getRuntimeMXBean().name
             if (StringUtils.isNotEmpty(name)) {
-                mpid.append(name.split("@").dropLastWhile { it.isEmpty() }.toTypedArray()[0])
+                mid.append(name.split("@").dropLastWhile { it.isEmpty() }.toTypedArray()[0])
             }
-            return (mpid.toString().hashCode() and 0xffff) % (maxWorkerId + 1)
+            return (mid.toString().hashCode() and 0xffff) % (MAX_WORKER_ID + 1)
         }
 
         private fun getDatacenterId(): Long {
@@ -87,7 +87,7 @@ open class SnowFlakSequence {
                 id = 1
                 mac?.let {
                     id = ((0x000000FFL and mac[mac.size - 1].toLong()) or (0x0000FF00L and ((mac[mac.size - 2].toLong()) shl 8))) shr 6
-                    id %= (maxDatacenterId + 1)
+                    id %= (MAX_DATACENTER_ID + 1)
                 }
             } catch (t: Throwable) {
                 logger.warn("error occurred when get datacenter id ${t.message}")
@@ -121,7 +121,7 @@ open class SnowFlakSequence {
         }
 
         if (lastTimestamp == timeStamp) {
-            sequence = (sequence + 1) and sequenceMask
+            sequence = (sequence + 1) and SEQUENCE_MASK
             if (sequence == 0L) {
                 timeStamp = tilNextMillis(lastTimestamp)
             }
@@ -131,9 +131,9 @@ open class SnowFlakSequence {
 
         lastTimestamp = timeStamp
         // 时间戳部分 | 数据中心部分 | 机器标识部分 | 序列号部分
-        return (((timeStamp - twepoch) shl timestampShift)
-                or (datacenterId shl datacenterShift)
-                or (workerId shl workerIdShift)
+        return (((timeStamp - TWEPOCH) shl TIMESTAMP_SHIFT)
+                or (datacenterId shl DATACENTER_SHIFT)
+                or (workerId shl WORKER_ID_SHIFT)
                 or sequence)
     }
 

@@ -25,7 +25,7 @@ class MockGoodsService: GoodsService {
             goodsInfoMap[id] = GoodsInfo(
                 id,
                 Random.nextLong(1, 1000),
-                Price.Companion.Commonly.of(Random.nextInt(1, 1000000))
+                Price.ofFen(Random.nextInt(1, 1000000))
             )
         }
     }

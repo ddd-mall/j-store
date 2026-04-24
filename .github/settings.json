@@ -1,0 +1,14 @@
+{
+      "terminal.integrated.env.osx": {
+    "java.jdt.ls.java.home": "${JAVA_HOME}",
+    "java.home": "${JAVA_HOME}"
+  },
+  "terminal.integrated.env.linux": {
+    "java.jdt.ls.java.home": "${JAVA_HOME}",
+    "java.home": "${JAVA_HOME}"
+  },
+  "terminal.integrated.env.windows": {
+    "java.jdt.ls.java.home": "${env:JAVA_21}",
+    "java.home": "${env:JAVA_21}"
+  }
+}
