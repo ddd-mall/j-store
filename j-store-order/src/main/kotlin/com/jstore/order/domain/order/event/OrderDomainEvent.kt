@@ -17,20 +17,32 @@ sealed class OrderDomainEvent(
 }
 
 /**
+ * 库存预扣所需的商品行项信息
+ */
+data class OrderItemSnapshot(
+    val skuId: Long,
+    val quantity: Int,
+)
+
+/**
  * 订单已创建事件
+ * 携带商品行项快照，供库存上下文执行预扣
  */
 data class OrderCreatedEvent(
     override val orderId: OrderId,
     val totalAmount: Price,
+    val items: List<OrderItemSnapshot>,
     override val occurredAt: Instant = Instant.now()
 ) : OrderDomainEvent(orderId, occurredAt)
 
 /**
  * 订单已支付事件
+ * 携带商品行项快照，供库存上下文执行 confirm（真正扣减）
  */
 data class OrderPaidEvent(
     override val orderId: OrderId,
     val paidAmount: Price,
+    val items: List<OrderItemSnapshot>,
     override val occurredAt: Instant = Instant.now()
 ) : OrderDomainEvent(orderId, occurredAt)
 

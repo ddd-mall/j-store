@@ -1,7 +1,9 @@
 package com.jstore.order.domain.order
 
 enum class OrderStatus {
-    /** 待支付 — 订单创建后的初始状态 */
+    /** 待库存确认 — 订单创建后的初始状态，等待库存预扣结果 */
+    PENDING_STOCK,
+    /** 待支付 — 库存预扣成功后，等待买家支付 */
     PENDING_PAYMENT,
     /** 已支付 — 买家完成支付 */
     PAID,

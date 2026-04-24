@@ -1,6 +1,7 @@
 package com.jstore.order.service
 
 import com.jstore.common.errors.BusinessError
+import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -22,6 +23,7 @@ import com.jstore.order.domain.order.command.OrderCreateCMD
 class OrderService(
     private val orderFactory: OrderFactory,
     private val orderRepository: OrderRepository,
+    private val domainEventPublisher: DomainEventPublisher,
 ) {
 
     /** 创建订单 */
@@ -29,7 +31,28 @@ class OrderService(
         cmd.validate().onFailure { return Failure(it) }
         val order = orderFactory.create(cmd).getOrThrow()
         orderRepository.add(order)
+        // 发布聚合根上积累的领域事件（OrderCreatedEvent）
+        order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(order)
+    }
+
+    /** 库存预扣成功回调 */
+    fun confirmStock(orderId: OrderId): Result<Unit, BusinessError> {
+        val order = orderRepository.findById(orderId)
+            ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        order.confirmStock().onFailure { return Failure(it) }
+        orderRepository.save(order)
+        return Success(Unit)
+    }
+
+    /** 库存不足，取消订单 */
+    fun markStockInsufficient(orderId: OrderId, reason: String): Result<Unit, BusinessError> {
+        val order = orderRepository.findById(orderId)
+            ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        order.markStockInsufficient(reason).onFailure { return Failure(it) }
+        orderRepository.save(order)
+        order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
+        return Success(Unit)
     }
 
     /** 支付回调 */
@@ -38,6 +61,8 @@ class OrderService(
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
         order.pay(paidAmount).onFailure { return Failure(it) }
         orderRepository.save(order)
+        // 发布 OrderPaidEvent，触发库存 confirm（真正扣减）
+        order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
     }
 

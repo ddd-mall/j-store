@@ -40,6 +40,12 @@ interface Order : AgreeGate<OrderId> {
     /** 支付 */
     fun pay(paidAmount: Price): Result<Unit, BusinessError>
 
+    /** 库存预扣成功，转为待支付 */
+    fun confirmStock(): Result<Unit, BusinessError>
+
+    /** 库存不足，取消订单 */
+    fun markStockInsufficient(reason: String): Result<Unit, BusinessError>
+
     /** 确认备货（支付确认后转为待发货） */
     fun confirmForShipment(): Result<Unit, BusinessError>
 

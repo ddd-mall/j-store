@@ -26,7 +26,10 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
+    implementation(project(":j-store-order"))
     implementation(project(":j-store-order-infrastructure"))
+    implementation(project(":j-store-goods"))
+    implementation(project(":j-store-goods-infrastructure"))
     implementation(project(":j-store-common-spring"))
 
 //    implementation(platform(libs.spring.cloud.dependencies))

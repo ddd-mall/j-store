@@ -10,9 +10,7 @@ import com.jstore.goods.domain.commodity.SpuId
 import com.jstore.goods.domain.commodity.SpuRepository
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.SKUAppendCMD
-import org.springframework.stereotype.Service
 
-@Service
 class CommodityService(
     private val spuFactory: SpuFactory,
     private val spuRepository: SpuRepository,
@@ -31,11 +29,9 @@ class CommodityService(
                     return@map spuRepository.save(update)
                 }
                 val spu = spuFactory.create(cmd)
-                val saved = spuRepository.save(spu)
-                saved
+                spuRepository.save(spu)
             }
     }
-
 
     /**
      * 向SPU中追加SKU
@@ -58,7 +54,7 @@ class CommodityService(
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
         spu.publish().onFailure { e -> return Failure(e) }
         spuRepository.save(spu)
-
+        spu.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(true)
     }
 
@@ -69,6 +65,7 @@ class CommodityService(
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
         spu.putOnSale().onFailure { e -> return Failure(e) }
         spuRepository.save(spu)
+        spu.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(true)
     }
 
@@ -79,8 +76,7 @@ class CommodityService(
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
         spu.tackOffSale().onFailure { e -> return Failure(e) }
         spuRepository.save(spu)
+        spu.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(true)
     }
-
-
 }

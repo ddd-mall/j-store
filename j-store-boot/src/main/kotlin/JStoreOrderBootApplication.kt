@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling
 @EnableJpaAuditing
 @SpringBootApplication
 //@EnableDiscoveryClient
+@EnableConfigurationProperties
 @EnableScheduling
 class JStoreOrderBootApplication
 

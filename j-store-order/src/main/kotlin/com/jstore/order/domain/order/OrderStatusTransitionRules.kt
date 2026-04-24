@@ -12,6 +12,7 @@ object OrderStatusTransitionRules {
      * 逆向分支: 各状态可转入 CANCELLED 或 REFUNDING（预留）
      */
     private val validTransitions = mapOf(
+        OrderStatus.PENDING_STOCK to setOf(OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELLED),
         OrderStatus.PENDING_PAYMENT to setOf(OrderStatus.PAID, OrderStatus.CANCELLED),
         OrderStatus.PAID to setOf(OrderStatus.PENDING_SHIPMENT, OrderStatus.REFUNDING),
         OrderStatus.PENDING_SHIPMENT to setOf(OrderStatus.SHIPPED, OrderStatus.REFUNDING),
