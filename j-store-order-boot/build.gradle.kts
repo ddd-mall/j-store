@@ -27,6 +27,7 @@ dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
     implementation(project(":j-store-order-infrastructure"))
+    implementation(project(":j-store-common-spring"))
 
 //    implementation(platform(libs.spring.cloud.dependencies))
 //    implementation(libs.spring.cloud.loadbalancer)
@@ -41,6 +42,9 @@ dependencies {
     implementation(platform(libs.spring.boot.dependencies))
     annotationProcessor(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)
+
+    implementation(libs.spring.data.jpa)
+    implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.test)

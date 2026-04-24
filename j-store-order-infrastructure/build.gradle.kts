@@ -19,6 +19,8 @@ dependencies {
     api(project(":j-store-order"))
 
     implementation(platform(libs.spring.boot.dependencies))
+    implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.data.jpa)
     implementation(libs.spring.data.commons)
     implementation(libs.spring.data.redis)
     implementation(libs.spring.boot.starter.data.redis)

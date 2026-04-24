@@ -20,6 +20,7 @@ dependencies {
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)
     implementation(libs.spring.data.jpa)
+    implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
     testImplementation(libs.spring.boot.starter.test)
 

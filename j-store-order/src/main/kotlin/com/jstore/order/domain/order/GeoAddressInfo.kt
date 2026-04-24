@@ -4,15 +4,16 @@ import com.jstore.common.errors.CommonErrors
 import com.jstore.common.utils.string.StringUtils
 
 /**
+ * 地理位置信息值对象
+ * 不可变，代表订单配送地址信息
  * TODO: move to common module
  */
-data class
-GeoAddressInfo(
+data class GeoAddressInfo(
     val districtCode: String,
     val province: String,
     val city: String,
     val county: String,
-    var detailAddress: String? = null
+    val detailAddress: String? = null  // ✅ 改为 val（不可变）
 ) {
     companion object {
         fun getProvinceCode(districtCode: String): String {

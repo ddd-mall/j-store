@@ -3,7 +3,7 @@ plugins {
 }
 rootProject.name = "j-store"
 include("j-store-common-core")
-include("j-store-common-spring-starter")
+include("j-store-common-spring")
 include("j-store-order")
 include("j-store-order-boot")
 include("j-store-goods")
