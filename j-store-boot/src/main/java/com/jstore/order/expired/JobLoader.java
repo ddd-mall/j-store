@@ -85,6 +85,71 @@ public class JobLoader {
 
 
     /**
+     * 补偿扫描：将 HANDLING 状态但已超时的任务重新加载到 Redis。
+     * <p>
+     * 正常流程中，任务通过 addNewJobAndEnqueue 创建时 DB 状态直接设为 HANDLING，
+     * 同时写入 Redis WaitingQueue。如果 Redis 故障导致数据丢失，这些任务会卡在
+     * HANDLING 状态，既不在 Redis 中，也不会被 loadJobsFromDbToRedis 扫描到
+     * （因为它只扫 UNHANDLED）。
+     * <p>
+     * 补偿逻辑：扫描 status=HANDLING 且 executeTime 已过期超过 60 秒的任务。
+     * 60 秒的阈值是为了避免误伤刚创建的正常任务（正常任务从创建到消费完成通常在秒级）。
+     * 将这些任务重新放入 Redis WaitingQueue，让调度流程重新接管。
+     */
+    @Scheduled(cron = "${timer.job.compensate.cron: 0 */1 * * * ?}")
+    public void compensateStuckHandlingJobs() {
+        if (TimerJobCoordinator.stopped.get()) {
+            return;
+        }
+        AtomicBoolean acquired = new AtomicBoolean(false);
+        try {
+            acquired.set(
+                    TimerJobCoordinator.lifeCycleLock.readLock().tryLock(300, TimeUnit.MILLISECONDS)
+            );
+        } catch (Exception ignore) {
+        }
+        if (!acquired.get()) {
+            return;
+        }
+
+        try {
+            // 只补偿 executeTime 已过期超过 60 秒的 HANDLING 任务
+            long sixtySecondsAgo = System.currentTimeMillis() - 60_000;
+            Iterator<List<TimerJob>> iterator = timerJobRepository.getIteratorOfUnhandledAndBefore(
+                    new Date(sixtySecondsAgo),
+                    TimerJob.TimerJobStatus.HANDLING.name(),
+                    100
+            );
+
+            int compensatedCount = 0;
+            while (iterator.hasNext() && !TimerJobCoordinator.stopped.get()) {
+                DefaultTransactionDefinition txDef = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRED);
+                TransactionStatus transaction = transactionManager.getTransaction(txDef);
+                try {
+                    List<TimerJob> batch = iterator.next();
+                    batch.forEach(timerJob -> {
+                        long slot = slot(timerJob);
+                        timerJobQueue.addOneJobToWaitingQueue(timerJob, slot);
+                    });
+                    transactionManager.commit(transaction);
+                    compensatedCount += batch.size();
+                } catch (Exception e) {
+                    transactionManager.rollback(transaction);
+                    log.error("补偿扫描批次处理失败", e);
+                }
+            }
+
+            if (compensatedCount > 0) {
+                log.info("补偿扫描完成，共重新加载 {} 个卡在 HANDLING 状态的任务", compensatedCount);
+            }
+        } finally {
+            if (acquired.get()) {
+                TimerJobCoordinator.lifeCycleLock.readLock().unlock();
+            }
+        }
+    }
+
+    /**
      * 计算任务的槽位（其实就是一个散列算法，希望任务均匀地分布在各个槽中）
      *
      * @param job 任务

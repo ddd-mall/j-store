@@ -11,14 +11,12 @@ import java.util.Date;
 @RequestMapping("/timer/job")
 public class TimerJobTestController {
 
-    private final TimerJobRepository timerJobRepository;
+    private final TimerJobService timerJobService;
     private final TimerJobCoordinator coordinator;
-    private final JobLoader jobLoader;
 
-    public TimerJobTestController(TimerJobRepository timerJobRepository, TimerJobCoordinator coordinator, JobLoader jobLoader) {
-        this.timerJobRepository = timerJobRepository;
+    public TimerJobTestController(TimerJobService timerJobService, TimerJobCoordinator coordinator) {
+        this.timerJobService = timerJobService;
         this.coordinator = coordinator;
-        this.jobLoader = jobLoader;
     }
 
     @GetMapping("/start")
@@ -35,9 +33,11 @@ public class TimerJobTestController {
 
     @PostMapping("/add/new")
     public TimerJob addNew(@RequestBody JobCreateParam jobCreateParam) {
-        TimerJob timerJob = jobCreateParam.toTimerJob();
-        long slot = jobLoader.slot(timerJob);
-        return timerJobRepository.addNewJobAndEnqueue(timerJob, slot);
+        return timerJobService.submitAt(
+                jobCreateParam.getTopic(),
+                jobCreateParam.getContent(),
+                jobCreateParam.getExecuteTime()
+        );
     }
 
     @Data

@@ -140,6 +140,10 @@ public class TimerJobRepository {
 
 
     public Iterator<List<TimerJob>> getIteratorOfUnhandledAndBefore(Date date, int batchSize) {
+        return getIteratorOfUnhandledAndBefore(date, TimerJob.TimerJobStatus.UNHANDLED.name(), batchSize);
+    }
+
+    public Iterator<List<TimerJob>> getIteratorOfUnhandledAndBefore(Date date, String status, int batchSize) {
         return new Iterator<>() {
             boolean hasNext = true;
 
@@ -149,11 +153,10 @@ public class TimerJobRepository {
             }
 
             @Override
-            @Transactional(rollbackFor = Exception.class)
             public List<TimerJob> next() {
                 Page<TimerJobJpaPO> result = timerJobJAPRepository.findAllByExecuteTimeBeforeAndStatus(
                         date,
-                        TimerJob.TimerJobStatus.UNHANDLED.name(),
+                        status,
                         Pageable.ofSize(batchSize)
                 );
                 List<TimerJobJpaPO> content = result.getContent();
