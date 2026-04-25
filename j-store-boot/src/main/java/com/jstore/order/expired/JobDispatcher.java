@@ -8,14 +8,14 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.jstore.order.expired.TimerJobConfig.EXPIRE_CENTER_POOL;
 
 
 /**
- * 要负责给worker分配slot和topic及其对应的handler，并放入到线程池中执行，这里按理应该要使用zookeeper协调
+ * 负责给worker分配slot和topic及其对应的handler，并放入到线程池中执行。
+ * 通过 SlotAssigner 实现分布式 slot 分配，每个实例只消费自己持有的 slot。
  */
 @Slf4j
 @Component
@@ -23,20 +23,30 @@ public class JobDispatcher {
 
     private final ThreadPoolTaskExecutor executorService;
     private final TimerJobRepository jobRepository;
-    private final TimerJobConfig timerJobConfig;
+    private final SlotAssigner slotAssigner;
     private final Map<String, TimerJobHandler> handlers;
     private final List<String> topics;
 
+    /**
+     * 无任务时的空闲等待时间（毫秒），避免 CPU 空转
+     */
+    private static final long IDLE_SLEEP_MS = 50;
+
+    /**
+     * 一轮 dispatch 完成后的短暂让步时间（毫秒）
+     */
+    private static final long YIELD_SLEEP_MS = 5;
+
 
     public JobDispatcher(
-            TimerJobConfig timerJobConfig,
             @Qualifier(EXPIRE_CENTER_POOL) ThreadPoolTaskExecutor executorService,
             TimerJobRepository jobRepository,
+            SlotAssigner slotAssigner,
             List<TimerJobHandler> handlers
     ) {
-        this.timerJobConfig = timerJobConfig;
         this.executorService = executorService;
         this.jobRepository = jobRepository;
+        this.slotAssigner = slotAssigner;
         this.handlers = handlers.stream().collect(Collectors.toUnmodifiableMap(TimerJobHandler::topic, handler -> handler));
         this.topics = handlers.stream().map(TimerJobHandler::topic).collect(Collectors.toList());
     }
@@ -49,30 +59,46 @@ public class JobDispatcher {
                 } catch (Exception e) {
                     log.info(e.getMessage());
                 }
-                Thread.yield();
+                try {
+                    Thread.sleep(YIELD_SLEEP_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
         });
         dispatcherThread.setName("dispatcher");
+        dispatcherThread.setDaemon(true);
         dispatcherThread.start();
         log.info("定时任务中心任务调度器已启动");
     }
 
     private void dispatch() {
-        for (AtomicInteger allows = new AtomicInteger(congestionControl()); allows.get() > 0; ) {
+        List<Integer> mySlots = slotAssigner.getOwnedSlots();
+        if (mySlots.isEmpty()) {
+            try {
+                Thread.sleep(IDLE_SLEEP_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return;
+        }
+
+        boolean dispatched = false;
+        for (int allows = congestionControl(); allows > 0; ) {
             for (String topic : topics) {
-                for (int slot = 0; slot < timerJobConfig.getSlotAmount(); slot++) {
-                    Integer finalSlot = slot;
+                for (int slot : mySlots) {
+                    if (allows <= 0) break;
 
                     Optional<TimerJob> job = Optional.empty();
-                    /// ========= 进入临界区
                     TimerJobCoordinator.lifeCycleLock.readLock().lock();
-
                     try {
                         if (TimerJobCoordinator.stopped.get()) {
                             log.info("定时任务中心-调度器已停止，将不再分配任务");
                             return;
                         }
                         job = jobRepository.getOneJobFromWaitingQueue(topic, slot);
+                        final int finalSlot = slot;
                         job.ifPresent(timerJob -> executorService.execute(() -> {
                             try {
                                 TimerJobCoordinator.handlingJobs.incrementAndGet();
@@ -81,21 +107,30 @@ public class JobDispatcher {
                                 TimerJobCoordinator.handlingJobs.decrementAndGet();
                             }
                         }));
+                        if (job.isPresent()) {
+                            dispatched = true;
+                        }
                     } catch (Exception e) {
-                        if (job != null && job.isPresent()) {
-                            log.error("Failed to dispatch job: {} in topic: {} at slot: {}", job.get(), topic, finalSlot, e);
-
-                            jobRepository.rollbackOnFailure(job.get(), finalSlot);
+                        if (job.isPresent()) {
+                            log.error("Failed to dispatch job: {} in topic: {} at slot: {}", job.get(), topic, slot, e);
+                            jobRepository.rollbackOnFailure(job.get(), slot);
                         } else {
-                            log.warn("Failed to dispatch job in topic: {} at slot: {}, possibly during shutdown: {}", topic, finalSlot, e.getMessage());
+                            log.warn("Failed to dispatch job in topic: {} at slot: {}, possibly during shutdown: {}", topic, slot, e.getMessage());
                         }
                     } finally {
-                        allows.getAndDecrement();
-                        /// ========= 离开临界区
+                        allows--;
                         TimerJobCoordinator.lifeCycleLock.readLock().unlock();
                     }
-
                 }
+            }
+        }
+
+        // 如果本轮没有 dispatch 任何任务，短暂休眠避免空转
+        if (!dispatched) {
+            try {
+                Thread.sleep(IDLE_SLEEP_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         }
     }
