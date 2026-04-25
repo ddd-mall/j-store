@@ -15,6 +15,9 @@ dependencies {
     testImplementation(libs.mockito)
     api(project(":j-store-common-core"))
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotest.assertions.core)
+    testImplementation(libs.kotest.property)
 }
 
 tasks.withType<Test> {

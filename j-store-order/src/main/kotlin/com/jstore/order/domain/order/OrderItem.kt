@@ -16,6 +16,9 @@ interface OrderItem : Entity<OrderItemId> {
     val unitPrice: Price
     val status: OrderItemStatus
 
+    /** 进入 REFUNDING 前的行项状态，用于退款拒绝时恢复 */
+    val previousItemStatus: OrderItemStatus?
+
     /** 计算行项小计 */
     fun subtotal(): Price
 }

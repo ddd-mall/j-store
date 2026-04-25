@@ -20,7 +20,7 @@ import java.time.Instant
 /**
  * Feature: transactional-outbox, Property 2: 序列化/反序列化 Round-Trip
  *
- * Validates: Requirements 4.1, 4.2, 4.3, 1.5
+ * Validates: Requirements 4.Ff, 4.2, 4.3, 1.5
  */
 class JacksonEventSerializerPropertyTest : FunSpec({
 

@@ -57,4 +57,19 @@ interface Order : AgreeGate<OrderId> {
 
     /** 完成订单 */
     fun complete(): Result<Unit, BusinessError>
+
+    /** 进入 REFUNDING 前的 Order 级别状态，用于退款拒绝时恢复 */
+    val previousStatus: OrderStatus?
+
+    /** 买家主动取消订单（未支付阶段） */
+    fun cancel(reason: CancellationReason): Result<Unit, BusinessError>
+
+    /** 申请退款（已支付未发货 / 已签收退货退款），指定行项 */
+    fun requestRefund(reason: RefundReason, itemIds: List<OrderItemId>): Result<Unit, BusinessError>
+
+    /** 卖家批准退款，指定行项 */
+    fun approveRefund(itemIds: List<OrderItemId>): Result<Unit, BusinessError>
+
+    /** 卖家拒绝退款，指定行项 */
+    fun rejectRefund(rejectReason: String, itemIds: List<OrderItemId>): Result<Unit, BusinessError>
 }

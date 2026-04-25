@@ -8,4 +8,7 @@ object OrderErrors {
     val ILLEGAL_STATE = BusinessError("订单状态不合法", "Order.State.Invalid", 400)
     val ITEMS_EMPTY = BusinessError("订单商品不能为空", "Order.Items.Empty", 400)
     val BUYER_INVALID = BusinessError("买家信息无效", "Order.Buyer.Invalid", 400)
+    val REFUND_ITEMS_EMPTY = BusinessError("退款行项列表不能为空", "Order.Refund.ItemsEmpty", 400)
+    val REFUND_ITEM_NOT_FOUND = BusinessError("退款行项不存在", "Order.Refund.ItemNotFound", 400)
+    val REFUND_ITEM_INVALID_STATE = BusinessError("退款行项状态不合法", "Order.Refund.ItemInvalidState", 400)
 }

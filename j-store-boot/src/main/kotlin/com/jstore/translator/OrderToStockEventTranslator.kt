@@ -12,6 +12,7 @@ import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
+import com.jstore.order.domain.order.event.OrderRefundApprovedEvent
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 
@@ -54,6 +55,24 @@ class OrderToStockEventTranslator(
             StockReleaseRequestedEvent(
                 orderId = event.orderId.value,
                 items = order.items.map { ReleaseItem(skuId = it.skuId) }
+            )
+        )
+    }
+
+    @EventListener
+    fun onOrderRefundApproved(event: OrderRefundApprovedEvent) {
+        // 已发货的退款需要走退货流程，不直接释放库存
+        if (event.requireReturn) return
+
+        val order = orderRepository.findById(OrderId(event.orderId.value)) ?: return
+        val approvedItemIds = event.approvedItemIds.toSet()
+        val releaseItems = order.items
+            .filter { it.id in approvedItemIds }
+            .map { ReleaseItem(skuId = it.skuId) }
+        domainEventPublisher.publishEvent(
+            StockReleaseRequestedEvent(
+                orderId = event.orderId.value,
+                items = releaseItems
             )
         )
     }
