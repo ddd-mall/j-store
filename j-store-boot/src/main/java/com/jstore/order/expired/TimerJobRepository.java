@@ -50,6 +50,30 @@ public class TimerJobRepository {
     }
 
     /**
+     * 创建任务时同时写 DB 和 Redis，实现低延迟调度。
+     * DB 作为持久化底座（状态直接设为 HANDLING，因为已经进入 Redis 调度流程），
+     * Redis WaitingQueue 作为实时调度层。
+     *
+     * @param timerJob 任务
+     * @param slot     槽位
+     * @return 持久化后的任务
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public TimerJob addNewJobAndEnqueue(TimerJob timerJob, long slot) {
+        // 1. 先写 DB，状态设为 HANDLING（已进入 Redis 调度流程）
+        TimerJobJpaPO po = new TimerJobJpaPO(timerJob, TimerJob.TimerJobStatus.HANDLING.name());
+        po = timerJobJAPRepository.save(po);
+
+        // 2. 回填 ID 到 TimerJob，确保 Redis 中存储的 JSON 包含 DB 主键
+        timerJob.setId(po.getId());
+
+        // 3. 写入 Redis WaitingQueue，以 executeTime 作为 score
+        addOneJobToWaitingQueue(timerJob, slot);
+
+        return new TimerJob(po);
+    }
+
+    /**
      * 放入任务
      *
      * @param timerJob 任务

@@ -15,13 +15,15 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class TimerJobCoordinator implements SmartLifecycle {
     public static final ReentrantReadWriteLock lifeCycleLock = new ReentrantReadWriteLock();
     public static final AtomicLong handlingJobs = new AtomicLong(0);
-    public static volatile AtomicBoolean stopped = new AtomicBoolean(true);
+    public static final AtomicBoolean stopped = new AtomicBoolean(true);
 
     private final JobDispatcher jobDispatcher;
+    private final SlotAssigner slotAssigner;
 
 
-    public TimerJobCoordinator(JobDispatcher jobDispatcher) {
+    public TimerJobCoordinator(JobDispatcher jobDispatcher, SlotAssigner slotAssigner) {
         this.jobDispatcher = jobDispatcher;
+        this.slotAssigner = slotAssigner;
     }
 
 
@@ -43,13 +45,17 @@ public class TimerJobCoordinator implements SmartLifecycle {
             log.info("定时任务中心已经是关闭状态");
         }
         log.info("定时任务中心正在关闭");
+
+        // 优先释放 slot 锁，让其他实例尽快接管
+        slotAssigner.releaseAll();
+
         lifeCycleLock.writeLock().lock();
         try {
             long startTime = System.currentTimeMillis();
             while (handlingJobs.get() > 0) {
                 log.info("等待所有正在处理的任务完成，当前处理中的任务数: {}", handlingJobs.get());
                 TimeUnit.MILLISECONDS.sleep(100);
-                if (System.currentTimeMillis() - startTime > 30000) { // 最多等待30秒
+                if (System.currentTimeMillis() - startTime > 30000) {
                     log.warn("等待任务处理超时，强制停止");
                     break;
                 }

@@ -1,6 +1,7 @@
 package com.jstore.order.expired;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -12,10 +13,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 负责将prepare中的超时未处理任务回滚到store中
+ * 负责将prepare中的超时未处理任务回滚到store中。
+ * PrepareQueue 中的 score = 秒级时间戳*1000 + ttl，
+ * 当 score < (当前时间 - 超时阈值) 时认为该任务已超时，需要回滚到 WaitingQueue 重新消费。
  */
+@Slf4j
 @Component
-public abstract class JobTimeoutMonitor implements Runnable {
+public class JobTimeoutMonitor {
     private final RedisTemplate<Object, Object> redisTemplate;
     private final RedisScript<Boolean> rollbackExpired;
 
@@ -34,31 +38,33 @@ public abstract class JobTimeoutMonitor implements Runnable {
         this.timerJobConfig = timerJobConfig;
     }
 
-    private List<String> topics() {
-        return topics;
-    }
-
 
     @Scheduled(cron = "${timer.job.expire.cron: */5 * * * * ?}")
     public void findTimeOutJobAndRollItBackToWaitingQueue() {
-        run();
+        if (TimerJobCoordinator.stopped.get()) {
+            return;
+        }
+        long tenSecondsBefore = System.currentTimeMillis() - (1000 * 10);
+        for (String topic : topics) {
+            for (int slot = 0; slot < timerJobConfig.getSlotAmount(); slot++) {
+                try {
+                    rollbackExpiredJobsInSlot(topic, slot, tenSecondsBefore);
+                } catch (Exception e) {
+                    log.error("回滚超时任务异常, topic={}, slot={}", topic, slot, e);
+                }
+            }
+        }
     }
 
-    @Override
-    public void run() {
-        long tenSecondsBefore = System.currentTimeMillis() - (1000 * 10);
-        for (String topic : topics()) {
-            for (int slot = 0; slot < timerJobConfig.getSlotAmount(); slot++) {
-                while (true) {
-                    Boolean result = redisTemplate.execute(
-                            rollbackExpired,
-                            Arrays.asList(TimerJobRepository.PrepareQueue.key(topic, slot), TimerJobRepository.WaitingQueue.key(topic, slot)),
-                            tenSecondsBefore
-                    );
-                    if (!result) {
-                        break;
-                    }
-                }
+    private void rollbackExpiredJobsInSlot(String topic, int slot, long expireThreshold) {
+        while (!TimerJobCoordinator.stopped.get()) {
+            Boolean result = redisTemplate.execute(
+                    rollbackExpired,
+                    Arrays.asList(TimerJobRepository.PrepareQueue.key(topic, slot), TimerJobRepository.WaitingQueue.key(topic, slot)),
+                    expireThreshold
+            );
+            if (!result) {
+                break;
             }
         }
     }
