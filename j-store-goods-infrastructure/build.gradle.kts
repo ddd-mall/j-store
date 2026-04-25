@@ -4,9 +4,6 @@ plugins {
     alias(libs.plugins.kotlin.plugin.spring)
 }
 
-group = "com.jstore"
-version = "0.0.1-SNAPSHOT"
-
 repositories {
     mavenLocal()
     mavenCentral()

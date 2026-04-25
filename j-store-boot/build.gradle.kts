@@ -16,9 +16,6 @@ kotlin {
     jvmToolchain(21)
 }
 
-group = "com.jstore"
-version = "0.0.1-SNAPSHOT"
-
 repositories {
     mavenCentral()
 }

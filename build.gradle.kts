@@ -2,6 +2,10 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
+allprojects {
+    group = property("projectGroup") as String
+    version = property("projectVersion") as String
+}
 
 java {
     toolchain {
