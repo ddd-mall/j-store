@@ -3,6 +3,8 @@ package com.jstore.order.domain.order.event
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.OrderId
+import com.jstore.order.domain.order.OrderItemId
+import com.jstore.order.domain.order.RefundReason
 import java.time.Instant
 
 /**
@@ -68,5 +70,42 @@ data class OrderCompletedEvent(
 data class OrderCancelledEvent(
     override val orderId: OrderId,
     val reason: String = "",
+    override val occurredAt: Instant = Instant.now()
+) : OrderDomainEvent(orderId, occurredAt)
+
+/**
+ * 订单退款申请事件
+ * 携带退款金额、退款原因、是否需要退货、退款行项 ID 列表
+ */
+data class OrderRefundRequestedEvent(
+    override val orderId: OrderId,
+    val refundAmount: Price,
+    val reason: RefundReason,
+    val requireReturn: Boolean,
+    val refundItemIds: List<OrderItemId>,
+    override val occurredAt: Instant = Instant.now()
+) : OrderDomainEvent(orderId, occurredAt)
+
+/**
+ * 订单退款批准事件
+ * 携带退款金额、被批准的行项 ID 列表和是否需要退货标记
+ * requireReturn = false 时可直接释放库存；true 时需等退货入库
+ */
+data class OrderRefundApprovedEvent(
+    override val orderId: OrderId,
+    val refundAmount: Price,
+    val approvedItemIds: List<OrderItemId>,
+    val requireReturn: Boolean,
+    override val occurredAt: Instant = Instant.now()
+) : OrderDomainEvent(orderId, occurredAt)
+
+/**
+ * 订单退款拒绝事件
+ * 携带拒绝原因和被拒绝的行项 ID 列表
+ */
+data class OrderRefundRejectedEvent(
+    override val orderId: OrderId,
+    val rejectReason: String,
+    val rejectedItemIds: List<OrderItemId>,
     override val occurredAt: Instant = Instant.now()
 ) : OrderDomainEvent(orderId, occurredAt)

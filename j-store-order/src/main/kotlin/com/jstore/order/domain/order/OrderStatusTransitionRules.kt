@@ -18,6 +18,12 @@ object OrderStatusTransitionRules {
         OrderStatus.PENDING_SHIPMENT to setOf(OrderStatus.SHIPPED, OrderStatus.REFUNDING),
         OrderStatus.SHIPPED to setOf(OrderStatus.DELIVERED),
         OrderStatus.DELIVERED to setOf(OrderStatus.COMPLETED, OrderStatus.REFUNDING),
+        OrderStatus.REFUNDING to setOf(
+            OrderStatus.CANCELLED,        // 退款批准（所有行项终态）
+            OrderStatus.PAID,             // 退款拒绝，恢复已支付
+            OrderStatus.PENDING_SHIPMENT, // 退款拒绝，恢复待发货
+            OrderStatus.DELIVERED         // 退款拒绝，恢复已签收
+        ),
         // COMPLETED 和 CANCELLED 是终态，没有后续转移
     )
 
