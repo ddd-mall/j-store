@@ -7,7 +7,8 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.order.acl.GeoAddressService
+import com.jstore.common.utils.fold
+import com.jstore.common.geo.GeoAddressService
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.GoodsService
 import com.jstore.order.domain.order.command.OrderCreateCMD
@@ -54,6 +55,10 @@ class OrderFactoryImpl(
 
         // 4. 查询地址
         val address = geoAddressService.getByDistrictCode(cmd.shippingDistrictCode)
+            .fold(
+                onSuccess = { it },
+                onFailure = { return Failure(it) }
+            )
 
         // 5. 组装聚合根
         val order = OrderImpl(

@@ -15,6 +15,7 @@ dependencies {
     api(libs.spring.boot.starter.data.jpa)
     api(libs.seata.all)
     implementation(project(":j-store-common-core"))
+    implementation(libs.fastexcel)
 
     // Spring Boot autoconfigure (for @ConditionalOnProperty, @EnableScheduling, etc.)
     implementation(libs.spirng.boot.boot)

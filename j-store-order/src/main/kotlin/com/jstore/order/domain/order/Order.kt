@@ -2,6 +2,7 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.AgreeGate
+import com.jstore.common.geo.GeoAddressInfo
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 import java.time.LocalDateTime

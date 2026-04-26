@@ -2,6 +2,7 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.framework.Page
 import com.jstore.common.framework.SortedPage
+import com.jstore.common.geo.GeoAddressInfo
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.persistence.OrderItemPO
