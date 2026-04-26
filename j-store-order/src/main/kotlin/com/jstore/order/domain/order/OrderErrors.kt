@@ -11,4 +11,8 @@ object OrderErrors {
     val REFUND_ITEMS_EMPTY = BusinessError("退款行项列表不能为空", "Order.Refund.ItemsEmpty", 400)
     val REFUND_ITEM_NOT_FOUND = BusinessError("退款行项不存在", "Order.Refund.ItemNotFound", 400)
     val REFUND_ITEM_INVALID_STATE = BusinessError("退款行项状态不合法", "Order.Refund.ItemInvalidState", 400)
+    val PAY_AMOUNT_INVALID = BusinessError("支付金额无效", "Order.Pay.AmountInvalid", 400)
+    val CANCEL_REASON_INVALID = BusinessError("取消原因无效", "Order.Cancel.ReasonInvalid", 400)
+    val REFUND_REASON_INVALID = BusinessError("退款原因无效", "Order.Refund.ReasonInvalid", 400)
+    val REJECT_REASON_INVALID = BusinessError("拒绝退款原因无效", "Order.Refund.RejectReasonInvalid", 400)
 }

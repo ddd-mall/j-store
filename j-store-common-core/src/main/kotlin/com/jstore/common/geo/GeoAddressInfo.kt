@@ -1,19 +1,18 @@
-package com.jstore.order.domain.order
+package com.jstore.common.geo
 
 import com.jstore.common.errors.CommonErrors
 import com.jstore.common.utils.string.StringUtils
 
 /**
  * 地理位置信息值对象
- * 不可变，代表订单配送地址信息
- * TODO: move to common module
+ * 不可变，代表地址信息（省/市/区 + 行政区划编码）
  */
 data class GeoAddressInfo(
     val districtCode: String,
     val province: String,
     val city: String,
     val county: String,
-    val detailAddress: String? = null  // ✅ 改为 val（不可变）
+    val detailAddress: String? = null
 ) {
     companion object {
         fun getProvinceCode(districtCode: String): String {
@@ -55,7 +54,6 @@ data class GeoAddressInfo(
     fun getCountyCode(): String {
         return getCountyCode(this.districtCode)
     }
-
 }
 
 enum class DistrictLevel {
@@ -63,7 +61,6 @@ enum class DistrictLevel {
         override fun getCodeLen(): Int {
             return 2
         }
-
     },
     CITY {
         override fun getCodeLen(): Int {

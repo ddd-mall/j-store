@@ -2,21 +2,22 @@ package com.jstore.order.service
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.common.utils.getOrThrow
 import com.jstore.common.utils.onFailure
-import com.jstore.order.domain.order.CancellationReason
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderErrors
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.order.OrderItemId
 import com.jstore.order.domain.order.OrderRepository
-import com.jstore.order.domain.order.RefundReason
+import com.jstore.order.domain.order.command.OrderApproveRefundCMD
+import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
+import com.jstore.order.domain.order.command.OrderPayCMD
+import com.jstore.order.domain.order.command.OrderRejectRefundCMD
+import com.jstore.order.domain.order.command.OrderRequestRefundCMD
 
 /**
  * 订单应用服务
@@ -34,7 +35,6 @@ class OrderService(
         cmd.validate().onFailure { return Failure(it) }
         val order = orderFactory.create(cmd).getOrThrow()
         orderRepository.add(order)
-        // 发布聚合根上积累的领域事件（OrderCreatedEvent）
         order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(order)
     }
@@ -58,13 +58,14 @@ class OrderService(
         return Success(Unit)
     }
 
+
     /** 支付回调 */
-    fun payOrder(orderId: OrderId, paidAmount: Price): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId)
+    fun payOrder(cmd: OrderPayCMD): Result<Unit, BusinessError> {
+        cmd.validate().onFailure { return Failure(it) }
+        val order = orderRepository.findById(cmd.orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.pay(paidAmount).onFailure { return Failure(it) }
+        order.pay(cmd.paidAmount).onFailure { return Failure(it) }
         orderRepository.save(order)
-        // 发布 OrderPaidEvent，触发库存 confirm（真正扣减）
         order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
     }
@@ -106,40 +107,44 @@ class OrderService(
     }
 
     /** 买家主动取消订单 */
-    fun cancelOrder(orderId: OrderId, reason: CancellationReason): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId)
+    fun cancelOrder(cmd: OrderCancelCMD): Result<Unit, BusinessError> {
+        cmd.validate().onFailure { return Failure(it) }
+        val order = orderRepository.findById(cmd.orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.cancel(reason).onFailure { return Failure(it) }
+        order.cancel(cmd.toReason()).onFailure { return Failure(it) }
         orderRepository.save(order)
         order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
     }
 
     /** 申请退款（已支付未发货 / 已签收退货退款） */
-    fun requestRefund(orderId: OrderId, reason: RefundReason, itemIds: List<OrderItemId>): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId)
+    fun requestRefund(cmd: OrderRequestRefundCMD): Result<Unit, BusinessError> {
+        cmd.validate().onFailure { return Failure(it) }
+        val order = orderRepository.findById(cmd.orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.requestRefund(reason, itemIds).onFailure { return Failure(it) }
+        order.requestRefund(cmd.toReason(), cmd.itemIds).onFailure { return Failure(it) }
         orderRepository.save(order)
         order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
     }
 
     /** 卖家批准退款 */
-    fun approveRefund(orderId: OrderId, itemIds: List<OrderItemId>): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId)
+    fun approveRefund(cmd: OrderApproveRefundCMD): Result<Unit, BusinessError> {
+        cmd.validate().onFailure { return Failure(it) }
+        val order = orderRepository.findById(cmd.orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.approveRefund(itemIds).onFailure { return Failure(it) }
+        order.approveRefund(cmd.itemIds).onFailure { return Failure(it) }
         orderRepository.save(order)
         order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
     }
 
     /** 卖家拒绝退款 */
-    fun rejectRefund(orderId: OrderId, rejectReason: String, itemIds: List<OrderItemId>): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId)
+    fun rejectRefund(cmd: OrderRejectRefundCMD): Result<Unit, BusinessError> {
+        cmd.validate().onFailure { return Failure(it) }
+        val order = orderRepository.findById(cmd.orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.rejectRefund(rejectReason, itemIds).onFailure { return Failure(it) }
+        order.rejectRefund(cmd.rejectReason, cmd.itemIds).onFailure { return Failure(it) }
         orderRepository.save(order)
         order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
