@@ -27,6 +27,8 @@ dependencies {
     implementation(project(":j-store-order-infrastructure"))
     implementation(project(":j-store-goods"))
     implementation(project(":j-store-goods-infrastructure"))
+    implementation(project(":j-store-user"))
+    implementation(project(":j-store-user-infrastructure"))
     implementation(project(":j-store-common-spring"))
 
 //    implementation(platform(libs.spring.cloud.dependencies))
