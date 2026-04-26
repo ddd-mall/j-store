@@ -14,6 +14,8 @@ data class OrderCreateCMD(
     val buyerPhone: String?,
     val buyerName: String?,
     val shippingDistrictCode: String,
+    val countryCode: String? = null,
+    val shippingDetailAddress: String? = null,
     val items: List<OrderItemCMD>,
 ) {
     data class OrderItemCMD(

@@ -54,7 +54,8 @@ class OrderFactoryImpl(
         val totalAmount = Price.sumOf(orderItems.map { it.subtotal() })
 
         // 4. 查询地址
-        val address = geoAddressService.getByDistrictCode(cmd.shippingDistrictCode)
+        val countryCode = cmd.countryCode ?: "CN"
+        val address = geoAddressService.getByCode(countryCode, cmd.shippingDistrictCode)
             .fold(
                 onSuccess = { it },
                 onFailure = { return Failure(it) }
@@ -70,6 +71,7 @@ class OrderFactoryImpl(
             ),
             _items = orderItems.toMutableList(),
             shippingAddress = address,
+            shippingDetailAddress = cmd.shippingDetailAddress,
             _status = OrderStatus.PENDING_STOCK,
             totalAmount = totalAmount,
             _actualPay = totalAmount,

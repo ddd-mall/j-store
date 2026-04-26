@@ -2,7 +2,7 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.geo.GeoAddressInfo
+import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -26,7 +26,8 @@ class OrderImpl(
     override val id: OrderId,
     override val buyerInfo: UserInfo,
     private val _items: MutableList<OrderItem>,
-    override val shippingAddress: GeoAddressInfo,
+    override val shippingAddress: I18nGeoAddress,
+    override val shippingDetailAddress: String? = null,
     private var _status: OrderStatus,
     override val totalAmount: Price,
     private var _actualPay: Price,
@@ -86,6 +87,7 @@ class OrderImpl(
         return Success(Unit)
     }
 
+    // TODO: 这里需要通过acl对接仓储系统,对接发货流程
     override fun ship(): Result<Unit, BusinessError> {
         if (!OrderStatusTransitionRules.isValidTransition(_status, OrderStatus.SHIPPED)) {
             return Failure(OrderErrors.ILLEGAL_STATE.msg("当前状态${_status.name}无法执行发货"))
@@ -97,6 +99,7 @@ class OrderImpl(
         return Success(Unit)
     }
 
+    // TODO: 这里需要通过acl对接仓储系统,通过出库事件回调,流转发货状态
     override fun confirmDelivery(): Result<Unit, BusinessError> {
         if (!OrderStatusTransitionRules.isValidTransition(_status, OrderStatus.DELIVERED)) {
             return Failure(OrderErrors.ILLEGAL_STATE.msg("当前状态${_status.name}无法确认收货"))
