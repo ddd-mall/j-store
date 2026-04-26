@@ -2,7 +2,11 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.framework.Page
 import com.jstore.common.framework.SortedPage
-import com.jstore.common.geo.GeoAddressInfo
+import com.jstore.common.geo.AddressComponent
+import com.jstore.common.geo.CountryCode
+import com.jstore.common.geo.chinese.DistrictCodeUtils
+import com.jstore.common.geo.DivisionLevel
+import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.persistence.OrderItemPO
@@ -11,6 +15,7 @@ import com.jstore.order.domain.order.persistence.OrderPOJpaRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Repository
+import java.util.Locale
 
 @Repository
 class OrderRepositoryImpl(
@@ -54,11 +59,12 @@ class OrderRepositoryImpl(
                 buyerUid = order.buyerInfo.uid,
                 buyerPhone = order.buyerInfo.phoneNumber?.value,
                 buyerName = order.buyerInfo.userName,
-                districtCode = order.shippingAddress.districtCode,
-                province = order.shippingAddress.province,
-                city = order.shippingAddress.city,
-                county = order.shippingAddress.county,
-                detailAddress = order.shippingAddress.detailAddress,
+                countryCode = order.shippingAddress.countryCode.value,
+                districtCode = order.shippingAddress.getLeafCode(),
+                province = order.shippingAddress.getComponentAtLevel(1)?.getDefaultName() ?: "",
+                city = order.shippingAddress.getComponentAtLevel(2)?.getDefaultName() ?: "",
+                county = order.shippingAddress.getComponentAtLevel(3)?.getDefaultName() ?: "",
+                detailAddress = order.shippingDetailAddress,
                 status = order.status,
                 previousStatus = order.previousStatus,
                 totalAmount = order.totalAmount.toBigDecimal(),
@@ -86,6 +92,40 @@ class OrderRepositoryImpl(
 
         fun toDomain(po: OrderPO): Order {
             val items = po.items.map { toDomainItem(it) }.toMutableList()
+            val countryCode = CountryCode(po.countryCode)
+            val defaultLocale = Locale.SIMPLIFIED_CHINESE
+            val components = mutableListOf<AddressComponent>()
+
+            if (po.province.isNotBlank()) {
+                components.add(AddressComponent(
+                    code = DistrictCodeUtils.getProvinceCode(po.districtCode),
+                    level = DivisionLevel(1, "省"),
+                    names = mapOf(defaultLocale to po.province),
+                    defaultLocale = defaultLocale
+                ))
+            }
+            if (po.city.isNotBlank()) {
+                components.add(AddressComponent(
+                    code = DistrictCodeUtils.getCityCode(po.districtCode),
+                    level = DivisionLevel(2, "市"),
+                    names = mapOf(defaultLocale to po.city),
+                    defaultLocale = defaultLocale
+                ))
+            }
+            if (po.county.isNotBlank()) {
+                components.add(AddressComponent(
+                    code = po.districtCode,
+                    level = DivisionLevel(3, "区/县"),
+                    names = mapOf(defaultLocale to po.county),
+                    defaultLocale = defaultLocale
+                ))
+            }
+
+            val address = I18nGeoAddress(
+                countryCode = countryCode,
+                components = components,
+            )
+
             return OrderImpl(
                 id = OrderId(po.id),
                 buyerInfo = UserInfo(
@@ -94,13 +134,8 @@ class OrderRepositoryImpl(
                     userName = po.buyerName,
                 ),
                 _items = items.toMutableList(),
-                shippingAddress = GeoAddressInfo(
-                    districtCode = po.districtCode,
-                    province = po.province,
-                    city = po.city,
-                    county = po.county,
-                    detailAddress = po.detailAddress,
-                ),
+                shippingAddress = address,
+                shippingDetailAddress = po.detailAddress,
                 _status = po.status,
                 totalAmount = Price.fromBigDecimal(po.totalAmount),
                 _actualPay = Price.fromBigDecimal(po.actualPay),

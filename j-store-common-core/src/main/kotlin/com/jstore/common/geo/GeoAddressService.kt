@@ -4,5 +4,5 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
 
 interface GeoAddressService {
-    fun getByDistrictCode(districtCode: String): Result<GeoAddressInfo, BusinessError>
+    fun getByCode(countryCode: String, addressCode: String): Result<I18nGeoAddress, BusinessError>
 }

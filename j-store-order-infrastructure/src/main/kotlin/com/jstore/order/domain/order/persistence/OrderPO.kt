@@ -34,6 +34,9 @@ class OrderPO(
     @Column(name = "buyer_name", length = 64)
     var buyerName: String? = null,
 
+    @Column(name = "country_code", nullable = false, length = 2)
+    var countryCode: String = "CN",
+
     @Column(name = "district_code", nullable = false, length = 12)
     var districtCode: String = "",
 
