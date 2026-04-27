@@ -22,6 +22,20 @@ sealed class Result<out T, out E>: Serializable {
 data class Success<out T>(val value: T) : Result<T, Nothing>()
 data class Failure<out E>(val error: E) : Result<Nothing, E>()
 
+/**
+ * Java-friendly factory methods for Result.
+ * Usage: Results.ok(42), Results.err("boom")
+ */
+object Results {
+    @JvmStatic
+    @Suppress("UNCHECKED_CAST")
+    fun <T, E> ok(value: T): Result<T, E> = Success(value) as Result<T, E>
+
+    @JvmStatic
+    @Suppress("UNCHECKED_CAST")
+    fun <T, E> err(error: E): Result<T, E> = Failure(error) as Result<T, E>
+}
+
 class ResultUnwrapException(message: String) : IllegalStateException(message)
 
 /**
