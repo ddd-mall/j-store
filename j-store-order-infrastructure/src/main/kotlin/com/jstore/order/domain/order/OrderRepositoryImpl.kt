@@ -2,11 +2,6 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.framework.Page
 import com.jstore.common.framework.SortedPage
-import com.jstore.common.geo.AddressComponent
-import com.jstore.common.geo.CountryCode
-import com.jstore.common.geo.chinese.DistrictCodeUtils
-import com.jstore.common.geo.DivisionLevel
-import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.persistence.OrderItemPO
@@ -15,7 +10,6 @@ import com.jstore.order.domain.order.persistence.OrderPOJpaRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Repository
-import java.util.Locale
 
 @Repository
 class OrderRepositoryImpl(
@@ -61,9 +55,7 @@ class OrderRepositoryImpl(
                 buyerName = order.buyerInfo.userName,
                 countryCode = order.shippingAddress.countryCode.value,
                 districtCode = order.shippingAddress.getLeafCode(),
-                province = order.shippingAddress.getComponentAtLevel(1)?.getDefaultName() ?: "",
-                city = order.shippingAddress.getComponentAtLevel(2)?.getDefaultName() ?: "",
-                county = order.shippingAddress.getComponentAtLevel(3)?.getDefaultName() ?: "",
+                shippingAddress = order.shippingAddress,
                 detailAddress = order.shippingDetailAddress,
                 status = order.status,
                 previousStatus = order.previousStatus,
@@ -92,39 +84,8 @@ class OrderRepositoryImpl(
 
         fun toDomain(po: OrderPO): Order {
             val items = po.items.map { toDomainItem(it) }.toMutableList()
-            val countryCode = CountryCode(po.countryCode)
-            val defaultLocale = Locale.SIMPLIFIED_CHINESE
-            val components = mutableListOf<AddressComponent>()
-
-            if (po.province.isNotBlank()) {
-                components.add(AddressComponent(
-                    code = DistrictCodeUtils.getProvinceCode(po.districtCode),
-                    level = DivisionLevel(1, "省"),
-                    names = mapOf(defaultLocale to po.province),
-                    defaultLocale = defaultLocale
-                ))
-            }
-            if (po.city.isNotBlank()) {
-                components.add(AddressComponent(
-                    code = DistrictCodeUtils.getCityCode(po.districtCode),
-                    level = DivisionLevel(2, "市"),
-                    names = mapOf(defaultLocale to po.city),
-                    defaultLocale = defaultLocale
-                ))
-            }
-            if (po.county.isNotBlank()) {
-                components.add(AddressComponent(
-                    code = po.districtCode,
-                    level = DivisionLevel(3, "区/县"),
-                    names = mapOf(defaultLocale to po.county),
-                    defaultLocale = defaultLocale
-                ))
-            }
-
-            val address = I18nGeoAddress(
-                countryCode = countryCode,
-                components = components,
-            )
+            val address = po.shippingAddress
+                ?: error("Order ${po.id} has no shipping address")
 
             return OrderImpl(
                 id = OrderId(po.id),
