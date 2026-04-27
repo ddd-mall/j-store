@@ -1,6 +1,5 @@
 package com.jstore.order.domain.order.persistence
 
-import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.order.domain.order.OrderItemStatus
 import com.jstore.order.domain.order.OrderStatus
 import jakarta.persistence.CascadeType
@@ -36,20 +35,9 @@ class OrderPO(
     @Column(name = "buyer_name", length = 64)
     var buyerName: String? = null,
 
-    @Column(name = "country_code", nullable = false, length = 2)
-    var countryCode: String = "CN",
-
-    /** 叶子节点编码，保留用于索引和查询 */
-    @Column(name = "district_code", nullable = false, length = 12)
-    var districtCode: String = "",
-
-    /** 完整 i18n 地址 JSON（任意层级 + 多语言），存储为 PostgreSQL jsonb */
-    @Convert(converter = I18nGeoAddressConverter::class)
-    @Column(name = "shipping_address", columnDefinition = "jsonb")
-    var shippingAddress: I18nGeoAddress? = null,
-
-    @Column(name = "detail_address", length = 256)
-    var detailAddress: String? = null,
+    @Convert(converter = RecipientInfoPOConverter::class)
+    @Column(name = "recipient_info", columnDefinition = "jsonb")
+    var recipientInfo: RecipientInfoPO? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)

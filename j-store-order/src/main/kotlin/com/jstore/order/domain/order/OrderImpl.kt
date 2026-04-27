@@ -2,7 +2,6 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -26,8 +25,7 @@ class OrderImpl(
     override val id: OrderId,
     override val buyerInfo: UserInfo,
     private val _items: MutableList<OrderItem>,
-    override val shippingAddress: I18nGeoAddress,
-    override val shippingDetailAddress: String? = null,
+    override val recipientInfo: RecipientInfo,
     private var _status: OrderStatus,
     override val totalAmount: Price,
     private var _actualPay: Price,
