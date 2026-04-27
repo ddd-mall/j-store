@@ -1,92 +1,39 @@
 package com.jstore.goods.domain.commodity
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.framework.AgreeGate
-import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.properties.Id
-import com.jstore.common.utils.Failure
+import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
-import com.jstore.common.utils.Success
-import com.jstore.common.utils.onFailure
-import com.jstore.goods.domain.commodity.event.CommodityOffSaleEvent
-import com.jstore.goods.domain.commodity.event.CommodityOnSaleEvent
-import com.jstore.goods.domain.commodity.event.CommodityPublishedEvent
-import java.util.*
 
-
-class SpuId(override val value: Long) : Id<Long>(value)
 
 interface Spu : AgreeGate<SpuId> {
+    /** 商品名称 */
     val name: String
-    val status: CommodityStatus
+
+    /** 商品描述 */
+    val description: String
+
+    /** SKU 列表（只读视图） */
     val skus: List<Sku>
 
-    /** 增加SKU */
-    fun addSku(sku: Sku): Result<Boolean, BusinessError>
+    /** 商品状态 */
+    val status: CommodityStatus
 
-    /** 开始售卖 */
-    fun putOnSale(): Result<Boolean, BusinessError>
+    /** 版本号（每次快照递增） */
+    val version: Long
 
-    /** 停止售卖 */
-    fun tackOffSale(): Result<Boolean, BusinessError>
+    /** 添加 SKU */
+    fun addSku(sku: Sku): Result<Unit, BusinessError>
 
-    /** 发布 */
-    fun publish(): Result<Boolean, BusinessError>
-}
+    /** 发布：DRAFT → OFF_SALE */
+    fun publish(): Result<Unit, BusinessError>
 
-class SpuImpl(
-    override val id: SpuId,
-    override val name: String,
-    private var _status: CommodityStatus,
-    private val _skus: MutableList<Sku>,
-) : Spu {
+    /** 上架：OFF_SALE → ON_SALE */
+    fun putOnSale(): Result<Unit, BusinessError>
 
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+    /** 下架：ON_SALE → OFF_SALE */
+    fun takeOffSale(): Result<Unit, BusinessError>
 
-    override val status: CommodityStatus get() = _status
-    override val skus: List<Sku> get() = _skus.toList()
-
-    override fun addSku(sku: Sku): Result<Boolean, BusinessError> {
-        _skus.add(sku)
-        return Success(true)
-    }
-
-    override fun putOnSale(): Result<Boolean, BusinessError> {
-        if (CommodityStatus.ON_SALE == _status) {
-            return Success(true)
-        }
-        if (CommodityStatus.DRAFT == _status) {
-            return Failure(CommonBusinessError.ILLEGAL_STATE.msg("current commodity is in draft, can not operate!!"))
-        }
-        _status = CommodityStatus.ON_SALE
-        publishEvent(CommodityOnSaleEvent(source = this, spuId = id))
-        return Success(true)
-    }
-
-    override fun tackOffSale(): Result<Boolean, BusinessError> {
-        if (CommodityStatus.OFF_SALE == _status) {
-            return Success(true)
-        }
-        if (CommodityStatus.DRAFT == _status) {
-            return Failure(CommonBusinessError.ILLEGAL_STATE.msg("current commodity is in draft, can not operate!!"))
-        }
-        _status = CommodityStatus.OFF_SALE
-        publishEvent(CommodityOffSaleEvent(source = this, spuId = id))
-        return Success(true)
-    }
-
-    override fun publish(): Result<Boolean, BusinessError> {
-        if (CommodityStatus.ON_SALE == _status || CommodityStatus.OFF_SALE == _status) {
-            return Success(true)
-        }
-        verifyBeforePublish().onFailure { return Failure(it) }
-        _status = CommodityStatus.OFF_SALE
-        publishEvent(CommodityPublishedEvent(source = this, spuId = id))
-        return Success(true)
-    }
-
-    private fun verifyBeforePublish(): Result<Boolean, BusinessError> {
-        return Success(true)
-    }
+    /** 递增版本号（用于快照前） */
+    fun incrementVersion(): Long
 }

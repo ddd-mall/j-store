@@ -1,7 +1,10 @@
 package com.jstore.goods.domain.commodity
 
 enum class CommodityStatus {
-    ON_SALE,
+    /** 草稿 — 新建未发布 */
+    DRAFT,
+    /** 已发布/下架 — 可上架 */
     OFF_SALE,
-    DRAFT
+    /** 在售 — 可下架 */
+    ON_SALE,
 }

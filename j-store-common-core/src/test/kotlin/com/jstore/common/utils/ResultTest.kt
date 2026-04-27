@@ -2,6 +2,7 @@ package com.jstore.common.utils
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.equality.shouldNotBeEqualToComparingFieldsExcept
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -407,5 +408,9 @@ class ResultTest : FunSpec({
 
     test("Success and Failure are never equal") {
         (Success(0) == Failure(0)) shouldBe false
+    }
+
+    test("test for ResultKt.mapOr") {
+        val value = Results.ok<Int, String>(12)
     }
 })

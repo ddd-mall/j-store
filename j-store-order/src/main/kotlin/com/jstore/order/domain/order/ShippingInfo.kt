@@ -1,7 +1,6 @@
 package com.jstore.order.domain.order
 
 import com.jstore.common.geo.I18nGeoAddress
-import com.jstore.common.properties.PhoneNumber
 
 data class ShippingInfo(
     /**
@@ -11,7 +10,7 @@ data class ShippingInfo(
     /**
      * 收获人联系方式
      */
-    val contractPhoneNumber: PhoneNumber,
+    val consigneeContractInfo: ContractInfo,
     /**
      * 收货地址
      */
@@ -20,6 +19,4 @@ data class ShippingInfo(
      * 详细收货地址
      */
     val shippingDetailAddress: String?,
-
-
-)
+    )
