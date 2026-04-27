@@ -16,4 +16,6 @@ object OrderErrors {
     val CANCEL_REASON_INVALID = BusinessError("取消原因无效", "Order.Cancel.ReasonInvalid", 400)
     val REFUND_REASON_INVALID = BusinessError("退款原因无效", "Order.Refund.ReasonInvalid", 400)
     val REJECT_REASON_INVALID = BusinessError("拒绝退款原因无效", "Order.Refund.RejectReasonInvalid", 400)
+    val CONSIGNEE_NAME_BLANK = BusinessError("收货人姓名不能为空", "Order.Consignee.NameBlank", 400)
+    val DISTRICT_CODE_BLANK = BusinessError("行政区划编码不能为空", "Order.Consignee.DistrictCodeBlank", 400)
 }

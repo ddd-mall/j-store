@@ -2,7 +2,6 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.AgreeGate
-import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 import java.time.LocalDateTime
@@ -20,11 +19,8 @@ interface Order : AgreeGate<OrderId> {
     /** 订单行项（只读视图） */
     val items: List<OrderItem>
 
-    /** 配送地址（不可变值对象） */
-    val shippingAddress: I18nGeoAddress
-
-    /** 配送详细地址（用户补充描述，如门牌号） */
-    val shippingDetailAddress: String?
+    /** 收货信息（不可变值对象） */
+    val recipientInfo: RecipientInfo
 
     /** 订单状态 */
     val status: OrderStatus

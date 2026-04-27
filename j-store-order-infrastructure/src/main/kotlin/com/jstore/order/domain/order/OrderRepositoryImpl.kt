@@ -4,6 +4,7 @@ import com.jstore.common.framework.Page
 import com.jstore.common.framework.SortedPage
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
+import com.jstore.order.domain.order.persistence.RecipientInfoPO
 import com.jstore.order.domain.order.persistence.OrderItemPO
 import com.jstore.order.domain.order.persistence.OrderPO
 import com.jstore.order.domain.order.persistence.OrderPOJpaRepository
@@ -45,18 +46,25 @@ class OrderRepositoryImpl(
         )
     }
 
-    private object Converter {
+    internal object Converter {
 
         fun toPO(order: Order): OrderPO {
+            val si = order.recipientInfo
+            val recipientInfoPO = RecipientInfoPO(
+                consigneeName = si.name,
+                consigneePhone = si.contractInfo.phoneNumber?.value,
+                consigneeEmail = si.contractInfo.email,
+                countryCode = si.shippingAddress.countryCode.value,
+                districtCode = si.shippingAddress.getLeafCode(),
+                shippingAddress = si.shippingAddress,
+                detailAddress = si.shippingDetailAddress,
+            )
             return OrderPO(
                 id = order.id.value,
                 buyerUid = order.buyerInfo.uid,
                 buyerPhone = order.buyerInfo.phoneNumber?.value,
                 buyerName = order.buyerInfo.userName,
-                countryCode = order.shippingAddress.countryCode.value,
-                districtCode = order.shippingAddress.getLeafCode(),
-                shippingAddress = order.shippingAddress,
-                detailAddress = order.shippingDetailAddress,
+                recipientInfo = recipientInfoPO,
                 status = order.status,
                 previousStatus = order.previousStatus,
                 totalAmount = order.totalAmount.toBigDecimal(),
@@ -84,8 +92,23 @@ class OrderRepositoryImpl(
 
         fun toDomain(po: OrderPO): Order {
             val items = po.items.map { toDomainItem(it) }.toMutableList()
-            val address = po.shippingAddress
-                ?: error("Order ${po.id} has no shipping address")
+            val recipientInfoPo = po.recipientInfo
+                ?: error("Order ${po.id} has no consignee_info")
+
+            val address = recipientInfoPo.shippingAddress
+                ?: error("Order ${po.id} consignee_info has no shippingAddress")
+
+            val contractInfo = ContractInfo(
+                email = recipientInfoPo.consigneeEmail,
+                phoneNumber = recipientInfoPo.consigneePhone?.let { PhoneNumber(it) },
+            )
+
+            val consignInfo = RecipientInfo(
+                name = recipientInfoPo.consigneeName ?: "",
+                contractInfo = contractInfo,
+                shippingAddress = address,
+                shippingDetailAddress = recipientInfoPo.detailAddress,
+            )
 
             return OrderImpl(
                 id = OrderId(po.id),
@@ -95,8 +118,8 @@ class OrderRepositoryImpl(
                     userName = po.buyerName,
                 ),
                 _items = items.toMutableList(),
-                shippingAddress = address,
-                shippingDetailAddress = po.detailAddress,
+
+                recipientInfo = consignInfo,
                 _status = po.status,
                 totalAmount = Price.fromBigDecimal(po.totalAmount),
                 _actualPay = Price.fromBigDecimal(po.actualPay),

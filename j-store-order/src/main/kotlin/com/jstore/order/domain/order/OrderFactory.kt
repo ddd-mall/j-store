@@ -53,13 +53,26 @@ class OrderFactoryImpl(
         // 3. 计算总金额
         val totalAmount = Price.sumOf(orderItems.map { it.subtotal() })
 
-        // 4. 查询地址
-        val countryCode = cmd.countryCode ?: "CN"
-        val address = geoAddressService.getByCode(countryCode, cmd.shippingDistrictCode)
+        // 4. 从 RecipientInfoCMD 构建 ShippingInfo
+        val recipientInfoCmd = cmd.recipientInfo
+        val countryCode = recipientInfoCmd.countryCode ?: "CN"
+        val address = geoAddressService.getByCode(countryCode, recipientInfoCmd.shippingDistrictCode)
             .fold(
                 onSuccess = { it },
                 onFailure = { return Failure(it) }
             )
+
+        val contractInfo = ContractInfo(
+            email = recipientInfoCmd.consigneeContractInfo.emailAddress,
+            phoneNumber = recipientInfoCmd.consigneeContractInfo.phoneNumber,
+        )
+
+        val recipientInfo = RecipientInfo(
+            name = recipientInfoCmd.consigneeName,
+            contractInfo = contractInfo,
+            shippingAddress = address,
+            shippingDetailAddress = recipientInfoCmd.shippingDetailAddress,
+        )
 
         // 5. 组装聚合根
         val order = OrderImpl(
@@ -70,8 +83,7 @@ class OrderFactoryImpl(
                 userName = cmd.buyerName,
             ),
             _items = orderItems.toMutableList(),
-            shippingAddress = address,
-            shippingDetailAddress = cmd.shippingDetailAddress,
+            recipientInfo = recipientInfo,
             _status = OrderStatus.PENDING_STOCK,
             totalAmount = totalAmount,
             _actualPay = totalAmount,

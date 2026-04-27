@@ -2,15 +2,18 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.geo.I18nGeoAddress
 
-data class ShippingInfo(
+/**
+ * 收件信息
+ */
+data class RecipientInfo(
     /**
      * 收件人姓名
      */
-    val consigneeName: String,
+    val name: String,
     /**
      * 收获人联系方式
      */
-    val consigneeContractInfo: ContractInfo,
+    val contractInfo: ContractInfo,
     /**
      * 收货地址
      */
