@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    kotlin("plugin.spring") version "2.1.21"
 }
 
 allprojects {
@@ -20,4 +21,7 @@ repositories {
         setUrl("https://maven.aliyun.com/repository/public")
     }
     mavenLocal()
+}
+dependencies {
+    implementation(kotlin("stdlib"))
 }
