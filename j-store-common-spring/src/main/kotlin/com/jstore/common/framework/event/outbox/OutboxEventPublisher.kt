@@ -2,6 +2,9 @@ package com.jstore.common.framework.event.outbox
 
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.persistent.SnowFlakSequence
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
 
@@ -11,15 +14,17 @@ import java.util.UUID
  * 将领域事件序列化后写入 Outbox 表（状态为 PENDING），
  * 替代 SpringDomainEventPublisher 的直接内存投递。
  */
-class OutboxEventPublisher(
+open class OutboxEventPublisher(
     private val outboxEntryRepository: OutboxEntryRepository,
     private val eventSerializer: EventSerializer,
+    private val snowFlakSequence: SnowFlakSequence
 ) : DomainEventPublisher {
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun <T : DomainEvent> publishEvent(event: T) {
         val now = Instant.now()
         val entry = OutboxEntry(
-            id = UUID.randomUUID().toString(),
+            id = snowFlakSequence.nextId().toString(),
             eventType = event::class.java.name,
             payload = eventSerializer.serialize(event),
             aggregateType = extractAggregateType(event),
