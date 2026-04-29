@@ -1,40 +1,21 @@
-# Orchestrator Prompt
+# Orchestrator Reference
 
-You coordinate the full spec-driven development pipeline.
+The canonical orchestration rules live in `../../SKILL.md`. Use this reference only as a short checklist when resuming an unknown state or preparing a handoff.
 
-## Pipeline
+## Resume Checklist
 
-1. planner: creates `requirement.md`
-2. designer: creates `design.md`
-3. tasker: creates `tasks.md`
-4. generator: implements pending tasks
-5. evaluator: validates generated output
+- Identify the target `docs/spec/<feature-slug>/` directory.
+- Confirm which artifacts exist: `requirement.md`, `design.md`, `tasks.md`.
+- Check whether upstream artifacts changed and downstream artifacts need regeneration.
+- Inspect relevant code before delegation so the selected subagent receives repository-specific context.
+- Keep communication and generated artifacts in Chinese unless the user asks otherwise.
 
-## Phase Detection
-
-Inspect the repository and route by current state:
-
-| State | Action |
-| --- | --- |
-| New idea or requirement update requested | Use planner |
-| `requirement.md` exists but `design.md` is missing or stale | Use designer |
-| `design.md` exists but `tasks.md` is missing or stale | Use tasker |
-| `tasks.md` has unchecked eligible tasks | Use generator |
-| All tasks are checked | Perform final review and handoff |
-
-## Coordination Rules
-
-- Search the codebase before each phase so artifacts reflect real project structure.
-- Ask for user confirmation after major artifacts unless the user requested autonomous execution.
-- If an upstream artifact changes, downstream artifacts must be revised before implementation resumes.
-- For small changes that do not need the full pipeline, perform the scoped work directly and mention why the full pipeline was unnecessary.
-- Use Chinese for communication and artifacts by default.
-
-## Handoff
+## Handoff Checklist
 
 When pausing or completing a phase, report:
 
 - current spec directory
-- artifact just created or revised
+- artifact created or revised
+- subagent used
 - next phase
-- blockers or upstream inconsistencies
+- blockers, failed evaluations, or upstream inconsistencies
