@@ -51,6 +51,7 @@ class FakeJournalEntryRepository : JournalEntryRepository {
 
 class FakeLedgerAccountRepository : LedgerAccountRepository {
     private val accounts = listOf(
+        account(1002, "1002", SubjectType.PLATFORM, "PLATFORM", LedgerAccountType.ASSET, BalanceDirection.DEBIT),
         account(1010, "1010", SubjectType.CHANNEL, "DEFAULT", LedgerAccountType.ASSET, BalanceDirection.DEBIT),
         account(2101, "2101", SubjectType.MERCHANT, "DEFAULT", LedgerAccountType.LIABILITY, BalanceDirection.CREDIT),
         account(3001, "3001", SubjectType.PLATFORM, "PLATFORM", LedgerAccountType.REVENUE, BalanceDirection.CREDIT),
@@ -79,7 +80,7 @@ class FakeLedgerAccountRepository : LedgerAccountRepository {
     )
 }
 
-class FakeAccountingPeriodRepository : AccountingPeriodRepository {
+open class FakeAccountingPeriodRepository : AccountingPeriodRepository {
     private val period = AccountingPeriodImpl(
         id = AccountingPeriodId(1),
         periodCode = "202604",

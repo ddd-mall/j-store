@@ -4,6 +4,9 @@ import com.jstore.accounting.acl.AccountingOrderService
 import com.jstore.accounting.acl.OrderAccountingInfo
 import com.jstore.accounting.domain.journal.SourceDocument
 import com.jstore.accounting.domain.journal.SourceDocumentType
+import com.jstore.accounting.domain.settlement.SettlementStatementId
+import com.jstore.accounting.domain.settlement.event.SettlementPaidEvent
+import com.jstore.accounting.service.command.RecordOrderPaidCMD
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
@@ -42,6 +45,15 @@ class AccountingEventHandlerTest : FunSpec({
     test("OrderRefundApprovedEvent is converted into refund reversal journal entry") {
         val journalRepo = FakeJournalEntryRepository()
         val app = AccountingApplicationService(journalRepo, FakeLedgerAccountRepository(), FakeAccountingPeriodRepository())
+        app.recordOrderPaid(
+            RecordOrderPaidCMD(
+                orderId = "1",
+                merchantId = "m1",
+                paidAmount = Price.ofFen(1000),
+                accountingDate = java.time.LocalDate.of(2026, 4, 30),
+                sourceDocument = SourceDocument(SourceDocumentType.ORDER, "1", "OrderPaidEvent"),
+            )
+        )
         val handler = OrderRefundApprovedAccountingEventHandler(FakeOrderAccountingService(), app)
 
         handler.onDomainEvent(
@@ -54,7 +66,25 @@ class AccountingEventHandlerTest : FunSpec({
             )
         )
 
-        journalRepo.savedEntries.single().sourceDocument shouldBe SourceDocument(SourceDocumentType.REFUND, "1:OrderItemId(value=10)", "OrderRefundApprovedEvent")
+        journalRepo.savedEntries.last().sourceDocument shouldBe SourceDocument(SourceDocumentType.REFUND, "1:OrderItemId(value=10)", "OrderRefundApprovedEvent")
+    }
+
+    test("SettlementPaidEvent is converted into settlement payment journal entry") {
+        val journalRepo = FakeJournalEntryRepository()
+        val app = AccountingApplicationService(journalRepo, FakeLedgerAccountRepository(), FakeAccountingPeriodRepository())
+        val handler = SettlementPaidAccountingEventHandler(app)
+
+        handler.onDomainEvent(
+            SettlementPaidEvent(
+                settlementId = SettlementStatementId(10),
+                statementNo = "ST10",
+                merchantId = "m1",
+                payableAmount = Price.ofFen(900),
+                paidAt = Instant.parse("2026-04-30T01:00:00Z"),
+            )
+        )
+
+        journalRepo.savedEntries.single().sourceDocument shouldBe SourceDocument(SourceDocumentType.SETTLEMENT, "10", "SettlementPaidEvent")
     }
 })
 

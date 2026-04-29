@@ -22,6 +22,7 @@ class JournalEntryImpl(
     override val createdAt: Instant = Instant.now(),
     private var _postedAt: Instant? = null,
     private var _reversedBy: JournalEntryId? = null,
+    private var _reversalOf: JournalEntryId? = null,
 ) : JournalEntry {
     override val domainEventQueue: Queue<DomainEvent> = LinkedList()
 
@@ -33,6 +34,7 @@ class JournalEntryImpl(
     override val lines: List<JournalLine> get() = _lines.toList()
     override val postedAt: Instant? get() = _postedAt
     override val reversedBy: JournalEntryId? get() = _reversedBy
+    override val reversalOf: JournalEntryId? get() = _reversalOf
 
     override fun addLine(line: JournalLine): Result<Unit, BusinessError> {
         if (_status != JournalEntryStatus.DRAFT) {
@@ -91,6 +93,7 @@ class JournalEntryImpl(
                 eventType = "JournalEntryReversed",
             ),
             accountingDate = accountingDate,
+            _reversalOf = id,
         )
         _lines.forEach { line ->
             reversal.addLine(

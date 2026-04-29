@@ -7,7 +7,9 @@ import com.jstore.accounting.domain.journal.SourceDocumentType
 import com.jstore.accounting.service.command.RecordOrderPaidCMD
 import com.jstore.accounting.service.command.RecordOrderCompletedCMD
 import com.jstore.accounting.service.command.RecordOrderRefundApprovedCMD
+import com.jstore.accounting.service.command.RecordSettlementPaidCMD
 import com.jstore.common.properties.Price
+import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldNotContain
@@ -53,8 +55,18 @@ class AccountingApplicationServiceTest : FunSpec({
     }
 
     test("recordOrderRefundApproved creates refund reversal without mutating original source") {
-        val service = AccountingApplicationService(FakeJournalEntryRepository(), FakeLedgerAccountRepository(), FakeAccountingPeriodRepository())
+        val journalRepo = FakeJournalEntryRepository()
+        val service = AccountingApplicationService(journalRepo, FakeLedgerAccountRepository(), FakeAccountingPeriodRepository())
         val original = SourceDocument(SourceDocumentType.ORDER, "1", "OrderPaidEvent")
+        val originalEntry = (service.recordOrderPaid(
+            RecordOrderPaidCMD(
+                orderId = "1",
+                merchantId = "m1",
+                paidAmount = Price.ofFen(1000),
+                accountingDate = LocalDate.of(2026, 4, 30),
+                sourceDocument = original,
+            )
+        ) as Success).value
         val entry = (service.recordOrderRefundApproved(
             RecordOrderRefundApprovedCMD(
                 orderId = "1",
@@ -66,7 +78,70 @@ class AccountingApplicationServiceTest : FunSpec({
             )
         ) as Success).value
 
+        entry.reversalOf shouldBe originalEntry.id
+        originalEntry.lines.first { it.side == EntrySide.DEBIT }.amount shouldBe Price.ofFen(1000)
         entry.lines.first { it.side == EntrySide.DEBIT }.accountId shouldBe LedgerAccountId(2101)
         entry.lines.first { it.side == EntrySide.CREDIT }.accountId shouldBe LedgerAccountId(1010)
     }
+
+    test("recordSettlementPaid creates settlement payment journal entry") {
+        val journalRepo = FakeJournalEntryRepository()
+        val service = AccountingApplicationService(journalRepo, FakeLedgerAccountRepository(), FakeAccountingPeriodRepository())
+        val cmd = RecordSettlementPaidCMD(
+            settlementId = "10",
+            merchantId = "m1",
+            paidAmount = Price.ofFen(900),
+            accountingDate = LocalDate.of(2026, 4, 30),
+            sourceDocument = SourceDocument(SourceDocumentType.SETTLEMENT, "10", "SettlementPaidEvent"),
+        )
+
+        val first = (service.recordSettlementPaid(cmd) as Success).value
+        val second = (service.recordSettlementPaid(cmd) as Success).value
+
+        first.id shouldBe second.id
+        journalRepo.savedCount shouldBe 1
+        first.lines.first { it.side == EntrySide.DEBIT }.accountId shouldBe LedgerAccountId(2101)
+        first.lines.first { it.side == EntrySide.CREDIT }.accountId shouldBe LedgerAccountId(1002)
+    }
+
+    test("recordSettlementPaid fails and does not save when accounting period is not open") {
+        val journalRepo = FakeJournalEntryRepository()
+        val service = AccountingApplicationService(journalRepo, FakeLedgerAccountRepository(), MissingAccountingPeriodRepository())
+
+        val result = service.recordSettlementPaid(
+            RecordSettlementPaidCMD(
+                settlementId = "10",
+                merchantId = "m1",
+                paidAmount = Price.ofFen(900),
+                accountingDate = LocalDate.of(2026, 5, 1),
+                sourceDocument = SourceDocument(SourceDocumentType.SETTLEMENT, "10", "SettlementPaidEvent"),
+            )
+        )
+
+        (result is Failure) shouldBe true
+        journalRepo.savedCount shouldBe 0
+    }
+
+    test("recordOrderRefundApproved fails when original journal entry is missing") {
+        val journalRepo = FakeJournalEntryRepository()
+        val service = AccountingApplicationService(journalRepo, FakeLedgerAccountRepository(), FakeAccountingPeriodRepository())
+
+        val result = service.recordOrderRefundApproved(
+            RecordOrderRefundApprovedCMD(
+                orderId = "1",
+                merchantId = "m1",
+                refundAmount = Price.ofFen(500),
+                accountingDate = LocalDate.of(2026, 4, 30),
+                sourceDocument = SourceDocument(SourceDocumentType.REFUND, "1:item1", "OrderRefundApprovedEvent"),
+                originalSourceDocument = SourceDocument(SourceDocumentType.ORDER, "1", "OrderPaidEvent"),
+            )
+        )
+
+        (result is Failure) shouldBe true
+        journalRepo.savedCount shouldBe 0
+    }
 })
+
+private class MissingAccountingPeriodRepository : FakeAccountingPeriodRepository() {
+    override fun findByDate(date: LocalDate) = null
+}

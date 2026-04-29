@@ -60,6 +60,9 @@ class JournalEntryPO(
     @Column(name = "reversed_by")
     var reversedBy: Long? = null,
 
+    @Column(name = "reversal_of")
+    var reversalOf: Long? = null,
+
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
 

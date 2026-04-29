@@ -61,6 +61,7 @@ class JournalEntryRepositoryImpl(
                 accountingDate = entry.accountingDate,
                 status = entry.status,
                 reversedBy = entry.reversedBy?.value,
+                reversalOf = entry.reversalOf?.value,
                 createdAt = entry.createdAt,
                 postedAt = entry.postedAt,
                 lines = entry.lines.map { toLinePO(it) }.toMutableList(),
@@ -87,6 +88,7 @@ class JournalEntryRepositoryImpl(
                 createdAt = po.createdAt,
                 _postedAt = po.postedAt,
                 _reversedBy = po.reversedBy?.let(::JournalEntryId),
+                _reversalOf = po.reversalOf?.let(::JournalEntryId),
             )
 
         private fun toLineDomain(po: JournalLinePO): JournalLine =
