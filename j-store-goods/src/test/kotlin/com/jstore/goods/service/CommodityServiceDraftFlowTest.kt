@@ -1,7 +1,6 @@
 package com.jstore.goods.service
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
@@ -90,7 +89,7 @@ class CommodityServiceDraftFlowTest : FunSpec({
     test("editOnSale - SPU 不存在时返回 SPU_NOT_FOUND") {
         whenever(spuRepository.findById(sourceSpuId)).thenReturn(null)
 
-        val result = service.editOnSale(sourceSpuId)
+        val result = service.getDraft(sourceSpuId)
 
         result.shouldBeInstanceOf<Failure<BusinessError>>()
         result.error shouldBe CommodityErrors.SPU_NOT_FOUND
@@ -106,7 +105,7 @@ class CommodityServiceDraftFlowTest : FunSpec({
         )
         whenever(spuRepository.findById(sourceSpuId)).thenReturn(draftSpu)
 
-        val result = service.editOnSale(sourceSpuId)
+        val result = service.getDraft(sourceSpuId)
 
         result.shouldBeInstanceOf<Failure<BusinessError>>()
         result.error shouldBe CommodityErrors.ONLY_ON_SALE_NEEDS_DRAFT
@@ -118,7 +117,7 @@ class CommodityServiceDraftFlowTest : FunSpec({
         whenever(spuRepository.findById(sourceSpuId)).thenReturn(source)
         whenever(spuRepository.findDraftBySourceSpuId(sourceSpuId)).thenReturn(existingDraft)
 
-        val result = service.editOnSale(sourceSpuId)
+        val result = service.getDraft(sourceSpuId)
 
         result.shouldBeInstanceOf<Success<Spu>>()
         result.value shouldBe existingDraft
@@ -134,7 +133,7 @@ class CommodityServiceDraftFlowTest : FunSpec({
         whenever(spuFactory.createDraftCopy(source)).thenReturn(Success(newDraft))
         whenever(spuRepository.save(newDraft)).thenReturn(newDraft)
 
-        val result = service.editOnSale(sourceSpuId)
+        val result = service.getDraft(sourceSpuId)
 
         result.shouldBeInstanceOf<Success<Spu>>()
         result.value shouldBe newDraft
