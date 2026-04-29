@@ -3,6 +3,9 @@ package com.jstore.common.framework.event.outbox
 import com.jstore.common.framework.event.DomainEventBus
 import org.slf4j.LoggerFactory
 import java.time.Instant
+import java.util.UUID
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Outbox 轮询投递器。
@@ -17,12 +20,18 @@ class OutboxPublisher(
     private val properties: OutboxProperties,
 ) {
     private val logger = LoggerFactory.getLogger(OutboxPublisher::class.java)
+    private val workerId = properties.workerId.ifBlank {
+        "outbox-${UUID.randomUUID()}"
+    }
 
     fun pollAndPublish() {
         try {
-            val entries = outboxEntryRepository.findPendingAndRetryable(
+            val now = Instant.now()
+            val entries = outboxEntryRepository.claimPendingAndRetryable(
                 maxRetryCount = properties.maxRetryCount,
-                batchSize = properties.batchSize
+                batchSize = properties.batchSize,
+                lockedBy = workerId,
+                lockedUntil = now.plusMillis(properties.lockTimeoutMillis)
             )
             var successCount = 0
             var failCount = 0
@@ -31,25 +40,50 @@ class OutboxPublisher(
                 try {
                     val event = eventSerializer.deserialize(entry.payload, entry.eventType)
                     domainEventBus.publishEvent(event)
-                    outboxEntryRepository.save(
+                    val updated = outboxEntryRepository.markPublished(
                         entry.copy(
                             status = OutboxEntryStatus.PUBLISHED,
-                            updatedAt = Instant.now()
-                        )
+                            updatedAt = Instant.now(),
+                            lockedBy = null,
+                            lockedAt = null,
+                            lockedUntil = null,
+                            lastError = null
+                        ),
+                        workerId
                     )
-                    successCount++
+                    if (updated) {
+                        successCount++
+                    } else {
+                        logger.warn(
+                            "Outbox entry publish result ignored because lock ownership changed: id={}, eventType={}, workerId={}",
+                            entry.id, entry.eventType, workerId
+                        )
+                    }
                 } catch (e: Exception) {
-                    val newRetryCount = entry.retryCount + 1
+                    val newRetryCount = entry.retryCount
                     val newStatus = if (newRetryCount >= properties.maxRetryCount)
                         OutboxEntryStatus.DEAD_LETTER else OutboxEntryStatus.FAILED
-                    outboxEntryRepository.save(
+                    val updated = outboxEntryRepository.markFailed(
                         entry.copy(
                             status = newStatus,
                             retryCount = newRetryCount,
-                            updatedAt = Instant.now()
-                        )
+                            updatedAt = Instant.now(),
+                            nextAttemptAt = calculateNextAttemptAt(newRetryCount),
+                            lockedBy = null,
+                            lockedAt = null,
+                            lockedUntil = null,
+                            lastError = formatError(e)
+                        ),
+                        workerId
                     )
-                    failCount++
+                    if (updated) {
+                        failCount++
+                    } else {
+                        logger.warn(
+                            "Outbox entry failure result ignored because lock ownership changed: id={}, eventType={}, workerId={}",
+                            entry.id, entry.eventType, workerId
+                        )
+                    }
 
                     if (newStatus == OutboxEntryStatus.DEAD_LETTER) {
                         logger.warn(
@@ -68,5 +102,20 @@ class OutboxPublisher(
         } catch (e: Exception) {
             logger.error("Outbox polling encountered an unexpected error", e)
         }
+    }
+
+    private fun calculateNextAttemptAt(retryCount: Int): Instant {
+        val cappedShift = min(max(retryCount - 1, 0), 30)
+        val multiplier = 1L shl cappedShift
+        val delayMillis = min(
+            properties.initialRetryDelayMillis * multiplier,
+            properties.maxRetryDelayMillis
+        )
+        return Instant.now().plusMillis(delayMillis)
+    }
+
+    private fun formatError(e: Exception): String {
+        val message = e.message?.let { ": $it" } ?: ""
+        return "${e::class.java.name}$message".take(2000)
     }
 }

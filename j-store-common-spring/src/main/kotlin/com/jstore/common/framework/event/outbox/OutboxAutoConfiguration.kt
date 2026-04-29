@@ -6,6 +6,7 @@ import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryPOJpaRepository
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryRepositoryImpl
 import com.jstore.common.persistent.SnowFlakSequence
+import jakarta.persistence.EntityManager
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -24,8 +25,11 @@ class OutboxAutoConfiguration {
     }
 
     @Bean
-    fun outboxEntryRepository(jpaRepository: OutboxEntryPOJpaRepository): OutboxEntryRepository {
-        return OutboxEntryRepositoryImpl(jpaRepository)
+    fun outboxEntryRepository(
+        jpaRepository: OutboxEntryPOJpaRepository,
+        entityManager: EntityManager,
+    ): OutboxEntryRepository {
+        return OutboxEntryRepositoryImpl(jpaRepository, entityManager)
     }
 
     @Bean

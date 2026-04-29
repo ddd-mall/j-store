@@ -39,5 +39,20 @@ class OutboxEntryPO(
     var updatedAt: Instant = Instant.now(),
 
     @Column(name = "retry_count", nullable = false)
-    var retryCount: Int = 0
+    var retryCount: Int = 0,
+
+    @Column(name = "next_attempt_at", nullable = false)
+    var nextAttemptAt: Instant = Instant.now(),
+
+    @Column(name = "locked_by", length = 128)
+    var lockedBy: String? = null,
+
+    @Column(name = "locked_at")
+    var lockedAt: Instant? = null,
+
+    @Column(name = "locked_until")
+    var lockedUntil: Instant? = null,
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
+    var lastError: String? = null
 )

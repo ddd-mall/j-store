@@ -6,6 +6,8 @@ package com.jstore.common.framework.event.outbox
 enum class OutboxEntryStatus {
     /** 待投递 */
     PENDING,
+    /** 已被 relay 领取，正在投递 */
+    IN_PROGRESS,
     /** 已投递 */
     PUBLISHED,
     /** 投递失败，待重试 */
