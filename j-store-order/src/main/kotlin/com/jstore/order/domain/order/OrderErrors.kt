@@ -18,4 +18,5 @@ object OrderErrors {
     val REJECT_REASON_INVALID = BusinessError("拒绝退款原因无效", "Order.Refund.RejectReasonInvalid", 400)
     val CONSIGNEE_NAME_BLANK = BusinessError("收货人姓名不能为空", "Order.Consignee.NameBlank", 400)
     val DISTRICT_CODE_BLANK = BusinessError("行政区划编码不能为空", "Order.Consignee.DistrictCodeBlank", 400)
+    val SNAPSHOT_VERSION_MISMATCH = BusinessError("商品信息已变更，请刷新页面后重新下单", "Order.Snapshot.VersionMismatch", 409)
 }

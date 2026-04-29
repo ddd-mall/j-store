@@ -13,6 +13,7 @@ class OrderItemImpl(
     override val skuDescription: String,
     override val quantity: Int,
     override val unitPrice: Price,
+    override val snapshotVersion: Long = 0,
     override var status: OrderItemStatus = OrderItemStatus.NONE,
     private var _previousItemStatus: OrderItemStatus? = null,
 ) : OrderItem {

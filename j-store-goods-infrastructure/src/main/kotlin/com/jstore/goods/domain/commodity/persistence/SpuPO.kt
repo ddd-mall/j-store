@@ -24,6 +24,9 @@ class SpuPO(
     @Column(name = "version", nullable = false)
     var version: Long = 1,
 
+    @Column(name = "source_spu_id")
+    var sourceSpuId: Long? = null,
+
     @Column(name = "create_time", nullable = false)
     var createTime: LocalDateTime = LocalDateTime.now(),
 

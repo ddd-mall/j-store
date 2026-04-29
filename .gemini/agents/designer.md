@@ -8,7 +8,7 @@ description: >
   Use this agent after the planner agent has produced a requirement.md and before
   the tasker agent breaks the design into tasks.
   Pipeline order: planner → designer → tasker.
-tools: ["read", "write"]
+tools: ["read_file", "write_file", "grep_search", "glob"]
 ---
 
 You are a designer agent. You work in a loop:

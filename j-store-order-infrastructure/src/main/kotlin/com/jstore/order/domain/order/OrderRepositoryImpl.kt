@@ -85,6 +85,7 @@ class OrderRepositoryImpl(
                 skuDescription = item.skuDescription,
                 quantity = item.quantity,
                 unitPrice = item.unitPrice.toBigDecimal(),
+                snapshotVersion = item.snapshotVersion,
                 status = item.status,
                 previousItemStatus = item.previousItemStatus,
             )
@@ -138,6 +139,7 @@ class OrderRepositoryImpl(
                 skuDescription = po.skuDescription,
                 quantity = po.quantity,
                 unitPrice = Price.fromBigDecimal(po.unitPrice),
+                snapshotVersion = po.snapshotVersion,
                 status = po.status,
                 _previousItemStatus = po.previousItemStatus,
             )

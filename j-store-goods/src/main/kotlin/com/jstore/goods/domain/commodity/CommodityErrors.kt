@@ -13,4 +13,11 @@ object CommodityErrors {
     val DUPLICATE_SKU_ATTRIBUTES = BusinessError("SKU属性组合重复", "Goods.DuplicateSkuAttributes", 400)
     val SNAPSHOT_SPU_MUST_BE_ON_SALE = BusinessError("只有在售商品才能创建快照", "Goods.SnapshotSpuMustBeOnSale", 400)
     val DUPLICATE_IMAGE_KEY = BusinessError("图片标识重复", "Goods.DuplicateImageKey", 400)
+
+    // 草稿流程相关错误
+    val DRAFT_ALREADY_EXISTS = BusinessError("该商品已存在草稿副本", "Goods.Draft.AlreadyExists", 409)
+    val ON_SALE_DIRECT_EDIT_REJECTED = BusinessError("在售商品不允许直接编辑，请通过草稿流程修改", "Goods.Draft.OnSaleDirectEditRejected", 400)
+    val NOT_A_DRAFT_COPY = BusinessError("该商品不是草稿副本", "Goods.Draft.NotADraftCopy", 400)
+    val ONLY_ON_SALE_NEEDS_DRAFT = BusinessError("只有在售商品需要通过草稿编辑", "Goods.Draft.OnlyOnSaleNeedsDraft", 400)
+    val DRAFT_NO_SKU_FOR_PUBLISH = BusinessError("草稿至少需要一个SKU才能发布", "Goods.Draft.NoSkuForPublish", 400)
 }

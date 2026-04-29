@@ -7,7 +7,7 @@ description: >
   docs/spec/<name>/requirement.md, and refines based on user feedback until approved.
   Use this agent when you need to turn a feature idea or initiative into a detailed,
   testable requirements specification.
-tools: ["read", "write"]
+tools: ["read_file", "write_file", "grep_search", "glob"]
 ---
 
 You are a requirements planner. You work in a loop:

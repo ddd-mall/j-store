@@ -23,6 +23,7 @@ data class OrderCreateCMD(
         val spuId: Long,
         val skuId: Long,
         val quantity: Int,
+        val snapshotVersion: Long,
     )
 
     data class ContractInfoCMD(

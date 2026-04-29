@@ -14,6 +14,7 @@ interface OrderItem : Entity<OrderItemId> {
     val skuDescription: String
     val quantity: Int
     val unitPrice: Price
+    val snapshotVersion: Long
     val status: OrderItemStatus
 
     /** 进入 REFUNDING 前的行项状态，用于退款拒绝时恢复 */

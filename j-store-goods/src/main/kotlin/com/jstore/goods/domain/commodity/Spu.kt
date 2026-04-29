@@ -2,10 +2,12 @@ package com.jstore.goods.domain.commodity
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.AgreeGate
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 
 
+/**
+ * TODO: 商品的 Copy-on-Write 流程应该适用于所有状态
+ */
 interface Spu : AgreeGate<SpuId> {
     /** 商品名称 */
     val name: String
@@ -22,6 +24,9 @@ interface Spu : AgreeGate<SpuId> {
     /** 版本号（每次快照递增） */
     val version: Long
 
+    /** 源商品 ID：null 表示原始商品，非 null 表示该 SPU 是指定源商品的草稿副本 */
+    val sourceSpuId: SpuId?
+
     /** 添加 SKU */
     fun addSku(sku: Sku): Result<Unit, BusinessError>
 
@@ -34,6 +39,6 @@ interface Spu : AgreeGate<SpuId> {
     /** 下架：ON_SALE → OFF_SALE */
     fun takeOffSale(): Result<Unit, BusinessError>
 
-    /** 递增版本号（用于快照前） */
-    fun incrementVersion(): Long
+    /** 将草稿副本的内容合并到当前 SPU（领域方法） */
+    fun mergeFromDraft(draft: Spu): Result<Unit, BusinessError>
 }
