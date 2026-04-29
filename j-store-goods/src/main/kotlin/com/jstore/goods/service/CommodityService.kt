@@ -112,6 +112,9 @@ class CommodityService(
     fun getDraft(spuId: SpuId): Result<Spu, BusinessError> {
         val spu = spuRepository.findById(spuId)
             ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
+        if (spu.status != CommodityStatus.ON_SALE) {
+            return Failure(CommodityErrors.ONLY_ON_SALE_NEEDS_DRAFT)
+        }
         // 幂等：已有草稿直接返回
         val existingDraft = spuRepository.findDraftBySourceSpuId(spuId)
         if (existingDraft != null) {

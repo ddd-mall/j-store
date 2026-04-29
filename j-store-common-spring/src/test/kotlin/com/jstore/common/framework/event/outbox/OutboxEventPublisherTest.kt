@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.jstore.common.properties.Price
+import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
@@ -34,7 +35,7 @@ class OutboxEventPublisherTest : FunSpec({
             on { save(any()) } doAnswer { it.arguments[0] as OutboxEntry }
         }
         val serializer = JacksonEventSerializer(objectMapper)
-        val publisher = OutboxEventPublisher(mockRepository, serializer)
+        val publisher = OutboxEventPublisher(mockRepository, serializer, SnowFlakSequence(1, 1))
 
         val event = OrderCreatedEvent(
             orderId = OrderId(42L),
@@ -62,7 +63,7 @@ class OutboxEventPublisherTest : FunSpec({
             on { serialize(any()) } doThrow RuntimeException("serialization error")
         }
 
-        val publisher = OutboxEventPublisher(mockRepository, mockSerializer)
+        val publisher = OutboxEventPublisher(mockRepository, mockSerializer, SnowFlakSequence(1, 1))
 
         val event = OrderCreatedEvent(
             orderId = OrderId(1L),

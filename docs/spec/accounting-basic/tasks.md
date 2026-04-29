@@ -1,0 +1,369 @@
+# 实现计划：财务模块基础功能
+
+## 概述
+
+本计划按 j-store 现有 DDD 分层推进：先补齐 Gradle 依赖和纯领域模型，再实现应用服务、ACL 事件处理、基础设施持久化、数据库迁移和测试。任务顺序遵循 domain -> application -> infrastructure -> migrations -> validation，避免在一个事务内强一致修改多个聚合。
+
+## Tasks
+
+- [x] 1. 准备 accounting 模块依赖与基础目录
+  - [x] 1.1 修改 `j-store-accounting/build.gradle.kts`
+    - 添加 `implementation(project(":j-store-common-core"))`
+    - 添加测试依赖，保持与现有 domain 模块一致：Kotest、MockK 或仓库已使用的测试库
+    - 确认 domain 模块不引入 Spring、JPA、Hibernate
+    - _需求: 1_
+  - [x] 1.2 修改 `j-store-accounting-infrastructure/build.gradle.kts`
+    - 添加 `implementation(project(":j-store-accounting"))`
+    - 添加 `implementation(project(":j-store-common-core"))`
+    - 添加 Spring Data JPA、PostgreSQL 驱动或复用根工程版本目录依赖
+    - _需求: 1_
+  - [x] 1.3 创建 accounting 目录骨架
+    - 在 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/account/` 创建账户聚合目录
+    - 在 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/` 创建凭证聚合目录
+    - 在 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/settlement/` 创建结算聚合目录
+    - 在 `j-store-accounting/src/main/kotlin/com/jstore/accounting/acl/` 创建财务 ACL 目录
+    - 在 `j-store-accounting/src/main/kotlin/com/jstore/accounting/service/` 创建应用服务目录
+    - 在 `j-store-accounting-infrastructure/src/main/kotlin/com/jstore/accounting/domain/{account,journal,settlement}/persistence/` 创建 PO 目录
+    - _需求: 1_
+  - [x] 1.4 检查模块边界
+    - 执行 `./gradlew :j-store-accounting:compileKotlin`
+    - 确认 `j-store-order` 不依赖 `j-store-accounting`
+    - _需求: 1_
+
+- [x] 2. 实现账务账户领域模型
+  - [x] 2.1 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/account/LedgerAccount.kt`
+    - 定义 `LedgerAccountId : Id<Long>`
+    - 定义 `LedgerAccountCode`
+    - 定义 `AccountingSubject(subjectType: SubjectType, subjectId: String)`
+    - 定义 `LedgerAccountType { ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE }`
+    - 定义 `BalanceDirection { DEBIT, CREDIT }`
+    - 定义 `LedgerAccountStatus { ACTIVE, INACTIVE }`
+    - 定义 `SubjectType { PLATFORM, MERCHANT, USER, CHANNEL }`
+    - 定义 `interface LedgerAccount : AgreeGate<LedgerAccountId>`，包含 `id`、`code`、`name`、`type`、`direction`、`subject`、`status`、`activate()`、`deactivate()`
+    - _需求: 2_
+  - [x] 2.2 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/account/LedgerAccountImpl.kt`
+    - 实现 `domainEventQueue: Queue<DomainEvent>`
+    - 使用私有状态字段封装 `status`
+    - `activate()` 将 `INACTIVE` 账户恢复为 `ACTIVE`
+    - `deactivate()` 将 `ACTIVE` 账户停用
+    - 所有可失败行为返回 `Result<Unit, BusinessError>`
+    - _需求: 2_
+  - [x] 2.3 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/account/LedgerAccountRepository.kt`
+    - 定义 `interface LedgerAccountRepository : Repository<LedgerAccountId, LedgerAccount>`
+    - 添加 `fun findByCodeAndSubject(code: LedgerAccountCode, subject: AccountingSubject): LedgerAccount?`
+    - 添加 `fun requireActive(id: LedgerAccountId): Result<LedgerAccount, BusinessError>`
+    - 仓储接口只使用领域对象，不出现 PO、JPA、SQL 类型
+    - _需求: 2_
+  - [x] 2.4 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/account/AccountingAccountErrors.kt`
+    - 定义 `ACCOUNT_NOT_FOUND`
+    - 定义 `LEDGER_ACCOUNT_INACTIVE`
+    - 定义 `LEDGER_ACCOUNT_CODE_DUPLICATED`
+    - 使用 `BusinessError`，错误码前缀采用 `Accounting.Account.*`
+    - _需求: 2_
+  - [x] 2.5 添加账户领域测试
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/domain/account/LedgerAccountStatusTransitionPropertyTest.kt` 中验证 ACTIVE/INACTIVE 状态切换
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/domain/account/LedgerAccountReferenceUnitTest.kt` 中验证停用账户不能被 `requireActive()` 视为可入账账户
+    - 覆盖 Property：停用账户不可新增入账引用
+    - _需求: 2_
+
+- [x] 3. 实现会计期间领域模型
+  - [x] 3.1 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/AccountingPeriod.kt`
+    - 定义 `AccountingPeriodId : Id<Long>`
+    - 定义 `PeriodStatus { OPEN, CLOSED }`
+    - 定义 `interface AccountingPeriod : AgreeGate<AccountingPeriodId>`
+    - 属性包含 `periodCode`、`startDate`、`endDate`、`status`、`closedAt`、`closedBy`
+    - 方法包含 `contains(date: LocalDate): Boolean`、`close(closedBy: String)`、`reopen(reason: String)`
+    - _需求: 9_
+  - [x] 3.2 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/AccountingPeriodImpl.kt`
+    - 实现期间关闭和反结账状态流转
+    - `contains()` 使用闭区间 `[startDate, endDate]`
+    - 禁止无效日期范围 `startDate > endDate`
+    - _需求: 9_
+  - [x] 3.3 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/AccountingPeriodRepository.kt`
+    - 定义 `interface AccountingPeriodRepository : Repository<AccountingPeriodId, AccountingPeriod>`
+    - 添加 `fun findByDate(date: LocalDate): AccountingPeriod?`
+    - 添加 `fun requireOpenPeriod(date: LocalDate): Result<AccountingPeriod, BusinessError>`
+    - _需求: 9_
+  - [x] 3.4 添加会计期间测试
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/domain/journal/AccountingPeriodUnitTest.kt` 中验证日期归属、关闭、反结账
+    - 覆盖 Property 7：关闭期间不可普通入账
+    - _需求: 9_
+
+- [x] 4. 实现账务凭证领域模型
+  - [x] 4.1 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/JournalEntry.kt`
+    - 定义 `JournalEntryId : Id<Long>`
+    - 定义 `JournalLineId : Id<Long>`
+    - 定义 `SourceDocument(sourceType: SourceDocumentType, sourceId: String, eventType: String)`
+    - 定义 `SourceDocumentType { ORDER, REFUND, SETTLEMENT, ADJUSTMENT }`
+    - 定义 `JournalEntryType { ORDER_PAYMENT, ORDER_COMPLETION_COMMISSION, ORDER_REFUND_REVERSAL, SETTLEMENT_PAYMENT, MANUAL_ADJUSTMENT }`
+    - 定义 `JournalEntryStatus { DRAFT, POSTED, REVERSED }`
+    - 定义 `EntrySide { DEBIT, CREDIT }`
+    - 定义 `interface JournalEntry : AgreeGate<JournalEntryId>`，包含设计文档中的全部属性和方法签名
+    - _需求: 3, 4, 7, 9_
+  - [x] 4.2 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/JournalLine.kt`
+    - 定义 `data class JournalLine(id: JournalLineId, accountId: LedgerAccountId, side: EntrySide, amount: Price, memo: String)`
+    - `init` 中校验 `amount > Price.ZERO`
+    - 保持值对象不可变，不使用 `var`
+    - _需求: 3_
+  - [x] 4.3 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/JournalEntryImpl.kt`
+    - 使用 `private val _lines: MutableList<JournalLine>` 保存分录
+    - 对外暴露 `override val lines: List<JournalLine> get() = _lines.toList()`
+    - `addLine(line)` 在 `DRAFT` 状态允许添加，在 `POSTED` 或 `REVERSED` 返回 `JOURNAL_ENTRY_ALREADY_POSTED`
+    - `post(openPeriod)` 校验至少两条分录、借贷合计相等、期间为 OPEN，成功后状态变为 `POSTED` 并设置 `postedAt`
+    - `createReversal()` 只允许对 `POSTED` 凭证生成新凭证，新凭证分录借贷方向相反、金额不变、`sourceDocument.sourceType = ADJUSTMENT`
+    - `markReversed(reversalEntryId)` 记录冲正凭证 ID，不修改原分录
+    - _需求: 3, 7, 9_
+  - [x] 4.4 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/JournalEntryRepository.kt`
+    - 定义 `interface JournalEntryRepository : Repository<JournalEntryId, JournalEntry>`
+    - 添加 `fun findBySourceDocument(sourceDocument: SourceDocument): JournalEntry?`
+    - 添加 `fun nextId(): JournalEntryId`
+    - 添加 `fun nextLineId(): JournalLineId`
+    - 添加 `fun nextEntryNo(type: JournalEntryType): String`
+    - _需求: 3, 4, 7_
+  - [x] 4.5 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/AccountingErrors.kt`
+    - 定义 `JOURNAL_ENTRY_UNBALANCED`
+    - 定义 `JOURNAL_ENTRY_ALREADY_POSTED`
+    - 定义 `JOURNAL_ENTRY_NOT_FOUND`
+    - 定义 `SOURCE_DOCUMENT_ALREADY_POSTED`
+    - 定义 `ACCOUNTING_PERIOD_CLOSED`
+    - 定义 `JOURNAL_ENTRY_LINES_INSUFFICIENT`
+    - 定义 `JOURNAL_LINE_AMOUNT_INVALID`
+    - 错误码前缀采用 `Accounting.Journal.*`
+    - _需求: 3, 4, 7, 9_
+  - [x] 4.6 添加账务凭证领域测试
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/domain/journal/JournalEntryBalancePropertyTest.kt` 中随机生成借贷分录，验证只有借贷平衡凭证可过账
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/domain/journal/JournalEntryImmutabilityUnitTest.kt` 中验证 POSTED 后 `addLine()` 失败
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/domain/journal/JournalEntryReversalUnitTest.kt` 中验证冲正凭证方向相反、金额不变、原凭证分录不变
+    - 覆盖 Property 1、Property 2、Property 5、Property 7
+    - _需求: 3, 7, 9_
+  - [x] 4.7 执行领域层检查
+    - 执行 `./gradlew :j-store-accounting:test`
+    - 使用 `rg -n "jakarta.persistence|org.springframework|JpaRepository" j-store-accounting/src/main/kotlin` 确认 domain 模块无基础设施导入
+    - _需求: 1, 3, 7, 9_
+
+- [x] 5. 实现财务 ACL 与入账命令
+  - [x] 5.1 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/acl/OrderAccountingInfo.kt`
+    - 定义 `data class OrderAccountingInfo(orderId: String, merchantId: String, paidAmount: Price, commissionAmount: Price, completedAt: Instant?)`
+    - 用于 Accounting 本地快照，不暴露 order 聚合对象
+    - _需求: 1, 5, 6, 7_
+  - [x] 5.2 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/acl/ShopAccountingInfo.kt`
+    - 定义 `data class ShopAccountingInfo(merchantId: String, commissionRate: BigDecimal)`
+    - _需求: 1, 6, 8_
+  - [x] 5.3 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/acl/PaymentAccountingInfo.kt`
+    - 定义 `data class PaymentAccountingInfo(paymentId: String, channel: String, paymentNo: String)`
+    - _需求: 1, 5_
+  - [x] 5.4 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/acl/AccountingOrderService.kt`
+    - 定义 `fun getOrderAccountingInfo(orderId: String): Result<OrderAccountingInfo, BusinessError>`
+    - 定义 `fun getRefundableOriginalSource(orderId: String): Result<SourceDocument, BusinessError>`
+    - _需求: 1, 5, 6, 7_
+  - [x] 5.5 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/acl/AccountingShopService.kt`
+    - 定义 `fun getShopAccountingInfo(merchantId: String): Result<ShopAccountingInfo, BusinessError>`
+    - _需求: 1, 6, 8_
+  - [x] 5.6 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/acl/AccountingPaymentService.kt`
+    - 定义 `fun getPaymentAccountingInfo(orderId: String): Result<PaymentAccountingInfo, BusinessError>`
+    - _需求: 1, 5_
+  - [x] 5.7 创建入账命令
+    - 在 `j-store-accounting/src/main/kotlin/com/jstore/accounting/service/command/RecordOrderPaidCMD.kt` 中定义 `orderId`、`merchantId`、`paidAmount`、`accountingDate`、`sourceDocument`
+    - 在 `j-store-accounting/src/main/kotlin/com/jstore/accounting/service/command/RecordOrderCompletedCMD.kt` 中定义 `orderId`、`merchantId`、`commissionAmount`、`accountingDate`、`sourceDocument`
+    - 在 `j-store-accounting/src/main/kotlin/com/jstore/accounting/service/command/RecordOrderRefundApprovedCMD.kt` 中定义 `orderId`、`merchantId`、`refundAmount`、`accountingDate`、`sourceDocument`、`originalSourceDocument`
+    - 命令对象只承载数据，不包含业务逻辑
+    - _需求: 4, 5, 6, 7_
+
+- [x] 6. 实现财务应用服务
+  - [x] 6.1 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/service/AccountingApplicationService.kt`
+    - 构造参数包含 `JournalEntryRepository`、`LedgerAccountRepository`、`AccountingPeriodRepository`
+    - 实现 `findBySourceDocument(sourceDocument: SourceDocument): JournalEntry?`
+    - _需求: 4_
+  - [x] 6.2 实现 `recordOrderPaid(cmd: RecordOrderPaidCMD): Result<JournalEntry, BusinessError>`
+    - 先调用 `journalEntryRepository.findBySourceDocument()` 做幂等检查，已存在则返回成功
+    - 获取 OPEN 会计期间
+    - 查询支付渠道清算账户 `1010` 和商户待结算账户 `2101`
+    - 创建 `ORDER_PAYMENT` 凭证
+    - 添加借记 `1010`、贷记 `2101` 两条分录
+    - 调用 `post(openPeriod)` 后保存
+    - 不生成平台佣金收入分录
+    - _需求: 4, 5, 9_
+  - [x] 6.3 实现 `recordOrderCompleted(cmd: RecordOrderCompletedCMD): Result<JournalEntry, BusinessError>`
+    - 幂等检查 `SourceDocument`
+    - 查询商户待结算账户 `2101` 和平台佣金收入账户 `3001`
+    - 创建 `ORDER_COMPLETION_COMMISSION` 凭证
+    - 添加借记 `2101`、贷记 `3001` 两条佣金分录
+    - 过账并保存
+    - _需求: 4, 6, 9_
+  - [x] 6.4 实现 `recordOrderRefundApproved(cmd: RecordOrderRefundApprovedCMD): Result<JournalEntry, BusinessError>`
+    - 幂等检查退款 `SourceDocument`
+    - 查询原支付凭证或原来源凭证
+    - 创建 `ORDER_REFUND_REVERSAL` 凭证
+    - 使用借记 `2101`、贷记 `1010` 处理退款金额
+    - 不修改原支付凭证分录
+    - 保存退款凭证
+    - _需求: 4, 7, 9_
+  - [x] 6.5 添加应用服务测试
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/service/AccountingApplicationServiceIdempotencyTest.kt` 中用 fake repository 验证重复 `SourceDocument` 不重复创建凭证
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/service/AccountingApplicationServiceOrderPaidTest.kt` 中验证支付入账分录只包含 `1010` 和 `2101`
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/service/AccountingApplicationServiceCommissionTest.kt` 中验证订单完成佣金确认分录
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/service/AccountingApplicationServiceRefundTest.kt` 中验证退款分录不修改原凭证
+    - 覆盖 Property 3、Property 4、Property 5
+    - _需求: 4, 5, 6, 7_
+
+- [x] 7. 实现商户结算领域与应用服务
+  - [x] 7.1 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/settlement/SettlementStatement.kt`
+    - 定义 `SettlementStatementId : Id<Long>`
+    - 定义 `SettlementLineId : Id<Long>`
+    - 定义 `SettlementPeriod(startDate: LocalDate, endDate: LocalDate)`
+    - 定义 `SettlementStatementStatus { DRAFT, CONFIRMED, PAID, CANCELLED }`
+    - 定义 `SettlementLine(orderId, grossAmount, refundAmount, commissionAmount, netAmount)`
+    - 定义 `interface SettlementStatement : AgreeGate<SettlementStatementId>`
+    - _需求: 8_
+  - [x] 7.2 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/settlement/SettlementStatementImpl.kt`
+    - 使用私有 `_lines` 保存结算明细
+    - `addLine()` 仅允许 DRAFT 状态添加
+    - `confirm()` 校验 `payableAmount == lines.sumOf(netAmount)` 并冻结状态为 CONFIRMED
+    - `markPaid(paidAt)` 仅允许 CONFIRMED 状态转为 PAID
+    - _需求: 8_
+  - [x] 7.3 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/settlement/SettlementStatementRepository.kt`
+    - 定义 `interface SettlementStatementRepository : Repository<SettlementStatementId, SettlementStatement>`
+    - 添加 `fun findByMerchantAndPeriod(merchantId: String, period: SettlementPeriod): SettlementStatement?`
+    - 添加 `fun nextId(): SettlementStatementId`
+    - 添加 `fun nextLineId(): SettlementLineId`
+    - 添加 `fun nextStatementNo(): String`
+    - _需求: 8_
+  - [x] 7.4 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/settlement/SettlementErrors.kt`
+    - 定义 `SETTLEMENT_STATEMENT_INVALID_STATE`
+    - 定义 `SETTLEMENT_AMOUNT_MISMATCH`
+    - 定义 `SETTLEMENT_STATEMENT_DUPLICATED`
+    - _需求: 8_
+  - [x] 7.5 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/service/SettlementApplicationService.kt`
+    - 实现 `confirmStatement(statementId: SettlementStatementId): Result<SettlementStatement, BusinessError>`
+    - 实现 `markPaid(statementId: SettlementStatementId, paidAt: Instant): Result<SettlementStatement, BusinessError>`
+    - `markPaid()` 只修改 `SettlementStatement` 聚合并发布结算已打款事件
+    - 结算付款凭证由后续事件处理或独立 `recordSettlementPaid` 用例创建，不得在同一事务内强一致修改 `SettlementStatement` 和 `JournalEntry`
+    - _需求: 8_
+  - [x] 7.6 添加结算测试
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/domain/settlement/SettlementStatementPropertyTest.kt` 中随机生成结算行，验证应结金额等于净额合计
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/domain/settlement/SettlementStatementStateUnitTest.kt` 中验证 DRAFT -> CONFIRMED -> PAID 状态流转
+    - 覆盖 Property 6
+    - _需求: 8_
+
+- [x] 8. 实现财务事件处理器
+  - [x] 8.1 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/service/AccountingEventHandler.kt`
+    - 实现 `DomainEventListener<OrderPaidEvent>`、`DomainEventListener<OrderCompletedEvent>`、`DomainEventListener<OrderRefundApprovedEvent>` 或按现有事件注册机制拆成多个 handler
+    - 收到订单事件后通过 `AccountingOrderService`、`AccountingShopService`、`AccountingPaymentService` 补齐 Accounting 所需快照
+    - 构造 `RecordOrderPaidCMD`、`RecordOrderCompletedCMD`、`RecordOrderRefundApprovedCMD`
+    - 调用 `AccountingApplicationService`
+    - 重复事件视为成功，不重复入账
+    - _需求: 1, 4, 5, 6, 7_
+  - [x] 8.2 添加事件处理器测试
+    - 在 `j-store-accounting/src/test/kotlin/com/jstore/accounting/service/AccountingEventHandlerTest.kt` 中 mock ACL 和应用服务
+    - 验证 `OrderPaidEvent` 转换为 `RecordOrderPaidCMD`
+    - 验证 `OrderCompletedEvent` 转换为 `RecordOrderCompletedCMD`
+    - 验证 `OrderRefundApprovedEvent` 转换为 `RecordOrderRefundApprovedCMD`
+    - _需求: 1, 4, 5, 6, 7_
+
+- [x] 9. 实现基础设施持久化
+  - [x] 9.1 创建 `j-store-accounting-infrastructure/src/main/kotlin/com/jstore/accounting/domain/account/persistence/LedgerAccountPO.kt`
+    - 使用 `@Entity`、`@Table(name = "accounting_ledger_account")`
+    - 字段包含 DDL 中账户表全部列
+    - 枚举字段使用 `@Enumerated(EnumType.STRING)`
+    - _需求: 2_
+  - [x] 9.2 创建 `LedgerAccountPOJpaRepository.kt` 与 `LedgerAccountRepositoryImpl.kt`
+    - `LedgerAccountPOJpaRepository : JpaRepository<LedgerAccountPO, Long>`
+    - 添加 `findByCodeAndSubjectTypeAndSubjectId(...)`
+    - `LedgerAccountRepositoryImpl` 实现 PO 与领域对象转换
+    - _需求: 2_
+  - [x] 9.3 创建 `JournalEntryPO.kt` 和 `JournalLinePO.kt`
+    - `JournalEntryPO` 映射 `accounting_journal_entry`
+    - `JournalLinePO` 映射 `accounting_journal_line`
+    - 使用一对多或显式 entryId 映射分录，保证加载凭证时分录完整
+    - _需求: 3, 4, 7_
+  - [x] 9.4 创建 `JournalEntryPOJpaRepository.kt` 与 `JournalEntryRepositoryImpl.kt`
+    - `JournalEntryPOJpaRepository : JpaRepository<JournalEntryPO, Long>`
+    - 添加 `findBySourceTypeAndSourceIdAndSourceEventType(...)`
+    - `JournalEntryRepositoryImpl.save()` 保存凭证和分录
+    - 实现 `nextId()`、`nextLineId()`、`nextEntryNo()`，可先复用现有序列生成器或临时使用数据库序列
+    - _需求: 3, 4, 7_
+  - [x] 9.5 创建 `AccountingPeriodPO.kt`、`AccountingPeriodPOJpaRepository.kt`、`AccountingPeriodRepositoryImpl.kt`
+    - 实现 `findByDate(date)` 查询 `startDate <= date <= endDate`
+    - 实现 `requireOpenPeriod(date)` 返回领域错误
+    - _需求: 9_
+  - [x] 9.6 创建 `SettlementStatementPO.kt` 和 `SettlementLinePO.kt`
+    - 映射结算单和结算明细表
+    - 保证 `merchant_id + period_start + period_end` 唯一
+    - _需求: 8_
+  - [x] 9.7 创建 `SettlementStatementPOJpaRepository.kt` 与 `SettlementStatementRepositoryImpl.kt`
+    - 添加 `findByMerchantIdAndPeriodStartAndPeriodEnd(...)`
+    - 实现 PO 与领域对象转换
+    - _需求: 8_
+  - [x] 9.8 添加仓储集成测试
+    - 在 `j-store-accounting-infrastructure/src/test/kotlin/com/jstore/accounting/domain/journal/JournalEntryRepositoryImplTest.kt` 验证凭证保存和加载后分录完整
+    - 在 `j-store-accounting-infrastructure/src/test/kotlin/com/jstore/accounting/domain/journal/JournalEntrySourceDocumentUniqueTest.kt` 验证唯一来源约束阻止重复入账
+    - 在 `j-store-accounting-infrastructure/src/test/kotlin/com/jstore/accounting/domain/settlement/SettlementStatementRepositoryImplTest.kt` 验证结算单明细往返
+    - 覆盖 Property 3
+    - _需求: 3, 4, 8_
+
+- [x] 10. 添加数据库迁移与基础账户数据
+  - [x] 10.1 创建 `j-store-boot/src/main/resources/db/migration/V20260430__create_accounting_tables.sql`
+    - 创建 `accounting_ledger_account`
+    - 创建 `accounting_journal_entry`
+    - 创建 `accounting_journal_line`
+    - 创建 `accounting_period`
+    - 创建 `accounting_settlement_statement`
+    - 创建 `accounting_settlement_line`
+    - 添加设计文档中的唯一约束、外键约束和 `amount_fen > 0` 检查约束
+    - _需求: 2, 3, 4, 8, 9_
+  - [x] 10.2 创建 `j-store-boot/src/main/resources/db/migration/V20260430_01__seed_accounting_base_accounts.sql`
+    - 插入 `1002` 平台银行存款账户
+    - 插入 `1010` 支付渠道清算账户
+    - 插入 `2101` 商户待结算账户模板或平台默认商户账户
+    - 插入 `3001` 平台佣金收入账户
+    - 插入当前开放 `AccountingPeriod`
+    - _需求: 2, 5, 6, 8, 9_
+  - [x] 10.3 检查迁移命名和启动集成
+    - 确认迁移文件名不与现有 `V202604xx__*.sql` 冲突
+    - 执行 boot 模块相关测试或 Flyway 校验
+    - _需求: 1_
+
+- [x] 11. 实现账户余额查询
+  - [x] 11.1 创建 `j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/AccountingBalanceView.kt`
+    - 定义 `data class AccountingBalanceView(accountId: LedgerAccountId, debitAmount: Price, creditAmount: Price, balance: Price)`
+    - 定义 `data class AccountingBalanceQuery(accountId: LedgerAccountId?, subjectId: String?, startDate: LocalDate?, endDate: LocalDate?)`
+    - _需求: 10_
+  - [x] 11.2 扩展 `JournalEntryRepository`
+    - 添加 `fun summarizeBalance(query: AccountingBalanceQuery): List<AccountingBalanceView>`
+    - 仅统计 `JournalEntryStatus.POSTED`
+    - 支持按账户、主体和日期范围过滤
+    - _需求: 10_
+  - [x] 11.3 在 `JournalEntryRepositoryImpl` 实现余额汇总查询
+    - 使用 JPA 查询或 JPQL 聚合 `accounting_journal_line` 与 `accounting_journal_entry`
+    - 借方发生额和贷方发生额分别汇总
+    - 余额按账户方向计算；第一阶段可返回借贷净额并在文档中说明
+    - _需求: 10_
+  - [x] 11.4 添加余额查询测试
+    - 在 `j-store-accounting-infrastructure/src/test/kotlin/com/jstore/accounting/domain/journal/AccountingBalanceQueryTest.kt` 中构造多张 POSTED 和 DRAFT 凭证
+    - 验证只统计 POSTED 凭证
+    - 验证按日期范围和账户过滤
+    - 覆盖账户余额可由凭证重算的属性
+    - _需求: 10_
+
+- [x] 12. 最终验证与评审
+  - [x] 12.1 执行完整测试
+    - 执行 `./gradlew :j-store-accounting:test`
+    - 执行 `./gradlew :j-store-accounting-infrastructure:test`
+    - 执行 `./gradlew test` 或至少执行受影响模块测试
+    - _需求: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10_
+  - [x] 12.2 执行层级边界检查
+    - 使用 `rg -n "jakarta.persistence|org.springframework|JpaRepository" j-store-accounting/src/main/kotlin` 检查 domain 模块没有基础设施导入
+    - 使用 `rg -n "com.jstore.accounting" j-store-order/src/main/kotlin` 确认订单模块不依赖财务模块
+    - _需求: 1_
+  - [x] 12.3 按 evaluator 规则做实现评审
+    - 对照 `requirement.md`、`design.md` 和本 `tasks.md` 检查需求覆盖
+    - 检查 Property 1 到 Property 7 是否均有测试覆盖
+    - 检查所有业务失败是否返回 `Result<T, BusinessError>`
+    - _需求: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10_
+
+## 备注
+
+- 第一阶段不实现完整支付渠道对账、税务、多币种、成本核算、财务报表和应付管理。
+- 支付成功不确认平台佣金收入；订单完成后才生成佣金确认凭证。
+- 退款使用反向借贷凭证，不使用负数金额或红字金额，因为当前 `Price` 不允许负数。
+- 如果实现过程中发现订单事件载荷不足，优先通过 Accounting ACL 查询补齐快照；只有在 ACL 无法可靠补齐时，才回到需求和设计阶段调整事件载荷。
