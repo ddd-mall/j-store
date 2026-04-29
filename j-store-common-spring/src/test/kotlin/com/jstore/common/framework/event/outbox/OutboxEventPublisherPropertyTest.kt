@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.event.*
@@ -63,7 +64,7 @@ class OutboxEventPublisherPropertyTest : FunSpec({
                 on { save(any()) } doAnswer { it.arguments[0] as OutboxEntry }
             }
 
-            val publisher = OutboxEventPublisher(mockRepository, realSerializer)
+            val publisher = OutboxEventPublisher(mockRepository, realSerializer, SnowFlakSequence(1, 1))
             publisher.publishEvent(event)
 
             val captor = argumentCaptor<OutboxEntry>()

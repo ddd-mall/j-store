@@ -6,6 +6,7 @@ import com.jstore.common.framework.event.DomainEventBus
 import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryPOJpaRepository
+import com.jstore.common.persistent.SnowFlakSequence
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -71,6 +72,9 @@ class OutboxAutoConfigurationTest : FunSpec({
 
         @Bean
         fun outboxEntryPOJpaRepository(): OutboxEntryPOJpaRepository = mock()
+
+        @Bean
+        fun snowFlakSequence(): SnowFlakSequence = SnowFlakSequence(1, 1)
 
         @Bean
         fun domainEventBus(): DomainEventBus = object : DomainEventBus {
