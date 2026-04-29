@@ -29,7 +29,9 @@ dependencies {
     implementation(project(":j-store-goods-infrastructure"))
     implementation(project(":j-store-user"))
     implementation(project(":j-store-user-infrastructure"))
+    implementation(project(":j-store-common-core"))
     implementation(project(":j-store-common-spring"))
+    implementation(project(":j-store-authentication-spring-sdk"))
 
 //    implementation(platform(libs.spring.cloud.dependencies))
 //    implementation(libs.spring.cloud.loadbalancer)

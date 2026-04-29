@@ -5,6 +5,7 @@ import com.jstore.common.framework.event.DomainEventBus
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryPOJpaRepository
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryRepositoryImpl
+import com.jstore.common.persistent.SnowFlakSequence
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -31,8 +32,9 @@ class OutboxAutoConfiguration {
     fun domainEventPublisher(
         outboxEntryRepository: OutboxEntryRepository,
         eventSerializer: EventSerializer,
+        snowFlakSequence: SnowFlakSequence,
     ): DomainEventPublisher {
-        return OutboxEventPublisher(outboxEntryRepository, eventSerializer)
+        return OutboxEventPublisher(outboxEntryRepository, eventSerializer, snowFlakSequence)
     }
 
     @Bean
