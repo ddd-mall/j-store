@@ -42,7 +42,7 @@ The corresponding Codex agent definitions are stored in:
 1. Identify what the user wants to build, revise, implement, or review.
 2. Inspect `docs/spec/` to find existing feature specs and determine the target `docs/spec/<feature-slug>/` directory.
 3. Inspect relevant code before routing work so delegated agents receive repository-specific context.
-4. Prefer `.kiro/steering/ddd-guidelines.md` when present for DDD and layering rules.
+4. Prefer `docs/steering/ddd-guidelines.md` when present for DDD and layering rules.
 5. If the target feature or spec directory is ambiguous and cannot be inferred from the repository, ask one concise clarification question before delegation.
 
 ## Phase Detection And Delegation
@@ -93,7 +93,6 @@ Use Codex subagents for the five pipeline roles above. Do not use Gemini/Kiro `@
 
 ## Codex Adaptation Rules
 
-- Do not rely on Gemini/Kiro `tools`, `@agent_name`, or `invoke_agent`; those are source-format concepts only.
 - The user has requested this skill to operate as a subagent-orchestrated workflow. Use the project-scoped Codex custom subagents in `.codex/agents/` for pipeline execution.
 - Treat role files in `agents/*.agent.md` as legacy/reference prompt material. Prefer the `.codex/agents/*.toml` custom subagents for execution.
 - Keep `SKILL.md` lean. Load detailed role agents only when needed.

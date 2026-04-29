@@ -4,6 +4,7 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.shouldBe
 import java.time.Instant
 import java.time.LocalDate
@@ -33,5 +34,6 @@ class SettlementStatementUnitTest : FunSpec({
         statement.confirm()
         statement.markPaid(Instant.now()).shouldBe(Success(Unit))
         statement.status shouldBe SettlementStatementStatus.PAID
+        statement.getDomainEvent().single().shouldBeInstanceOf<com.jstore.accounting.domain.settlement.event.SettlementPaidEvent>()
     }
 })

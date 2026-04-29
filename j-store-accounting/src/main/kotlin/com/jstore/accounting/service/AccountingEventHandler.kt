@@ -3,9 +3,11 @@ package com.jstore.accounting.service
 import com.jstore.accounting.acl.AccountingOrderService
 import com.jstore.accounting.domain.journal.SourceDocument
 import com.jstore.accounting.domain.journal.SourceDocumentType
+import com.jstore.accounting.domain.settlement.event.SettlementPaidEvent
 import com.jstore.accounting.service.command.RecordOrderCompletedCMD
 import com.jstore.accounting.service.command.RecordOrderPaidCMD
 import com.jstore.accounting.service.command.RecordOrderRefundApprovedCMD
+import com.jstore.accounting.service.command.RecordSettlementPaidCMD
 import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
@@ -79,6 +81,22 @@ class OrderRefundApprovedAccountingEventHandler(
                 accountingDate = LocalDate.ofInstant(event.occurredAt, ZoneOffset.UTC),
                 sourceDocument = SourceDocument(SourceDocumentType.REFUND, "${info.orderId}:${event.approvedItemIds.joinToString(",")}", "OrderRefundApprovedEvent"),
                 originalSourceDocument = originalSource,
+            )
+        )
+    }
+}
+
+class SettlementPaidAccountingEventHandler(
+    private val accountingApplicationService: AccountingApplicationService,
+) : DomainEventListener<SettlementPaidEvent> {
+    override fun onDomainEvent(event: SettlementPaidEvent) {
+        accountingApplicationService.recordSettlementPaid(
+            RecordSettlementPaidCMD(
+                settlementId = event.settlementId.value.toString(),
+                merchantId = event.merchantId,
+                paidAmount = event.payableAmount,
+                accountingDate = LocalDate.ofInstant(event.paidAt, ZoneOffset.UTC),
+                sourceDocument = SourceDocument(SourceDocumentType.SETTLEMENT, event.settlementId.value.toString(), "SettlementPaidEvent"),
             )
         )
     }

@@ -55,8 +55,31 @@ class JournalEntryRepositoryImplTest @Autowired constructor(
 
         restored.sourceDocument shouldBe SourceDocument(SourceDocumentType.ORDER, "order-1", "OrderPaidEvent")
         restored.lines shouldHaveSize 2
+        restored.reversalOf shouldBe null
         restored.lines.first { it.side == EntrySide.DEBIT }.accountId shouldBe LedgerAccountId(1010)
         restored.lines.first { it.side == EntrySide.CREDIT }.accountId shouldBe LedgerAccountId(2101)
+    }
+
+    @Test
+    fun `journal entry saves reversal origin reference`() {
+        val reversal = JournalEntryImpl(
+            id = JournalEntryId(3),
+            entryNo = "JE3",
+            type = JournalEntryType.ORDER_REFUND_REVERSAL,
+            sourceDocument = SourceDocument(SourceDocumentType.REFUND, "refund-1", "OrderRefundApprovedEvent"),
+            accountingDate = LocalDate.of(2026, 4, 30),
+            _lines = mutableListOf(
+                JournalLine(JournalLineId(31), LedgerAccountId(2101), EntrySide.DEBIT, Price.ofFen(500), "refund debit"),
+                JournalLine(JournalLineId(32), LedgerAccountId(1010), EntrySide.CREDIT, Price.ofFen(500), "refund credit"),
+            ),
+            _status = JournalEntryStatus.POSTED,
+            _postedAt = Instant.parse("2026-04-30T01:00:00Z"),
+            _reversalOf = JournalEntryId(1),
+        )
+
+        repository.save(reversal)
+
+        repository.findById(JournalEntryId(3))!!.reversalOf shouldBe JournalEntryId(1)
     }
 
     @Test

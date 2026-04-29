@@ -15,6 +15,7 @@ import com.jstore.accounting.domain.journal.SourceDocument
 import com.jstore.accounting.service.command.RecordOrderCompletedCMD
 import com.jstore.accounting.service.command.RecordOrderPaidCMD
 import com.jstore.accounting.service.command.RecordOrderRefundApprovedCMD
+import com.jstore.accounting.service.command.RecordSettlementPaidCMD
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -100,6 +101,11 @@ class AccountingApplicationService(
 
     fun recordOrderRefundApproved(cmd: RecordOrderRefundApprovedCMD): Result<JournalEntry, BusinessError> {
         journalEntryRepository.findBySourceDocument(cmd.sourceDocument)?.let { return Success(it) }
+        val originalEntry = journalEntryRepository.findBySourceDocument(cmd.originalSourceDocument)
+            ?: return Failure(com.jstore.accounting.domain.journal.AccountingErrors.JOURNAL_ENTRY_NOT_FOUND)
+        if (originalEntry.status != com.jstore.accounting.domain.journal.JournalEntryStatus.POSTED) {
+            return Failure(com.jstore.accounting.domain.journal.AccountingErrors.JOURNAL_ENTRY_INVALID_STATE)
+        }
         val period = accountingPeriodRepository.requireOpenPeriod(cmd.accountingDate).let { result ->
             when (result) {
                 is Success -> result.value
@@ -124,10 +130,46 @@ class AccountingApplicationService(
             type = JournalEntryType.ORDER_REFUND_REVERSAL,
             sourceDocument = cmd.sourceDocument,
             accountingDate = cmd.accountingDate,
+            _reversalOf = originalEntry.id,
         )
         entry.addLine(JournalLine(journalEntryRepository.nextLineId(), payable.id, EntrySide.DEBIT, cmd.refundAmount, "退款冲减商户待结算款"))
             .onFailure { return Failure(it) }
         entry.addLine(JournalLine(journalEntryRepository.nextLineId(), clearing.id, EntrySide.CREDIT, cmd.refundAmount, "退款冲减支付渠道清算"))
+            .onFailure { return Failure(it) }
+        entry.post(period).onFailure { return Failure(it) }
+        return Success(journalEntryRepository.save(entry))
+    }
+
+    fun recordSettlementPaid(cmd: RecordSettlementPaidCMD): Result<JournalEntry, BusinessError> {
+        journalEntryRepository.findBySourceDocument(cmd.sourceDocument)?.let { return Success(it) }
+        val period = accountingPeriodRepository.requireOpenPeriod(cmd.accountingDate).let { result ->
+            when (result) {
+                is Success -> result.value
+                is Failure -> return Failure(result.error)
+            }
+        }
+        val payable = requireAccount("2101", SubjectType.MERCHANT, cmd.merchantId).let { result ->
+            when (result) {
+                is Success -> result.value
+                is Failure -> return Failure(result.error)
+            }
+        }
+        val bank = requireAccount("1002", SubjectType.PLATFORM, "PLATFORM").let { result ->
+            when (result) {
+                is Success -> result.value
+                is Failure -> return Failure(result.error)
+            }
+        }
+        val entry = JournalEntryImpl(
+            id = journalEntryRepository.nextId(),
+            entryNo = journalEntryRepository.nextEntryNo(JournalEntryType.SETTLEMENT_PAYMENT),
+            type = JournalEntryType.SETTLEMENT_PAYMENT,
+            sourceDocument = cmd.sourceDocument,
+            accountingDate = cmd.accountingDate,
+        )
+        entry.addLine(JournalLine(journalEntryRepository.nextLineId(), payable.id, EntrySide.DEBIT, cmd.paidAmount, "商户结算打款"))
+            .onFailure { return Failure(it) }
+        entry.addLine(JournalLine(journalEntryRepository.nextLineId(), bank.id, EntrySide.CREDIT, cmd.paidAmount, "平台银行存款支付结算款"))
             .onFailure { return Failure(it) }
         entry.post(period).onFailure { return Failure(it) }
         return Success(journalEntryRepository.save(entry))

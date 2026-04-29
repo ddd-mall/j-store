@@ -39,6 +39,7 @@ interface JournalEntry : AgreeGate<JournalEntryId> {
     val createdAt: Instant
     val postedAt: Instant?
     val reversedBy: JournalEntryId?
+    val reversalOf: JournalEntryId?
 
     fun addLine(line: JournalLine): Result<Unit, BusinessError>
     fun post(openPeriod: AccountingPeriod): Result<Unit, BusinessError>

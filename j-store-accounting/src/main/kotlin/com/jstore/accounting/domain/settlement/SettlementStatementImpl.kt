@@ -6,6 +6,7 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
+import com.jstore.accounting.domain.settlement.event.SettlementPaidEvent
 import java.time.Instant
 import java.util.LinkedList
 import java.util.Queue
@@ -62,6 +63,15 @@ class SettlementStatementImpl(
         }
         _status = SettlementStatementStatus.PAID
         _paidAt = paidAt
+        publishEvent(
+            SettlementPaidEvent(
+                settlementId = id,
+                statementNo = statementNo,
+                merchantId = merchantId,
+                payableAmount = payableAmount,
+                paidAt = paidAt,
+            )
+        )
         return Success(Unit)
     }
 }
