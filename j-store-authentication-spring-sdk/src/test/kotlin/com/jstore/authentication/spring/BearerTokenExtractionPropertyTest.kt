@@ -1,7 +1,6 @@
 package com.jstore.authentication.spring
 
 import com.jstore.authentication.annotation.RequireLogin
-import com.jstore.authentication.config.AuthenticationConfigurer
 import com.jstore.authentication.error.AuthenticationErrors
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
