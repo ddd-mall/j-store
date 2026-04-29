@@ -1,7 +1,6 @@
 package com.jstore.goods.service
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.utils.*
 import com.jstore.goods.domain.commodity.*
@@ -30,8 +29,7 @@ class CommodityService(
         return cmd.verify()
             .map {
                 cmd.spuId?.let {
-                    // todo: OBJECT_NOT_FOUNT 替换为具体的商品业务错误
-                    val old = spuRepository.findById(it) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
+                    val old = spuRepository.findById(it) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
                     // 拦截 ON_SALE 商品直接编辑
                     if (old.status == CommodityStatus.ON_SALE) {
                         return Failure(CommodityErrors.ON_SALE_DIRECT_EDIT_REJECTED)
@@ -49,7 +47,7 @@ class CommodityService(
      * TODO: 缺失删除SKU的操作
      */
     fun addSku(cmd: SkuCreateCmd): Result<Spu, BusinessError> {
-        val spu = spuRepository.findById(cmd.spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
+        val spu = spuRepository.findById(cmd.spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
         val sku = spuFactory.createSku(cmd)
         spu.addSku(sku).onFailure { return Failure(it) }
         return Success(spuRepository.save(spu))
@@ -60,7 +58,7 @@ class CommodityService(
      * TODO: 如果此对象是另一个SPU的草稿副本，不应该允许发布，应该先合并回源商品后由源商品发布
      */
     fun publish(spuId: SpuId): Result<Unit, BusinessError> {
-        val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
+        val spu = spuRepository.findById(spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
         spu.publish().onFailure { return Failure(it) }
         spuRepository.save(spu)
         spu.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
@@ -69,11 +67,10 @@ class CommodityService(
 
     /**
      * 上架商品: OFF_SALE → ON_SALE，同时创建快照
-     * TODO: 同样的，OBJECT_NOT_FOUNT替换为具体的业务错误对象
      * TODO: 同样的，如果SPU本身是另一个SPU的草稿副本，不应该被允许上架
      */
     fun putOnSale(spuId: SpuId): Result<SpuSnapshot, BusinessError> {
-        val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
+        val spu = spuRepository.findById(spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
         spu.putOnSale().onFailure { return Failure(it) }
         val snapshot = snapshotFactory.createSnapshot(spu)
         spuRepository.save(spu)
@@ -84,10 +81,9 @@ class CommodityService(
 
     /**
      * 下架商品: ON_SALE → OFF_SALE
-     * TODO: 同样的，OBJECT_NOT_FOUNT替换为具体的业务错误对象
      */
     fun takeOffSale(spuId: SpuId): Result<Unit, BusinessError> {
-        val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
+        val spu = spuRepository.findById(spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
         spu.takeOffSale().onFailure { return Failure(it) }
         spuRepository.save(spu)
         spu.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
