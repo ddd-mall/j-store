@@ -19,9 +19,9 @@ class AuthenticationInterceptor(
     private val tokenProvider: TokenProvider,
     private val tokenStore: TokenStore,
     private val configurers: List<AuthenticationConfigurer>,
+    private val objectMapper: ObjectMapper = ObjectMapper(),
 ) : HandlerInterceptor {
 
-    private val objectMapper = ObjectMapper()
     private val pathMatcher = AntPathMatcher()
 
     private val authenticatedPatterns: List<String> by lazy {

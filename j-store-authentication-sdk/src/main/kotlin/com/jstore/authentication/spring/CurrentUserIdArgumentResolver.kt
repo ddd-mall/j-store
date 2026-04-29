@@ -21,7 +21,10 @@ class CurrentUserIdArgumentResolver : HandlerMethodArgumentResolver {
         mavContainer: ModelAndViewContainer?,
         webRequest: NativeWebRequest,
         binderFactory: WebDataBinderFactory?,
-    ): UserId {
+    ): UserId? {
+        if (parameter.isOptional) {
+            return AuthenticatedUserContext.getCurrentUserIdOrNull()
+        }
         return AuthenticatedUserContext.getCurrentUserId()
     }
 }

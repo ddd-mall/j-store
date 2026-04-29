@@ -1,5 +1,6 @@
 package com.jstore.authentication.spring
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.config.AuthenticationConfigurer
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
@@ -23,8 +24,9 @@ class AuthenticationAutoConfiguration {
         tokenProvider: TokenProvider,
         tokenStore: TokenStore,
         configurers: List<AuthenticationConfigurer>,
+        objectMapper: ObjectMapper,
     ): AuthenticationInterceptor {
-        return AuthenticationInterceptor(tokenProvider, tokenStore, configurers)
+        return AuthenticationInterceptor(tokenProvider, tokenStore, configurers, objectMapper)
     }
 
     @Bean

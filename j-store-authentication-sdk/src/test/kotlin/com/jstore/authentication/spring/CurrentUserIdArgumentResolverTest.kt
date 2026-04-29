@@ -58,6 +58,30 @@ class CurrentUserIdArgumentResolverTest : FunSpec({
         AuthenticatedUserContext.set(userId)
 
         val parameter = mock<MethodParameter>()
+        whenever(parameter.isOptional).thenReturn(false)
+        val webRequest = mock<org.springframework.web.context.request.NativeWebRequest>()
+
+        val result = resolver.resolveArgument(parameter, null, webRequest, null)
+
+        result shouldBe userId
+    }
+
+    test("resolveArgument returns null when parameter is nullable and no user in context") {
+        val parameter = mock<MethodParameter>()
+        whenever(parameter.isOptional).thenReturn(true)
+        val webRequest = mock<org.springframework.web.context.request.NativeWebRequest>()
+
+        val result = resolver.resolveArgument(parameter, null, webRequest, null)
+
+        result shouldBe null
+    }
+
+    test("resolveArgument returns UserId when parameter is nullable and user exists in context") {
+        val userId = UserId(456L)
+        AuthenticatedUserContext.set(userId)
+
+        val parameter = mock<MethodParameter>()
+        whenever(parameter.isOptional).thenReturn(true)
         val webRequest = mock<org.springframework.web.context.request.NativeWebRequest>()
 
         val result = resolver.resolveArgument(parameter, null, webRequest, null)
