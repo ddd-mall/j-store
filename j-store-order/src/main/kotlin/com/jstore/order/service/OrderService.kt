@@ -18,6 +18,7 @@ import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.domain.order.command.OrderPayCMD
 import com.jstore.order.domain.order.command.OrderRejectRefundCMD
 import com.jstore.order.domain.order.command.OrderRequestRefundCMD
+import com.jstore.common.framework.Page
 
 /**
  * 订单应用服务
@@ -29,6 +30,18 @@ class OrderService(
     private val orderRepository: OrderRepository,
     private val domainEventPublisher: DomainEventPublisher,
 ) {
+
+    /** 根据ID查询订单 */
+    fun getOrderById(orderId: OrderId): Result<Order, BusinessError> {
+        val order = orderRepository.findById(orderId)
+            ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        return Success(order)
+    }
+
+    /** 分页查询买家订单 */
+    fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> {
+        return orderRepository.pageListByUserId(uid, currentPage, pageSize)
+    }
 
     /** 创建订单 */
     fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError> {
