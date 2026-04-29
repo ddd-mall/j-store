@@ -13,5 +13,16 @@ interface OutboxEntryRepository {
 
     fun findPendingAndRetryable(maxRetryCount: Int, batchSize: Int): List<OutboxEntry>
 
+    fun claimPendingAndRetryable(
+        maxRetryCount: Int,
+        batchSize: Int,
+        lockedBy: String,
+        lockedUntil: Instant
+    ): List<OutboxEntry>
+
+    fun markPublished(entry: OutboxEntry, lockedBy: String): Boolean
+
+    fun markFailed(entry: OutboxEntry, lockedBy: String): Boolean
+
     fun deletePublishedBefore(before: Instant, batchSize: Int): Int
 }

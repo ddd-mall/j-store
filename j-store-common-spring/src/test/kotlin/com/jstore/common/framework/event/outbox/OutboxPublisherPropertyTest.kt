@@ -60,11 +60,11 @@ class OutboxPublisherPropertyTest : FunSpec({
         checkAll(PropTestConfig(iterations = 20), arbOutboxEntry()) { entry ->
             val savedEntries = mutableListOf<OutboxEntry>()
             val mockRepo = mock<OutboxEntryRepository> {
-                on { findPendingAndRetryable(any(), any()) } doReturn listOf(entry)
-                on { save(any()) } doAnswer { invocation ->
+                on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn listOf(entry)
+                on { markPublished(any(), any()) } doAnswer { invocation ->
                     val saved = invocation.arguments[0] as OutboxEntry
                     savedEntries.add(saved)
-                    saved
+                    true
                 }
             }
             val mockSerializer = mock<EventSerializer> {
@@ -92,10 +92,10 @@ class OutboxPublisherPropertyTest : FunSpec({
             // Sort entries by createdAt ascending (simulating what the repository query does)
             val sortedEntries = entries.sortedBy { it.createdAt }
 
-            val deliveredIds = mutableListOf<String>()
             val mockRepo = mock<OutboxEntryRepository> {
-                on { findPendingAndRetryable(any(), any()) } doReturn sortedEntries
-                on { save(any()) } doAnswer { it.arguments[0] as OutboxEntry }
+                on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn sortedEntries
+                on { markPublished(any(), any()) } doReturn true
+                on { markFailed(any(), any()) } doReturn true
             }
             val mockSerializer = mock<EventSerializer> {
                 on { deserialize(any(), any()) } doReturn StubEvent()
@@ -110,10 +110,15 @@ class OutboxPublisherPropertyTest : FunSpec({
 
             // Track delivery order via save calls
             val savedOrder = mutableListOf<String>()
-            whenever(mockRepo.save(any())).doAnswer { invocation ->
+            whenever(mockRepo.markPublished(any(), any())).doAnswer { invocation ->
                 val saved = invocation.arguments[0] as OutboxEntry
                 savedOrder.add(saved.id)
-                saved
+                true
+            }
+            whenever(mockRepo.markFailed(any(), any())).doAnswer { invocation ->
+                val saved = invocation.arguments[0] as OutboxEntry
+                savedOrder.add(saved.id)
+                true
             }
 
             val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
@@ -154,11 +159,11 @@ class OutboxPublisherPropertyTest : FunSpec({
 
             var capturedBatchSize = 0
             val mockRepo = mock<OutboxEntryRepository> {
-                on { findPendingAndRetryable(any(), any()) } doAnswer { invocation ->
+                on { claimPendingAndRetryable(any(), any(), any(), any()) } doAnswer { invocation ->
                     capturedBatchSize = invocation.arguments[1] as Int
                     returnedEntries
                 }
-                on { save(any()) } doAnswer { it.arguments[0] as OutboxEntry }
+                on { markPublished(any(), any()) } doReturn true
             }
             val mockSerializer = mock<EventSerializer> {
                 on { deserialize(any(), any()) } doReturn StubEvent()
@@ -201,11 +206,11 @@ class OutboxPublisherPropertyTest : FunSpec({
 
             val savedEntries = mutableListOf<OutboxEntry>()
             val mockRepo = mock<OutboxEntryRepository> {
-                on { findPendingAndRetryable(any(), any()) } doReturn listOf(entry)
-                on { save(any()) } doAnswer { invocation ->
+                on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn listOf(entry)
+                on { markFailed(any(), any()) } doAnswer { invocation ->
                     val saved = invocation.arguments[0] as OutboxEntry
                     savedEntries.add(saved)
-                    saved
+                    true
                 }
             }
             val mockSerializer = mock<EventSerializer> {
@@ -222,9 +227,9 @@ class OutboxPublisherPropertyTest : FunSpec({
 
             savedEntries.size shouldBe 1
             val saved = savedEntries[0]
-            saved.retryCount shouldBe retryCount + 1
+            saved.retryCount shouldBe retryCount
 
-            val expectedStatus = if (retryCount + 1 >= maxRetryCount)
+            val expectedStatus = if (retryCount >= maxRetryCount)
                 OutboxEntryStatus.DEAD_LETTER else OutboxEntryStatus.FAILED
             saved.status shouldBe expectedStatus
         }

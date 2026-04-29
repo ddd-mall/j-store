@@ -14,5 +14,10 @@ data class OutboxEntry(
     val status: OutboxEntryStatus,
     val createdAt: Instant,
     val updatedAt: Instant,
-    val retryCount: Int = 0
+    val retryCount: Int = 0,
+    val nextAttemptAt: Instant = createdAt,
+    val lockedBy: String? = null,
+    val lockedAt: Instant? = null,
+    val lockedUntil: Instant? = null,
+    val lastError: String? = null
 )
