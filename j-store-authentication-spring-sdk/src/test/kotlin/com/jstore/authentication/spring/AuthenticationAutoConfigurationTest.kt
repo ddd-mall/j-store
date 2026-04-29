@@ -1,5 +1,6 @@
 package com.jstore.authentication.spring
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import org.assertj.core.api.Assertions.assertThat
@@ -22,6 +23,7 @@ class AuthenticationAutoConfigurationTest {
         contextRunner
             .withBean(TokenProvider::class.java, { mock() })
             .withBean(TokenStore::class.java, { mock() })
+            .withBean(ObjectMapper::class.java, { ObjectMapper() })
             .run { context ->
                 assertThat(context).hasSingleBean(AuthenticationInterceptor::class.java)
                 assertThat(context).hasSingleBean(CurrentUserIdArgumentResolver::class.java)
