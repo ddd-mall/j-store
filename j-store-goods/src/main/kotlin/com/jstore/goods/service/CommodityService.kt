@@ -6,6 +6,7 @@ import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.utils.*
 import com.jstore.goods.domain.commodity.*
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
+import com.jstore.goods.domain.commodity.comand.GoodsStyleSaveCmd
 import com.jstore.goods.domain.commodity.comand.SkuCreateCmd
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshot
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactory
@@ -17,6 +18,8 @@ class CommodityService(
     private val domainEventPublisher: DomainEventPublisher,
     private val snapshotFactory: SpuSnapshotFactory,
     private val snapshotRepository: SpuSnapshotRepository,
+    private val goodsStyleRepository: GoodsStyleRepository,
+    private val goodsStyleFactory: GoodsStyleFactory,
 ) {
 
     /**
@@ -94,5 +97,28 @@ class CommodityService(
      */
     fun queryLatestSnapshot(spuId: SpuId): SpuSnapshot? {
         return snapshotRepository.findLatestBySpuId(spuId)
+    }
+
+    /**
+     * 保存或更新商品展示样式
+     */
+    fun saveGoodsStyle(cmd: GoodsStyleSaveCmd): Result<GoodsStyle, BusinessError> {
+        cmd.verify().onFailure { return Failure(it) }
+
+        spuRepository.findById(cmd.spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
+
+        val existing = goodsStyleRepository.findBySpuId(cmd.spuId)
+        val goodsStyle = if (existing != null) {
+            existing.updateMainImages(cmd.mainImages).onFailure { return Failure(it) }
+            existing.updateDetailHtml(cmd.detailHtml).onFailure { return Failure(it) }
+            for ((skuId, images) in cmd.skuImages) {
+                existing.updateSkuImages(skuId, images).onFailure { return Failure(it) }
+            }
+            existing
+        } else {
+            goodsStyleFactory.create(cmd.spuId, cmd.mainImages, cmd.detailHtml, cmd.skuImages)
+        }
+
+        return Success(goodsStyleRepository.save(goodsStyle))
     }
 }

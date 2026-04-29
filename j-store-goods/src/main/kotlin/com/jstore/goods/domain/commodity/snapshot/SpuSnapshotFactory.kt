@@ -25,6 +25,8 @@ class SpuSnapshotFactoryImpl(
                     skuName = sku.skuName,
                     attributes = sku.attributes.toList(),
                     price = sku.price,
+                    merchantCode = sku.merchantCode,
+                    barcode = sku.barcode,
                 )
             },
             createdAt = LocalDateTime.now(),

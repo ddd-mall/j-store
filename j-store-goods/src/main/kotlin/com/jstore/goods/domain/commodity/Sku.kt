@@ -15,6 +15,12 @@ interface Sku : Entity<SkuId> {
 
     /** SKU 单价 */
     val price: Price
+
+    /** 商家内部货号 */
+    val merchantCode: String?
+
+    /** 标准条形码（EAN/UPC） */
+    val barcode: String?
 }
 
 class SkuImpl(
@@ -22,4 +28,6 @@ class SkuImpl(
     override val skuName: String,
     override val attributes: List<Attribute<String, String>>,
     override val price: Price,
+    override val merchantCode: String? = null,
+    override val barcode: String? = null,
 ) : Sku

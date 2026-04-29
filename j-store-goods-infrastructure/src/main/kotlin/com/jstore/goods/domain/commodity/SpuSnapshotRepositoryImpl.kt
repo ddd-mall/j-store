@@ -46,17 +46,19 @@ class SpuSnapshotRepositoryImpl(
             )
         }
 
-        private fun toSkuSnapshotMap(sku: SkuSnapshot): Map<String, Any> {
+        private fun toSkuSnapshotMap(sku: SkuSnapshot): Map<String, Any?> {
             return mapOf(
                 "skuId" to sku.skuId.value,
                 "skuName" to sku.skuName,
                 "attributes" to sku.attributes.map { mapOf("key" to it.key, "value" to it.value) },
                 "price" to sku.price.fen,
+                "merchantCode" to sku.merchantCode,
+                "barcode" to sku.barcode,
             )
         }
 
         fun toDomain(po: SpuSnapshotPO): SpuSnapshot {
-            val skuMaps: List<Map<String, Any>> = JsonUtils.deserialize(po.skuSnapshots)
+            val skuMaps: List<Map<String, Any?>> = JsonUtils.deserialize(po.skuSnapshots)
             return SpuSnapshot(
                 id = SpuSnapshotId(po.id),
                 spuId = SpuId(po.spuId),
@@ -69,16 +71,20 @@ class SpuSnapshotRepositoryImpl(
         }
 
         @Suppress("UNCHECKED_CAST")
-        private fun toSkuSnapshot(map: Map<String, Any>): SkuSnapshot {
+        private fun toSkuSnapshot(map: Map<String, Any?>): SkuSnapshot {
             val skuId = (map["skuId"] as Number).toLong()
             val skuName = map["skuName"] as String
             val attrList = map["attributes"] as List<Map<String, String>>
             val price = (map["price"] as Number).toLong()
+            val merchantCode = map["merchantCode"] as? String
+            val barcode = map["barcode"] as? String
             return SkuSnapshot(
                 skuId = SkuId(skuId),
                 skuName = skuName,
                 attributes = attrList.map { Attribute(it["key"]!!, it["value"]!!) },
                 price = Price.ofFen(price),
+                merchantCode = merchantCode,
+                barcode = barcode,
             )
         }
     }

@@ -44,6 +44,8 @@ class SpuRepositoryImpl(
                 skuName = sku.skuName,
                 attributes = JsonUtils.toJsonString(sku.attributes),
                 price = sku.price.toBigDecimal(),
+                merchantCode = sku.merchantCode,
+                barcode = sku.barcode,
             )
         }
 
@@ -65,6 +67,8 @@ class SpuRepositoryImpl(
                 skuName = po.skuName,
                 attributes = attrs,
                 price = Price.fromBigDecimal(po.price),
+                merchantCode = po.merchantCode,
+                barcode = po.barcode,
             )
         }
     }

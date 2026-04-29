@@ -12,4 +12,5 @@ object CommodityErrors {
     val NO_SKU_FOR_PUBLISH = BusinessError("商品至少需要一个SKU才能发布", "Goods.NoSkuForPublish", 400)
     val DUPLICATE_SKU_ATTRIBUTES = BusinessError("SKU属性组合重复", "Goods.DuplicateSkuAttributes", 400)
     val SNAPSHOT_SPU_MUST_BE_ON_SALE = BusinessError("只有在售商品才能创建快照", "Goods.SnapshotSpuMustBeOnSale", 400)
+    val DUPLICATE_IMAGE_KEY = BusinessError("图片标识重复", "Goods.DuplicateImageKey", 400)
 }

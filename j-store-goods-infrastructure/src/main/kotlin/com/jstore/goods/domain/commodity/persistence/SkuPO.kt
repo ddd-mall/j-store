@@ -22,4 +22,10 @@ class SkuPO(
 
     @Column(name = "price", nullable = false, precision = 19, scale = 0)
     var price: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "merchant_code", length = 128)
+    var merchantCode: String? = null,
+
+    @Column(name = "barcode", length = 64)
+    var barcode: String? = null,
 )

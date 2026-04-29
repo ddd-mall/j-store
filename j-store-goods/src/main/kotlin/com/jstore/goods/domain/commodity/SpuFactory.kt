@@ -1,7 +1,6 @@
 package com.jstore.goods.domain.commodity
 
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.common.properties.Price
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.SkuCreateCmd
 
@@ -43,6 +42,8 @@ class SpuFactoryImpl(
             skuName = cmd.skuName,
             attributes = cmd.attributes,
             price = cmd.price,
+            merchantCode = cmd.merchantCode,
+            barcode = cmd.barcode,
         )
     }
 }
