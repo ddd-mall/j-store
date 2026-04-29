@@ -93,6 +93,9 @@ class OrderItemPO(
     @Column(name = "unit_price", nullable = false, precision = 19, scale = 0)
     var unitPrice: BigDecimal = BigDecimal.ZERO,
 
+    @Column(name = "snapshot_version", nullable = false)
+    var snapshotVersion: Long = 0,
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
     var status: OrderItemStatus = OrderItemStatus.NONE,

@@ -40,7 +40,16 @@ class OrderFactoryUnitTest : FunSpec({
 
     val stubGoodsService = object : GoodsService {
         override fun queryGoods(goodsId: List<GoodsId>): List<GoodsInfo> {
-            return goodsId.map { GoodsInfo(id = it, version = 1L, price = Price.ofFen(100)) }
+            return goodsId.map {
+                GoodsInfo(
+                    id = it,
+                    snapshotVersion = 1L,
+                    spuName = "测试商品",
+                    skuName = "默认规格",
+                    attributes = emptyList(),
+                    price = Price.ofFen(100),
+                )
+            }
         }
     }
 
@@ -72,7 +81,7 @@ class OrderFactoryUnitTest : FunSpec({
                 shippingDistrictCode = "110000",
                 shippingDetailAddress = "朝阳区三里屯",
             ),
-            items = listOf(OrderCreateCMD.OrderItemCMD(spuId = 1, skuId = 1, quantity = 1)),
+            items = listOf(OrderCreateCMD.OrderItemCMD(spuId = 1, skuId = 1, quantity = 1, snapshotVersion = 1L)),
         )
 
         val result = factory.create(cmd)
@@ -106,7 +115,7 @@ class OrderFactoryUnitTest : FunSpec({
                 shippingDistrictCode = "110000",
                 shippingDetailAddress = "朝阳区三里屯",
             ),
-            items = listOf(OrderCreateCMD.OrderItemCMD(spuId = 1, skuId = 1, quantity = 1)),
+            items = listOf(OrderCreateCMD.OrderItemCMD(spuId = 1, skuId = 1, quantity = 1, snapshotVersion = 1L)),
         )
 
         val result = factory.create(cmd)

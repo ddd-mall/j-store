@@ -69,7 +69,7 @@ class OrderCreateCMDValidationPropertyTest : FunSpec({
                 buyerPhone = "13800138000",
                 buyerName = "买家",
                 recipientInfo = failingRecipientInfo,
-                items = listOf(OrderCreateCMD.OrderItemCMD(spuId = 1, skuId = 1, quantity = 1)),
+                items = listOf(OrderCreateCMD.OrderItemCMD(spuId = 1, skuId = 1, quantity = 1, snapshotVersion = 1L)),
             )
 
             val orderResult = orderCmd.validate()

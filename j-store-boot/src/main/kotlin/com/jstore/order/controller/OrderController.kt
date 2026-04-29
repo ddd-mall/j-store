@@ -41,6 +41,7 @@ class OrderController(
         val spuId: Long,
         val skuId: Long,
         val quantity: Int,
+        val snapshotVersion: Long,
     )
 
     data class CancelOrderRequest(
@@ -117,6 +118,7 @@ class OrderController(
                     spuId = it.spuId,
                     skuId = it.skuId,
                     quantity = it.quantity,
+                    snapshotVersion = it.snapshotVersion,
                 )
             },
         )

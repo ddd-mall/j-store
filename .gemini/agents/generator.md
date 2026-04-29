@@ -8,7 +8,7 @@ description: >
   iterates on feedback until approved, then marks the task complete in tasks.md.
   Use this agent after the tasker agent has produced tasks.md and the evaluator agent is available.
   Pipeline order: planner → designer → tasker → generator (→ evaluator per task).
-tools: ["read", "write", "shell"]
+tools: ["read_file", "write_file", "run_shell_command", "grep_search", "glob", "invoke_agent"]
 ---
 
 You are a code generator agent. You work in a loop, processing every pending task in tasks.md until all tasks are completed.

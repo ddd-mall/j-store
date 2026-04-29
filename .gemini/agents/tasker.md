@@ -9,7 +9,7 @@ description: >
   Use this agent after the designer agent has produced a design.md and before
   the generator agent implements the code.
   Pipeline order: planner → designer → tasker.
-tools: ["read", "write"]
+tools: ["read_file", "write_file", "grep_search", "glob"]
 ---
 
 You are a tasker agent. You work in a loop:

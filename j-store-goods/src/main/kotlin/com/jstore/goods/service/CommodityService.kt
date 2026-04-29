@@ -23,13 +23,19 @@ class CommodityService(
 ) {
 
     /**
-     * 创建/更新SPU
+     * 创建/更新SPU（拦截 ON_SALE 商品的直接编辑）
+     * TODO: 与 editOnSale 可能存在职能上的重复
      */
     fun createOrUpdate(cmd: CommodityCreateCmd): Result<Spu, BusinessError> {
         return cmd.verify()
             .map {
                 cmd.spuId?.let {
+                    // todo: OBJECT_NOT_FOUNT 替换为具体的商品业务错误
                     val old = spuRepository.findById(it) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
+                    // 拦截 ON_SALE 商品直接编辑
+                    if (old.status == CommodityStatus.ON_SALE) {
+                        return Failure(CommodityErrors.ON_SALE_DIRECT_EDIT_REJECTED)
+                    }
                     val update = spuFactory.update(cmd, old)
                     return@map spuRepository.save(update)
                 }
@@ -40,6 +46,7 @@ class CommodityService(
 
     /**
      * 向SPU中添加SKU
+     * TODO: 缺失删除SKU的操作
      */
     fun addSku(cmd: SkuCreateCmd): Result<Spu, BusinessError> {
         val spu = spuRepository.findById(cmd.spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
@@ -50,6 +57,7 @@ class CommodityService(
 
     /**
      * 发布商品: DRAFT → OFF_SALE
+     * TODO: 如果此对象是另一个SPU的草稿副本，不应该允许发布，应该先合并回源商品后由源商品发布
      */
     fun publish(spuId: SpuId): Result<Unit, BusinessError> {
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
@@ -61,12 +69,12 @@ class CommodityService(
 
     /**
      * 上架商品: OFF_SALE → ON_SALE，同时创建快照
+     * TODO: 同样的，OBJECT_NOT_FOUNT替换为具体的业务错误对象
+     * TODO: 同样的，如果SPU本身是另一个SPU的草稿副本，不应该被允许上架
      */
     fun putOnSale(spuId: SpuId): Result<SpuSnapshot, BusinessError> {
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
         spu.putOnSale().onFailure { return Failure(it) }
-        // 递增版本并创建快照
-        spu.incrementVersion()
         val snapshot = snapshotFactory.createSnapshot(spu)
         spuRepository.save(spu)
         snapshotRepository.save(snapshot)
@@ -76,6 +84,7 @@ class CommodityService(
 
     /**
      * 下架商品: ON_SALE → OFF_SALE
+     * TODO: 同样的，OBJECT_NOT_FOUNT替换为具体的业务错误对象
      */
     fun takeOffSale(spuId: SpuId): Result<Unit, BusinessError> {
         val spu = spuRepository.findById(spuId) ?: return Failure(CommonBusinessError.OBJECT_NOT_FOUNT)
@@ -97,6 +106,68 @@ class CommodityService(
      */
     fun queryLatestSnapshot(spuId: SpuId): SpuSnapshot? {
         return snapshotRepository.findLatestBySpuId(spuId)
+    }
+
+    /**
+     * 获取在售商品的可编辑草稿副本
+     * - 已有草稿 → 直接返回（幂等）
+     * - 无草稿 → 创建并持久化后返回
+     */
+    fun editOnSale(spuId: SpuId): Result<Spu, BusinessError> {
+        val spu = spuRepository.findById(spuId)
+            ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
+        if (spu.status != CommodityStatus.ON_SALE) {
+            return Failure(CommodityErrors.ONLY_ON_SALE_NEEDS_DRAFT)
+        }
+        // 幂等：已有草稿直接返回
+        val existingDraft = spuRepository.findDraftBySourceSpuId(spuId)
+        if (existingDraft != null) {
+            return Success(existingDraft)
+        }
+        // 创建草稿副本
+        val draft = spuFactory.createDraftCopy(spu)
+            .getOrElse { return Failure(it) }
+        return Success(spuRepository.save(draft))
+    }
+
+    /**
+     * 发布草稿 — 合并回源商品、递增版本、生成快照、删除草稿
+     */
+    fun publishDraft(draftSpuId: SpuId): Result<SpuSnapshot, BusinessError> {
+        val draft = spuRepository.findById(draftSpuId)
+            ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
+        if (draft.sourceSpuId == null) {
+            return Failure(CommodityErrors.NOT_A_DRAFT_COPY)
+        }
+        val source = spuRepository.findById(draft.sourceSpuId!!)
+            ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
+
+        // 领域方法：合并草稿内容到源商品
+        source.mergeFromDraft(draft).onFailure { return Failure(it) }
+
+        // 创建新快照
+        val snapshot = snapshotFactory.createSnapshot(source)
+
+        // 持久化
+        spuRepository.save(source)
+        snapshotRepository.save(snapshot)
+        spuRepository.delete(draft)
+
+        source.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
+        return Success(snapshot)
+    }
+
+    /**
+     * 丢弃草稿 — 删除草稿副本，源商品不受影响
+     */
+    fun discardDraft(draftSpuId: SpuId): Result<Unit, BusinessError> {
+        val draft = spuRepository.findById(draftSpuId)
+            ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
+        if (draft.sourceSpuId == null) {
+            return Failure(CommodityErrors.NOT_A_DRAFT_COPY)
+        }
+        spuRepository.delete(draft)
+        return Success(Unit)
     }
 
     /**

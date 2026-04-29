@@ -38,15 +38,24 @@ class OrderFactoryImpl(
         // 2. 构建 OrderItem
         val orderItems = cmd.items.map { itemCmd ->
             val goods = goodsInfoMap[GoodsId(itemCmd.spuId, itemCmd.skuId)]
-                ?: return Failure(OrderErrors.CORRESPONDING_GOODS_NOT_FOUND)
+                ?: return Failure(OrderErrors.CORRESPONDING_GOODS_NOT_FOUND
+                    .msg("商品 SPU ID=${itemCmd.spuId} 快照不存在"))
+
+            // 快照版本校验（SPU 粒度）
+            if (itemCmd.snapshotVersion != goods.snapshotVersion) {
+                return Failure(OrderErrors.SNAPSHOT_VERSION_MISMATCH
+                    .msg("商品 SPU ID=${itemCmd.spuId} 信息已变更，请刷新页面"))
+            }
+
             OrderItemImpl(
                 id = OrderItemId(snowFlakSequence.nextId()),
                 spuId = itemCmd.spuId,
                 skuId = itemCmd.skuId,
-                goodsName = "",
-                skuDescription = "",
+                goodsName = goods.spuName,
+                skuDescription = buildSkuDescription(goods.skuName, goods.attributes),
                 quantity = itemCmd.quantity,
                 unitPrice = goods.price,
+                snapshotVersion = goods.snapshotVersion,
             )
         }
 
@@ -95,5 +104,13 @@ class OrderFactoryImpl(
             items = orderItems.map { OrderItemSnapshot(skuId = it.skuId, quantity = it.quantity) }
         ))
         return Success(order)
+    }
+
+    private fun buildSkuDescription(
+        skuName: String,
+        attributes: List<Pair<String, String>>
+    ): String {
+        if (attributes.isEmpty()) return skuName
+        return attributes.joinToString(" ") { "${it.first}:${it.second}" }
     }
 }

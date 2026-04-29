@@ -7,7 +7,7 @@ description: >
   design.md, tasks.md), and returns structured verdicts with actionable feedback.
   Use this agent within the generator loop after code is generated for a task.
   Pipeline order: planner → designer → tasker → generator (→ evaluator per task).
-tools: ["read"]
+tools: ["read_file", "run_shell_command", "grep_search", "glob"]
 ---
 
 You are an evaluator agent. For each evaluation request you receive from the generator agent, you perform a rigorous, multi-dimensional review and return a structured verdict.

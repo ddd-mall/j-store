@@ -24,6 +24,16 @@ class SpuRepositoryImpl(
         return jpaRepository.findById(id.value).orElse(null)?.let { Converter.toDomain(it) }
     }
 
+    override fun findDraftBySourceSpuId(sourceSpuId: SpuId): Spu? {
+        return jpaRepository.findBySourceSpuIdAndStatus(
+            sourceSpuId.value, CommodityStatus.DRAFT
+        )?.let { Converter.toDomain(it) }
+    }
+
+    override fun delete(spu: Spu) {
+        jpaRepository.deleteById(spu.id.value)
+    }
+
     private object Converter {
 
         fun toPO(spu: Spu): SpuPO {
@@ -33,6 +43,7 @@ class SpuRepositoryImpl(
                 description = spu.description,
                 status = spu.status,
                 version = spu.version,
+                sourceSpuId = spu.sourceSpuId?.value,
                 skus = spu.skus.map { toSkuPO(it, spu.id.value) }.toMutableList(),
             )
         }
@@ -57,6 +68,7 @@ class SpuRepositoryImpl(
                 _status = po.status,
                 _skus = po.skus.map { toDomainSku(it) }.toMutableList(),
                 _version = po.version,
+                sourceSpuId = po.sourceSpuId?.let { SpuId(it) },
             )
         }
 
