@@ -19,5 +19,9 @@ data class OutboxEntry(
     val lockedBy: String? = null,
     val lockedAt: Instant? = null,
     val lockedUntil: Instant? = null,
-    val lastError: String? = null
+    val lastError: String? = null,
+    val eventId: String = id,
+    val eventClassName: String = eventType,
+    val eventVersion: Int = 1,
+    val occurredAt: Instant = createdAt,
 )

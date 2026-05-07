@@ -10,10 +10,11 @@ package com.jstore.common.framework.event
  */
 interface DomainEventListener<T : DomainEvent> {
     /**
-     * 监听器是否支持异步执行
-     * @return true 表示可以异步处理该事件，false 表示必须同步处理
+     * Stable listener identifier used as the consumer key for idempotent event handling.
+     *
+     * Use a durable, business-owned name before renaming or moving listener classes.
      */
-    fun supportsAsyncExecution(): Boolean = false
+    fun listenerId(): String
 
     /**
      * 处理领域事件

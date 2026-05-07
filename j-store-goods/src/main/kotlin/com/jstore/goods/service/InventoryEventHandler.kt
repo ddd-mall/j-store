@@ -19,6 +19,7 @@ class InventoryReservationEventHandler(
     private val inventoryService: InventoryService,
     private val domainEventPublisher: DomainEventPublisher,
 ) : DomainEventListener<StockReservationRequestedEvent> {
+    override fun listenerId(): String = "goods.inventory.reserve-stock-on-request"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

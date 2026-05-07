@@ -29,7 +29,14 @@ class JacksonEventSerializerPropertyTest : FunSpec({
         .registerModule(JavaTimeModule())
         .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-    val serializer = JacksonEventSerializer(objectMapper)
+    val eventTypeRegistry = InMemoryEventTypeRegistry().also { registry ->
+        registry.register("order.created", 1, OrderCreatedEvent::class.java)
+        registry.register("order.paid", 1, OrderPaidEvent::class.java)
+        registry.register("order.shipped", 1, OrderShippedEvent::class.java)
+        registry.register("order.completed", 1, OrderCompletedEvent::class.java)
+        registry.register("order.cancelled", 1, OrderCancelledEvent::class.java)
+    }
+    val serializer = JacksonEventSerializer(objectMapper, eventTypeRegistry)
 
     // -- Generators --
 
@@ -73,8 +80,8 @@ class JacksonEventSerializerPropertyTest : FunSpec({
     test("Property 2: serialize then deserialize produces equivalent object") {
         checkAll(PropTestConfig(iterations = 20), arbDomainEvent) { event ->
             val json = serializer.serialize(event)
-            val eventType = event::class.java.name
-            val restored = serializer.deserialize(json, eventType)
+            val metadata = event.metadata
+            val restored = serializer.deserialize(json, metadata.eventName, metadata.eventVersion)
             restored shouldBe event
         }
     }

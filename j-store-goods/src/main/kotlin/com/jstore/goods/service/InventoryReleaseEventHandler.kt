@@ -12,6 +12,7 @@ import com.jstore.goods.acl.event.StockReleaseRequestedEvent
 class InventoryReleaseEventHandler(
     private val inventoryService: InventoryService,
 ) : DomainEventListener<StockReleaseRequestedEvent> {
+    override fun listenerId(): String = "goods.inventory.release-stock-on-request"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

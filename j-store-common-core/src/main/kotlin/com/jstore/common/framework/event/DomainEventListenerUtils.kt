@@ -1,6 +1,10 @@
 package com.jstore.common.framework.event
 
-import kotlin.reflect.jvm.javaType
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.Type
+import java.lang.reflect.TypeVariable
+import java.lang.reflect.WildcardType
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 领域事件监听器工具类
@@ -14,6 +18,8 @@ import kotlin.reflect.jvm.javaType
  * - 便于单元测试和模拟
  */
 object DomainEventListenerUtils {
+    private val listeningTypeCache = ConcurrentHashMap<Class<*>, Class<out DomainEvent>>()
+
     /**
      * 获取监听器支持的事件类型（通过泛型参数）
      * 
@@ -26,17 +32,83 @@ object DomainEventListenerUtils {
      * 3. 提取其泛型参数（即事件类型）
      */
     fun getListeningEventType(listener: DomainEventListener<*>): Class<*>? {
-        return try {
-            val supertype = listener::class.supertypes
-                .find { it.classifier == DomainEventListener::class }
-                ?: return null
-            
-            val eventTypeArgument = supertype.arguments.firstOrNull()
-            eventTypeArgument?.type?.javaType as? Class<*>
-        } catch (e: Exception) {
-            // 反射失败时（例如匿名类），返回 null
-            null
+        val listenerClass = resolveUserClass(listener)
+        listeningTypeCache[listenerClass]?.let { return it }
+        val listeningType = extractListeningEventType(listenerClass) ?: return null
+        listeningTypeCache[listenerClass] = listeningType
+        return listeningType
+    }
+
+    fun requireListeningEventType(listener: DomainEventListener<*>): Class<out DomainEvent> {
+        @Suppress("UNCHECKED_CAST")
+        return getListeningEventType(listener) as? Class<out DomainEvent>
+            ?: throw IllegalArgumentException(
+                "Unable to resolve DomainEventListener event type: listenerClass=${resolveUserClass(listener).name}. " +
+                    "Declare the listener with a concrete DomainEvent generic type, e.g. DomainEventListener<OrderPaidEvent>."
+            )
+    }
+
+    private fun extractListeningEventType(listenerClass: Class<*>): Class<out DomainEvent>? {
+        val eventType = findDomainEventListenerArgument(listenerClass, emptyMap()) ?: return null
+        val eventClass = resolveEventClass(eventType) ?: return null
+        if (!DomainEvent::class.java.isAssignableFrom(eventClass)) return null
+
+        @Suppress("UNCHECKED_CAST")
+        return eventClass as Class<out DomainEvent>
+    }
+
+    private fun findDomainEventListenerArgument(type: Type, bindings: Map<TypeVariable<*>, Type>): Type? {
+        return when (type) {
+            is Class<*> -> findInClassHierarchy(type, bindings)
+            is ParameterizedType -> {
+                val rawClass = type.rawType as? Class<*> ?: return null
+                val nextBindings = bindings + rawClass.typeParameters.zip(type.actualTypeArguments)
+                    .associate { (variable, actualType) -> variable to substituteTypeVariables(actualType, bindings) }
+
+                if (rawClass == DomainEventListener::class.java) {
+                    substituteTypeVariables(type.actualTypeArguments.first(), nextBindings)
+                } else {
+                    findInClassHierarchy(rawClass, nextBindings)
+                }
+            }
+            else -> null
         }
+    }
+
+    private fun findInClassHierarchy(clazz: Class<*>, bindings: Map<TypeVariable<*>, Type>): Type? {
+        clazz.genericInterfaces.asSequence()
+            .mapNotNull { findDomainEventListenerArgument(it, bindings) }
+            .firstOrNull()
+            ?.let { return it }
+
+        val genericSuperclass = clazz.genericSuperclass ?: return null
+        return findDomainEventListenerArgument(genericSuperclass, bindings)
+    }
+
+    private fun substituteTypeVariables(type: Type, bindings: Map<TypeVariable<*>, Type>): Type {
+        return if (type is TypeVariable<*>) {
+            bindings[type]?.let { substituteTypeVariables(it, bindings) } ?: type
+        } else {
+            type
+        }
+    }
+
+    private fun resolveEventClass(type: Type): Class<*>? {
+        return when (type) {
+            is Class<*> -> type
+            is ParameterizedType -> type.rawType as? Class<*>
+            is WildcardType -> type.upperBounds.asSequence().mapNotNull(::resolveEventClass).firstOrNull()
+            is TypeVariable<*> -> null
+            else -> null
+        }
+    }
+
+    private fun resolveUserClass(listener: DomainEventListener<*>): Class<*> {
+        return runCatching {
+            val aopUtils = Class.forName("org.springframework.aop.support.AopUtils")
+            val method = aopUtils.getMethod("getTargetClass", Any::class.java)
+            method.invoke(null, listener) as? Class<*>
+        }.getOrNull() ?: listener::class.java
     }
 
     /**

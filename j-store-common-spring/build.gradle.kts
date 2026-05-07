@@ -16,6 +16,7 @@ dependencies {
     api(libs.seata.all)
     implementation(project(":j-store-common-core"))
     implementation(libs.fastexcel)
+    implementation("io.micrometer:micrometer-core")
 
     // Spring Boot autoconfigure (for @ConditionalOnProperty, @EnableScheduling, etc.)
     implementation(libs.spirng.boot.boot)

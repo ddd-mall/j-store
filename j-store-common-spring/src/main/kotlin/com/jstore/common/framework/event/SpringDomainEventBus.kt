@@ -1,12 +1,14 @@
 package com.jstore.common.framework.event
 
+import org.springframework.context.ApplicationEventPublisher
+
 class SpringDomainEventBus(
     private val registry: SpringDomainEventListenerRegistry,
-    private val dispatcher: SpringDomainEventDispatcher,
+    private val applicationEventPublisher: ApplicationEventPublisher,
 ) : DomainEventBus {
 
     override fun publishEvent(domainEvent: DomainEvent) {
-        dispatcher.dispatch(domainEvent, registry.getListeners())
+        applicationEventPublisher.publishEvent(domainEvent)
     }
 
     override fun register(domainEventListener: DomainEventListener<*>) {

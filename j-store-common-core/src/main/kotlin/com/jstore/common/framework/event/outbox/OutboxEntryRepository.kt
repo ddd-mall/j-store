@@ -24,5 +24,11 @@ interface OutboxEntryRepository {
 
     fun markFailed(entry: OutboxEntry, lockedBy: String): Boolean
 
+    fun findDeadLetters(batchSize: Int): List<OutboxEntry>
+
+    fun requeueDeadLetters(ids: Collection<String>, nextAttemptAt: Instant): Int
+
+    fun countByStatus(status: OutboxEntryStatus): Long
+
     fun deletePublishedBefore(before: Instant, batchSize: Int): Int
 }

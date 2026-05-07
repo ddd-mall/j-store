@@ -58,13 +58,19 @@ class OutboxEventPublisherPropertyTest : FunSpec({
         }
     )
 
-    test("Property 1: publishEvent saves entry with PENDING status and correct eventType") {
+    test("Property 1: publishEvent saves entry with PENDING status and stable envelope") {
         checkAll(PropTestConfig(iterations = 20), arbDomainEvent) { event ->
             val mockRepository = mock<OutboxEntryRepository> {
                 on { save(any()) } doAnswer { it.arguments[0] as OutboxEntry }
             }
+            val eventTypeRegistry = InMemoryEventTypeRegistry().apply {
+                val eventType = event::class.java.getAnnotation(DomainEventType::class.java)
+                register(event.metadata.eventName, event.metadata.eventVersion, event::class.java)
+                eventType.name shouldBe event.metadata.eventName
+                eventType.version shouldBe event.metadata.eventVersion
+            }
 
-            val publisher = OutboxEventPublisher(mockRepository, realSerializer, SnowFlakSequence(1, 1))
+            val publisher = OutboxEventPublisher(mockRepository, realSerializer, SnowFlakSequence(1, 1), eventTypeRegistry)
             publisher.publishEvent(event)
 
             val captor = argumentCaptor<OutboxEntry>()
@@ -72,7 +78,11 @@ class OutboxEventPublisherPropertyTest : FunSpec({
 
             val savedEntry = captor.firstValue
             savedEntry.status shouldBe OutboxEntryStatus.PENDING
-            savedEntry.eventType shouldBe event::class.java.name
+            savedEntry.eventId shouldBe event.metadata.eventId
+            savedEntry.eventType shouldBe event.metadata.eventName
+            savedEntry.eventClassName shouldBe event::class.java.name
+            savedEntry.eventVersion shouldBe event.metadata.eventVersion
+            savedEntry.occurredAt shouldBe event.metadata.occurredAt
         }
     }
 })

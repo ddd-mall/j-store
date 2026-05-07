@@ -1,15 +1,17 @@
 package com.jstore.com.jstore.order.config
 
 import com.jstore.common.framework.event.DomainEventListener
+import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.framework.event.NoopDomainEventConsumptionRepository
 import com.jstore.common.framework.event.SpringDomainEventBus
-import com.jstore.common.framework.event.SpringDomainEventDispatcher
 import com.jstore.common.framework.event.SpringDomainEventListenerRegistrationMachine
 import com.jstore.common.framework.event.SpringDomainEventListenerRegistry
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.service.OrderService
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
@@ -35,18 +37,22 @@ class OrderBootConfiguration {
     }
 
     @Bean
-    fun springDomainEventListenerRegistry(applicationContext: ConfigurableApplicationContext) : SpringDomainEventListenerRegistry {
-        return SpringDomainEventListenerRegistry(applicationContext)
+    fun springDomainEventListenerRegistry(
+        applicationContext: ConfigurableApplicationContext,
+        consumptionRepositoryProvider: ObjectProvider<DomainEventConsumptionRepository>,
+    ) : SpringDomainEventListenerRegistry {
+        return SpringDomainEventListenerRegistry(
+            applicationContext,
+            consumptionRepositoryProvider.getIfAvailable() ?: NoopDomainEventConsumptionRepository
+        )
     }
 
     @Bean
-    fun springDomainEventDispatcher(applicationEventPublisher: ApplicationEventPublisher): SpringDomainEventDispatcher {
-        return SpringDomainEventDispatcher(applicationEventPublisher)
-    }
-
-    @Bean
-    fun springDomainEventBus(springDomainEventRegistry: SpringDomainEventListenerRegistry, springDomainEventDispatcher: SpringDomainEventDispatcher): SpringDomainEventBus {
-        return SpringDomainEventBus(springDomainEventRegistry, springDomainEventDispatcher)
+    fun springDomainEventBus(
+        springDomainEventRegistry: SpringDomainEventListenerRegistry,
+        applicationEventPublisher: ApplicationEventPublisher,
+    ): SpringDomainEventBus {
+        return SpringDomainEventBus(springDomainEventRegistry, applicationEventPublisher)
     }
 
     @Bean

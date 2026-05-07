@@ -13,6 +13,7 @@ import com.jstore.order.domain.order.OrderId
 class OrderStockInsufficientEventHandler(
     private val orderService: OrderService,
 ) : DomainEventListener<OrderStockInsufficientEvent> {
+    override fun listenerId(): String = "order.cancel-on-stock-insufficient"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

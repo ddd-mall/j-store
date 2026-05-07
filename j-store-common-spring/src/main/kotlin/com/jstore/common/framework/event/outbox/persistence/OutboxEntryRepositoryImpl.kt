@@ -2,6 +2,7 @@ package com.jstore.common.framework.event.outbox.persistence
 
 import com.jstore.common.framework.event.outbox.OutboxEntry
 import com.jstore.common.framework.event.outbox.OutboxEntryRepository
+import com.jstore.common.framework.event.outbox.OutboxEntryStatus
 import jakarta.persistence.EntityManager
 import org.springframework.data.domain.PageRequest
 import org.springframework.transaction.annotation.Transactional
@@ -157,13 +158,74 @@ open class OutboxEntryRepositoryImpl(
         return deleted
     }
 
+    override fun findDeadLetters(batchSize: Int): List<OutboxEntry> {
+        val deadLetters = entityManager.createNativeQuery(
+            """
+            SELECT *
+            FROM outbox_entry
+            WHERE status = 'DEAD_LETTER'
+            ORDER BY updated_at ASC
+            LIMIT :batchSize
+            """.trimIndent(),
+            OutboxEntryPO::class.java
+        )
+            .setParameter("batchSize", batchSize)
+            .resultList
+
+        @Suppress("UNCHECKED_CAST")
+        return (deadLetters as List<OutboxEntryPO>).map(Converter::toDomain)
+    }
+
+    @Transactional
+    open override fun requeueDeadLetters(ids: Collection<String>, nextAttemptAt: Instant): Int {
+        if (ids.isEmpty()) {
+            return 0
+        }
+        val updated = entityManager.createQuery(
+            """
+            UPDATE OutboxEntryPO e
+            SET e.status = :failed,
+                e.nextAttemptAt = :nextAttemptAt,
+                e.lockedBy = NULL,
+                e.lockedAt = NULL,
+                e.lockedUntil = NULL,
+                e.lastError = NULL,
+                e.updatedAt = :now
+            WHERE e.status = :deadLetter
+              AND e.id IN :ids
+            """.trimIndent()
+        )
+            .setParameter("failed", OutboxEntryStatus.FAILED)
+            .setParameter("deadLetter", OutboxEntryStatus.DEAD_LETTER)
+            .setParameter("nextAttemptAt", nextAttemptAt)
+            .setParameter("now", Instant.now())
+            .setParameter("ids", ids)
+            .executeUpdate()
+        entityManager.clear()
+        return updated
+    }
+
+    override fun countByStatus(status: OutboxEntryStatus): Long {
+        return entityManager.createQuery(
+            "SELECT COUNT(e) FROM OutboxEntryPO e WHERE e.status = :status",
+            java.lang.Long::class.java
+        )
+            .setParameter("status", status)
+            .singleResult
+            .toLong()
+    }
+
     private object Converter {
         fun toPO(entry: OutboxEntry) = OutboxEntryPO(
             id = entry.id,
+            eventId = entry.eventId,
             eventType = entry.eventType,
+            eventClassName = entry.eventClassName,
+            eventVersion = entry.eventVersion,
             payload = entry.payload,
             aggregateType = entry.aggregateType,
             aggregateId = entry.aggregateId,
+            occurredAt = entry.occurredAt,
             status = entry.status,
             createdAt = entry.createdAt,
             updatedAt = entry.updatedAt,
@@ -177,10 +239,14 @@ open class OutboxEntryRepositoryImpl(
 
         fun toDomain(po: OutboxEntryPO) = OutboxEntry(
             id = po.id,
+            eventId = po.eventId.ifBlank { po.id },
             eventType = po.eventType,
+            eventClassName = po.eventClassName.ifBlank { po.eventType },
+            eventVersion = po.eventVersion,
             payload = po.payload,
             aggregateType = po.aggregateType,
             aggregateId = po.aggregateId,
+            occurredAt = po.occurredAt,
             status = po.status,
             createdAt = po.createdAt,
             updatedAt = po.updatedAt,
