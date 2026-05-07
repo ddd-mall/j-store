@@ -21,6 +21,8 @@ class OrderPaidAccountingEventHandler(
     private val accountingOrderService: AccountingOrderService,
     private val accountingApplicationService: AccountingApplicationService,
 ) : DomainEventListener<OrderPaidEvent> {
+    override fun listenerId(): String = "accounting.record-order-paid"
+
     override fun onDomainEvent(event: OrderPaidEvent) {
         val info = when (val result = accountingOrderService.getOrderAccountingInfo(event.orderId.value.toString())) {
             is Success -> result.value
@@ -42,6 +44,8 @@ class OrderCompletedAccountingEventHandler(
     private val accountingOrderService: AccountingOrderService,
     private val accountingApplicationService: AccountingApplicationService,
 ) : DomainEventListener<OrderCompletedEvent> {
+    override fun listenerId(): String = "accounting.record-order-completed"
+
     override fun onDomainEvent(event: OrderCompletedEvent) {
         val info = when (val result = accountingOrderService.getOrderAccountingInfo(event.orderId.value.toString())) {
             is Success -> result.value
@@ -63,6 +67,8 @@ class OrderRefundApprovedAccountingEventHandler(
     private val accountingOrderService: AccountingOrderService,
     private val accountingApplicationService: AccountingApplicationService,
 ) : DomainEventListener<OrderRefundApprovedEvent> {
+    override fun listenerId(): String = "accounting.record-order-refund-approved"
+
     override fun onDomainEvent(event: OrderRefundApprovedEvent) {
         val orderId = event.orderId.value.toString()
         val info = when (val result = accountingOrderService.getOrderAccountingInfo(orderId)) {
@@ -89,6 +95,8 @@ class OrderRefundApprovedAccountingEventHandler(
 class SettlementPaidAccountingEventHandler(
     private val accountingApplicationService: AccountingApplicationService,
 ) : DomainEventListener<SettlementPaidEvent> {
+    override fun listenerId(): String = "accounting.record-settlement-paid"
+
     override fun onDomainEvent(event: SettlementPaidEvent) {
         accountingApplicationService.recordSettlementPaid(
             RecordSettlementPaidCMD(

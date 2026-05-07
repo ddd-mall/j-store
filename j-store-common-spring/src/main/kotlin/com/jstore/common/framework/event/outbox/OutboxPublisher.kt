@@ -18,6 +18,8 @@ class OutboxPublisher(
     private val eventSerializer: EventSerializer,
     private val domainEventBus: DomainEventBus,
     private val properties: OutboxProperties,
+    private val outboxMonitor: OutboxMonitor = NoopOutboxMonitor,
+    private val transactionOperations: OutboxRelayTransactionOperations = ImmediateOutboxRelayTransactionOperations,
 ) {
     private val logger = LoggerFactory.getLogger(OutboxPublisher::class.java)
     private val workerId = properties.workerId.ifBlank {
@@ -38,44 +40,51 @@ class OutboxPublisher(
 
             for (entry in entries) {
                 try {
-                    val event = eventSerializer.deserialize(entry.payload, entry.eventType)
-                    domainEventBus.publishEvent(event)
-                    val updated = outboxEntryRepository.markPublished(
-                        entry.copy(
-                            status = OutboxEntryStatus.PUBLISHED,
-                            updatedAt = Instant.now(),
-                            lockedBy = null,
-                            lockedAt = null,
-                            lockedUntil = null,
-                            lastError = null
-                        ),
-                        workerId
-                    )
+                    val updated = transactionOperations.executeDelivery {
+                        val event = eventSerializer.deserialize(
+                            entry.payload,
+                            entry.eventType,
+                            entry.eventVersion
+                        )
+                        domainEventBus.publishEvent(event)
+                        outboxEntryRepository.markPublished(
+                            entry.copy(
+                                status = OutboxEntryStatus.PUBLISHED,
+                                updatedAt = Instant.now(),
+                                lockedBy = null,
+                                lockedAt = null,
+                                lockedUntil = null,
+                                lastError = null
+                            ),
+                            workerId
+                        ).also { published ->
+                            if (!published) {
+                                throw OutboxLockOwnershipChangedException(entry.id, workerId)
+                            }
+                        }
+                    }
                     if (updated) {
                         successCount++
-                    } else {
-                        logger.warn(
-                            "Outbox entry publish result ignored because lock ownership changed: id={}, eventType={}, workerId={}",
-                            entry.id, entry.eventType, workerId
-                        )
                     }
                 } catch (e: Exception) {
                     val newRetryCount = entry.retryCount
                     val newStatus = if (newRetryCount >= properties.maxRetryCount)
                         OutboxEntryStatus.DEAD_LETTER else OutboxEntryStatus.FAILED
-                    val updated = outboxEntryRepository.markFailed(
-                        entry.copy(
-                            status = newStatus,
-                            retryCount = newRetryCount,
-                            updatedAt = Instant.now(),
-                            nextAttemptAt = calculateNextAttemptAt(newRetryCount),
-                            lockedBy = null,
-                            lockedAt = null,
-                            lockedUntil = null,
-                            lastError = formatError(e)
-                        ),
-                        workerId
-                    )
+                    val updated = transactionOperations.executeFailure {
+                        outboxEntryRepository.markFailed(
+                            entry.copy(
+                                status = newStatus,
+                                retryCount = newRetryCount,
+                                updatedAt = Instant.now(),
+                                nextAttemptAt = calculateNextAttemptAt(newRetryCount),
+                                lockedBy = null,
+                                lockedAt = null,
+                                lockedUntil = null,
+                                lastError = formatError(e)
+                            ),
+                            workerId
+                        )
+                    }
                     if (updated) {
                         failCount++
                     } else {
@@ -86,6 +95,7 @@ class OutboxPublisher(
                     }
 
                     if (newStatus == OutboxEntryStatus.DEAD_LETTER) {
+                        outboxMonitor.recordDeadLetter(entry)
                         logger.warn(
                             "Outbox entry moved to DEAD_LETTER: id={}, eventType={}, retryCount={}",
                             entry.id, entry.eventType, newRetryCount
@@ -99,6 +109,7 @@ class OutboxPublisher(
             }
 
             logger.info("Outbox poll completed: delivered={}, failed={}", successCount, failCount)
+            outboxMonitor.recordPoll(successCount, failCount)
         } catch (e: Exception) {
             logger.error("Outbox polling encountered an unexpected error", e)
         }
@@ -118,4 +129,9 @@ class OutboxPublisher(
         val message = e.message?.let { ": $it" } ?: ""
         return "${e::class.java.name}$message".take(2000)
     }
+
+    private class OutboxLockOwnershipChangedException(
+        entryId: String,
+        workerId: String,
+    ) : IllegalStateException("Outbox entry lock ownership changed before publish commit: id=$entryId, workerId=$workerId")
 }

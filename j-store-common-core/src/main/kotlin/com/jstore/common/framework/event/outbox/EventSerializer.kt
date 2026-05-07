@@ -9,5 +9,5 @@ interface EventSerializer {
 
     fun serialize(event: DomainEvent): String
 
-    fun deserialize(payload: String, eventType: String): DomainEvent
+    fun deserialize(payload: String, eventName: String, eventVersion: Int): DomainEvent
 }

@@ -7,20 +7,24 @@ import org.springframework.core.ResolvableType
 
 class DomainListenerSpringWrapper(
     private val domainEventListener: DomainEventListener<*>,
+    private val consumptionRepository: DomainEventConsumptionRepository = NoopDomainEventConsumptionRepository,
 ) : GenericApplicationListener {
     override fun onApplicationEvent(event: ApplicationEvent) {
         (event as? PayloadApplicationEvent<*>)?.let {
             (it.payload as? DomainEvent)?.let { domainEvent ->
                 if (DomainEventListenerUtils.supportsEvent(domainEventListener, domainEvent)) {
-                    @Suppress("UNCHECKED_CAST")
-                    (domainEventListener as DomainEventListener<DomainEvent>).onDomainEvent(domainEvent)
+                    val listenerId = domainEventListener.listenerId()
+                    if (consumptionRepository.tryStart(listenerId, domainEvent)) {
+                        @Suppress("UNCHECKED_CAST")
+                        (domainEventListener as DomainEventListener<DomainEvent>).onDomainEvent(domainEvent)
+                    }
                 }
             }
         }
     }
 
     override fun supportsAsyncExecution(): Boolean {
-        return domainEventListener.supportsAsyncExecution()
+        return false
     }
 
     override fun supportsEventType(eventType: ResolvableType): Boolean {

@@ -19,6 +19,15 @@ class OutboxEntryPO(
     @Column(name = "event_type", nullable = false, length = 512)
     var eventType: String = "",
 
+    @Column(name = "event_id", nullable = false, length = 64)
+    var eventId: String = "",
+
+    @Column(name = "event_class_name", nullable = false, length = 512)
+    var eventClassName: String = "",
+
+    @Column(name = "event_version", nullable = false)
+    var eventVersion: Int = 1,
+
     @Column(name = "payload", nullable = false, columnDefinition = "TEXT")
     var payload: String = "",
 
@@ -27,6 +36,9 @@ class OutboxEntryPO(
 
     @Column(name = "aggregate_id", nullable = false, length = 128)
     var aggregateId: String = "",
+
+    @Column(name = "occurred_at", nullable = false)
+    var occurredAt: Instant = Instant.now(),
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)

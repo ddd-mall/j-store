@@ -68,7 +68,7 @@ class OutboxPublisherPropertyTest : FunSpec({
                 }
             }
             val mockSerializer = mock<EventSerializer> {
-                on { deserialize(any(), any()) } doReturn StubEvent()
+                on { deserialize(any(), any(), any()) } doReturn StubEvent()
             }
             val mockBus = mock<DomainEventBus>()
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
@@ -98,7 +98,7 @@ class OutboxPublisherPropertyTest : FunSpec({
                 on { markFailed(any(), any()) } doReturn true
             }
             val mockSerializer = mock<EventSerializer> {
-                on { deserialize(any(), any()) } doReturn StubEvent()
+                on { deserialize(any(), any(), any()) } doReturn StubEvent()
             }
             val mockBus = mock<DomainEventBus> {
                 on { publishEvent(any()) } doAnswer {
@@ -166,7 +166,7 @@ class OutboxPublisherPropertyTest : FunSpec({
                 on { markPublished(any(), any()) } doReturn true
             }
             val mockSerializer = mock<EventSerializer> {
-                on { deserialize(any(), any()) } doReturn StubEvent()
+                on { deserialize(any(), any(), any()) } doReturn StubEvent()
             }
             val mockBus = mock<DomainEventBus>()
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = batchSize)
@@ -214,7 +214,7 @@ class OutboxPublisherPropertyTest : FunSpec({
                 }
             }
             val mockSerializer = mock<EventSerializer> {
-                on { deserialize(any(), any()) } doReturn StubEvent()
+                on { deserialize(any(), any(), any()) } doReturn StubEvent()
             }
             // Mock bus to throw exception on delivery
             val mockBus = mock<DomainEventBus> {

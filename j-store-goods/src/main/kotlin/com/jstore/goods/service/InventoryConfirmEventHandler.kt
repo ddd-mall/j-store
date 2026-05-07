@@ -12,6 +12,7 @@ import com.jstore.goods.acl.event.StockConfirmRequestedEvent
 class InventoryConfirmEventHandler(
     private val inventoryService: InventoryService,
 ) : DomainEventListener<StockConfirmRequestedEvent> {
+    override fun listenerId(): String = "goods.inventory.confirm-stock-on-request"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

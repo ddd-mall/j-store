@@ -13,6 +13,7 @@ import com.jstore.order.domain.order.OrderId
 class OrderStockConfirmedEventHandler(
     private val orderService: OrderService,
 ) : DomainEventListener<OrderStockConfirmedEvent> {
+    override fun listenerId(): String = "order.confirm-stock-on-stock-confirmed"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

@@ -16,6 +16,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.transaction.PlatformTransactionManager
 
 /**
  * OutboxAutoConfiguration 集成测试
@@ -40,7 +41,12 @@ class OutboxAutoConfigurationTest : FunSpec({
                 context.containsBean("outboxPublisher") shouldBe true
                 context.containsBean("outboxCleaner") shouldBe true
                 context.containsBean("eventSerializer") shouldBe true
+                context.containsBean("eventTypeRegistry") shouldBe true
+                context.containsBean("springEventTypeRegistryRegistrar") shouldBe true
                 context.containsBean("outboxEntryRepository") shouldBe true
+                context.containsBean("domainEventConsumptionRepository") shouldBe true
+                context.containsBean("outboxRelayTransactionOperations") shouldBe true
+                context.containsBean("springDomainEventMulticasterGuard") shouldBe true
             }
     }
 
@@ -79,6 +85,9 @@ class OutboxAutoConfigurationTest : FunSpec({
 
         @Bean
         fun snowFlakSequence(): SnowFlakSequence = SnowFlakSequence(1, 1)
+
+        @Bean
+        fun transactionManager(): PlatformTransactionManager = mock()
 
         @Bean
         fun domainEventBus(): DomainEventBus = object : DomainEventBus {

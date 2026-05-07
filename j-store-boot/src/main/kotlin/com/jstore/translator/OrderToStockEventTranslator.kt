@@ -1,5 +1,6 @@
 package com.jstore.translator
 
+import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.goods.acl.event.ConfirmItem
 import com.jstore.goods.acl.event.ReleaseItem
@@ -13,7 +14,6 @@ import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
 import com.jstore.order.domain.order.event.OrderRefundApprovedEvent
-import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 
 /**
@@ -23,13 +23,12 @@ import org.springframework.stereotype.Component
  * 位于 boot 组装层，是两个限界上下文之间的桥梁
  */
 @Component
-class OrderToStockEventTranslator(
+class OrderCreatedToStockReservationTranslator(
     private val domainEventPublisher: DomainEventPublisher,
-    private val orderRepository: OrderRepository,
-) {
+) : DomainEventListener<OrderCreatedEvent> {
+    override fun listenerId(): String = "translator.order-created.to-stock-reservation-requested"
 
-    @EventListener
-    fun onOrderCreated(event: OrderCreatedEvent) {
+    override fun onDomainEvent(event: OrderCreatedEvent) {
         domainEventPublisher.publishEvent(
             StockReservationRequestedEvent(
                 orderId = event.orderId.value,
@@ -37,9 +36,15 @@ class OrderToStockEventTranslator(
             )
         )
     }
+}
 
-    @EventListener
-    fun onOrderPaid(event: OrderPaidEvent) {
+@Component
+class OrderPaidToStockConfirmTranslator(
+    private val domainEventPublisher: DomainEventPublisher,
+) : DomainEventListener<OrderPaidEvent> {
+    override fun listenerId(): String = "translator.order-paid.to-stock-confirm-requested"
+
+    override fun onDomainEvent(event: OrderPaidEvent) {
         domainEventPublisher.publishEvent(
             StockConfirmRequestedEvent(
                 orderId = event.orderId.value,
@@ -47,9 +52,16 @@ class OrderToStockEventTranslator(
             )
         )
     }
+}
 
-    @EventListener
-    fun onOrderCancelled(event: OrderCancelledEvent) {
+@Component
+class OrderCancelledToStockReleaseTranslator(
+    private val domainEventPublisher: DomainEventPublisher,
+    private val orderRepository: OrderRepository,
+) : DomainEventListener<OrderCancelledEvent> {
+    override fun listenerId(): String = "translator.order-cancelled.to-stock-release-requested"
+
+    override fun onDomainEvent(event: OrderCancelledEvent) {
         val order = orderRepository.findById(OrderId(event.orderId.value)) ?: return
         domainEventPublisher.publishEvent(
             StockReleaseRequestedEvent(
@@ -58,9 +70,16 @@ class OrderToStockEventTranslator(
             )
         )
     }
+}
 
-    @EventListener
-    fun onOrderRefundApproved(event: OrderRefundApprovedEvent) {
+@Component
+class OrderRefundApprovedToStockReleaseTranslator(
+    private val domainEventPublisher: DomainEventPublisher,
+    private val orderRepository: OrderRepository,
+) : DomainEventListener<OrderRefundApprovedEvent> {
+    override fun listenerId(): String = "translator.order-refund-approved.to-stock-release-requested"
+
+    override fun onDomainEvent(event: OrderRefundApprovedEvent) {
         // 已发货的退款需要走退货流程，不直接释放库存
         if (event.requireReturn) return
 

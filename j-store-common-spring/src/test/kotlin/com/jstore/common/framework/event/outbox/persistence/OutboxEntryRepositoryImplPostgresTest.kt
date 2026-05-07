@@ -161,6 +161,32 @@ class OutboxEntryRepositoryImplPostgresTest {
         assertTrue(jpaRepository.existsById("pending-old"))
     }
 
+    @Test
+    fun `dead letters can be queried counted and requeued`() {
+        val base = Instant.parse("2026-01-01T00:00:00Z")
+        repository.save(entry("dead-1", status = OutboxEntryStatus.DEAD_LETTER, createdAt = base, updatedAt = base.plusSeconds(2)))
+        repository.save(entry("dead-2", status = OutboxEntryStatus.DEAD_LETTER, createdAt = base, updatedAt = base.plusSeconds(1)))
+        repository.save(entry("failed-1", status = OutboxEntryStatus.FAILED, createdAt = base))
+
+        val deadLetters = repository.findDeadLetters(batchSize = 10)
+
+        assertEquals(listOf("dead-2", "dead-1"), deadLetters.map { it.id })
+        assertEquals(2L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER))
+        assertEquals(1L, repository.countByStatus(OutboxEntryStatus.FAILED))
+
+        val nextAttemptAt = Instant.parse("2026-01-02T00:00:00Z")
+        val requeued = repository.requeueDeadLetters(listOf("dead-1", "failed-1"), nextAttemptAt)
+
+        assertEquals(1, requeued)
+        val dead1 = jpaRepository.findById("dead-1").orElseThrow()
+        assertEquals(OutboxEntryStatus.FAILED, dead1.status)
+        assertEquals(nextAttemptAt, dead1.nextAttemptAt)
+        assertEquals(null, dead1.lockedBy)
+        assertEquals(null, dead1.lastError)
+        assertEquals(1L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER))
+        assertEquals(2L, repository.countByStatus(OutboxEntryStatus.FAILED))
+    }
+
     private fun entry(
         id: String,
         status: OutboxEntryStatus = OutboxEntryStatus.PENDING,

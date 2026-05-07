@@ -34,8 +34,11 @@ class OutboxEventPublisherTest : FunSpec({
         val mockRepository = mock<OutboxEntryRepository> {
             on { save(any()) } doAnswer { it.arguments[0] as OutboxEntry }
         }
+        val eventTypeRegistry = InMemoryEventTypeRegistry().apply {
+            register("order.created", 1, OrderCreatedEvent::class.java)
+        }
         val serializer = JacksonEventSerializer(objectMapper)
-        val publisher = OutboxEventPublisher(mockRepository, serializer, SnowFlakSequence(1, 1))
+        val publisher = OutboxEventPublisher(mockRepository, serializer, SnowFlakSequence(1, 1), eventTypeRegistry)
 
         val event = OrderCreatedEvent(
             orderId = OrderId(42L),
@@ -51,7 +54,11 @@ class OutboxEventPublisherTest : FunSpec({
 
         val saved = captor.firstValue
         saved.id shouldNotBe ""
-        saved.eventType shouldBe "com.jstore.order.domain.order.event.OrderCreatedEvent"
+        saved.eventId shouldNotBe ""
+        saved.eventType shouldBe "order.created"
+        saved.eventClassName shouldBe "com.jstore.order.domain.order.event.OrderCreatedEvent"
+        saved.eventVersion shouldBe 1
+        saved.occurredAt shouldBe event.occurredAt
         saved.status shouldBe OutboxEntryStatus.PENDING
         saved.retryCount shouldBe 0
         saved.payload shouldNotBe ""
@@ -62,8 +69,11 @@ class OutboxEventPublisherTest : FunSpec({
         val mockSerializer = mock<EventSerializer> {
             on { serialize(any()) } doThrow RuntimeException("serialization error")
         }
+        val eventTypeRegistry = InMemoryEventTypeRegistry().apply {
+            register("order.created", 1, OrderCreatedEvent::class.java)
+        }
 
-        val publisher = OutboxEventPublisher(mockRepository, mockSerializer, SnowFlakSequence(1, 1))
+        val publisher = OutboxEventPublisher(mockRepository, mockSerializer, SnowFlakSequence(1, 1), eventTypeRegistry)
 
         val event = OrderCreatedEvent(
             orderId = OrderId(1L),
@@ -73,6 +83,30 @@ class OutboxEventPublisherTest : FunSpec({
         )
 
         shouldThrow<RuntimeException> {
+            publisher.publishEvent(event)
+        }
+
+        verify(mockRepository, never()).save(any())
+    }
+
+    test("publishEvent fails when event type was not registered during startup") {
+        val mockRepository = mock<OutboxEntryRepository>()
+        val serializer = JacksonEventSerializer(objectMapper, InMemoryEventTypeRegistry())
+        val publisher = OutboxEventPublisher(
+            mockRepository,
+            serializer,
+            SnowFlakSequence(1, 1),
+            InMemoryEventTypeRegistry()
+        )
+
+        val event = OrderCreatedEvent(
+            orderId = OrderId(1L),
+            totalAmount = Price.ofFen(100),
+            items = listOf(OrderItemSnapshot(1L, 1)),
+            occurredAt = Instant.now()
+        )
+
+        shouldThrow<OutboxSerializationException> {
             publisher.publishEvent(event)
         }
 
