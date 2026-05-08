@@ -2,9 +2,8 @@ package com.jstore.order.acl
 
 import com.jstore.goods.domain.commodity.SpuId
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotRepository
-import org.springframework.stereotype.Service
 
-@Service
+
 class GoodsServiceImpl(
     private val spuSnapshotRepository: SpuSnapshotRepository,
 ) : GoodsService {

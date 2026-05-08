@@ -1,15 +1,15 @@
 j-store
 
-PostgreSQL Docker deployment
+Local service Docker deployment
 
-This repository provides a Docker Compose file for local PostgreSQL.
+This repository provides a Docker Compose file for local PostgreSQL and Redis.
 It is aligned with j-store-boot/src/main/resources/application-local.properties.
 
 Prerequisites
 
 - Docker Desktop (or Docker Engine + Compose plugin)
 
-Start PostgreSQL
+Start local services
 
 Run this command from the repository root:
 
@@ -19,7 +19,7 @@ Check status:
 
 docker-compose -f docker-compose.postgres.yml ps
 
-Stop PostgreSQL
+Stop local services
 
 docker-compose -f docker-compose.postgres.yml down
 
@@ -31,15 +31,22 @@ Note:
 
 - If your machine supports Docker Compose v2 plugin, the equivalent command is: docker compose -f docker-compose.postgres.yml up -d
 
-Connection info
+PostgreSQL connection info
 
-- Host: localhost
-- Port: 5432
-- Database: develop
+- Host: 192.168.31.213
+- Port: 30432
+- Database: j_store
 - Username: develop
 - Password: Jupeter104741
 - Default schema: develop
 
 Quick test with psql (if installed locally)
 
-psql -h localhost -p 5432 -U develop -d develop
+psql -h 192.168.31.213 -p 30432 -U develop -d j_store
+
+Redis connection info
+
+- Host: 192.168.31.213
+- Port: 6379
+- Password: empty
+- Database: 0
