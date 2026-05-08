@@ -3,7 +3,7 @@ package com.jstore.com.jstore.order.config
 import com.jstore.common.framework.event.*
 import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotRepository
+import com.jstore.goods.api.GoodsSnapshotQueryService
 import com.jstore.order.acl.GoodsService
 import com.jstore.order.acl.GoodsServiceImpl
 import com.jstore.order.domain.order.OrderFactory
@@ -26,10 +26,10 @@ class OrderBootConfiguration {
 
     @Bean
     fun goodsService(
-        spuSnapshotRepository: SpuSnapshotRepository
+        goodsSnapshotQueryService: GoodsSnapshotQueryService
     ): GoodsService {
         return GoodsServiceImpl(
-            spuSnapshotRepository
+            goodsSnapshotQueryService
         )
     }
 

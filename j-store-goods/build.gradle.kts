@@ -14,6 +14,7 @@ dependencies {
     testImplementation(libs.kotest.property)
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
+    api(project(":j-store-goods-api"))
     api(project(":j-store-common-core"))
 }
 

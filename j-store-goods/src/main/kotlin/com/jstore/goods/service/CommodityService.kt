@@ -3,6 +3,9 @@ package com.jstore.goods.service
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.utils.*
+import com.jstore.goods.api.GoodsSnapshotInfo
+import com.jstore.goods.api.GoodsSnapshotQueryService
+import com.jstore.goods.api.GoodsSkuSnapshotInfo
 import com.jstore.goods.domain.commodity.*
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.GoodsStyleSaveCmd
@@ -19,7 +22,7 @@ class CommodityService(
     private val snapshotRepository: SpuSnapshotRepository,
     private val goodsStyleRepository: GoodsStyleRepository,
     private val goodsStyleFactory: GoodsStyleFactory,
-) {
+) : GoodsSnapshotQueryService {
 
     /**
      * 创建/更新SPU（拦截 ON_SALE 商品的直接编辑）
@@ -90,18 +93,25 @@ class CommodityService(
         return Success(Unit)
     }
 
-    /**
-     * 查询商品快照（供订单模块 ACL 调用）
-     */
-    fun querySnapshot(spuId: SpuId, version: Long): SpuSnapshot? {
-        return snapshotRepository.findBySpuIdAndVersion(spuId, version)
-    }
-
-    /**
-     * 查询商品最新快照
-     */
-    fun queryLatestSnapshot(spuId: SpuId): SpuSnapshot? {
-        return snapshotRepository.findLatestBySpuId(spuId)
+    override fun queryLatestSnapshots(spuIds: List<Long>): List<GoodsSnapshotInfo> {
+        return spuIds.distinct()
+            .mapNotNull { spuId ->
+                snapshotRepository.findLatestBySpuId(SpuId(spuId))?.let { snapshot ->
+                    GoodsSnapshotInfo(
+                        spuId = snapshot.spuId.value,
+                        snapshotVersion = snapshot.snapshotVersion,
+                        spuName = snapshot.spuName,
+                        skuSnapshots = snapshot.skuSnapshots.map { skuSnapshot ->
+                            GoodsSkuSnapshotInfo(
+                                skuId = skuSnapshot.skuId.value,
+                                skuName = skuSnapshot.skuName,
+                                attributes = skuSnapshot.attributes.map { it.key to it.value },
+                                price = skuSnapshot.price,
+                            )
+                        },
+                    )
+                }
+            }
     }
 
     /**
