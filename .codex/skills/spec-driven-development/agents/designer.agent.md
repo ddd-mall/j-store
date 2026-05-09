@@ -18,7 +18,7 @@ You are the designer. Convert `requirement.md` into a detailed Chinese `design.m
 ## Before Drafting
 
 - Inspect relevant code for DDD conventions, package layout, naming, base classes, persistence patterns, and test style.
-- Follow repository steering docs, especially `.kiro/steering/ddd-guidelines.md` when present.
+- Read and follow all applicable repository steering docs under `docs/steering/`; DDD, testing, memory, and other project norms there are the baseline.
 - Ensure all components, packages, signatures, and data models match the existing codebase.
 
 ## Required Structure
@@ -45,7 +45,7 @@ You are the designer. Convert `requirement.md` into a detailed Chinese `design.m
 
 ## Content Requirements
 
-- 概述: summarize the approach in 2-3 sentences and state the project architecture conventions used.
+- 概述: summarize the approach in 2-3 sentences and state the project steering and architecture conventions used.
 - 设计决策: use a table with decision, chosen option, and rationale.
 - 架构: include at least one Mermaid component/module diagram and one sequence diagram when behavior crosses components. Include package/directory structure when relevant.
 - 组件与接口: numbered components with location, responsibility, and complete Kotlin/Java signatures including annotations, constructors, properties, method parameters, and return types.

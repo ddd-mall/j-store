@@ -23,7 +23,7 @@ Output path:
 
 Before drafting:
 - Inspect relevant code for DDD conventions, package layout, naming, base classes, persistence patterns, and test style.
-- Follow repository steering docs, especially .kiro/steering/ddd-guidelines.md when present.
+- Read and follow all applicable repository steering docs under docs/steering/; DDD, testing, memory, and other project norms there are the baseline.
 - Ensure all modules, packages, signatures, data models, DDL, error constants, and test locations match the existing codebase.
 
 Required top-level structure:
@@ -50,7 +50,7 @@ Required top-level structure:
 
 概述:
 - Summarize the design goal, scope, context, and core approach in 2-3 sentences.
-- State which project DDD/architecture conventions the design follows.
+- State which project steering and DDD/architecture conventions the design follows.
 - The feature name must be consistent with requirement.md and the spec directory.
 
 设计决策:

@@ -12,7 +12,7 @@ You are the evaluator. Review generated code or tests against `requirement.md`, 
 ## Baseline
 
 - Read relevant code to understand current patterns before judging.
-- Use repository DDD guidance, especially `.kiro/steering/ddd-guidelines.md` when present.
+- Read and apply all applicable repository steering docs under `docs/steering/`; DDD, testing, memory, and other project norms there are the baseline for review.
 - Separate upstream spec defects from implementation defects.
 
 ## Required Dimensions

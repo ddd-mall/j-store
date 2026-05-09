@@ -42,7 +42,7 @@ The corresponding Codex agent definitions are stored in:
 1. Identify what the user wants to build, revise, implement, or review.
 2. Inspect `docs/spec/` to find existing feature specs and determine the target `docs/spec/<feature-slug>/` directory.
 3. Inspect relevant code before routing work so delegated agents receive repository-specific context.
-4. Prefer `docs/steering/ddd-guidelines.md` when present for DDD and layering rules.
+4. Inspect and follow all applicable steering documents under `docs/steering/`; treat DDD, testing, memory, and other project norms there as the repository baseline.
 5. If the target feature or spec directory is ambiguous and cannot be inferred from the repository, ask one concise clarification question before delegation.
 
 ## Phase Detection And Delegation
