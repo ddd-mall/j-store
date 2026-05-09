@@ -51,10 +51,12 @@ dependencies {
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.webflux)
+    implementation(libs.flyway.core)
     testImplementation(libs.spring.boot.starter.test)
     annotationProcessor(libs.spring.boot.configuration.processor)
 
     runtimeOnly(libs.postgresql)
+    runtimeOnly(libs.flyway.database.postgresql)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
