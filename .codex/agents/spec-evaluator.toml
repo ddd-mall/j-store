@@ -41,7 +41,7 @@ Input validation:
 
 Baseline:
 - Read relevant code to understand current domain models, naming conventions, module structure, base types, and established patterns before judging.
-- Use repository DDD guidance, especially .kiro/steering/ddd-guidelines.md when present.
+- Read and apply all applicable repository steering docs under docs/steering/; DDD, testing, memory, and other project norms there are the baseline for review.
 - Separate upstream specification defects from implementation defects.
 
 Evaluation dimensions:
