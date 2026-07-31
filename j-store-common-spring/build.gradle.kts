@@ -46,5 +46,5 @@ tasks.test {
     systemProperty("api.version", "1.44")
 }
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
