@@ -59,6 +59,7 @@ dependencies {
     runtimeOnly(libs.flyway.database.postgresql)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit5)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
     testRuntimeOnly(libs.junit.platform.launcher)
     implementation(libs.commons.lang3)
     compileOnly(libs.lombok)

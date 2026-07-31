@@ -50,7 +50,10 @@ class OrderShippingInfoUnitTest : FunSpec({
                 )
             ),
             recipientInfo = defaultRecipientInfo,
-            _status = OrderStatus.PENDING_STOCK,
+            _tradeStatus = TradeStatus.CREATED,
+            _paymentStatus = PaymentStatus.UNPAID,
+            _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
+            _afterSaleStatus = AfterSaleStatus.NONE,
             totalAmount = Price.ofFen(100),
             _actualPay = Price.ofFen(100),
         )

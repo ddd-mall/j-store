@@ -1,5 +1,6 @@
 package com.jstore.common.framework.event.outbox.persistence
 
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import com.jstore.common.framework.event.outbox.OutboxEntry
 import com.jstore.common.framework.event.outbox.OutboxEntryRepository
 import com.jstore.common.framework.event.outbox.OutboxEntryStatus
@@ -20,7 +21,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
-import org.testcontainers.containers.PostgreSQLContainer
 import java.time.Instant
 
 @SpringBootTest(classes = [OutboxEntryRepositoryImplPostgresTest.TestConfig::class])
@@ -228,17 +228,14 @@ class OutboxEntryRepositoryImplPostgresTest {
     }
 
     companion object {
-        private val postgres = PostgreSQLContainer("postgres:16-alpine")
+        private val postgres: EmbeddedPostgres by lazy { EmbeddedPostgres.builder().start() }
 
         @JvmStatic
         @DynamicPropertySource
         fun registerProperties(registry: DynamicPropertyRegistry) {
-            if (!postgres.isRunning) {
-                postgres.start()
-            }
-            registry.add("spring.datasource.url", postgres::getJdbcUrl)
-            registry.add("spring.datasource.username", postgres::getUsername)
-            registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("spring.datasource.url") { postgres.getJdbcUrl("postgres", "postgres") }
+            registry.add("spring.datasource.username") { "postgres" }
+            registry.add("spring.datasource.password") { "" }
             registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
             registry.add("spring.jpa.hibernate.ddl-auto") { "create-drop" }
             registry.add("spring.flyway.enabled") { "false" }

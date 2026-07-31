@@ -3,6 +3,7 @@ package com.jstore.order.domain.order
 import com.jstore.common.geo.*
 import com.jstore.order.domain.order.persistence.RecipientInfoPO
 import com.jstore.order.domain.order.persistence.OrderPO
+import com.jstore.order.domain.order.persistence.OrderItemPO
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -78,7 +79,7 @@ class RecipientInfoPOBackwardCompatPropertyTest : FunSpec({
                 actualPay = BigDecimal.valueOf(100),
                 createTime = now,
                 updateTime = now,
-                items = mutableListOf(),
+                items = mutableListOf(testItemPO()),
             )
 
             val order = converter.toDomain(orderPO)
@@ -107,7 +108,7 @@ class RecipientInfoPOBackwardCompatPropertyTest : FunSpec({
                 actualPay = BigDecimal.valueOf(100),
                 createTime = now,
                 updateTime = now,
-                items = mutableListOf(),
+                items = mutableListOf(testItemPO()),
             )
 
             val order = converter.toDomain(orderPO)
@@ -116,3 +117,14 @@ class RecipientInfoPOBackwardCompatPropertyTest : FunSpec({
         }
     }
 })
+
+private fun testItemPO() = OrderItemPO(
+    id = 1,
+    orderId = 1,
+    skuId = 1,
+    spuId = 1,
+    goodsName = "test",
+    skuDescription = "test",
+    quantity = 1,
+    unitPrice = BigDecimal.valueOf(100),
+)

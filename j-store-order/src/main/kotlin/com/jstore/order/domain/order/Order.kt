@@ -6,10 +6,7 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 import java.time.LocalDateTime
 
-/**
- * 订单聚合根接口
- * 正向流程: 创建(PENDING_PAYMENT) → 支付(PAID) → 确认备货(PENDING_SHIPMENT) → 发货(SHIPPED) → 确认收货(DELIVERED) → 完成(COMPLETED)
- */
+/** 订单聚合根接口。交易、支付、履约和售后状态分别表达并行的业务事实。 */
 interface Order : AgreeGate<OrderId> {
     override val id: OrderId
 
@@ -22,8 +19,10 @@ interface Order : AgreeGate<OrderId> {
     /** 收货信息（不可变值对象） */
     val recipientInfo: RecipientInfo
 
-    /** 订单状态 */
-    val status: OrderStatus
+    val tradeStatus: TradeStatus
+    val paymentStatus: PaymentStatus
+    val fulfillmentStatus: FulfillmentStatus
+    val afterSaleStatus: AfterSaleStatus
 
     /** 订单总金额 */
     val totalAmount: Price
@@ -57,9 +56,6 @@ interface Order : AgreeGate<OrderId> {
 
     /** 完成订单 */
     fun complete(): Result<Unit, BusinessError>
-
-    /** 进入 REFUNDING 前的 Order 级别状态，用于退款拒绝时恢复 */
-    val previousStatus: OrderStatus?
 
     /** 买家主动取消订单（未支付阶段） */
     fun cancel(reason: CancellationReason): Result<Unit, BusinessError>
