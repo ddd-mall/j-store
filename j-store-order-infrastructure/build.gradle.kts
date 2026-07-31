@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
+    kotlin("plugin.lombok")
 }
 
 
@@ -39,6 +40,7 @@ dependencies {
     annotationProcessor(libs.lombok)
     testCompileOnly(libs.lombok)
     testAnnotationProcessor(libs.lombok)
+    testImplementation(kotlin("test"))
 
 }
 
