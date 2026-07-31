@@ -23,5 +23,5 @@ tasks.withType<Test> {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }

@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    kotlin("plugin.spring") version "2.1.21"
+    kotlin("plugin.spring") version "2.3.0"
 }
 
 allprojects {
@@ -10,7 +10,7 @@ allprojects {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
