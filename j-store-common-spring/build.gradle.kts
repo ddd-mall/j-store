@@ -30,20 +30,13 @@ dependencies {
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.spring.boot.starter.test)
-    testImplementation("org.testcontainers:postgresql:1.21.3")
-    testImplementation("org.testcontainers:junit-jupiter:1.21.3")
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
     testImplementation(project(":j-store-order"))
     testRuntimeOnly(libs.postgresql)
 }
 
 tasks.test {
     useJUnitPlatform()
-    environment("DOCKER_API_VERSION", "1.44")
-    environment("api.version", "1.44")
-    environment("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "/var/run/docker.sock")
-    System.getenv("DOCKER_HOST")?.let { environment("DOCKER_HOST", it) }
-    systemProperty("docker.api.version", "1.44")
-    systemProperty("api.version", "1.44")
 }
 kotlin {
     jvmToolchain(25)

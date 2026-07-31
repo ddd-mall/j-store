@@ -1,7 +1,10 @@
 package com.jstore.order.domain.order.persistence
 
 import com.jstore.order.domain.order.OrderItemStatus
-import com.jstore.order.domain.order.OrderStatus
+import com.jstore.order.domain.order.TradeStatus
+import com.jstore.order.domain.order.PaymentStatus
+import com.jstore.order.domain.order.FulfillmentStatus
+import com.jstore.order.domain.order.AfterSaleStatus
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -40,12 +43,20 @@ class OrderPO(
     var recipientInfo: RecipientInfoPO? = null,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 32)
-    var status: OrderStatus = OrderStatus.PENDING_STOCK,
+    @Column(name = "trade_status", nullable = false, length = 32)
+    var tradeStatus: TradeStatus = TradeStatus.CREATED,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "previous_status", length = 32)
-    var previousStatus: OrderStatus? = null,
+    @Column(name = "payment_status", nullable = false, length = 32)
+    var paymentStatus: PaymentStatus = PaymentStatus.UNPAID,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fulfillment_status", nullable = false, length = 32)
+    var fulfillmentStatus: FulfillmentStatus = FulfillmentStatus.UNFULFILLED,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "after_sale_status", nullable = false, length = 32)
+    var afterSaleStatus: AfterSaleStatus = AfterSaleStatus.NONE,
 
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 0)
     var totalAmount: BigDecimal = BigDecimal.ZERO,

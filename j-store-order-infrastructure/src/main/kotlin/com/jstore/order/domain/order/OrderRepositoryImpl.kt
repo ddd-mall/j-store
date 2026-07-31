@@ -65,8 +65,10 @@ class OrderRepositoryImpl(
                 buyerPhone = order.buyerInfo.phoneNumber?.value,
                 buyerName = order.buyerInfo.userName,
                 recipientInfo = recipientInfoPO,
-                status = order.status,
-                previousStatus = order.previousStatus,
+                tradeStatus = order.tradeStatus,
+                paymentStatus = order.paymentStatus,
+                fulfillmentStatus = order.fulfillmentStatus,
+                afterSaleStatus = order.afterSaleStatus,
                 totalAmount = order.totalAmount.toBigDecimal(),
                 actualPay = order.actualPay.toBigDecimal(),
                 createTime = order.createTime,
@@ -121,12 +123,14 @@ class OrderRepositoryImpl(
                 _items = items.toMutableList(),
 
                 recipientInfo = consignInfo,
-                _status = po.status,
+                _tradeStatus = po.tradeStatus,
+                _paymentStatus = po.paymentStatus,
+                _fulfillmentStatus = po.fulfillmentStatus,
+                _afterSaleStatus = po.afterSaleStatus,
                 totalAmount = Price.fromBigDecimal(po.totalAmount),
                 _actualPay = Price.fromBigDecimal(po.actualPay),
                 createTime = po.createTime,
                 _updateTime = po.updateTime,
-                _previousStatus = po.previousStatus,
             )
         }
 

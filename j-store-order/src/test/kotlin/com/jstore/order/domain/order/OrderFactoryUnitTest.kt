@@ -87,6 +87,10 @@ class OrderFactoryUnitTest : FunSpec({
         val result = factory.create(cmd)
 
         result.shouldBeInstanceOf<Success<Order>>()
+        result.value.tradeStatus shouldBe TradeStatus.CREATED
+        result.value.paymentStatus shouldBe PaymentStatus.UNPAID
+        result.value.fulfillmentStatus shouldBe FulfillmentStatus.UNFULFILLED
+        result.value.afterSaleStatus shouldBe AfterSaleStatus.NONE
         capturedCountryCode shouldBe "CN"
     }
 

@@ -93,7 +93,10 @@ class OrderFactoryImpl(
             ),
             _items = orderItems.toMutableList(),
             recipientInfo = recipientInfo,
-            _status = OrderStatus.PENDING_STOCK,
+            _tradeStatus = TradeStatus.CREATED,
+            _paymentStatus = PaymentStatus.UNPAID,
+            _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
+            _afterSaleStatus = AfterSaleStatus.NONE,
             totalAmount = totalAmount,
             _actualPay = totalAmount,
         )

@@ -109,7 +109,10 @@ class RecipientInfoPORoundTripPropertyTest : FunSpec({
                     )
                 ),
                 recipientInfo = originalShippingInfo,
-                _status = OrderStatus.PENDING_STOCK,
+                _tradeStatus = TradeStatus.CREATED,
+                _paymentStatus = PaymentStatus.UNPAID,
+                _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
+                _afterSaleStatus = AfterSaleStatus.NONE,
                 totalAmount = Price.ofFen(100),
                 _actualPay = Price.ofFen(100),
                 createTime = now,
