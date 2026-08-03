@@ -1,0 +1,1 @@
+Kotlin JVM with Spring Boot 3.x, Spring Data JPA, PostgreSQL (runtime driver), Spring Data Redis, Lombok for boilerplate reduction, and Kotest (FunSpec + property testing) for unit tests. JPA uses `EnumType.STRING` for status enums, `@Version` for optimistic locking, and `jsonb` columns for complex address data via custom converters.

@@ -1,0 +1,1 @@
+Spring Boot infrastructure module implementing JPA repositories, ACL adapters, and event-driven projections for the order and after-sale domains against PostgreSQL with Redis support.

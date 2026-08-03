@@ -1,0 +1,1 @@
+Build and test via Gradle Kotlin DSL (`build.gradle.kts`) targeting JVM toolchain 25. Tests run on JUnit Platform with Kotest; no special bootstrap scripts are present beyond standard `./gradlew build` / `./gradlew test`.

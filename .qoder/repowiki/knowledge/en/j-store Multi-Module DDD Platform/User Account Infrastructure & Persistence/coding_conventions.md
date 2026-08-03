@@ -1,0 +1,4 @@
+- Domain-to-persistence mapping is centralized in a private nested `object Converter` with explicit `toPO` and `toDomain` functions rather than implicit conversions.
+- Infrastructure components implement domain interfaces from the `:j-store-user` module and are registered as Spring beans using annotations like `@Repository` with constructor injection.
+- Value types from the domain layer (e.g. `UserId`, `PhoneNumber`, `Nickname`, `Password`) are unwrapped to their `.value` primitives when crossing into persistence or external libraries, then re-wrapped on the way back.
+- Cryptographic operations wrap underlying library calls in try/catch blocks that return safe defaults (null or 0) instead of propagating exceptions.

@@ -1,0 +1,1 @@
+Kotlin/JVM 25 with Spring Boot 3.x, Gradle Kotlin DSL, Spring Modulith-style multi-module layout, PostgreSQL 16 with Flyway migrations, Redis for caching/token storage, JWT authentication, and Docker Compose for local development.

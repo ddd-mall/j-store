@@ -1,0 +1,1 @@
+Infrastructure implementations for the user account domain, providing JPA persistence, JWT token issuance/validation, BCrypt password hashing, and Redis-backed token storage.

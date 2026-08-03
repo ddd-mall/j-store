@@ -1,0 +1,1 @@
+Build and test via Gradle Kotlin DSL (`build.gradle.kts`); tests run on JUnit Platform with `./gradlew test`. Requires JDK 25 per `kotlin.jvmToolchain(25)`. Property-based tests use `kotest.property` alongside standard Kotest assertions.

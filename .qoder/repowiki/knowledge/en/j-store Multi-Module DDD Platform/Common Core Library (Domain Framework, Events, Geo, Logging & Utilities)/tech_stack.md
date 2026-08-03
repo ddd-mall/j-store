@@ -1,0 +1,1 @@
+Kotlin JVM (toolchain 25) with Gradle Kotlin DSL. Public API surface depends on Guava, SLF4J API, Seata, Jackson (core/databind/annotations/Kotlin module), and JavaMoney API. Testing uses Kotest (runner, assertions, property) and JUnit Jupiter 5.11.4.

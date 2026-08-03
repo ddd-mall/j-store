@@ -1,0 +1,1 @@
+Core accounting module implementing double-entry bookkeeping with ledger accounts, journal entries, accounting periods, and settlement statements, exposed through application services and an ACL for order/payment/shop integration.

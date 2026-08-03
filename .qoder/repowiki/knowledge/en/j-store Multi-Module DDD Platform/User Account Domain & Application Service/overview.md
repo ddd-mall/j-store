@@ -1,0 +1,1 @@
+Kotlin DDD module implementing the UserAccount aggregate, its value objects and factory, plus an application service that orchestrates registration, login, token management, and account lifecycle operations.

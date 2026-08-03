@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: goods_infrastructure
+title: Goods Infrastructure — JPA Persistence Layer
+scope:
+    - j-store-goods-infrastructure/
+source_files: []
+depends_on: []
+related_to:
+    - path: infrastructure

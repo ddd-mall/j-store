@@ -1,0 +1,5 @@
+- Each bounded context is split into a *_domain module (pure Kotlin DDD) and a *_infrastructure module (Spring Data JPA + adapters)
+- Cross-cutting functionality is factored into shared modules: common-core for domain primitives, common-spring for Spring integrations, and authentication-spring-sdk for auth
+- Domain events use an in-process event bus with outbox pattern for reliable async publishing across module boundaries
+- Authentication is handled centrally via the authentication SDK which exposes UserId through a ThreadLocal context and provides annotation-based access control
+- All modules share version and group via gradle.properties and are included explicitly in settings.gradle.kts

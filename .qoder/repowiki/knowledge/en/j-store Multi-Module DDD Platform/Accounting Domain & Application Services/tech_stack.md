@@ -1,0 +1,1 @@
+Kotlin JVM (Gradle with Kotlin jvm plugin, JVM toolchain 25). Uses Kotest for property-based and unit testing with JUnit 5 platform. Shared primitives come from `j-store-common-core` (Id, Price, Result, BusinessError, AgreeGate, DomainEventPublisher). Mockito and mockito-kotlin used for test doubles.

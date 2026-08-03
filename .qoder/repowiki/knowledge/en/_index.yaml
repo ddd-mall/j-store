@@ -1,0 +1,202 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: feature-initial
+nodes_managed: true
+exported_at: "2026-08-03T07:39:23Z"
+modules:
+    "":
+        dir_name: j-store Multi-Module DDD Platform
+        title: j-store Multi-Module DDD Platform
+        scope:
+            - README.md
+            - AGENT.md
+            - claude-workflow.md
+            - .gitignore
+            - .gitattributes
+            - build.gradle.kts
+            - gradle.properties
+            - settings.gradle.kts
+            - gradlew.bat
+            - batch_insert_200k.sql
+            - docker-compose.postgres.yml
+            - gradlew
+            - spec-workflow.skill
+        source_files: []
+        children:
+            - accounting_domain
+            - accounting_infrastructure
+            - authentication_sdk
+            - common_core
+            - common_spring
+            - docs
+            - goods_domain
+            - goods_infrastructure
+            - infrastructure
+            - j_store_boot
+            - order_domain
+            - order_infrastructure
+            - shop_domain
+            - user_domain
+            - user_infrastructure
+        depends_on: []
+        related_to: []
+    accounting_domain:
+        dir_name: Accounting Domain & Application Services
+        title: Accounting Domain & Application Services
+        scope:
+            - j-store-accounting/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: goods_domain
+            - path: j_store_boot
+            - path: order_domain
+            - path: order_infrastructure
+    accounting_infrastructure:
+        dir_name: Accounting Infrastructure — JPA Persistence Layer
+        title: Accounting Infrastructure — JPA Persistence Layer
+        scope:
+            - j-store-accounting-infrastructure/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: infrastructure
+    authentication_sdk:
+        dir_name: Spring Authentication SDK
+        title: Spring Authentication SDK
+        scope:
+            - j-store-authentication-spring-sdk/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: user_infrastructure
+    common_core:
+        dir_name: Common Core Library (Domain Framework, Events, Geo, Logging & Utilities)
+        title: Common Core Library (Domain Framework, Events, Geo, Logging & Utilities)
+        scope:
+            - j-store-common-core/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    common_spring:
+        dir_name: Spring Boot Common Framework & Outbox Event Infrastructure
+        title: Spring Boot Common Framework & Outbox Event Infrastructure
+        scope:
+            - j-store-common-spring/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    docs:
+        dir_name: Project Documentation & DDD Design Artifacts
+        title: Project Documentation & DDD Design Artifacts
+        scope:
+            - docs/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    goods_domain:
+        dir_name: Goods Domain — Commodity & Inventory Bounded Context
+        title: Goods Domain — Commodity & Inventory Bounded Context
+        scope:
+            - j-store-goods/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: accounting_domain
+            - path: j_store_boot
+            - path: order_domain
+            - path: order_infrastructure
+    goods_infrastructure:
+        dir_name: Goods Infrastructure — JPA Persistence Layer
+        title: Goods Infrastructure — JPA Persistence Layer
+        scope:
+            - j-store-goods-infrastructure/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: infrastructure
+    infrastructure:
+        dir_name: PostgreSQL Database Initialization & Schema Migrations
+        title: PostgreSQL Database Initialization & Schema Migrations
+        scope:
+            - docker/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: accounting_infrastructure
+            - path: goods_infrastructure
+    j_store_boot:
+        dir_name: J-Store Order Boot Application
+        title: J-Store Order Boot Application
+        scope:
+            - j-store-boot/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: accounting_domain
+            - path: goods_domain
+            - path: user_domain
+    order_domain:
+        dir_name: Order & After-Sale Domain Module
+        title: Order & After-Sale Domain Module
+        scope:
+            - j-store-order/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: accounting_domain
+            - path: goods_domain
+    order_infrastructure:
+        dir_name: Order Infrastructure & Persistence Layer
+        title: Order Infrastructure & Persistence Layer
+        scope:
+            - j-store-order-infrastructure/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: accounting_domain
+            - path: goods_domain
+            - path: user_infrastructure
+    shop_domain:
+        dir_name: Shop Domain Module
+        title: Shop Domain Module
+        scope:
+            - j-store-shop/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    user_domain:
+        dir_name: User Account Domain & Application Service
+        title: User Account Domain & Application Service
+        scope:
+            - j-store-user/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: j_store_boot
+    user_infrastructure:
+        dir_name: User Account Infrastructure & Persistence
+        title: User Account Infrastructure & Persistence
+        scope:
+            - j-store-user-infrastructure/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: authentication_sdk
+            - path: order_infrastructure
