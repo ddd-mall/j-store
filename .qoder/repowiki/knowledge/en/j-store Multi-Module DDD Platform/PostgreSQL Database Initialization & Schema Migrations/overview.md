@@ -1,0 +1,1 @@
+Dockerized PostgreSQL 16 image that bootstraps the develop schema and applies numbered migration scripts for the j-store domain, including outbox event sourcing and goods SPU/SKU tables.

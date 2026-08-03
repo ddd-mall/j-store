@@ -1,0 +1,1 @@
+Kotlin/JVM module defining the Shop domain interface and a minimal entry point, built with Gradle and targeting JVM 25.

@@ -1,0 +1,1 @@
+Build and test via Gradle: `./gradlew :j-store-accounting:test` runs Kotest tests on JUnit 5 platform as configured in `build.gradle.kts`. The module targets JVM 25 via `kotlin { jvmToolchain(25) }`.

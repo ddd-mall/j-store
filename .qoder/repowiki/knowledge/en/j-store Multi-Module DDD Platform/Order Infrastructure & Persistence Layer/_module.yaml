@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: order_infrastructure
+title: Order Infrastructure & Persistence Layer
+scope:
+    - j-store-order-infrastructure/
+source_files: []
+depends_on: []
+related_to:
+    - path: accounting_domain
+    - path: goods_domain
+    - path: user_infrastructure

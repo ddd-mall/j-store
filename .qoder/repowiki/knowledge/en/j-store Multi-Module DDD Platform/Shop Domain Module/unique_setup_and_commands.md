@@ -1,0 +1,1 @@
+Run with `./gradlew run` (uses `Main.kt` as the default main class); execute tests with `./gradlew test` which uses JUnit Platform.

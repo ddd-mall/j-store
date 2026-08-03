@@ -1,0 +1,6 @@
+- Domain methods return `Result<T, BusinessError>` using `Success`/`Failure` from `j-store-common.utils`, never throwing exceptions for business failures.
+- Aggregate state mutations update `updateTime = LocalDateTime.now()` on every write and publish pending domain events via `getDomainEvent()` before returning.
+- Application service methods follow a fixed pattern: load via repository → delegate behavior to aggregate → save → drain aggregate events through `DomainEventPublisher` → wrap result in `Success`/`Failure`.
+- Value objects (`Nickname`, `Password`, `UserId`) enforce invariants in their `init` blocks or constructors using `require(...)`, failing fast on invalid input.
+- Tests use Kotest `FunSpec` with `beforeEach` to inject fresh mocks for all service dependencies, and property-based tests (`*PropertyTest.kt`) validate value-object constraints.
+- Domain events are created with named data classes carrying `source`, `userId`, and timestamp fields, and are published through the injected `DomainEventPublisher` rather than directly.

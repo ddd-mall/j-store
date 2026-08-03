@@ -1,0 +1,1 @@
+Kotlin + Java mixed codebase on Spring Boot with Gradle Kotlin DSL, Java 25 toolchain, Spring Data JPA (PostgreSQL), Spring Data Redis, Flyway for schema migration, embedded Postgres for tests, Lombok for boilerplate, and FastExcel for export. Docker image built from Amazon Corretto 21.

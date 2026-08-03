@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: accounting_domain
+title: Accounting Domain & Application Services
+scope:
+    - j-store-accounting/
+source_files: []
+depends_on: []
+related_to:
+    - path: goods_domain
+    - path: j_store_boot
+    - path: order_domain
+    - path: order_infrastructure

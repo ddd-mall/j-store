@@ -1,0 +1,1 @@
+Build and test via Gradle: `./gradlew build` runs compilation and the `Test` task which uses JUnitPlatform. Tests are written with Kotest property-based tests (e.g. `*PropertyTest.kt`) alongside standard unit tests.

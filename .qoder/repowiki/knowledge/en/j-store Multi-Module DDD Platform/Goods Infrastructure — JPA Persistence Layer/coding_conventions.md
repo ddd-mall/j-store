@@ -1,0 +1,5 @@
+- Each repository implementation is annotated with `@Repository` and delegates persistence to a Spring Data `JpaRepository` interface injected via constructor.
+- Domain-to-PO and PO-to-domain conversions are encapsulated in a private `object Converter` inside each `*RepositoryImpl`, exposing paired `toPO` and `toDomain` functions.
+- Complex domain types (lists of attributes, maps of images, price objects) are serialized to JSON strings using `JsonUtils.toJsonString` / `JsonUtils.deserialize` when crossing the PO boundary.
+- Value types like `SpuId`, `SkuId`, `GoodsStyleId` are unwrapped to their underlying `Long.value` when passed to JPA queries and re-wrapped when constructing domain objects from POs.
+- Property-based round-trip tests duplicate the converter logic locally in test classes to assert `toPO` then `toDomain` preserves all business fields across arbitrary generated inputs.

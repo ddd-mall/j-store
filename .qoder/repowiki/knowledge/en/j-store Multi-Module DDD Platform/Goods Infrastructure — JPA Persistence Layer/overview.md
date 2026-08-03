@@ -1,0 +1,1 @@
+JPA-based persistence implementation for the goods commodity domain, providing Spring Data repository adapters and PO/Converter mappings between Spu, Sku, GoodsStyle, and SpuSnapshot domain entities and their database representations.

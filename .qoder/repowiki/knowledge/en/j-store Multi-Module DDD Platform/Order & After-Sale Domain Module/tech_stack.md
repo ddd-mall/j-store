@@ -1,0 +1,1 @@
+Kotlin JVM (toolchain 25) built with Gradle Kotlin DSL; testing uses JUnit 5 platform with Kotest (runner, assertions, property-based testing) and Mockito. The module depends on `j-store-common-core` for shared framework primitives (`AgreeGate`, `Result`, `Price`, `BusinessError`, `DomainEventPublisher`, `ExplicitDomainEvent`).
