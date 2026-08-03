@@ -1,0 +1,21 @@
+-- Direct replacement for development databases; no compatibility/backfill is provided.
+DELETE FROM order_items;
+DELETE FROM orders;
+ALTER TABLE orders DROP COLUMN IF EXISTS after_sale_status;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS total_refunded_amount numeric(19,0) NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 0;
+ALTER TABLE order_items DROP COLUMN IF EXISTS previous_item_status;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS refunded_quantity integer NOT NULL DEFAULT 0 CHECK (refunded_quantity >= 0 AND refunded_quantity <= quantity);
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS refunded_amount numeric(19,0) NOT NULL DEFAULT 0 CHECK (refunded_amount >= 0 AND refunded_amount <= unit_price * quantity);
+
+CREATE TABLE after_sales (id bigint PRIMARY KEY, order_id bigint NOT NULL, applicant_id bigint NOT NULL, merchant_id bigint NOT NULL, status varchar(16) NOT NULL CHECK(status IN ('REQUESTED','APPROVED','REJECTED','CANCELLED')), reason_category varchar(32) NOT NULL, reason_description varchar(500) NOT NULL, fulfillment_status varchar(32) NOT NULL, require_return boolean NOT NULL, reviewer_id bigint, reviewed_at timestamp, rejection_reason varchar(500), cancelled_at timestamp, create_time timestamp NOT NULL, update_time timestamp NOT NULL, version bigint NOT NULL DEFAULT 0, CHECK ((status='REQUESTED' AND reviewer_id IS NULL AND cancelled_at IS NULL) OR (status='APPROVED' AND reviewer_id IS NOT NULL AND rejection_reason IS NULL AND cancelled_at IS NULL) OR (status='REJECTED' AND reviewer_id IS NOT NULL AND rejection_reason IS NOT NULL AND cancelled_at IS NULL) OR (status='CANCELLED' AND reviewer_id IS NULL AND cancelled_at IS NOT NULL)));
+CREATE TABLE after_sale_items (id bigint PRIMARY KEY, after_sale_id bigint NOT NULL REFERENCES after_sales(id) ON DELETE CASCADE, order_id bigint NOT NULL, order_item_id bigint NOT NULL, requested_quantity integer NOT NULL CHECK(requested_quantity>0), requested_amount numeric(19,0) NOT NULL CHECK(requested_amount>0), currency varchar(3) NOT NULL CHECK(currency='CNY'), eligible_quantity integer NOT NULL CHECK(eligible_quantity>0), eligible_amount numeric(19,0) NOT NULL CHECK(eligible_amount>0), sku_id bigint NOT NULL, spu_id bigint NOT NULL, goods_name varchar(256) NOT NULL, sku_description varchar(512) NOT NULL, UNIQUE(after_sale_id,order_item_id));
+CREATE TABLE after_sale_capacities (order_item_id bigint PRIMARY KEY, order_id bigint NOT NULL, quantity_ceiling integer NOT NULL, amount_ceiling numeric(19,0) NOT NULL, requested_quantity integer NOT NULL DEFAULT 0, requested_amount numeric(19,0) NOT NULL DEFAULT 0, approved_quantity integer NOT NULL DEFAULT 0, approved_amount numeric(19,0) NOT NULL DEFAULT 0, version bigint NOT NULL DEFAULT 0, CHECK(requested_quantity>=0 AND approved_quantity>=0 AND requested_quantity+approved_quantity<=quantity_ceiling), CHECK(requested_amount>=0 AND approved_amount>=0 AND requested_amount+approved_amount<=amount_ceiling));
+CREATE TABLE after_sale_command_receipts (id bigint PRIMARY KEY, actor_id bigint NOT NULL, command_type varchar(16) NOT NULL, idempotency_key varchar(128) NOT NULL, request_hash varchar(64) NOT NULL, after_sale_id bigint NOT NULL, result_status varchar(16) NOT NULL, created_at timestamp NOT NULL, UNIQUE(actor_id,command_type,idempotency_key));
+CREATE TABLE order_refund_facts (id bigint PRIMARY KEY, order_id bigint NOT NULL REFERENCES orders(id) ON DELETE CASCADE, after_sale_id bigint NOT NULL, order_item_id bigint NOT NULL, quantity integer NOT NULL CHECK(quantity>0), amount numeric(19,0) NOT NULL CHECK(amount>0), occurred_at timestamp NOT NULL, UNIQUE(order_id,after_sale_id,order_item_id));
+CREATE INDEX idx_after_sales_order_created ON after_sales(order_id,create_time DESC);
+CREATE INDEX idx_after_sales_applicant_status_created ON after_sales(applicant_id,status,create_time DESC);
+CREATE INDEX idx_after_sales_merchant_status_created ON after_sales(merchant_id,status,create_time DESC);
+CREATE INDEX idx_after_sale_items_order_item ON after_sale_items(order_item_id);
+CREATE INDEX idx_after_sale_capacities_order ON after_sale_capacities(order_id);
+CREATE INDEX idx_order_refund_facts_order_after_sale ON order_refund_facts(order_id,after_sale_id);

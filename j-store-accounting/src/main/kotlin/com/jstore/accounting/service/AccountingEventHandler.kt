@@ -13,7 +13,8 @@ import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
-import com.jstore.order.domain.order.event.OrderRefundApprovedEvent
+import com.jstore.order.domain.aftersale.event.AfterSaleApprovedEvent
+import com.jstore.common.properties.Price
 import java.time.LocalDate
 import java.time.ZoneOffset
 
@@ -66,10 +67,10 @@ class OrderCompletedAccountingEventHandler(
 class OrderRefundApprovedAccountingEventHandler(
     private val accountingOrderService: AccountingOrderService,
     private val accountingApplicationService: AccountingApplicationService,
-) : DomainEventListener<OrderRefundApprovedEvent> {
-    override fun listenerId(): String = "accounting.record-order-refund-approved"
+) : DomainEventListener<AfterSaleApprovedEvent> {
+    override fun listenerId(): String = "accounting.record-after-sale-approved.v1"
 
-    override fun onDomainEvent(event: OrderRefundApprovedEvent) {
+    override fun onDomainEvent(event: AfterSaleApprovedEvent) {
         val orderId = event.orderId.value.toString()
         val info = when (val result = accountingOrderService.getOrderAccountingInfo(orderId)) {
             is Success -> result.value
@@ -83,9 +84,9 @@ class OrderRefundApprovedAccountingEventHandler(
             RecordOrderRefundApprovedCMD(
                 orderId = info.orderId,
                 merchantId = info.merchantId,
-                refundAmount = event.refundAmount,
+                refundAmount = Price.sumOf(event.items.map { it.amount }),
                 accountingDate = LocalDate.ofInstant(event.occurredAt, ZoneOffset.UTC),
-                sourceDocument = SourceDocument(SourceDocumentType.REFUND, "${info.orderId}:${event.approvedItemIds.joinToString(",")}", "OrderRefundApprovedEvent"),
+                sourceDocument = SourceDocument(SourceDocumentType.REFUND, event.afterSaleId.value.toString(), "AfterSaleApprovedEvent"),
                 originalSourceDocument = originalSource,
             )
         )

@@ -15,7 +15,8 @@ import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderItemId
 import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
-import com.jstore.order.domain.order.event.OrderRefundApprovedEvent
+import com.jstore.order.domain.aftersale.*
+import com.jstore.order.domain.aftersale.event.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.time.Instant
@@ -57,16 +58,17 @@ class AccountingEventHandlerTest : FunSpec({
         val handler = OrderRefundApprovedAccountingEventHandler(FakeOrderAccountingService(), app)
 
         handler.onDomainEvent(
-            OrderRefundApprovedEvent(
+            AfterSaleApprovedEvent(
+                afterSaleId = AfterSaleId(9),
                 orderId = OrderId(1),
-                refundAmount = Price.ofFen(500),
-                approvedItemIds = listOf(OrderItemId(10)),
+                merchantId = MerchantActorId(1),
+                items = listOf(AfterSaleEventItem(OrderItemId(10), 20, 1, Price.ofFen(500), "CNY")),
                 requireReturn = false,
                 occurredAt = Instant.parse("2026-04-30T01:00:00Z"),
             )
         )
 
-        journalRepo.savedEntries.last().sourceDocument shouldBe SourceDocument(SourceDocumentType.REFUND, "1:OrderItemId(value=10)", "OrderRefundApprovedEvent")
+        journalRepo.savedEntries.last().sourceDocument shouldBe SourceDocument(SourceDocumentType.REFUND, "9", "AfterSaleApprovedEvent")
     }
 
     test("SettlementPaidEvent is converted into settlement payment journal entry") {

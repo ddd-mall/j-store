@@ -4,7 +4,6 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.jstore.common.properties.Price
 import com.jstore.common.framework.SortedPage
 import com.jstore.common.utils.Success
-import com.jstore.order.domain.order.AfterSaleStatus
 import com.jstore.order.domain.order.FulfillmentStatus
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderId
@@ -25,7 +24,7 @@ import kotlin.test.assertTrue
 
 class OrderControllerStatusContractTest {
     @Test
-    fun `single order response exposes four dimensions and no aggregate status`() {
+    fun `single order response exposes three dimensions and refund summary`() {
         val service = mock(OrderService::class.java)
         val order = mock(Order::class.java)
         val now = LocalDateTime.of(2026, 1, 1, 0, 0)
@@ -34,7 +33,7 @@ class OrderControllerStatusContractTest {
         `when`(order.tradeStatus).thenReturn(TradeStatus.ACTIVE)
         `when`(order.paymentStatus).thenReturn(PaymentStatus.PARTIALLY_REFUNDED)
         `when`(order.fulfillmentStatus).thenReturn(FulfillmentStatus.DELIVERED)
-        `when`(order.afterSaleStatus).thenReturn(AfterSaleStatus.PARTIALLY_COMPLETED)
+        `when`(order.totalRefundedAmount).thenReturn(Price.ofFen(50))
         `when`(order.totalAmount).thenReturn(Price.ofFen(100))
         `when`(order.actualPay).thenReturn(Price.ofFen(100))
         val item = mock(OrderItem::class.java)
@@ -46,6 +45,8 @@ class OrderControllerStatusContractTest {
         `when`(item.quantity).thenReturn(1)
         `when`(item.unitPrice).thenReturn(Price.ofFen(100))
         `when`(item.status).thenReturn(OrderItemStatus.CANCELED)
+        `when`(item.refundedQuantity).thenReturn(1)
+        `when`(item.refundedAmount).thenReturn(Price.ofFen(50))
         `when`(order.items).thenReturn(listOf(item))
         `when`(order.createTime).thenReturn(now)
         `when`(order.updateTime).thenReturn(now)
@@ -56,7 +57,8 @@ class OrderControllerStatusContractTest {
         assertEquals("ACTIVE", json["tradeStatus"].asText())
         assertEquals("PARTIALLY_REFUNDED", json["paymentStatus"].asText())
         assertEquals("DELIVERED", json["fulfillmentStatus"].asText())
-        assertEquals("PARTIALLY_COMPLETED", json["afterSaleStatus"].asText())
+        assertFalse(json.has("afterSaleStatus"))
+        assertEquals(50, json["totalRefundedAmount"].asLong())
         assertFalse(json.has("status"))
         assertEquals("CANCELED", json["items"][0]["status"].asText())
 

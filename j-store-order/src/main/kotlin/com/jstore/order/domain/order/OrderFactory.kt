@@ -96,7 +96,6 @@ class OrderFactoryImpl(
             _tradeStatus = TradeStatus.CREATED,
             _paymentStatus = PaymentStatus.UNPAID,
             _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
-            _afterSaleStatus = AfterSaleStatus.NONE,
             totalAmount = totalAmount,
             _actualPay = totalAmount,
         )

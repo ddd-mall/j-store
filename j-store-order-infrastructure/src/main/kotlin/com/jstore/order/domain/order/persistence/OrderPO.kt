@@ -4,7 +4,6 @@ import com.jstore.order.domain.order.OrderItemStatus
 import com.jstore.order.domain.order.TradeStatus
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.FulfillmentStatus
-import com.jstore.order.domain.order.AfterSaleStatus
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -18,6 +17,8 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
+import jakarta.persistence.Version
+import jakarta.persistence.UniqueConstraint
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
@@ -54,9 +55,12 @@ class OrderPO(
     @Column(name = "fulfillment_status", nullable = false, length = 32)
     var fulfillmentStatus: FulfillmentStatus = FulfillmentStatus.UNFULFILLED,
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "after_sale_status", nullable = false, length = 32)
-    var afterSaleStatus: AfterSaleStatus = AfterSaleStatus.NONE,
+    @Column(name = "total_refunded_amount", nullable = false, precision = 19, scale = 0)
+    var totalRefundedAmount: BigDecimal = BigDecimal.ZERO,
+
+    @Version
+    @Column(name = "version", nullable = false)
+    var version: Long = 0,
 
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 0)
     var totalAmount: BigDecimal = BigDecimal.ZERO,
@@ -73,6 +77,22 @@ class OrderPO(
     @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
     @JoinColumn(name = "order_id")
     var items: MutableList<OrderItemPO> = mutableListOf(),
+
+    @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "order_id")
+    var refundFacts: MutableList<OrderRefundFactPO> = mutableListOf(),
+)
+
+@Entity
+@Table(name = "order_refund_facts", uniqueConstraints = [UniqueConstraint(columnNames = ["order_id", "after_sale_id", "order_item_id"])])
+class OrderRefundFactPO(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long = 0,
+    @Column(name = "order_id", insertable = false, updatable = false) var orderId: Long = 0,
+    @Column(name = "after_sale_id", nullable = false) var afterSaleId: Long = 0,
+    @Column(name = "order_item_id", nullable = false) var orderItemId: Long = 0,
+    @Column(nullable = false) var quantity: Int = 0,
+    @Column(nullable = false, precision = 19, scale = 0) var amount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "occurred_at", nullable = false) var occurredAt: java.time.Instant = java.time.Instant.EPOCH,
 )
 
 @Entity
@@ -111,7 +131,9 @@ class OrderItemPO(
     @Column(name = "status", nullable = false, length = 32)
     var status: OrderItemStatus = OrderItemStatus.NONE,
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "previous_item_status", length = 32)
-    var previousItemStatus: OrderItemStatus? = null,
+    @Column(name = "refunded_quantity", nullable = false)
+    var refundedQuantity: Int = 0,
+
+    @Column(name = "refunded_amount", nullable = false, precision = 19, scale = 0)
+    var refundedAmount: BigDecimal = BigDecimal.ZERO,
 )

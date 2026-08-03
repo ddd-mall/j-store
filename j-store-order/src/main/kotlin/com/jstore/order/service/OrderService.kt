@@ -12,12 +12,9 @@ import com.jstore.order.domain.order.OrderErrors
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
-import com.jstore.order.domain.order.command.OrderApproveRefundCMD
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.domain.order.command.OrderPayCMD
-import com.jstore.order.domain.order.command.OrderRejectRefundCMD
-import com.jstore.order.domain.order.command.OrderRequestRefundCMD
 import com.jstore.common.framework.Page
 
 /**
@@ -130,36 +127,4 @@ class OrderService(
         return Success(Unit)
     }
 
-    /** 申请退款（已支付未发货 / 已签收退货退款） */
-    fun requestRefund(cmd: OrderRequestRefundCMD): Result<Unit, BusinessError> {
-        cmd.validate().onFailure { return Failure(it) }
-        val order = orderRepository.findById(cmd.orderId)
-            ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.requestRefund(cmd.toReason(), cmd.itemIds).onFailure { return Failure(it) }
-        orderRepository.save(order)
-        order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
-        return Success(Unit)
-    }
-
-    /** 卖家批准退款 */
-    fun approveRefund(cmd: OrderApproveRefundCMD): Result<Unit, BusinessError> {
-        cmd.validate().onFailure { return Failure(it) }
-        val order = orderRepository.findById(cmd.orderId)
-            ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.approveRefund(cmd.itemIds).onFailure { return Failure(it) }
-        orderRepository.save(order)
-        order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
-        return Success(Unit)
-    }
-
-    /** 卖家拒绝退款 */
-    fun rejectRefund(cmd: OrderRejectRefundCMD): Result<Unit, BusinessError> {
-        cmd.validate().onFailure { return Failure(it) }
-        val order = orderRepository.findById(cmd.orderId)
-            ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.rejectRefund(cmd.rejectReason, cmd.itemIds).onFailure { return Failure(it) }
-        orderRepository.save(order)
-        order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
-        return Success(Unit)
-    }
 }
