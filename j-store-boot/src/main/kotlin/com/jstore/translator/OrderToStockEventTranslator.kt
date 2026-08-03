@@ -7,13 +7,15 @@ import com.jstore.goods.acl.event.ReleaseItem
 import com.jstore.goods.acl.event.ReservationItem
 import com.jstore.goods.acl.event.StockConfirmRequestedEvent
 import com.jstore.goods.acl.event.StockReleaseRequestedEvent
+import com.jstore.goods.acl.event.AfterSaleStockRestoreRequestedEvent
+import com.jstore.goods.acl.event.StockRestoreItem
 import com.jstore.goods.acl.event.StockReservationRequestedEvent
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
-import com.jstore.order.domain.order.event.OrderRefundApprovedEvent
+import com.jstore.order.domain.aftersale.event.AfterSaleApprovedEvent
 import org.springframework.stereotype.Component
 
 /**
@@ -73,25 +75,21 @@ class OrderCancelledToStockReleaseTranslator(
 }
 
 @Component
-class OrderRefundApprovedToStockReleaseTranslator(
+class AfterSaleApprovedToStockRestoreTranslator(
     private val domainEventPublisher: DomainEventPublisher,
-    private val orderRepository: OrderRepository,
-) : DomainEventListener<OrderRefundApprovedEvent> {
-    override fun listenerId(): String = "translator.order-refund-approved.to-stock-release-requested"
+) : DomainEventListener<AfterSaleApprovedEvent> {
+    override fun listenerId(): String = "translator.after-sale-approved.to-stock-restore-requested.v1"
 
-    override fun onDomainEvent(event: OrderRefundApprovedEvent) {
+    override fun onDomainEvent(event: AfterSaleApprovedEvent) {
         // 已发货的退款需要走退货流程，不直接释放库存
         if (event.requireReturn) return
 
-        val order = orderRepository.findById(OrderId(event.orderId.value)) ?: return
-        val approvedItemIds = event.approvedItemIds.toSet()
-        val releaseItems = order.items
-            .filter { it.id in approvedItemIds }
-            .map { ReleaseItem(skuId = it.skuId) }
+        val restoreItems = event.items.map { StockRestoreItem(skuId = it.skuId, quantity = it.quantity) }
         domainEventPublisher.publishEvent(
-            StockReleaseRequestedEvent(
+            AfterSaleStockRestoreRequestedEvent(
+                afterSaleId = event.afterSaleId.value,
                 orderId = event.orderId.value,
-                items = releaseItems
+                items = restoreItems
             )
         )
     }

@@ -8,12 +8,11 @@ import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 
 class OrderPOStatusMappingTest : FunSpec({
-    test("OrderPO maps exactly four non-null string status columns") {
+    test("OrderPO maps exactly three non-null string status columns") {
         mapOf(
             "tradeStatus" to "trade_status",
             "paymentStatus" to "payment_status",
             "fulfillmentStatus" to "fulfillment_status",
-            "afterSaleStatus" to "after_sale_status",
         ).forEach { (property, columnName) ->
             val field = OrderPO::class.java.getDeclaredField(property)
             field.getAnnotation(Enumerated::class.java).value shouldBe EnumType.STRING

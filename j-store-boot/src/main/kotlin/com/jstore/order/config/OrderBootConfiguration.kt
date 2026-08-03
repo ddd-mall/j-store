@@ -10,6 +10,16 @@ import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderFactoryImpl
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.service.OrderService
+import com.jstore.order.service.AfterSaleApplicationService
+import com.jstore.order.service.OrderRefundProjectionHandler
+import com.jstore.order.service.OrderRefundProjectionService
+import com.jstore.order.domain.aftersale.*
+import com.jstore.order.acl.AfterSaleMerchantResolver
+import com.jstore.order.acl.ConfiguredAfterSaleMerchantResolver
+import com.jstore.order.config.OrderMerchantProperties
+import com.jstore.goods.service.AfterSaleStockRestoreEventHandler
+import com.jstore.goods.service.InventoryService
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.ConfigurableApplicationContext
@@ -18,6 +28,7 @@ import org.springframework.context.annotation.Configuration
 
 
 @Configuration
+@EnableConfigurationProperties(OrderMerchantProperties::class)
 class OrderBootConfiguration {
     @Bean
     fun snowFlakSequence(): SnowFlakSequence {
@@ -58,6 +69,13 @@ class OrderBootConfiguration {
             domainEventPublisher
         )
     }
+
+    @Bean fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory = AfterSaleFactoryImpl(snowFlakSequence)
+    @Bean fun afterSaleMerchantResolver(properties: OrderMerchantProperties): AfterSaleMerchantResolver = ConfiguredAfterSaleMerchantResolver(properties.merchantId!!)
+    @Bean fun afterSaleApplicationService(factory:AfterSaleFactory,repository:AfterSaleRepository,orderRepository:OrderRepository,resolver:AfterSaleMerchantResolver)=AfterSaleApplicationService(factory,repository,orderRepository,resolver)
+    @Bean fun orderRefundProjectionHandler(service:OrderRefundProjectionService)=OrderRefundProjectionHandler(service)
+    @Bean fun afterSaleStockRestoreEventHandler(inventoryServices: ObjectProvider<InventoryService>) =
+        AfterSaleStockRestoreEventHandler { inventoryServices.getIfAvailable() }
 
     @Bean
     fun springDomainEventListenerRegistry(

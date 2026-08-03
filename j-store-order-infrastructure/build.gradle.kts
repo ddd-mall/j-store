@@ -26,6 +26,7 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
 //    annotationProcessor(libs.spring.boot.configuration.processor)
 
     runtimeOnly(libs.postgresql)

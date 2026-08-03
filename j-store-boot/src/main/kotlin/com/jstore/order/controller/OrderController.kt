@@ -49,12 +49,6 @@ class OrderController(
         val description: String,
     )
 
-    data class RequestRefundRequest(
-        val category: RefundCategory,
-        val description: String,
-        val itemIds: List<Long>,
-    )
-
     // ---- Response DTOs ----
 
     data class OrderResponse(
@@ -65,7 +59,7 @@ class OrderController(
         val tradeStatus: String,
         val paymentStatus: String,
         val fulfillmentStatus: String,
-        val afterSaleStatus: String,
+        val totalRefundedAmount: Long,
         val totalAmount: Long,
         val actualPay: Long,
         val items: List<OrderItemResponse>,
@@ -82,6 +76,8 @@ class OrderController(
         val quantity: Int,
         val unitPrice: Long,
         val status: String,
+        val refundedQuantity: Int,
+        val refundedAmount: Long,
     )
 
     data class PageResponse<T>(
@@ -174,21 +170,6 @@ class OrderController(
         return orderService.confirmDelivery(OrderId(orderId)).toResponse { }
     }
 
-    @PostMapping("/{orderId}/refund")
-    fun requestRefund(
-        @CurrentUserId userId: Long,
-        @PathVariable orderId: Long,
-        @RequestBody request: RequestRefundRequest,
-    ): ResponseEntity<*> {
-        val cmd = OrderRequestRefundCMD(
-            orderId = OrderId(orderId),
-            category = request.category,
-            description = request.description,
-            itemIds = request.itemIds.map { OrderItemId(it) },
-        )
-        return orderService.requestRefund(cmd).toResponse { }
-    }
-
     // ---- 卖家/管理接口 ----
 
     @PostMapping("/{orderId}/confirm-shipment")
@@ -211,40 +192,6 @@ class OrderController(
     ): ResponseEntity<*> {
         return orderService.completeOrder(OrderId(orderId)).toResponse { }
     }
-
-    @PostMapping("/{orderId}/approve-refund")
-    fun approveRefund(
-        @PathVariable orderId: Long,
-        @RequestBody request: ApproveRefundRequest,
-    ): ResponseEntity<*> {
-        val cmd = OrderApproveRefundCMD(
-            orderId = OrderId(orderId),
-            itemIds = request.itemIds.map { OrderItemId(it) },
-        )
-        return orderService.approveRefund(cmd).toResponse { }
-    }
-
-    data class ApproveRefundRequest(
-        val itemIds: List<Long>,
-    )
-
-    @PostMapping("/{orderId}/reject-refund")
-    fun rejectRefund(
-        @PathVariable orderId: Long,
-        @RequestBody request: RejectRefundRequest,
-    ): ResponseEntity<*> {
-        val cmd = OrderRejectRefundCMD(
-            orderId = OrderId(orderId),
-            rejectReason = request.rejectReason,
-            itemIds = request.itemIds.map { OrderItemId(it) },
-        )
-        return orderService.rejectRefund(cmd).toResponse { }
-    }
-
-    data class RejectRefundRequest(
-        val rejectReason: String,
-        val itemIds: List<Long>,
-    )
 
     // ---- 支付回调接口（内部/系统调用） ----
 
@@ -274,7 +221,7 @@ class OrderController(
         tradeStatus = tradeStatus.name,
         paymentStatus = paymentStatus.name,
         fulfillmentStatus = fulfillmentStatus.name,
-        afterSaleStatus = afterSaleStatus.name,
+        totalRefundedAmount = totalRefundedAmount.fen,
         totalAmount = totalAmount.fen,
         actualPay = actualPay.fen,
         items = items.map { it.toOrderItemResponse() },
@@ -291,6 +238,8 @@ class OrderController(
         quantity = quantity,
         unitPrice = unitPrice.fen,
         status = status.name,
+        refundedQuantity = refundedQuantity,
+        refundedAmount = refundedAmount.fen,
     )
 
     private fun <T> Result<T, BusinessError>.toResponse(mapper: (T) -> Any): ResponseEntity<*> {

@@ -12,7 +12,6 @@ internal fun testOrder(
     trade: TradeStatus = TradeStatus.CREATED,
     payment: PaymentStatus = PaymentStatus.UNPAID,
     fulfillment: FulfillmentStatus = FulfillmentStatus.UNFULFILLED,
-    afterSale: AfterSaleStatus = AfterSaleStatus.NONE,
     itemStatuses: List<OrderItemStatus> = listOf(OrderItemStatus.NONE),
 ): OrderImpl {
     val items = itemStatuses.mapIndexed { index, status ->
@@ -25,7 +24,6 @@ internal fun testOrder(
             quantity = 1,
             unitPrice = Price.ofFen(100),
             status = status,
-            _previousItemStatus = if (status == OrderItemStatus.REFUNDING) OrderItemStatus.NONE else null,
         )
     }
     return OrderImpl(
@@ -51,7 +49,6 @@ internal fun testOrder(
         _tradeStatus = trade,
         _paymentStatus = payment,
         _fulfillmentStatus = fulfillment,
-        _afterSaleStatus = afterSale,
         totalAmount = Price.ofFen(items.size * 100),
         _actualPay = Price.ofFen(items.size * 100),
         createTime = LocalDateTime.of(2026, 1, 1, 0, 0),

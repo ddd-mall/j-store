@@ -68,12 +68,13 @@ class OrderRepositoryImpl(
                 tradeStatus = order.tradeStatus,
                 paymentStatus = order.paymentStatus,
                 fulfillmentStatus = order.fulfillmentStatus,
-                afterSaleStatus = order.afterSaleStatus,
+                totalRefundedAmount = order.totalRefundedAmount.toBigDecimal(),
                 totalAmount = order.totalAmount.toBigDecimal(),
                 actualPay = order.actualPay.toBigDecimal(),
                 createTime = order.createTime,
                 updateTime = order.updateTime,
                 items = order.items.map { toItemPO(it, order.id.value) }.toMutableList(),
+                refundFacts = order.approvedRefundFacts.map { com.jstore.order.domain.order.persistence.OrderRefundFactPO(orderId = order.id.value, afterSaleId = it.afterSaleId.value, orderItemId = it.orderItemId.value, quantity = it.quantity, amount = it.amount.toBigDecimal(), occurredAt = it.occurredAt) }.toMutableList(),
             )
         }
 
@@ -89,7 +90,8 @@ class OrderRepositoryImpl(
                 unitPrice = item.unitPrice.toBigDecimal(),
                 snapshotVersion = item.snapshotVersion,
                 status = item.status,
-                previousItemStatus = item.previousItemStatus,
+                refundedQuantity = item.refundedQuantity,
+                refundedAmount = item.refundedAmount.toBigDecimal(),
             )
         }
 
@@ -126,9 +128,10 @@ class OrderRepositoryImpl(
                 _tradeStatus = po.tradeStatus,
                 _paymentStatus = po.paymentStatus,
                 _fulfillmentStatus = po.fulfillmentStatus,
-                _afterSaleStatus = po.afterSaleStatus,
                 totalAmount = Price.fromBigDecimal(po.totalAmount),
                 _actualPay = Price.fromBigDecimal(po.actualPay),
+                _totalRefundedAmount = Price.fromBigDecimal(po.totalRefundedAmount),
+                refundFacts = po.refundFacts.map { RefundFact(com.jstore.order.domain.aftersale.AfterSaleId(it.afterSaleId), OrderItemId(it.orderItemId), it.quantity, Price.fromBigDecimal(it.amount), it.occurredAt) }.toMutableList(),
                 createTime = po.createTime,
                 _updateTime = po.updateTime,
             )
@@ -145,7 +148,8 @@ class OrderRepositoryImpl(
                 unitPrice = Price.fromBigDecimal(po.unitPrice),
                 snapshotVersion = po.snapshotVersion,
                 status = po.status,
-                _previousItemStatus = po.previousItemStatus,
+                _refundedQuantity = po.refundedQuantity,
+                _refundedAmount = Price.fromBigDecimal(po.refundedAmount),
             )
         }
     }

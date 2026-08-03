@@ -17,8 +17,11 @@ interface OrderItem : Entity<OrderItemId> {
     val snapshotVersion: Long
     val status: OrderItemStatus
 
-    /** 进入 REFUNDING 前的行项状态，用于退款拒绝时恢复 */
-    val previousItemStatus: OrderItemStatus?
+    val purchasedAmount: Price
+    val refundedQuantity: Int
+    val refundedAmount: Price
+    val refundableQuantity: Int
+    val refundableAmount: Price
 
     /** 计算行项小计 */
     fun subtotal(): Price

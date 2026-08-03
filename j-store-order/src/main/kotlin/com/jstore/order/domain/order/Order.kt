@@ -5,6 +5,8 @@ import com.jstore.common.framework.AgreeGate
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 import java.time.LocalDateTime
+import java.time.Instant
+import com.jstore.order.domain.aftersale.AfterSaleId
 
 /** 订单聚合根接口。交易、支付、履约和售后状态分别表达并行的业务事实。 */
 interface Order : AgreeGate<OrderId> {
@@ -22,7 +24,8 @@ interface Order : AgreeGate<OrderId> {
     val tradeStatus: TradeStatus
     val paymentStatus: PaymentStatus
     val fulfillmentStatus: FulfillmentStatus
-    val afterSaleStatus: AfterSaleStatus
+    val totalRefundedAmount: Price
+    val approvedRefundFacts: List<RefundFact>
 
     /** 订单总金额 */
     val totalAmount: Price
@@ -60,12 +63,6 @@ interface Order : AgreeGate<OrderId> {
     /** 买家主动取消订单（未支付阶段） */
     fun cancel(reason: CancellationReason): Result<Unit, BusinessError>
 
-    /** 申请退款（已支付未发货 / 已签收退货退款），指定行项 */
-    fun requestRefund(reason: RefundReason, itemIds: List<OrderItemId>): Result<Unit, BusinessError>
-
-    /** 卖家批准退款，指定行项 */
-    fun approveRefund(itemIds: List<OrderItemId>): Result<Unit, BusinessError>
-
-    /** 卖家拒绝退款，指定行项 */
-    fun rejectRefund(rejectReason: String, itemIds: List<OrderItemId>): Result<Unit, BusinessError>
+    fun refundEligibility(): Result<RefundEligibility, BusinessError>
+    fun registerApprovedAfterSale(afterSaleId: AfterSaleId, items: List<ApprovedRefundItem>, occurredAt: Instant): Result<RefundProjectionResult, BusinessError>
 }

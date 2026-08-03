@@ -32,6 +32,8 @@ dependencies {
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-common-spring"))
     implementation(project(":j-store-authentication-spring-sdk"))
+    implementation(project(":j-store-accounting"))
+    implementation(project(":j-store-accounting-infrastructure"))
 
 //    implementation(platform(libs.spring.cloud.dependencies))
 //    implementation(libs.spring.cloud.loadbalancer)
@@ -50,6 +52,7 @@ dependencies {
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation(libs.spring.boot.starter.webflux)
     implementation(libs.flyway.core)
     testImplementation(libs.spring.boot.starter.test)
