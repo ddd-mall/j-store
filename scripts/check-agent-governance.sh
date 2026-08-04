@@ -15,6 +15,28 @@ require_file() {
   [[ -f "$1" ]] || fail "missing required file: $1"
 }
 
+search_quietly() {
+  local pattern="$1"
+  shift
+
+  if command -v rg >/dev/null 2>&1; then
+    rg -q "$pattern" "$@"
+  else
+    grep -ERq -- "$pattern" "$@"
+  fi
+}
+
+working_tree_contains_secret() {
+  local pattern="$1"
+
+  if command -v rg >/dev/null 2>&1; then
+    rg --hidden --glob '!**/.git/**' --glob '!**/build/**' --glob '!**/.gradle/**' \
+      --glob '!scripts/check-agent-governance.sh' -q "$pattern" .
+  else
+    git grep -Eq "$pattern" -- . ':(exclude)scripts/check-agent-governance.sh'
+  fi
+}
+
 required_files=(
   AGENTS.md
   docs/steering/agent-governance.md
@@ -35,18 +57,21 @@ for path in "${required_files[@]}"; do
   require_file "$path"
 done
 
-tracked_local_env="$(git ls-files | rg '^\.env($|\.)' | rg -v '^\.env\.example$' || true)"
+if command -v rg >/dev/null 2>&1; then
+  tracked_local_env="$(git ls-files | rg '^\.env($|\.)' | rg -v '^\.env\.example$' || true)"
+else
+  tracked_local_env="$(git ls-files | grep -E '^\.env($|\.)' | grep -Ev '^\.env\.example$' || true)"
+fi
 if [[ -n "$tracked_local_env" ]]; then
   fail "a local environment file is tracked"
 fi
 
-if rg --hidden --glob '!**/.git/**' --glob '!**/build/**' --glob '!**/.gradle/**' \
-  --glob '!scripts/check-agent-governance.sh' -q \
-  'Jupeter104741|jstore-dev-secret-key-must-be-at-least-32-bytes-long|192\.168\.31\.213|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' .; then
+if working_tree_contains_secret \
+  'Jupeter104741|jstore-dev-secret-key-must-be-at-least-32-bytes-long|192\.168\.31\.213|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'; then
   fail "known credential or private-key material is present in the working tree"
 fi
 
-if rg -q '`skills/spec-dev/references/' agents .agents; then
+if search_quietly '`skills/spec-dev/references/' agents .agents; then
   fail "legacy agent adapter uses a broken skills/spec-dev reference"
 fi
 
@@ -54,11 +79,11 @@ kotlin_version="$(sed -n 's/^kotlin = "\([^"]*\)"/\1/p' gradle/libs.versions.tom
 spring_version="$(sed -n 's/^spring-boot = "\([^"]*\)"/\1/p' gradle/libs.versions.toml)"
 java_version="$(sed -n 's/.*JavaLanguageVersion\.of(\([0-9][0-9]*\)).*/\1/p' build.gradle.kts)"
 
-rg -q "Kotlin ${kotlin_version}，Java ${java_version}" docs/project-overview.md || \
+search_quietly "Kotlin ${kotlin_version}，Java ${java_version}" docs/project-overview.md || \
   fail "docs/project-overview.md does not match Kotlin/Java build versions"
-rg -q "Spring Boot ${spring_version}" docs/project-overview.md || \
+search_quietly "Spring Boot ${spring_version}" docs/project-overview.md || \
   fail "docs/project-overview.md does not match the Spring Boot catalog version"
-rg -q "amazoncorretto:${java_version}-" j-store-boot/Dockerfile || \
+search_quietly "amazoncorretto:${java_version}-" j-store-boot/Dockerfile || \
   fail "j-store-boot Docker runtime does not match the Java toolchain"
 
 if ((failures > 0)); then
