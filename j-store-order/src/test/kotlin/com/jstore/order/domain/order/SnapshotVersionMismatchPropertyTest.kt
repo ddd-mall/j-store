@@ -73,6 +73,7 @@ class SnapshotVersionMismatchPropertyTest : FunSpec({
                     return goodsId.map {
                         GoodsInfo(
                             id = it,
+                            merchantId = 7,
                             snapshotVersion = goodsVersion,
                             spuName = "测试商品",
                             skuName = "默认规格",
@@ -87,6 +88,7 @@ class SnapshotVersionMismatchPropertyTest : FunSpec({
 
             val cmd = OrderCreateCMD(
                 buyerUid = 1L,
+                merchantId = 7,
                 buyerPhone = "13800138000",
                 buyerName = "买家",
                 recipientInfo = OrderCreateCMD.RecipientInfoCMD(

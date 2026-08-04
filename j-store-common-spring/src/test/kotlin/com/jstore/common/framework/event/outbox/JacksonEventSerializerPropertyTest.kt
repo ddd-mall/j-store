@@ -8,6 +8,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.OrderId
+import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.event.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -30,9 +31,8 @@ class JacksonEventSerializerPropertyTest : FunSpec({
         .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
     val eventTypeRegistry = InMemoryEventTypeRegistry().also { registry ->
-        registry.register("order.created", 1, OrderCreatedEvent::class.java)
-        registry.register("order.paid", 1, OrderPaidEvent::class.java)
-        registry.register("order.shipped", 1, OrderShippedEvent::class.java)
+        registry.register("order.created", 2, OrderCreatedEvent::class.java)
+        registry.register("order.paid", 2, OrderPaidEvent::class.java)
         registry.register("order.completed", 1, OrderCompletedEvent::class.java)
         registry.register("order.cancelled", 1, OrderCancelledEvent::class.java)
     }
@@ -51,15 +51,11 @@ class JacksonEventSerializerPropertyTest : FunSpec({
 
     val arbOrderCreatedEvent: Arb<DomainEvent> = Arb.bind(
         arbOrderId, arbPrice, arbItemList, arbInstant
-    ) { id, amount, items, ts -> OrderCreatedEvent(id, amount, items, ts) }
+    ) { id, amount, items, ts -> OrderCreatedEvent(id, MerchantId(7), amount, "CNY", items, ts) }
 
     val arbOrderPaidEvent: Arb<DomainEvent> = Arb.bind(
         arbOrderId, arbPrice, arbItemList, arbInstant
-    ) { id, amount, items, ts -> OrderPaidEvent(id, amount, items, ts) }
-
-    val arbOrderShippedEvent: Arb<DomainEvent> = Arb.bind(
-        arbOrderId, arbInstant
-    ) { id, ts -> OrderShippedEvent(id, ts) }
+    ) { id, amount, items, ts -> OrderPaidEvent(id, MerchantId(7), "payment-1", amount, "CNY", items, ts) }
 
     val arbOrderCompletedEvent: Arb<DomainEvent> = Arb.bind(
         arbOrderId, arbInstant
@@ -72,7 +68,6 @@ class JacksonEventSerializerPropertyTest : FunSpec({
     val arbDomainEvent: Arb<DomainEvent> = Arb.choice(
         arbOrderCreatedEvent,
         arbOrderPaidEvent,
-        arbOrderShippedEvent,
         arbOrderCompletedEvent,
         arbOrderCancelledEvent
     )

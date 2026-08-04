@@ -69,6 +69,7 @@ class CreateOrUpdateStatusGuardPropertyTest : FunSpec({
     ) { spuIdVal, name, description ->
         CommodityCreateCmd(
             spuId = SpuId(spuIdVal),
+            merchantId = 1,
             spuName = name,
             description = description,
         )

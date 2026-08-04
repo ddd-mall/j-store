@@ -8,6 +8,7 @@ interface GoodsSnapshotQueryService {
 
 data class GoodsSnapshotInfo(
     val spuId: Long,
+    val merchantId: Long,
     val snapshotVersion: Long,
     val spuName: String,
     val skuSnapshots: List<GoodsSkuSnapshotInfo>,

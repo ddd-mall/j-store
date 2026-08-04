@@ -11,6 +11,9 @@ class SpuPO(
     @Column(name = "id")
     var id: Long = 0,
 
+    @Column(name = "merchant_id", nullable = false)
+    var merchantId: Long = 0,
+
     @Column(name = "name", nullable = false, length = 256)
     var name: String = "",
 

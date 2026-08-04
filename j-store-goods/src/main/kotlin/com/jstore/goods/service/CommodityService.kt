@@ -99,6 +99,7 @@ class CommodityService(
                 snapshotRepository.findLatestBySpuId(SpuId(spuId))?.let { snapshot ->
                     GoodsSnapshotInfo(
                         spuId = snapshot.spuId.value,
+                        merchantId = snapshot.merchantId.value,
                         snapshotVersion = snapshot.snapshotVersion,
                         spuName = snapshot.spuName,
                         skuSnapshots = snapshot.skuSnapshots.map { skuSnapshot ->

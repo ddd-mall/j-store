@@ -15,7 +15,7 @@ import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
-import com.jstore.order.domain.aftersale.event.AfterSaleApprovedEvent
+import com.jstore.order.domain.aftersale.event.AfterSaleRefundSucceededEvent
 import org.springframework.stereotype.Component
 
 /**
@@ -75,15 +75,12 @@ class OrderCancelledToStockReleaseTranslator(
 }
 
 @Component
-class AfterSaleApprovedToStockRestoreTranslator(
+class AfterSaleRefundSucceededToStockRestoreTranslator(
     private val domainEventPublisher: DomainEventPublisher,
-) : DomainEventListener<AfterSaleApprovedEvent> {
-    override fun listenerId(): String = "translator.after-sale-approved.to-stock-restore-requested.v1"
+) : DomainEventListener<AfterSaleRefundSucceededEvent> {
+    override fun listenerId(): String = "translator.after-sale-refund-succeeded.to-stock-restore-requested.v1"
 
-    override fun onDomainEvent(event: AfterSaleApprovedEvent) {
-        // 已发货的退款需要走退货流程，不直接释放库存
-        if (event.requireReturn) return
-
+    override fun onDomainEvent(event: AfterSaleRefundSucceededEvent) {
         val restoreItems = event.items.map { StockRestoreItem(skuId = it.skuId, quantity = it.quantity) }
         domainEventPublisher.publishEvent(
             AfterSaleStockRestoreRequestedEvent(

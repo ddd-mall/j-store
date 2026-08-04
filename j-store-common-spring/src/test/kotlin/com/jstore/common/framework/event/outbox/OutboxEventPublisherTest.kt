@@ -8,6 +8,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.jstore.common.properties.Price
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.order.domain.order.OrderId
+import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
 import io.kotest.assertions.throwables.shouldThrow
@@ -35,14 +36,16 @@ class OutboxEventPublisherTest : FunSpec({
             on { save(any()) } doAnswer { it.arguments[0] as OutboxEntry }
         }
         val eventTypeRegistry = InMemoryEventTypeRegistry().apply {
-            register("order.created", 1, OrderCreatedEvent::class.java)
+            register("order.created", 2, OrderCreatedEvent::class.java)
         }
         val serializer = JacksonEventSerializer(objectMapper)
         val publisher = OutboxEventPublisher(mockRepository, serializer, SnowFlakSequence(1, 1), eventTypeRegistry)
 
         val event = OrderCreatedEvent(
             orderId = OrderId(42L),
-            totalAmount = Price.ofFen(9999),
+            merchantId = MerchantId(7),
+            payableAmount = Price.ofFen(9999),
+            currency = "CNY",
             items = listOf(OrderItemSnapshot(1L, 2)),
             occurredAt = Instant.parse("2025-01-01T00:00:00Z")
         )
@@ -57,7 +60,7 @@ class OutboxEventPublisherTest : FunSpec({
         saved.eventId shouldNotBe ""
         saved.eventType shouldBe "order.created"
         saved.eventClassName shouldBe "com.jstore.order.domain.order.event.OrderCreatedEvent"
-        saved.eventVersion shouldBe 1
+        saved.eventVersion shouldBe 2
         saved.occurredAt shouldBe event.occurredAt
         saved.status shouldBe OutboxEntryStatus.PENDING
         saved.retryCount shouldBe 0
@@ -70,14 +73,16 @@ class OutboxEventPublisherTest : FunSpec({
             on { serialize(any()) } doThrow RuntimeException("serialization error")
         }
         val eventTypeRegistry = InMemoryEventTypeRegistry().apply {
-            register("order.created", 1, OrderCreatedEvent::class.java)
+            register("order.created", 2, OrderCreatedEvent::class.java)
         }
 
         val publisher = OutboxEventPublisher(mockRepository, mockSerializer, SnowFlakSequence(1, 1), eventTypeRegistry)
 
         val event = OrderCreatedEvent(
             orderId = OrderId(1L),
-            totalAmount = Price.ofFen(100),
+            merchantId = MerchantId(7),
+            payableAmount = Price.ofFen(100),
+            currency = "CNY",
             items = listOf(OrderItemSnapshot(1L, 1)),
             occurredAt = Instant.now()
         )
@@ -101,7 +106,9 @@ class OutboxEventPublisherTest : FunSpec({
 
         val event = OrderCreatedEvent(
             orderId = OrderId(1L),
-            totalAmount = Price.ofFen(100),
+            merchantId = MerchantId(7),
+            payableAmount = Price.ofFen(100),
+            currency = "CNY",
             items = listOf(OrderItemSnapshot(1L, 1)),
             occurredAt = Instant.now()
         )

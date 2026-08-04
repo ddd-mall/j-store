@@ -33,6 +33,15 @@ class OrderItemImpl(
     fun markCanceled() {
         status = OrderItemStatus.CANCELED
     }
+    internal fun markWaitingShipment() {
+        status = OrderItemStatus.WAIT_SHIPPING
+    }
+    internal fun markShipping() {
+        status = OrderItemStatus.SHIPPING
+    }
+    internal fun markDelivered() {
+        status = OrderItemStatus.SHIPPING_FINISHED
+    }
     internal fun registerRefund(quantity: Int, amount: Price) {
         require(quantity > 0 && quantity <= refundableQuantity && amount > Price.ZERO && amount <= refundableAmount)
         _refundedQuantity += quantity

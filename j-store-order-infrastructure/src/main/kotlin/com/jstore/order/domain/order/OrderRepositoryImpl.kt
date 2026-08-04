@@ -61,6 +61,7 @@ class OrderRepositoryImpl(
             )
             return OrderPO(
                 id = order.id.value,
+                merchantId = order.merchantId.value,
                 buyerUid = order.buyerInfo.uid,
                 buyerPhone = order.buyerInfo.phoneNumber?.value,
                 buyerName = order.buyerInfo.userName,
@@ -68,13 +69,20 @@ class OrderRepositoryImpl(
                 tradeStatus = order.tradeStatus,
                 paymentStatus = order.paymentStatus,
                 fulfillmentStatus = order.fulfillmentStatus,
-                totalRefundedAmount = order.totalRefundedAmount.toBigDecimal(),
-                totalAmount = order.totalAmount.toBigDecimal(),
-                actualPay = order.actualPay.toBigDecimal(),
+                currency = order.amountSnapshot.currency,
+                itemsSubtotal = order.amountSnapshot.itemsSubtotal.toBigDecimal(),
+                discountAmount = order.amountSnapshot.discountAmount.toBigDecimal(),
+                shippingAmount = order.amountSnapshot.shippingAmount.toBigDecimal(),
+                taxAmount = order.amountSnapshot.taxAmount.toBigDecimal(),
+                payableAmount = order.amountSnapshot.payableAmount.toBigDecimal(),
+                paidAmount = order.paidAmount.toBigDecimal(),
+                refundedAmount = order.refundedAmount.toBigDecimal(),
+                paymentReference = order.paymentReference,
+                fulfillmentReference = order.fulfillmentReference,
                 createTime = order.createTime,
                 updateTime = order.updateTime,
                 items = order.items.map { toItemPO(it, order.id.value) }.toMutableList(),
-                refundFacts = order.approvedRefundFacts.map { com.jstore.order.domain.order.persistence.OrderRefundFactPO(orderId = order.id.value, afterSaleId = it.afterSaleId.value, orderItemId = it.orderItemId.value, quantity = it.quantity, amount = it.amount.toBigDecimal(), occurredAt = it.occurredAt) }.toMutableList(),
+                refundFacts = order.successfulRefundFacts.map { com.jstore.order.domain.order.persistence.OrderRefundFactPO(orderId = order.id.value, refundId = it.refundId, afterSaleId = it.afterSaleId.value, orderItemId = it.orderItemId.value, quantity = it.quantity, amount = it.amount.toBigDecimal(), occurredAt = it.occurredAt) }.toMutableList(),
             )
         }
 
@@ -117,6 +125,7 @@ class OrderRepositoryImpl(
 
             return OrderImpl(
                 id = OrderId(po.id),
+                merchantId = MerchantId(po.merchantId),
                 buyerInfo = UserInfo(
                     uid = po.buyerUid,
                     phoneNumber = po.buyerPhone?.let { PhoneNumber(it) },
@@ -128,10 +137,19 @@ class OrderRepositoryImpl(
                 _tradeStatus = po.tradeStatus,
                 _paymentStatus = po.paymentStatus,
                 _fulfillmentStatus = po.fulfillmentStatus,
-                totalAmount = Price.fromBigDecimal(po.totalAmount),
-                _actualPay = Price.fromBigDecimal(po.actualPay),
-                _totalRefundedAmount = Price.fromBigDecimal(po.totalRefundedAmount),
-                refundFacts = po.refundFacts.map { RefundFact(com.jstore.order.domain.aftersale.AfterSaleId(it.afterSaleId), OrderItemId(it.orderItemId), it.quantity, Price.fromBigDecimal(it.amount), it.occurredAt) }.toMutableList(),
+                amountSnapshot = OrderAmountSnapshot(
+                    currency = po.currency,
+                    itemsSubtotal = Price.fromBigDecimal(po.itemsSubtotal),
+                    discountAmount = Price.fromBigDecimal(po.discountAmount),
+                    shippingAmount = Price.fromBigDecimal(po.shippingAmount),
+                    taxAmount = Price.fromBigDecimal(po.taxAmount),
+                    payableAmount = Price.fromBigDecimal(po.payableAmount),
+                ),
+                _paidAmount = Price.fromBigDecimal(po.paidAmount),
+                _refundedAmount = Price.fromBigDecimal(po.refundedAmount),
+                _paymentReference = po.paymentReference,
+                _fulfillmentReference = po.fulfillmentReference,
+                refundFacts = po.refundFacts.map { RefundFact(it.refundId, com.jstore.order.domain.aftersale.AfterSaleId(it.afterSaleId), OrderItemId(it.orderItemId), it.quantity, Price.fromBigDecimal(it.amount), it.occurredAt) }.toMutableList(),
                 createTime = po.createTime,
                 _updateTime = po.updateTime,
             )

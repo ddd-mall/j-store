@@ -5,16 +5,15 @@ import com.jstore.accounting.domain.journal.*
 import com.jstore.accounting.service.*
 import com.jstore.common.utils.*
 import com.jstore.order.domain.order.*
-import com.jstore.order.config.OrderMerchantProperties
 import org.springframework.context.annotation.*
 import java.time.ZoneOffset
 @Configuration class AccountingBootConfiguration{
  @Bean fun accountingApplicationService(j:JournalEntryRepository,l:LedgerAccountRepository,p:AccountingPeriodRepository)=AccountingApplicationService(j,l,p)
- @Bean fun accountingOrderService(orders:OrderRepository,merchant:OrderMerchantProperties)=object:AccountingOrderService{
-  override fun getOrderAccountingInfo(orderId:String)=orders.findById(OrderId(orderId.toLong()))?.let{Success(OrderAccountingInfo(orderId,merchant.merchantId.toString(),it.actualPay,com.jstore.common.properties.Price.ZERO,it.updateTime.toInstant(ZoneOffset.UTC)))}?:Failure(OrderErrors.ORDER_NOT_FOUND)
-  override fun getRefundableOriginalSource(orderId:String)=Success(SourceDocument(SourceDocumentType.ORDER,orderId,"OrderPaidEvent"))
+ @Bean fun accountingOrderService(orders:OrderRepository)=object:AccountingOrderService{
+  override fun getOrderAccountingInfo(orderId:String)=orders.findById(OrderId(orderId.toLong()))?.let{Success(OrderAccountingInfo(orderId,it.merchantId.value.toString(),it.paidAmount,com.jstore.common.properties.Price.ZERO,it.updateTime.toInstant(ZoneOffset.UTC)))}?:Failure(OrderErrors.ORDER_NOT_FOUND)
+  override fun getRefundableOriginalSource(orderId:String)=Success(SourceDocument(SourceDocumentType.ORDER,orderId,"PaymentCapturedEvent"))
  }
- @Bean fun orderPaidAccountingEventHandler(a:AccountingOrderService,s:AccountingApplicationService)=OrderPaidAccountingEventHandler(a,s)
+ @Bean fun paymentCapturedAccountingEventHandler(a:AccountingOrderService,s:AccountingApplicationService)=PaymentCapturedAccountingEventHandler(a,s)
  @Bean fun orderCompletedAccountingEventHandler(a:AccountingOrderService,s:AccountingApplicationService)=OrderCompletedAccountingEventHandler(a,s)
- @Bean fun afterSaleApprovedAccountingEventHandler(a:AccountingOrderService,s:AccountingApplicationService)=OrderRefundApprovedAccountingEventHandler(a,s)
+ @Bean fun paymentRefundSucceededAccountingEventHandler(a:AccountingOrderService,s:AccountingApplicationService)=PaymentRefundSucceededAccountingEventHandler(a,s)
 }

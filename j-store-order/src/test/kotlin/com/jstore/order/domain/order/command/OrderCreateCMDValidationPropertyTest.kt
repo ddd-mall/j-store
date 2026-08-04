@@ -66,6 +66,7 @@ class OrderCreateCMDValidationPropertyTest : FunSpec({
             // Build a valid OrderCreateCMD (valid items, valid buyerUid) with the failing recipientInfo
             val orderCmd = OrderCreateCMD(
                 buyerUid = 1L,
+                merchantId = 7,
                 buyerPhone = "13800138000",
                 buyerName = "买家",
                 recipientInfo = failingRecipientInfo,

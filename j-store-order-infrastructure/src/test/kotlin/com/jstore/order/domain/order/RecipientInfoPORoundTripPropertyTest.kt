@@ -95,6 +95,7 @@ class RecipientInfoPORoundTripPropertyTest : FunSpec({
             // Build a minimal Order with the generated ShippingInfo
             val order: Order = OrderImpl(
                 id = OrderId(1L),
+                merchantId = MerchantId(1L),
                 buyerInfo = UserInfo(uid = 1L, phoneNumber = null, userName = "test"),
                 _items = mutableListOf(
                     OrderItemImpl(
@@ -112,8 +113,7 @@ class RecipientInfoPORoundTripPropertyTest : FunSpec({
                 _tradeStatus = TradeStatus.CREATED,
                 _paymentStatus = PaymentStatus.UNPAID,
                 _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
-                totalAmount = Price.ofFen(100),
-                _actualPay = Price.ofFen(100),
+                amountSnapshot = OrderAmountSnapshot.cny(Price.ofFen(100)),
                 createTime = now,
                 _updateTime = now,
             )

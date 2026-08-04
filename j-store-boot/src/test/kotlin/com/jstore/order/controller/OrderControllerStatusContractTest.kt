@@ -10,6 +10,8 @@ import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderItem
 import com.jstore.order.domain.order.OrderItemId
 import com.jstore.order.domain.order.OrderItemStatus
+import com.jstore.order.domain.order.MerchantId
+import com.jstore.order.domain.order.OrderAmountSnapshot
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
 import com.jstore.order.domain.order.UserInfo
@@ -29,13 +31,14 @@ class OrderControllerStatusContractTest {
         val order = mock(Order::class.java)
         val now = LocalDateTime.of(2026, 1, 1, 0, 0)
         `when`(order.id).thenReturn(OrderId(1))
+        `when`(order.merchantId).thenReturn(MerchantId(7))
         `when`(order.buyerInfo).thenReturn(UserInfo(2, null, null))
         `when`(order.tradeStatus).thenReturn(TradeStatus.ACTIVE)
         `when`(order.paymentStatus).thenReturn(PaymentStatus.PARTIALLY_REFUNDED)
         `when`(order.fulfillmentStatus).thenReturn(FulfillmentStatus.DELIVERED)
-        `when`(order.totalRefundedAmount).thenReturn(Price.ofFen(50))
-        `when`(order.totalAmount).thenReturn(Price.ofFen(100))
-        `when`(order.actualPay).thenReturn(Price.ofFen(100))
+        `when`(order.amountSnapshot).thenReturn(OrderAmountSnapshot.cny(Price.ofFen(100)))
+        `when`(order.paidAmount).thenReturn(Price.ofFen(100))
+        `when`(order.refundedAmount).thenReturn(Price.ofFen(50))
         val item = mock(OrderItem::class.java)
         `when`(item.id).thenReturn(OrderItemId(10))
         `when`(item.skuId).thenReturn(11)
@@ -58,7 +61,8 @@ class OrderControllerStatusContractTest {
         assertEquals("PARTIALLY_REFUNDED", json["paymentStatus"].asText())
         assertEquals("DELIVERED", json["fulfillmentStatus"].asText())
         assertFalse(json.has("afterSaleStatus"))
-        assertEquals(50, json["totalRefundedAmount"].asLong())
+        assertEquals(50, json["refundedAmount"].asLong())
+        assertEquals(100, json["payableAmount"].asLong())
         assertFalse(json.has("status"))
         assertEquals("CANCELED", json["items"][0]["status"].asText())
 

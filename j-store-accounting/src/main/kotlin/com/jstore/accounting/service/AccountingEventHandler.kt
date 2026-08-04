@@ -12,20 +12,19 @@ import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.order.event.OrderCompletedEvent
-import com.jstore.order.domain.order.event.OrderPaidEvent
-import com.jstore.order.domain.aftersale.event.AfterSaleApprovedEvent
-import com.jstore.common.properties.Price
+import com.jstore.payment.domain.payment.event.PaymentCapturedEvent
+import com.jstore.payment.domain.payment.event.PaymentRefundSucceededEvent
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-class OrderPaidAccountingEventHandler(
+class PaymentCapturedAccountingEventHandler(
     private val accountingOrderService: AccountingOrderService,
     private val accountingApplicationService: AccountingApplicationService,
-) : DomainEventListener<OrderPaidEvent> {
-    override fun listenerId(): String = "accounting.record-order-paid"
+) : DomainEventListener<PaymentCapturedEvent> {
+    override fun listenerId(): String = "accounting.record-payment-captured.v1"
 
-    override fun onDomainEvent(event: OrderPaidEvent) {
-        val info = when (val result = accountingOrderService.getOrderAccountingInfo(event.orderId.value.toString())) {
+    override fun onDomainEvent(event: PaymentCapturedEvent) {
+        val info = when (val result = accountingOrderService.getOrderAccountingInfo(event.orderId.toString())) {
             is Success -> result.value
             is Failure -> return
         }
@@ -33,9 +32,9 @@ class OrderPaidAccountingEventHandler(
             RecordOrderPaidCMD(
                 orderId = info.orderId,
                 merchantId = info.merchantId,
-                paidAmount = event.paidAmount,
+                paidAmount = event.amount,
                 accountingDate = LocalDate.ofInstant(event.occurredAt, ZoneOffset.UTC),
-                sourceDocument = SourceDocument(SourceDocumentType.ORDER, info.orderId, "OrderPaidEvent"),
+                sourceDocument = SourceDocument(SourceDocumentType.ORDER, info.orderId, "PaymentCapturedEvent"),
             )
         )
     }
@@ -64,14 +63,14 @@ class OrderCompletedAccountingEventHandler(
     }
 }
 
-class OrderRefundApprovedAccountingEventHandler(
+class PaymentRefundSucceededAccountingEventHandler(
     private val accountingOrderService: AccountingOrderService,
     private val accountingApplicationService: AccountingApplicationService,
-) : DomainEventListener<AfterSaleApprovedEvent> {
-    override fun listenerId(): String = "accounting.record-after-sale-approved.v1"
+) : DomainEventListener<PaymentRefundSucceededEvent> {
+    override fun listenerId(): String = "accounting.record-payment-refund-succeeded.v1"
 
-    override fun onDomainEvent(event: AfterSaleApprovedEvent) {
-        val orderId = event.orderId.value.toString()
+    override fun onDomainEvent(event: PaymentRefundSucceededEvent) {
+        val orderId = event.orderId.toString()
         val info = when (val result = accountingOrderService.getOrderAccountingInfo(orderId)) {
             is Success -> result.value
             is Failure -> return
@@ -84,9 +83,9 @@ class OrderRefundApprovedAccountingEventHandler(
             RecordOrderRefundApprovedCMD(
                 orderId = info.orderId,
                 merchantId = info.merchantId,
-                refundAmount = Price.sumOf(event.items.map { it.amount }),
+                refundAmount = event.amount,
                 accountingDate = LocalDate.ofInstant(event.occurredAt, ZoneOffset.UTC),
-                sourceDocument = SourceDocument(SourceDocumentType.REFUND, event.afterSaleId.value.toString(), "AfterSaleApprovedEvent"),
+                sourceDocument = SourceDocument(SourceDocumentType.REFUND, event.refundId.value.toString(), "PaymentRefundSucceededEvent"),
                 originalSourceDocument = originalSource,
             )
         )

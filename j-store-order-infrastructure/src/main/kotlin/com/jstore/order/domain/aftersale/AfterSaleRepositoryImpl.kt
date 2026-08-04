@@ -13,6 +13,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.support.TransactionTemplate
+import org.springframework.transaction.annotation.Transactional
 import java.util.LinkedList
 
 @Repository
@@ -29,7 +30,12 @@ class AfterSaleRepositoryImpl(
         propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
         isReadOnly = true
     }
-    override fun save(entity: AfterSale)=roots.save(toPO(entity)).let(::toDomain)
+    @Transactional
+    override fun save(entity: AfterSale): AfterSale {
+        val saved = roots.save(toPO(entity)).let(::toDomain)
+        publish(entity)
+        return saved
+    }
     override fun findById(id:AfterSaleId)=roots.findById(id.value).orElse(null)?.let(::toDomain)
     override fun findByOrderId(orderId:OrderId)=roots.findByOrderIdOrderByCreateTimeDesc(orderId.value).map(::toDomain)
     override fun findReceipt(actorId:Long,type:AfterSaleCommandType,key:String)=receipts.findByActorIdAndCommandTypeAndIdempotencyKey(actorId,type.name,key)?.let { AfterSaleCommandReceipt(it.actorId,type,it.idempotencyKey,it.requestHash,AfterSaleId(it.afterSaleId),AfterSaleStatus.valueOf(it.resultStatus),it.createdAt) }
@@ -109,6 +115,21 @@ class AfterSaleRepositoryImpl(
     private class RepositoryAbort(val error:BusinessError):RuntimeException()
     private fun saveReceipt(r:AfterSaleCommandReceipt)=receipts.saveAndFlush(AfterSaleCommandReceiptPO(sequence.nextId(),r.actorId,r.type.name,r.key,r.requestHash,r.afterSaleId.value,r.resultStatus.name,r.createdAt))
     private fun publish(a:AfterSale){val events=a.domainEventQueue.toList();events.forEach(publisher::publishEvent);repeat(events.size){a.domainEventQueue.poll()}}
-    internal fun toPO(a:AfterSale)=AfterSalePO(a.id.value,a.orderId.value,a.applicantId.value,a.merchantId.value,a.status.name,a.reason.category.name,a.reason.description,a.fulfillmentSnapshot.status.name,a.fulfillmentSnapshot.requireReturn,a.reviewDecision?.reviewerId?.value,a.reviewDecision?.reviewedAt,a.reviewDecision?.rejectionReason,a.cancelledAt,a.createTime,a.updateTime,a.version,a.items.map{AfterSaleItemPO(it.id.value,a.id.value,it.orderId.value,it.orderItemId.value,it.requestedQuantity,it.requestedAmount.toBigDecimal(),it.currency,it.eligibilitySnapshot.refundableQuantity,it.eligibilitySnapshot.refundableAmount.toBigDecimal(),it.eligibilitySnapshot.goods.skuId,it.eligibilitySnapshot.goods.spuId,it.eligibilitySnapshot.goods.goodsName,it.eligibilitySnapshot.goods.skuDescription)}.toMutableList())
-    internal fun toDomain(p:AfterSalePO):AfterSale=AfterSaleImpl(AfterSaleId(p.id),OrderId(p.orderId),ApplicantActorId(p.applicantId),MerchantActorId(p.merchantId),AfterSaleStatus.valueOf(p.status),RefundReason(RefundCategory.valueOf(p.reasonCategory),p.reasonDescription),FulfillmentSnapshot(FulfillmentStatus.valueOf(p.fulfillmentStatus),p.requireReturn),p.items.map{val g=GoodsSnapshot(it.skuId,it.spuId,it.goodsName,it.skuDescription);AfterSaleItemImpl(AfterSaleItemId(it.id),OrderId(it.orderId),OrderItemId(it.orderItemId),it.requestedQuantity,Price.fromBigDecimal(it.requestedAmount),it.currency,RefundEligibilitySnapshot(OrderItemId(it.orderItemId),it.eligibleQuantity,Price.fromBigDecimal(it.eligibleAmount),it.currency,g))},p.reviewerId?.let{ReviewDecision(MerchantActorId(it),p.reviewedAt!!,p.rejectionReason)},p.cancelledAt,p.createTime,p.updateTime,p.version,LinkedList())
+    internal fun toPO(a:AfterSale)=AfterSalePO(
+        id=a.id.value,orderId=a.orderId.value,applicantId=a.applicantId.value,merchantId=a.merchantId.value,
+        status=a.status.name,reasonCategory=a.reason.category.name,reasonDescription=a.reason.description,
+        fulfillmentStatus=a.fulfillmentSnapshot.status.name,requireReturn=a.fulfillmentSnapshot.requireReturn,
+        reviewerId=a.reviewDecision?.reviewerId?.value,reviewedAt=a.reviewDecision?.reviewedAt,
+        rejectionReason=a.reviewDecision?.rejectionReason,cancelledAt=a.cancelledAt,
+        returnReceivedAt=a.returnReceivedAt,refundId=a.refundId,refundFailureReason=a.refundFailureReason,
+        createTime=a.createTime,updateTime=a.updateTime,version=a.version,
+        items=a.items.map{AfterSaleItemPO(it.id.value,a.id.value,it.orderId.value,it.orderItemId.value,it.requestedQuantity,it.requestedAmount.toBigDecimal(),it.currency,it.eligibilitySnapshot.refundableQuantity,it.eligibilitySnapshot.refundableAmount.toBigDecimal(),it.eligibilitySnapshot.goods.skuId,it.eligibilitySnapshot.goods.spuId,it.eligibilitySnapshot.goods.goodsName,it.eligibilitySnapshot.goods.skuDescription)}.toMutableList())
+    internal fun toDomain(p:AfterSalePO):AfterSale=AfterSaleImpl(
+        id=AfterSaleId(p.id),orderId=OrderId(p.orderId),applicantId=ApplicantActorId(p.applicantId),merchantId=MerchantActorId(p.merchantId),
+        _status=AfterSaleStatus.valueOf(p.status),reason=RefundReason(RefundCategory.valueOf(p.reasonCategory),p.reasonDescription),
+        fulfillmentSnapshot=FulfillmentSnapshot(FulfillmentStatus.valueOf(p.fulfillmentStatus),p.requireReturn),
+        items=p.items.map{val g=GoodsSnapshot(it.skuId,it.spuId,it.goodsName,it.skuDescription);AfterSaleItemImpl(AfterSaleItemId(it.id),OrderId(it.orderId),OrderItemId(it.orderItemId),it.requestedQuantity,Price.fromBigDecimal(it.requestedAmount),it.currency,RefundEligibilitySnapshot(OrderItemId(it.orderItemId),it.eligibleQuantity,Price.fromBigDecimal(it.eligibleAmount),it.currency,g))},
+        _reviewDecision=p.reviewerId?.let{ReviewDecision(MerchantActorId(it),p.reviewedAt!!,p.rejectionReason)},
+        _cancelledAt=p.cancelledAt,_returnReceivedAt=p.returnReceivedAt,_refundId=p.refundId,_refundFailureReason=p.refundFailureReason,
+        createTime=p.createTime,_updateTime=p.updateTime,version=p.version,domainEventQueue=LinkedList())
 }

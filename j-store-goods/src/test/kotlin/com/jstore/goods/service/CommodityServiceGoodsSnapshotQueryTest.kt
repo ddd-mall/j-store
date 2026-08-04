@@ -6,6 +6,7 @@ import com.jstore.goods.api.GoodsSkuSnapshotInfo
 import com.jstore.goods.domain.commodity.Attribute
 import com.jstore.goods.domain.commodity.GoodsStyleFactory
 import com.jstore.goods.domain.commodity.GoodsStyleRepository
+import com.jstore.goods.domain.commodity.MerchantId
 import com.jstore.goods.domain.commodity.SkuId
 import com.jstore.goods.domain.commodity.SpuFactory
 import com.jstore.goods.domain.commodity.SpuId
@@ -39,6 +40,7 @@ class CommodityServiceGoodsSnapshotQueryTest : FunSpec({
         val price = Price.ofFen(12800)
         val snapshot = SpuSnapshot(
             id = SpuSnapshotId(9001L),
+            merchantId = MerchantId(7),
             spuId = SpuId(1001L),
             snapshotVersion = 3L,
             spuName = "Keyboard",

@@ -14,6 +14,7 @@ dependencies {
     api(libs.kotlin.reflect)
     api(project(":j-store-common-core"))
     implementation(project(":j-store-order"))
+    implementation(project(":j-store-payment"))
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
     testImplementation(kotlin("test"))

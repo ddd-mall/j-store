@@ -7,7 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.jstore.common.framework.event.ExplicitDomainEvent
 import com.jstore.common.framework.event.stableDomainEventId
-import com.jstore.order.domain.order.event.OrderShippedEvent
+import com.jstore.order.domain.order.event.OrderCompletedEvent
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -30,17 +30,17 @@ class JacksonEventSerializerTest : FunSpec({
 
     test("deserialize resolves event by stable event name and version") {
         val registry = InMemoryEventTypeRegistry()
-        registry.register("order.shipped", 1, OrderShippedEvent::class.java)
+        registry.register("order.completed", 1, OrderCompletedEvent::class.java)
         val registryBackedSerializer = JacksonEventSerializer(objectMapper, registry)
         val payload = """{"orderId":{"value":42},"occurredAt":"2025-01-01T00:00:00Z"}"""
 
         val restored = registryBackedSerializer.deserialize(
             payload,
-            eventName = "order.shipped",
+            eventName = "order.completed",
             eventVersion = 1
         )
 
-        restored::class.java shouldBe OrderShippedEvent::class.java
+        restored::class.java shouldBe OrderCompletedEvent::class.java
     }
 
     test("deserialize upcasts old payload version before resolving event class") {
@@ -84,9 +84,9 @@ class JacksonEventSerializerTest : FunSpec({
     }
 
     test("deserialize with malformed JSON throws OutboxSerializationException containing payload summary") {
-        val eventType = "order.shipped"
+        val eventType = "order.completed"
         val registry = InMemoryEventTypeRegistry()
-        registry.register(eventType, 1, OrderShippedEvent::class.java)
+        registry.register(eventType, 1, OrderCompletedEvent::class.java)
         val registryBackedSerializer = JacksonEventSerializer(objectMapper, registry)
         val malformedJson = "{this is not valid json!!!"
 
@@ -97,9 +97,9 @@ class JacksonEventSerializerTest : FunSpec({
     }
 
     test("deserialize with long malformed JSON truncates payload summary to 200 chars") {
-        val eventType = "order.shipped"
+        val eventType = "order.completed"
         val registry = InMemoryEventTypeRegistry()
-        registry.register(eventType, 1, OrderShippedEvent::class.java)
+        registry.register(eventType, 1, OrderCompletedEvent::class.java)
         val registryBackedSerializer = JacksonEventSerializer(objectMapper, registry)
         val longPayload = "x".repeat(300)
 

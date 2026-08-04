@@ -11,10 +11,10 @@ class OrderLifecycleRegressionTest {
     @Test
     fun `paid order preserves fulfillment sequence through delivery and completion`() {
         val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.PAID)
-        assertIs<Success<Unit>>(order.confirmForShipment()); assertIs<Success<Unit>>(order.ship())
+        assertIs<Success<Boolean>>(order.recordFulfillmentPrepared("fulfillment-1")); assertIs<Success<Boolean>>(order.recordShipmentDispatched("fulfillment-1"))
         assertEquals(FulfillmentStatus.SHIPPED, order.fulfillmentStatus)
         assertEquals(OrderItemStatus.SHIPPING, order.items.single().status)
-        assertIs<Success<Unit>>(order.confirmDelivery()); assertIs<Success<Unit>>(order.complete())
+        assertIs<Success<Boolean>>(order.recordShipmentDelivered("fulfillment-1")); assertIs<Success<Unit>>(order.complete())
         assertEquals(TradeStatus.COMPLETED, order.tradeStatus)
         assertEquals(OrderItemStatus.SHIPPING_FINISHED, order.items.single().status)
     }
@@ -35,8 +35,8 @@ class OrderLifecycleRegressionTest {
     @Test
     fun `invalid payment does not partially mutate amount or statuses`() {
         val order = testOrder(trade = TradeStatus.CREATED)
-        val before = Triple(order.tradeStatus, order.paymentStatus, order.actualPay)
-        assertIs<Failure<*>>(order.pay(Price.ofFen(100)))
-        assertEquals(before, Triple(order.tradeStatus, order.paymentStatus, order.actualPay))
+        val before = Triple(order.tradeStatus, order.paymentStatus, order.paidAmount)
+        assertIs<Failure<*>>(order.recordPaymentCaptured("payment-1", Price.ofFen(100), "CNY", java.time.Instant.EPOCH))
+        assertEquals(before, Triple(order.tradeStatus, order.paymentStatus, order.paidAmount))
     }
 }

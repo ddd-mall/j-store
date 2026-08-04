@@ -12,6 +12,7 @@ import java.util.*
 
 class SpuImpl(
     override val id: SpuId,
+    override val merchantId: MerchantId = MerchantId(1),
     name: String,
     description: String = "",
     private var _status: CommodityStatus,
@@ -87,6 +88,9 @@ class SpuImpl(
      * 前置条件：当前 SPU 必须是 ON_SALE 状态，草稿 SKU 列表不能为空
      */
     override fun mergeFromDraft(draft: Spu): Result<Unit, BusinessError> {
+        if (draft.merchantId != merchantId) {
+            return Failure(CommodityErrors.INVALID_STATUS_TRANSITION.msg("不能合并其他商户的商品草稿"))
+        }
         if (_status != CommodityStatus.ON_SALE) {
             return Failure(
                 CommodityErrors.INVALID_STATUS_TRANSITION

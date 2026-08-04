@@ -14,8 +14,11 @@ import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
-import com.jstore.order.domain.order.command.OrderPayCMD
 import com.jstore.common.framework.Page
+import com.jstore.common.properties.Price
+import com.jstore.order.domain.aftersale.AfterSaleId
+import com.jstore.order.domain.order.SuccessfulRefundItem
+import java.time.Instant
 
 /**
  * 订单应用服务
@@ -69,42 +72,68 @@ class OrderService(
     }
 
 
-    /** 支付回调 */
-    fun payOrder(cmd: OrderPayCMD): Result<Unit, BusinessError> {
-        cmd.validate().onFailure { return Failure(it) }
-        val order = orderRepository.findById(cmd.orderId)
+    /** 由支付集成事实驱动，不对 HTTP 控制器暴露。 */
+    fun recordPaymentCaptured(
+        orderId: OrderId,
+        paymentReference: String,
+        amount: Price,
+        currency: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
+        val order = orderRepository.findById(orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.pay(cmd.paidAmount).onFailure { return Failure(it) }
+        val changed = order.recordPaymentCaptured(paymentReference, amount, currency, occurredAt)
+        changed.onFailure { return Failure(it) }
+        if (!changed.getOrThrow()) return Success(false)
         orderRepository.save(order)
         order.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
-        return Success(Unit)
+        return Success(true)
     }
 
-    /** 确认备货（支付后 → 待发货） */
-    fun confirmForShipment(orderId: OrderId): Result<Unit, BusinessError> {
+    fun recordFulfillmentPrepared(orderId: OrderId, fulfillmentReference: String): Result<Boolean, BusinessError> {
         val order = orderRepository.findById(orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.confirmForShipment().onFailure { return Failure(it) }
+        val changed = order.recordFulfillmentPrepared(fulfillmentReference)
+        changed.onFailure { return Failure(it) }
+        if (!changed.getOrThrow()) return Success(false)
         orderRepository.save(order)
-        return Success(Unit)
+        return Success(true)
     }
 
-    /** 发货 */
-    fun shipOrder(orderId: OrderId): Result<Unit, BusinessError> {
+    fun recordShipmentDispatched(orderId: OrderId, fulfillmentReference: String): Result<Boolean, BusinessError> {
         val order = orderRepository.findById(orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.ship().onFailure { return Failure(it) }
+        val changed = order.recordShipmentDispatched(fulfillmentReference)
+        changed.onFailure { return Failure(it) }
+        if (!changed.getOrThrow()) return Success(false)
         orderRepository.save(order)
-        return Success(Unit)
+        return Success(true)
     }
 
-    /** 确认收货 */
-    fun confirmDelivery(orderId: OrderId): Result<Unit, BusinessError> {
+    fun recordShipmentDelivered(orderId: OrderId, fulfillmentReference: String): Result<Boolean, BusinessError> {
         val order = orderRepository.findById(orderId)
             ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.confirmDelivery().onFailure { return Failure(it) }
+        val changed = order.recordShipmentDelivered(fulfillmentReference)
+        changed.onFailure { return Failure(it) }
+        if (!changed.getOrThrow()) return Success(false)
         orderRepository.save(order)
-        return Success(Unit)
+        return Success(true)
+    }
+
+    fun recordRefundSucceeded(
+        orderId: OrderId,
+        refundId: String,
+        afterSaleId: AfterSaleId,
+        items: List<SuccessfulRefundItem>,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
+        val order = orderRepository.findById(orderId)
+            ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        val projection = order.recordRefundSucceeded(refundId, afterSaleId, items, occurredAt)
+        projection.onFailure { return Failure(it) }
+        if (!projection.getOrThrow().newlyRegistered) return Success(false)
+        orderRepository.save(order)
+        return Success(true)
     }
 
     /** 完成订单 */

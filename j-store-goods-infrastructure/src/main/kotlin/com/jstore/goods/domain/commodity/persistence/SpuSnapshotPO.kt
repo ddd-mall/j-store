@@ -13,6 +13,9 @@ class SpuSnapshotPO(
     @Column(name = "id")
     var id: Long = 0,
 
+    @Column(name = "merchant_id", nullable = false)
+    var merchantId: Long = 0,
+
     @Column(name = "spu_id", nullable = false)
     var spuId: Long = 0,
 
