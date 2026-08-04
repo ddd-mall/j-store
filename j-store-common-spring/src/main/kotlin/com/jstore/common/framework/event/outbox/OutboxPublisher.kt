@@ -31,7 +31,7 @@ class OutboxPublisher(
             val now = Instant.now()
             val entries = outboxEntryRepository.claimPendingAndRetryable(
                 maxRetryCount = properties.maxRetryCount,
-                batchSize = properties.batchSize,
+                batchSize = min(properties.batchSize, properties.maxInFlightPerPoll),
                 lockedBy = workerId,
                 lockedUntil = now.plusMillis(properties.lockTimeoutMillis)
             )
@@ -40,6 +40,17 @@ class OutboxPublisher(
 
             for (entry in entries) {
                 try {
+                    // Claimed rows always have a positive token. Token zero is retained only for
+                    // compatibility with custom repositories during a rolling upgrade.
+                    if (entry.lockToken > 0 && !outboxEntryRepository.renewLease(
+                            entry.id,
+                            workerId,
+                            entry.lockToken,
+                            Instant.now().plusMillis(properties.lockTimeoutMillis)
+                        )
+                    ) {
+                        throw OutboxLockOwnershipChangedException(entry.id, workerId)
+                    }
                     val updated = transactionOperations.executeDelivery {
                         val event = eventSerializer.deserialize(
                             entry.payload,
@@ -94,7 +105,7 @@ class OutboxPublisher(
                         )
                     }
 
-                    if (newStatus == OutboxEntryStatus.DEAD_LETTER) {
+                    if (updated && newStatus == OutboxEntryStatus.DEAD_LETTER) {
                         outboxMonitor.recordDeadLetter(entry)
                         logger.warn(
                             "Outbox entry moved to DEAD_LETTER: id={}, eventType={}, retryCount={}",
@@ -112,6 +123,7 @@ class OutboxPublisher(
             outboxMonitor.recordPoll(successCount, failCount)
         } catch (e: Exception) {
             logger.error("Outbox polling encountered an unexpected error", e)
+            throw e
         }
     }
 

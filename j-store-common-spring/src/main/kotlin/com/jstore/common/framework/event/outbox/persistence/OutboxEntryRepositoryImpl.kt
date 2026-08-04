@@ -3,6 +3,11 @@ package com.jstore.common.framework.event.outbox.persistence
 import com.jstore.common.framework.event.outbox.OutboxEntry
 import com.jstore.common.framework.event.outbox.OutboxEntryRepository
 import com.jstore.common.framework.event.outbox.OutboxEntryStatus
+import com.jstore.common.framework.event.outbox.DeadLetterRequeueResult
+import com.jstore.common.framework.event.outbox.OutboxDeadLetterAuditResult
+import com.jstore.common.framework.event.outbox.OutboxDeadLetterOperationsRepository
+import com.jstore.common.framework.event.outbox.OutboxDeadLetterPage
+import com.jstore.common.framework.event.outbox.OutboxDeadLetterSummary
 import jakarta.persistence.EntityManager
 import org.springframework.data.domain.PageRequest
 import org.springframework.transaction.annotation.Transactional
@@ -11,7 +16,7 @@ import java.time.Instant
 open class OutboxEntryRepositoryImpl(
     private val jpaRepository: OutboxEntryPOJpaRepository,
     private val entityManager: EntityManager,
-) : OutboxEntryRepository {
+) : OutboxEntryRepository, OutboxDeadLetterOperationsRepository {
 
     override fun save(entry: OutboxEntry): OutboxEntry {
         val po = Converter.toPO(entry)
@@ -48,12 +53,22 @@ open class OutboxEntryRepositoryImpl(
                   AND retry_count >= :maxRetryCount
             ),
             candidates AS (
-                SELECT id
-                FROM outbox_entry
-                WHERE status = 'PENDING'
-                   OR (status = 'FAILED' AND retry_count < :maxRetryCount AND next_attempt_at <= :now)
-                   OR (status = 'IN_PROGRESS' AND retry_count < :maxRetryCount AND locked_until < :now)
-                ORDER BY created_at ASC
+                SELECT e.id
+                FROM outbox_entry e
+                WHERE (
+                       e.status = 'PENDING'
+                    OR (e.status = 'FAILED' AND e.retry_count < :maxRetryCount AND e.next_attempt_at <= :now)
+                    OR (e.status = 'IN_PROGRESS' AND e.retry_count < :maxRetryCount AND e.locked_until < :now)
+                )
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM outbox_entry predecessor
+                    WHERE predecessor.aggregate_type = e.aggregate_type
+                      AND predecessor.aggregate_id = e.aggregate_id
+                      AND predecessor.status <> 'PUBLISHED'
+                      AND (predecessor.created_at, predecessor.id) < (e.created_at, e.id)
+                  )
+                ORDER BY e.created_at ASC, e.id ASC
                 FOR UPDATE SKIP LOCKED
                 LIMIT :batchSize
             )
@@ -63,6 +78,7 @@ open class OutboxEntryRepositoryImpl(
                 locked_by = :lockedBy,
                 locked_at = :now,
                 locked_until = :lockedUntil,
+                lock_token = e.lock_token + 1,
                 updated_at = :now
             FROM candidates
             WHERE e.id = candidates.id
@@ -84,6 +100,30 @@ open class OutboxEntryRepositoryImpl(
     }
 
     @Transactional
+    open override fun renewLease(id: String, lockedBy: String, lockToken: Long, lockedUntil: Instant): Boolean {
+        val updated = entityManager.createNativeQuery(
+            """
+            UPDATE outbox_entry
+            SET locked_until = :lockedUntil,
+                updated_at = :now
+            WHERE id = :id
+              AND status = 'IN_PROGRESS'
+              AND locked_by = :lockedBy
+              AND lock_token = :lockToken
+              AND locked_until >= :now
+            """.trimIndent()
+        )
+            .setParameter("id", id)
+            .setParameter("lockedBy", lockedBy)
+            .setParameter("lockToken", lockToken)
+            .setParameter("lockedUntil", lockedUntil)
+            .setParameter("now", Instant.now())
+            .executeUpdate() == 1
+        entityManager.clear()
+        return updated
+    }
+
+    @Transactional
     open override fun markPublished(entry: OutboxEntry, lockedBy: String): Boolean {
         val updated = entityManager.createNativeQuery(
             """
@@ -97,11 +137,15 @@ open class OutboxEntryRepositoryImpl(
             WHERE id = :id
               AND status = 'IN_PROGRESS'
               AND locked_by = :lockedBy
+              AND lock_token = :lockToken
+              AND locked_until >= :now
             """.trimIndent()
         )
             .setParameter("id", entry.id)
             .setParameter("lockedBy", lockedBy)
+            .setParameter("lockToken", entry.lockToken)
             .setParameter("updatedAt", entry.updatedAt)
+            .setParameter("now", Instant.now())
             .executeUpdate() == 1
         entityManager.clear()
         return updated
@@ -123,15 +167,19 @@ open class OutboxEntryRepositoryImpl(
             WHERE id = :id
               AND status = 'IN_PROGRESS'
               AND locked_by = :lockedBy
+              AND lock_token = :lockToken
+              AND locked_until >= :now
             """.trimIndent()
         )
             .setParameter("id", entry.id)
             .setParameter("lockedBy", lockedBy)
+            .setParameter("lockToken", entry.lockToken)
             .setParameter("status", entry.status.name)
             .setParameter("retryCount", entry.retryCount)
             .setParameter("nextAttemptAt", entry.nextAttemptAt)
             .setParameter("updatedAt", entry.updatedAt)
             .setParameter("lastError", entry.lastError)
+            .setParameter("now", Instant.now())
             .executeUpdate() == 1
         entityManager.clear()
         return updated
@@ -185,6 +233,7 @@ open class OutboxEntryRepositoryImpl(
             """
             UPDATE OutboxEntryPO e
             SET e.status = :failed,
+                e.retryCount = 0,
                 e.nextAttemptAt = :nextAttemptAt,
                 e.lockedBy = NULL,
                 e.lockedAt = NULL,
@@ -215,6 +264,88 @@ open class OutboxEntryRepositoryImpl(
             .toLong()
     }
 
+    override fun findDeadLetters(page: Int, size: Int): OutboxDeadLetterPage {
+        require(page >= 1) { "page must be greater than or equal to 1" }
+        require(size > 0) { "size must be greater than 0" }
+        val entries = entityManager.createQuery(
+            "SELECT e FROM OutboxEntryPO e WHERE e.status = :status ORDER BY e.updatedAt ASC, e.id ASC",
+            OutboxEntryPO::class.java
+        )
+            .setParameter("status", OutboxEntryStatus.DEAD_LETTER)
+            .setFirstResult((page - 1) * size)
+            .setMaxResults(size)
+            .resultList
+            .map { e ->
+                OutboxDeadLetterSummary(e.id, e.eventId, e.eventType, e.aggregateType, e.aggregateId,
+                    e.eventVersion, e.occurredAt, e.createdAt, e.updatedAt, e.retryCount, e.lastError)
+            }
+        return OutboxDeadLetterPage(entries, page, size, countByStatus(OutboxEntryStatus.DEAD_LETTER))
+    }
+
+    @Transactional
+    open override fun requeueDeadLetters(
+        ids: Collection<String>,
+        operatorId: String,
+        reason: String,
+        nextAttemptAt: Instant,
+    ): DeadLetterRequeueResult {
+        val targets = ids.distinct()
+        var requeued = 0
+        targets.forEach { id ->
+            val eventId = entityManager.createNativeQuery("SELECT event_id FROM outbox_entry WHERE id = :id")
+                .setParameter("id", id).resultList.firstOrNull() as String?
+            val updated = entityManager.createNativeQuery(
+                """
+                UPDATE outbox_entry SET status = 'FAILED', retry_count = 0,
+                    next_attempt_at = :nextAttemptAt, locked_by = NULL, locked_at = NULL,
+                    locked_until = NULL, last_error = NULL, updated_at = :now
+                WHERE id = :id AND status = 'DEAD_LETTER'
+                """.trimIndent()
+            ).setParameter("id", id).setParameter("nextAttemptAt", nextAttemptAt)
+                .setParameter("now", Instant.now()).executeUpdate()
+            requeued += updated
+            entityManager.createNativeQuery(
+                """
+                INSERT INTO outbox_dead_letter_audit
+                    (outbox_entry_id, event_id, operator_id, action, reason, result, created_at)
+                VALUES (:id, :eventId, :operatorId, 'REQUEUE', :reason, :result, :now)
+                """.trimIndent()
+            ).setParameter("id", id).setParameter("eventId", eventId)
+                .setParameter("operatorId", operatorId).setParameter("reason", reason)
+                .setParameter("result", if (updated == 1) OutboxDeadLetterAuditResult.REQUEUED.name else OutboxDeadLetterAuditResult.NOT_REQUEUED.name)
+                .setParameter("now", Instant.now()).executeUpdate()
+        }
+        entityManager.clear()
+        return DeadLetterRequeueResult(requeued, targets.size - requeued)
+    }
+
+    override fun findOldestReadyAt(now: Instant, maxRetryCount: Int): Instant? =
+        entityManager.createQuery(
+            """
+            SELECT MIN(e.createdAt) FROM OutboxEntryPO e
+            WHERE e.status = :pending
+               OR (e.status = :failed AND e.retryCount < :maxRetryCount AND e.nextAttemptAt <= :now)
+               OR (e.status = :inProgress AND e.retryCount < :maxRetryCount AND e.lockedUntil < :now)
+            """.trimIndent(),
+            Instant::class.java
+        )
+            .setParameter("pending", OutboxEntryStatus.PENDING)
+            .setParameter("failed", OutboxEntryStatus.FAILED)
+            .setParameter("inProgress", OutboxEntryStatus.IN_PROGRESS)
+            .setParameter("maxRetryCount", maxRetryCount)
+            .setParameter("now", now)
+            .singleResult
+
+    override fun countExpiredLocks(now: Instant): Long =
+        entityManager.createQuery(
+            "SELECT COUNT(e) FROM OutboxEntryPO e WHERE e.status = :status AND e.lockedUntil < :now",
+            java.lang.Long::class.java
+        )
+            .setParameter("status", OutboxEntryStatus.IN_PROGRESS)
+            .setParameter("now", now)
+            .singleResult
+            .toLong()
+
     private object Converter {
         fun toPO(entry: OutboxEntry) = OutboxEntryPO(
             id = entry.id,
@@ -234,6 +365,7 @@ open class OutboxEntryRepositoryImpl(
             lockedBy = entry.lockedBy,
             lockedAt = entry.lockedAt,
             lockedUntil = entry.lockedUntil,
+            lockToken = entry.lockToken,
             lastError = entry.lastError
         )
 
@@ -255,6 +387,7 @@ open class OutboxEntryRepositoryImpl(
             lockedBy = po.lockedBy,
             lockedAt = po.lockedAt,
             lockedUntil = po.lockedUntil,
+            lockToken = po.lockToken,
             lastError = po.lastError
         )
     }

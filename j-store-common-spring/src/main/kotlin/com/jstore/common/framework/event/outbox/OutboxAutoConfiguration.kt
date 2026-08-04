@@ -21,7 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
-@EnableConfigurationProperties(OutboxProperties::class)
+@EnableConfigurationProperties(OutboxProperties::class, OutboxObservabilityProperties::class)
 @ConditionalOnProperty(prefix = "jstore.outbox", name = ["enabled"], havingValue = "true")
 @EnableScheduling
 class OutboxAutoConfiguration {
@@ -107,17 +107,47 @@ class OutboxAutoConfiguration {
     fun outboxScheduler(
         outboxPublisher: OutboxPublisher,
         outboxCleaner: OutboxCleaner,
+        outboxMonitor: OutboxMonitor,
+        schedulerExecutionState: SchedulerExecutionState,
     ): OutboxScheduler {
-        return OutboxScheduler(outboxPublisher, outboxCleaner)
+        return OutboxScheduler(
+            outboxPublisher,
+            outboxCleaner,
+            outboxMonitor,
+            schedulerState = schedulerExecutionState,
+        )
     }
+
+    @Bean
+    fun schedulerExecutionState(): SchedulerExecutionState = SchedulerExecutionState()
+
+    @Bean
+    fun outboxOperationalHealth(
+        outboxEntryRepository: OutboxEntryRepository,
+        schedulerExecutionState: SchedulerExecutionState,
+        observabilityProperties: OutboxObservabilityProperties,
+        properties: OutboxProperties,
+    ): OutboxOperationalHealth = OutboxOperationalHealth(
+        outboxEntryRepository,
+        schedulerExecutionState,
+        observabilityProperties,
+        properties.maxRetryCount,
+    )
 
     @Bean
     fun outboxMonitor(
         meterRegistryProvider: ObjectProvider<MeterRegistry>,
         outboxEntryRepository: OutboxEntryRepository,
+        outboxOperationalHealth: OutboxOperationalHealth,
+        schedulerExecutionState: SchedulerExecutionState,
     ): OutboxMonitor {
         val meterRegistry = meterRegistryProvider.getIfAvailable() ?: return NoopOutboxMonitor
-        return MicrometerOutboxMonitor(meterRegistry, outboxEntryRepository)
+        return MicrometerOutboxMonitor(
+            meterRegistry,
+            outboxEntryRepository,
+            outboxOperationalHealth,
+            schedulerExecutionState,
+        )
     }
 
     @Bean

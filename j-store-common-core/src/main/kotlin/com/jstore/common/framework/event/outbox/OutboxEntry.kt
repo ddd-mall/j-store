@@ -19,6 +19,8 @@ data class OutboxEntry(
     val lockedBy: String? = null,
     val lockedAt: Instant? = null,
     val lockedUntil: Instant? = null,
+    /** Monotonically increasing claim generation used to fence stale workers. */
+    val lockToken: Long = 0,
     val lastError: String? = null,
     val eventId: String = id,
     val eventClassName: String = eventType,

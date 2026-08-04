@@ -65,6 +65,9 @@ class OutboxEntryPO(
     @Column(name = "locked_until")
     var lockedUntil: Instant? = null,
 
+    @Column(name = "lock_token", nullable = false)
+    var lockToken: Long = 0,
+
     @Column(name = "last_error", columnDefinition = "TEXT")
     var lastError: String? = null
 )
