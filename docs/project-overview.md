@@ -6,11 +6,11 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 ## 技术栈
 
-- Kotlin 2.1.21，Java 21
-- Spring Boot 3.3.10，Spring Data JPA，PostgreSQL，Redis
+- Kotlin 2.3.0，Java 25
+- Spring Boot 3.5.16，Spring Data JPA，PostgreSQL，Redis
 - Gradle Kotlin DSL，依赖版本集中在 `gradle/libs.versions.toml`
 - 测试栈包含 JUnit 5、Kotlin test、Kotest、Kotest property、Mockito、Spring Boot Test
-- `j-store-common-spring` 的部分集成测试使用 Testcontainers PostgreSQL
+- `j-store-common-spring` 和部分 infrastructure/boot 集成测试使用嵌入式 PostgreSQL
 - `j-store-boot` 仍包含少量 Java 代码，主要是订单过期定时任务相关实现
 
 ## Gradle 模块

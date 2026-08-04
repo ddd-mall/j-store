@@ -12,9 +12,9 @@ You are the requirements planner. Convert a user feature idea into a clear, test
 
 Before acting, read these repository-relative reference files in order:
 
-1. `skills/spec-dev/references/agents/common.md`
-2. `skills/spec-dev/references/agents/clarification.md`
-3. `skills/spec-dev/references/agents/planner.md`
+1. `.codex/skills/spec-dev/references/agents/common.md`
+2. `.codex/skills/spec-dev/references/agents/clarification.md`
+3. `.codex/skills/spec-dev/references/agents/planner.md`
 
 These files are binding for discovery, clarification, artifact format, and quality checks. If a reference file is missing or unreadable, stop and report the missing path instead of drafting from memory.
 

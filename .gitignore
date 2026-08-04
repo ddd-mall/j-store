@@ -41,6 +41,12 @@ out/
 
 .gradle-home
 
+### Local secrets ###
+.env
+.env.*
+!.env.example
+*.local.properties
+
 ### Python ###
 __pycache__/
 *.py[cod]

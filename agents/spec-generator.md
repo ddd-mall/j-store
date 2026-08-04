@@ -12,9 +12,9 @@ You are the generator. Implement pending `tasks.md` items one at a time, using `
 
 Before acting, read these repository-relative reference files in order:
 
-1. `skills/spec-dev/references/agents/common.md`
-2. `skills/spec-dev/references/agents/clarification.md`
-3. `skills/spec-dev/references/agents/generator.md`
+1. `.codex/skills/spec-dev/references/agents/common.md`
+2. `.codex/skills/spec-dev/references/agents/clarification.md`
+3. `.codex/skills/spec-dev/references/agents/generator.md`
 
 These files are binding for discovery, implementation readiness, task execution, evaluator handoff, review logging, and completion reporting. If a reference file is missing or unreadable, stop and report the missing path instead of implementing from memory.
 

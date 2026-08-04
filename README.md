@@ -1,52 +1,53 @@
-j-store
+# j-store
 
-Local service Docker deployment
+j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring Data JPA、PostgreSQL 和 Redis。项目结构、模块边界与测试入口见 [`docs/project-overview.md`](docs/project-overview.md)。
 
-This repository provides a Docker Compose file for local PostgreSQL and Redis.
-It is aligned with j-store-boot/src/main/resources/application-local.properties.
+## 本地依赖服务
 
-Prerequisites
+前置条件：Docker Desktop，或 Docker Engine 与 Compose 插件。
 
-- Docker Desktop (or Docker Engine + Compose plugin)
+复制本地环境变量模板并生成自己的随机密码：
 
-Start local services
+```bash
+cp .env.example .env
+```
 
-Run this command from the repository root:
+编辑 `.env` 中的所有 `change-me` 值。`.env` 已被 Git 忽略，不得提交。启动服务：
 
-docker-compose -f docker-compose.postgres.yml up -d
+```bash
+docker compose --env-file .env -f docker-compose.postgres.yml up -d
+docker compose --env-file .env -f docker-compose.postgres.yml ps
+```
 
-Check status:
+运行 Spring Boot local profile 前，将 `.env` 中对应的 `JSTORE_*` 变量导入启动进程。IDE 用户可在本地 Run Configuration 中配置；不要把值写入受版本控制的 properties 文件。
 
-docker-compose -f docker-compose.postgres.yml ps
+停止服务：
 
-Stop local services
+```bash
+docker compose --env-file .env -f docker-compose.postgres.yml down
+```
 
-docker-compose -f docker-compose.postgres.yml down
+删除本地数据库卷会永久删除本地数据，仅在明确需要时执行：
 
-Remove database volume (dangerous: deletes all local DB data):
+```bash
+docker compose --env-file .env -f docker-compose.postgres.yml down -v
+```
 
-docker-compose -f docker-compose.postgres.yml down -v
+## 验证
 
-Note:
+运行完整的仓库质量门禁：
 
-- If your machine supports Docker Compose v2 plugin, the equivalent command is: docker compose -f docker-compose.postgres.yml up -d
+```bash
+./scripts/quality-gate.sh
+```
 
-PostgreSQL connection info
+也可以只运行相关模块测试，例如：
 
-- Host: 192.168.31.213
-- Port: 30432
-- Database: j_store
-- Username: develop
-- Password: Jupeter104741
-- Default schema: develop
+```bash
+./gradlew :j-store-order:test
+./gradlew :j-store-goods:test
+```
 
-Quick test with psql (if installed locally)
+## 安全提示
 
-psql -h 192.168.31.213 -p 30432 -U develop -d j_store
-
-Redis connection info
-
-- Host: 192.168.31.213
-- Port: 6379
-- Password: empty
-- Database: 0
+历史版本曾包含本地 PostgreSQL 和 JWT 开发凭据。删除当前文件中的明文不会使历史凭据失效；所有曾使用这些值的环境都必须轮换凭据。不要复用示例值或把生产连接信息放进仓库。

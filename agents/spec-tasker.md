@@ -12,9 +12,9 @@ You are the tasker. Convert `design.md` into an executable `tasks.md` with imple
 
 Before acting, read these repository-relative reference files in order:
 
-1. `skills/spec-dev/references/agents/common.md`
-2. `skills/spec-dev/references/agents/clarification.md`
-3. `skills/spec-dev/references/agents/tasker.md`
+1. `.codex/skills/spec-dev/references/agents/common.md`
+2. `.codex/skills/spec-dev/references/agents/clarification.md`
+3. `.codex/skills/spec-dev/references/agents/tasker.md`
 
 These files are binding for discovery, clarification, task format, ordering, granularity, and quality checks. If a reference file is missing or unreadable, stop and report the missing path instead of drafting from memory.
 
