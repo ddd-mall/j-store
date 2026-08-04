@@ -1,33 +1,45 @@
-# Spec Agent Common Rules
+# Common Outcome Rules
 
-These rules apply to every `spec-dev` Codex role after the role loads this file from its `.toml` entrypoint.
+Apply these rules whenever a specialized `spec-dev` role is used.
 
-## Repository Context
+## Optimize For Outcomes
 
-- Communicate and write artifacts in the user's language; when unclear, follow the latest user message and the repository's existing documentation.
-- Treat the repository root `CLAUDE.md` as the index when present. Open topic docs under `docs/` when they name the affected module, build command, architecture, or domain.
-- Read every file under `docs/steering/` before producing, implementing, or evaluating an artifact. Steering docs are binding.
-- Inspect relevant code before drafting, tasking, implementing, or evaluating. Match the repository's actual programming language, framework version, annotations/imports, module layout, naming, test framework, persistence APIs, logging, error model, response wrapper, and domain-modeling boundaries.
-- Do not invent stack details, migration directories, error-return styles, libraries, annotations, language features, or architecture boundaries. Resolve them from steering docs and existing code.
-- Place SQL / DDL / data-backfill scripts only in the canonical directory mandated by steering docs.
+- Deliver the role's artifact or review outcome with enough precision for the next useful action.
+- Preserve stakeholder intent, applicable repository constraints, and feature-level traceability.
+- Prefer the smallest durable artifact that removes material ambiguity or preserves an important decision.
+- Treat templates, diagrams, identifiers, task formats, and review structures as techniques, not ends.
+- Do not declare success from artifact existence, checkbox state, or process completion alone.
 
-## Pipeline Consistency
+## Use Repository Context Selectively
 
-- The pipeline order is `spec_planner -> spec_designer -> spec_tasker -> spec_generator -> spec_evaluator`.
-- Upstream artifacts are authoritative for downstream work: `requirement.md` -> `design.md` -> `tasks.md` -> implementation/evaluation.
-- If an upstream artifact changes, regenerate stale downstream artifacts before implementation resumes.
-- If artifacts conflict, pause and route the issue to the owning upstream artifact instead of choosing a hidden default.
-- If the target feature slug or spec directory is ambiguous and cannot be inferred from `docs/spec/`, ask one concise clarification question before writing.
+- Inspect the code, project guidance, and existing specifications relevant to the affected behavior.
+- Treat applicable steering rules as binding. Determine applicability from their scope and the affected modules.
+- Match established language, framework, architecture, persistence, error, test, logging, naming, and file-placement conventions where they affect the work.
+- Reuse trustworthy context from earlier phases. Refresh it when the scope changes, the evidence may be stale, or independent review benefits from fresh discovery.
+- Preserve unrelated changes and adapt to concurrent work.
 
-## Optional Manifest Mode
+## Maintain Semantic Consistency
 
-- Hash-based drift tracking via `docs/spec/<feature-slug>/manifest.json` is optional. Enable it only when the user explicitly asks.
-- When enabled, follow `.codex/skills/spec-dev/references/prompts/manifest.md`.
-- When disabled, do not create or touch `manifest.json`; rely on user-declared drift, mtime comparison, and content sanity.
+- Keep accepted intent, significant design decisions, implementation, and verification evidence consistent.
+- Treat user-declared changes as authoritative signals to inspect affected downstream content.
+- Use timestamps or hashes only as change signals. Determine staleness from semantic impact.
+- Update the smallest affected downstream surface. Do not regenerate unrelated content solely because bytes or formatting changed.
+- When implementation reveals that an accepted decision should change, update the owning artifact or route the decision before claiming completion.
 
-## Safety Boundaries
+## Exercise Technical Judgment
 
-- Do not broaden implementation beyond the approved spec.
-- Do not treat autonomous mode as permission to make product, architecture, task-planning, or implementation-scope decisions that the agent has no authority to make.
-- Do not mark a downstream task complete while a blocking upstream ambiguity remains unresolved.
-- You are not alone in the codebase. Do not revert edits made by others; adapt to existing changes.
+- Resolve ordinary, reversible technical choices autonomously from repository evidence and sound engineering judgment.
+- Choose artifact structure, notation, decomposition, sequencing, tools, tests, and review depth according to risk and complexity.
+- Record consequential assumptions and architecturally significant decisions without asking the user to approve routine mechanics.
+- Escalate only decisions that materially change product behavior, scope, public contracts, compatibility, security/privacy, irreversible data state, external cost/authority, or another high-impact trade-off without a defensible default.
+
+## Protect Validation Integrity
+
+- Verify observable outcomes and applicable quality goals with evidence appropriate to risk.
+- Distinguish implementation defects, upstream specification defects, environmental limitations, and non-blocking suggestions.
+- Do not hide skipped checks or convert an unavailable harness into implied evidence.
+- Use independent review when it materially improves confidence; do not require it mechanically for every slice.
+
+## Optional Strict Audit
+
+Use the machine-readable change, finding, and evidence contracts for normal status when they are warranted. Add separate provenance only when the repository already requires it, the user asks for strict auditability, or long-running multi-party work makes semantic provenance difficult to recover. When used, follow `../prompts/manifest.md` and do not duplicate derived status.

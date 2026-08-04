@@ -1,67 +1,32 @@
-# Optional: Hash-Based Drift Tracking via `manifest.json`
+# Optional Semantic Provenance Manifest
 
-This file describes an **optional** enhancement to the drift protocol defined in `../../SKILL.md`. Enable it only when the user explicitly asks for hash-based tracking (typical in long-running, multi-person, or multi-agent work where mtime + user-declared drift is insufficient).
+Use a separate provenance record only when strict auditability or long-running multi-party coordination justifies the maintenance cost. When the current/change model is active, keep it beside the change artifacts and follow `../machine-state.md` for normal status and evidence state.
 
-When disabled, the coordinator and roles rely solely on user declaration + mtime + content sanity.
+## Purpose
 
-## Location
+Record provenance so an agent can determine which accepted inputs informed an artifact or verification result. A digest proves byte-level identity, not semantic freshness.
 
-`docs/spec/<feature-slug>/manifest.json`
+## Suggested Data
 
-## Schema
+Record only what the workflow needs, for example:
 
-```json
-{
-  "version": 1,
-  "steering": {
-    "sha256": "<aggregate-hash-of-docs/steering>",
-    "files": {
-      "docs/steering/<file>.md": "<hash>"
-    }
-  },
-  "artifacts": {
-    "requirement.md": {
-      "sha256": "<hash>",
-      "mtime": "<iso-8601>",
-      "upstream": { "steering": "<aggregate-hash>" }
-    },
-    "design.md": {
-      "sha256": "<hash>",
-      "mtime": "<iso-8601>",
-      "stale": false,
-      "staleReason": "",
-      "upstream": {
-        "steering": "<aggregate-hash>",
-        "requirement.md": "<hash>"
-      }
-    },
-    "tasks.md": {
-      "sha256": "<hash>",
-      "mtime": "<iso-8601>",
-      "stale": false,
-      "staleReason": "",
-      "upstream": {
-        "steering": "<aggregate-hash>",
-        "requirement.md": "<hash>",
-        "design.md": "<hash>"
-      }
-    }
-  }
-}
-```
+- manifest schema version;
+- relevant steering files and digests;
+- artifact digests and modification times;
+- declared upstream dependencies;
+- the semantic decision or evidence item for which provenance is recorded;
+- concise reason that a changed input is or is not semantically relevant.
 
-## Rules
+Preserve unrelated entries written by other tools.
 
-- Compute the `docs/steering` aggregate hash deterministically: concatenate files sorted by path (bytes), then `sha256`.
-- After creating or updating `requirement.md`, update its manifest entry and mark `design.md` / `tasks.md` stale unless they are regenerated against the new hash.
-- After creating or updating `design.md`, record the current `requirement.md` hash under `design.md.upstream.requirement.md`; update `design.md` metadata; mark `tasks.md` stale unless regenerated.
-- After creating or updating `tasks.md`, record the current `requirement.md` and `design.md` hashes under `tasks.md.upstream`.
-- If the steering aggregate hash changes, treat all spec artifacts as stale until reviewed or regenerated against current steering.
-- Mark stale artifacts with `"stale": true` and a concise `staleReason`; clear those fields only after regenerating against current upstream hashes.
-- Before implementation, require `tasks.md.upstream.requirement.md` and `tasks.md.upstream.design.md` to match current hashes. If they do not match, stop implementation and regenerate stale artifacts in pipeline order.
-- If `manifest.json` is missing while the manifest mode is enabled, create it before proceeding and treat existing downstream artifacts as unverified until their upstream hashes are recorded or regenerated.
-- Preserve unrelated manifest entries written by other tools.
+## Semantic Drift Rules
 
-## Cost and Trade-off
+- Use a digest mismatch as a prompt to inspect the change, not as automatic proof that every downstream artifact is stale.
+- Ignore formatting-only or irrelevant changes after recording that they were reviewed.
+- Reconcile the smallest affected downstream surface and update its provenance.
+- Require re-verification when an accepted behavior, public contract, quality goal, significant design decision, or applicable repository constraint changes.
+- If provenance cannot establish which inputs informed an artifact, mark it `review-needed` rather than regenerating blindly.
 
-Manifest mode makes drift judgments authoritative even against pure-formatting edits. The cost is operational noise: re-formatting a steering doc marks every spec artifact stale until cleared. Only enable it when that trade-off is explicitly acceptable to the user.
+## Trade-Off
+
+Provenance tracking improves recovery and auditability but adds noise. Do not duplicate derived change status, open findings, or evidence coverage already represented by `change.json`, `findings.json`, `evidence.json`, and `specctl`. Prefer semantic inspection and normal version control for ordinary single-agent or short-lived work.

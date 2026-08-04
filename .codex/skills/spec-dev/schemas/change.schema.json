@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://j-store.local/spec-dev/change.schema.json",
+  "title": "Spec change metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "kind", "specImpact", "artifacts", "outcomes"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "kind": {"enum": ["feature", "bugfix", "refactor", "tooling", "documentation"]},
+    "specImpact": {"enum": ["delta", "none"]},
+    "specImpactRationale": {"type": "string", "minLength": 1},
+    "currentRefs": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "outcomes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "summary", "operation"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^\\S+$"},
+          "summary": {"type": "string", "minLength": 1},
+          "operation": {"enum": ["added", "modified", "removed", "unchanged"]},
+          "currentOutcomeId": {"type": "string", "pattern": "^\\S+$"},
+          "evidenceRequired": {"type": "boolean"}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"operation": {"enum": ["modified", "removed"]}}},
+            "then": {"required": ["currentOutcomeId"]}
+          }
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"specImpact": {"const": "delta"}}},
+      "then": {
+        "properties": {
+          "artifacts": {"required": ["delta"]},
+          "outcomes": {
+            "contains": {"properties": {"operation": {"enum": ["added", "modified", "removed"]}}, "required": ["operation"]}
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"specImpact": {"const": "none"}}},
+      "then": {
+        "required": ["specImpactRationale"],
+        "properties": {
+          "outcomes": {
+            "items": {"properties": {"operation": {"const": "unchanged"}}, "required": ["operation"]}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcomes": {
+            "contains": {"properties": {"operation": {"enum": ["modified", "removed"]}}, "required": ["operation"]}
+          }
+        }
+      },
+      "then": {
+        "required": ["currentRefs"],
+        "properties": {"currentRefs": {"minItems": 1}}
+      }
+    }
+  ]
+}

@@ -1,49 +1,46 @@
-# Clarification And Upstream Issue Rules
+# Decision And Escalation Rules
 
-Use these rules whenever an unclear, ambiguous, uncertain, stale, contradictory, or incomplete point would affect the current artifact or implementation slice.
+Use these rules only when a decision cannot be resolved safely within the agent's technical authority.
 
-## General Clarification Gate
+## Continue Autonomously When Safe
 
-- Run the relevant clarification gate before writing or finalizing an artifact, and before editing implementation files.
-- Ask only decision-grade questions. Do not ask about details already answered by explicit user instructions, upstream artifacts, steering docs, or existing code.
-- If a detail does not affect the current artifact or implementation outcome, note a conservative assumption only when it helps downstream work.
-- Blocking clarification questions pause the pipeline. Do not finalize the artifact, delegate to the next phase, edit code, mark a task complete, or write a PASS-style review-log entry until the decision is resolved.
-- Clarification gates outrank approval gates and autonomous mode.
+Do not pause for information that can be discovered from the repository, inferred from accepted intent, or decided through a conservative and reversible technical choice.
 
-## Question Format
+For a low-impact ambiguity:
 
-When asking for clarification:
+1. choose a defensible default;
+2. keep the implementation easy to revise;
+3. record the assumption where it helps future work;
+4. continue toward verification.
 
-- Use concise numbered questions, one decision per question.
-- For every question, provide realistic selectable options, normally 2-4 options labeled `A`, `B`, `C`, etc.
-- Mark one option as `推荐` when there is a defensible default, and briefly explain why.
-- State the practical implication of each option so the user can choose without extra research.
-- Include a final catch-all only when useful, such as "也可以给出其他方案，我会据此更新对应产物。"
+## Escalate Decision-Grade Ambiguity
 
-Template:
+Ask the user before proceeding when the choice materially affects:
 
-```markdown
-在继续前，我需要确认以下决策：
+- externally observable behavior, value, or scope;
+- public API, event, schema, or compatibility commitments;
+- authorization, privacy, compliance, tenant isolation, or material security posture;
+- irreversible data changes or destructive operations;
+- material cost, external coordination, credentials, or authority;
+- a trade-off with substantially different business consequences and no supported default.
 
-1. <问题>
-   - A. <选项>（推荐）：<影响/理由>
-   - B. <选项>：<影响>
-   - C. <选项>：<影响>
-```
+Ask the minimum question needed to unblock the decision. State:
 
-## After The User Answers
+- the decision and why it matters;
+- realistic options and their material consequences;
+- the recommended option when evidence supports one;
+- the default that will be used if the user has already authorized autonomous resolution.
 
-- Update the owning artifact in place; do not acknowledge the decision only in chat.
-- If the answer changes an upstream artifact, regenerate every stale downstream artifact.
-- If the user already stated a preference in the current request, earlier chat, or existing artifacts, apply it and record it in the artifact rather than asking again.
+Do not force a fixed multiple-choice format when a concise question or recommendation is clearer.
 
-## Routed Upstream Issues
+## Route Upstream Issues By Ownership
 
-For generator/evaluator-discovered upstream issues, include:
+When implementation or review reveals an upstream defect, identify:
 
-- `Artifact`: `requirement.md`, `design.md`, or `tasks.md`.
-- `Location`: section, requirement number, property, component, task serial, or closest identifiable heading.
-- `Problem`: why this blocks evaluation or implementation.
-- `Options`: realistic selectable fixes, normally 2-4 options labeled `A`, `B`, `C`, etc.
-- `Recommendation`: one option marked `推荐`, with a short reason.
-- `Downstream impact`: which artifacts must be regenerated after the fix.
+- the owning artifact or accepted decision;
+- the affected outcome or verification evidence;
+- why the issue blocks or weakens confidence;
+- the recommended correction;
+- which downstream content must be reconciled.
+
+Update only semantically affected downstream content after the decision is resolved. Do not regenerate the entire pipeline by default.

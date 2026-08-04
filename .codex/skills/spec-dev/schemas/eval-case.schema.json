@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://j-store.local/spec-dev/eval-case.schema.json",
+  "title": "Spec-dev behavioral evaluation case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "prompt", "expectedInvariants", "prohibitedBehaviors", "tags"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "prompt": {"type": "string", "minLength": 1},
+    "fixture": {"type": "string"},
+    "expectedInvariants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+          "statement": {"type": "string", "minLength": 1}
+        }
+      },
+      "minItems": 1
+    },
+    "prohibitedBehaviors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+          "statement": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  }
+}

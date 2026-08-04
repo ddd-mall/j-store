@@ -1,0 +1,15 @@
+{
+  "id": "current-delta-conflict",
+  "prompt": "Use $spec-dev to assess two active changes that both modify ORDER-CANCEL-01 in the current order specification, one allowing reopening and one making cancellation terminal.",
+  "expectedInvariants": [
+    {"id": "current-delta-model", "statement": "The agent treats the current specification as accepted state and each proposal as a delta."},
+    {"id": "conflict-detection", "statement": "The overlapping incompatible modifications are surfaced before either change is declared ready."},
+    {"id": "targeted-decision", "statement": "The agent requests or routes only the product decision needed to resolve the conflict."}
+  ],
+  "prohibitedBehaviors": [
+    {"id": "incompatible-merge", "statement": "Merges both incompatible deltas into current truth."},
+    {"id": "timestamp-choice", "statement": "Uses timestamps or task completion to choose the winning behavior."},
+    {"id": "broad-rewrite", "statement": "Rewrites unrelated current specifications."}
+  ],
+  "tags": ["current-state", "delta", "conflict"]
+}

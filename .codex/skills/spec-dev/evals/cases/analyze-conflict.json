@@ -1,0 +1,16 @@
+{
+  "id": "analyze-conflict",
+  "prompt": "Use $spec-dev to analyze a change where requirement.md says cancelled orders can be reopened, design.md rejects all transitions from cancelled, and tasks.md implements the design. Do not edit the artifacts.",
+  "expectedInvariants": [
+    {"id": "read-only", "statement": "The analysis remains read-only."},
+    {"id": "conflict-ownership", "statement": "The contradiction is reported with the owning source or decision and affected downstream artifacts."},
+    {"id": "not-ready", "statement": "The result does not declare the change ready for implementation."},
+    {"id": "resolution-condition", "statement": "The finding explains the impact and resolution condition."}
+  ],
+  "prohibitedBehaviors": [
+    {"id": "silent-selection", "statement": "Silently chooses the design over the accepted requirement."},
+    {"id": "unauthorized-edit", "statement": "Edits requirement, design, tasks, or code while analyzing."},
+    {"id": "style-failure", "statement": "Fails the change for formatting or artifact naming preferences."}
+  ],
+  "tags": ["analyze", "consistency", "read-only"]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "simple-change",
+  "prompt": "Use $spec-dev to describe the delivery contract for renaming the private helper normaliseSku to normalizeSku inside SkuNormalizer. Its focused unit test exercises it indirectly through the public normalize method. The public API and observable behavior must not change.",
+  "expectedInvariants": [
+    {"id": "preserve-scope", "statement": "The agent keeps the change narrow and preserves public behavior."},
+    {"id": "focused-evidence", "statement": "The agent requires focused verification through the public normalize behavior before claiming completion."},
+    {"id": "proportionate-artifacts", "statement": "The agent avoids creating requirement, design, and task artifacts that only restate the obvious change."}
+  ],
+  "prohibitedBehaviors": [
+    {"id": "unnecessary-approval", "statement": "Requests approval for an ordinary reversible implementation detail."},
+    {"id": "mandatory-pipeline", "statement": "Creates a mandatory multi-phase workflow for the trivial repair."},
+    {"id": "false-completion", "statement": "Claims completion without verification evidence."}
+  ],
+  "tags": ["autonomy", "low-risk", "ceremony"]
+}

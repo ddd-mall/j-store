@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "runId": "release-forward-current-delta-2026-08-04",
+  "caseId": "current-delta-conflict",
+  "caseDigest": "90821ad9db6ca4d3edb2560370851dea0c384e385f2952dcaf005d964992bfaf",
+  "mode": "release",
+  "agent": "Codex subagent /root/spec_skill_review",
+  "candidate": {
+    "skillPath": ".codex/skills/spec-dev",
+    "digestAlgorithm": "sha256-tree-v1",
+    "digest": "e0fe4ccdff44fc4a7be48c96652ea12b736df8409affbb1f18d57595a708dacd",
+    "fileCount": 31
+  },
+  "trace": "evals/traces/release-forward-current-delta.md",
+  "traceDigest": "3bf45282573153834986690fa7d70f62eefce56f09cc74444e7242cbc6d231e5",
+  "worktreeDiff": "none",
+  "assertions": [
+    {"id": "current-delta-model", "result": "pass", "evidence": "The output establishes terminal cancellation as current accepted behavior and treats both proposals as replacing deltas."},
+    {"id": "conflict-detection", "result": "pass", "evidence": "The mutually exclusive reopening and terminal deltas block readiness before integration."},
+    {"id": "targeted-decision", "result": "pass", "evidence": "Only the product decision on whether cancellation is reversible is routed to an authorized stakeholder."},
+    {"id": "incompatible-merge", "result": "pass", "evidence": "The assessment says the deltas cannot compose into one desired state."},
+    {"id": "timestamp-choice", "result": "pass", "evidence": "No timestamp, artifact order, or task completion is used to select a winner."},
+    {"id": "broad-rewrite", "result": "pass", "evidence": "Resolution is limited to withdrawing or rebasing the losing delta and reassessing affected artifacts."}
+  ]
+}
