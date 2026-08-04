@@ -28,6 +28,8 @@ PASS（仓库内范围）。需求、设计、实现和本地验证证据一致�
 
 仓库迁移到私有组织后，首次真实 Actions 运行确认 GitHub CodeQL 与 dependency review 需要未启用的 GitHub Code Security，Gitleaks Action 则对组织仓库要求商业许可证。实现已改为 Semgrep CE、读取 CycloneDX 生产依赖 SBOM 的 OSV Scanner，以及校验固定版本二进制摘要的 Gitleaks CLI；这些替代门禁保留 SAST、传递依赖漏洞和 Git 历史敏感信息扫描能力，不把付费能力或 NVD API Key 缺失误报为代码失败。
 
+Quality Gate 冷缓存运行进一步暴露：未使用的 `seata-all` 通过公共模块的 `api` 配置扩散到所有测试编译类路径，Kotlin daemon 在托管 runner 上长期停留于测试编译。已移除两处未使用依赖，将 Kotlin 编译改为受 Gradle 堆上限控制的进程内执行，并为确定性门禁步骤设置 20 分钟硬超时。
+
 ### 未执行与残余风险
 
 - GitHub Actions 只能在提交到 GitHub 后进行真实执行；本地完成了 YAML 解析和等价质量入口验证。
