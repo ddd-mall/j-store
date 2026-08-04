@@ -22,6 +22,7 @@ dependencies {
     api(libs.seata.all)
 
     api(platform(libs.jackson.bom))
+    api(platform(libs.netty.bom))
     api(libs.jackson.core)
     api(libs.jackson.databind)
     api(libs.jackson.annotations)

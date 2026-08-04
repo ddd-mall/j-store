@@ -48,7 +48,7 @@ SRE 观察并反馈新事项
 2. Python `spec-dev` 合同测试验证规格工具。
 3. Gradle 全量测试验证 Kotlin/Spring 代码。
 
-GitHub Actions 另外运行 CodeQL、依赖审查和 Gitleaks。AI 审查只能增加发现，不能替代这些门禁。
+GitHub Actions 另外运行 Semgrep CE、读取 CycloneDX 生产依赖 SBOM 的 OSV Scanner，以及经过 SHA-256 校验的 Gitleaks CLI。三项扫描都必须能在私有组织仓库的基础 Actions 能力上运行，不依赖 GitHub Code Security、NVD API Key 或商业扫描许可证。AI 审查只能增加发现，不能替代这些门禁。
 
 ## 凭据策略
 

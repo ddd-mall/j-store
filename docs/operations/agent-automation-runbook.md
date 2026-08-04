@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 每个工作日 | Maintenance Orchestrator | 分诊新 issue、失败 CI 和 Dependabot PR，去重并路由 | issue 评论、任务状态，不改业务代码 |
 | 每周 | Product Steward | 抽查活跃规格与最近合并变更的验收覆盖和术语漂移 | drift report 或 issue |
-| 每周 | Security & Supply-chain | 汇总 CodeQL、依赖审查、Gitleaks 和预发布依赖 | 风险报告、独立修复 PR |
+| 每周 | Security & Supply-chain | 汇总 Semgrep、OSV Scanner、Gitleaks 和预发布依赖 | 风险报告、独立修复 PR |
 | 每周 | Quality Gate | 分析定时全量测试失败，归类环境/实现/规格问题 | 失败报告，不修改候选 |
 | 每次发布候选 | Release & Migration | 核对版本、迁移、兼容性、回滚和观察窗口 | 发布检查单，不执行发布 |
 | 告警触发 | SRE / Incident | 对脱敏运行信号形成时间线、影响和处置建议 | incident issue，不写生产 |
@@ -33,7 +33,7 @@ deduplicate existing issues/PRs, and stop when human approval is required.
 
 ## 外部启用检查单
 
-1. 在 GitHub 启用 branch protection/ruleset，并把 `Quality Gate / quality`、CodeQL、dependency review、secret scan 设为 required checks。
+1. 在 GitHub 启用 branch protection/ruleset，并把 `Quality Gate / quality`、`Security Gate / static-analysis`、`Security Gate / dependency-vulnerability-scan`、`Security Gate / secret-scan` 设为 required checks。
 2. 要求 CODEOWNERS 审查，禁止 force push 和直接提交主分支。
 3. 为调度器使用最小权限 GitHub App；默认只授予 contents read、issues write、pull requests write。
 4. 不向 agent 提供生产密钥；运行信号必须先脱敏。

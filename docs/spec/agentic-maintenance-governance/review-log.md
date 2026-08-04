@@ -14,7 +14,7 @@ PASS（仓库内范围）。需求、设计、实现和本地验证证据一致�
 | Agent 职责分离 | PASS | 六个 `.codex/agents/*.toml`；合同测试验证全部加载权威治理文档 |
 | 确定性质量门禁 | PASS | `./scripts/quality-gate.sh` 退出码 0；规格测试 28 个、治理测试 2 个通过，Gradle build successful |
 | 凭据与本地配置 | PASS | 已知密码、JWT 值和私网地址不再存在于当前工作树；`.env` 被忽略，示例只含占位值 |
-| CI 与供应链 | PASS（静态） | workflow/dependabot YAML 可解析；CodeQL、依赖审查、Gitleaks 和依赖 PR 已配置 |
+| CI 与供应链 | PASS（静态） | workflow/dependabot YAML 可解析；Semgrep CE、OSV Scanner、Gitleaks CLI 和依赖 PR 已配置 |
 | 兼容性 | PASS | 文档和 Docker 运行时与 Kotlin 2.3、Java 25、Spring Boot 3.5.16 构建一致 |
 
 ### 审查中修复的问题
@@ -23,6 +23,10 @@ PASS（仓库内范围）。需求、设计、实现和本地验证证据一致�
 2. uv 默认缓存目录被沙箱禁止写入。已改用任务专用临时缓存目录。
 3. Docker 运行时仍为 Java 21，而构建 toolchain 是 Java 25。已升级到 Corretto 25 并加入治理检查。
 4. dependency review 需要 PR 写权限才能发布摘要。已将权限只添加到该 job。
+
+## 2026-08-04 首次云端执行修复
+
+仓库迁移到私有组织后，首次真实 Actions 运行确认 GitHub CodeQL 与 dependency review 需要未启用的 GitHub Code Security，Gitleaks Action 则对组织仓库要求商业许可证。实现已改为 Semgrep CE、读取 CycloneDX 生产依赖 SBOM 的 OSV Scanner，以及校验固定版本二进制摘要的 Gitleaks CLI；这些替代门禁保留 SAST、传递依赖漏洞和 Git 历史敏感信息扫描能力，不把付费能力或 NVD API Key 缺失误报为代码失败。
 
 ### 未执行与残余风险
 
