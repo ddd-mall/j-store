@@ -35,18 +35,20 @@ dependencies {
     implementation(project(":j-store-goods-infrastructure"))
     implementation(project(":j-store-user"))
     implementation(project(":j-store-user-infrastructure"))
+    implementation(project(":j-store-shop"))
+    implementation(project(":j-store-shop-infrastructure"))
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-common-spring"))
     implementation(project(":j-store-authentication-spring-sdk"))
     implementation(project(":j-store-accounting"))
     implementation(project(":j-store-accounting-infrastructure"))
 
-//    implementation(platform(libs.spring.cloud.dependencies))
-//    implementation(libs.spring.cloud.loadbalancer)
+    //    implementation(platform(libs.spring.cloud.dependencies))
+    //    implementation(libs.spring.cloud.loadbalancer)
 
-//    implementation(platform(libs.spring.cloud.alibaba.dependencies))
-//    implementation(libs.spring.cloud.starter.alibaba.nacos.discovery)
-//    implementation(libs.spring.cloud.starter.alibaba.nacos.config)
+    //    implementation(platform(libs.spring.cloud.alibaba.dependencies))
+    //    implementation(libs.spring.cloud.starter.alibaba.nacos.discovery)
+    //    implementation(libs.spring.cloud.starter.alibaba.nacos.config)
 
     implementation(libs.spring.data.redis)
     implementation(libs.spring.boot.starter.data.redis)
@@ -87,7 +89,6 @@ tasks.test {
 tasks.withType<Tar> {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-
 
 kapt {
     keepJavacAnnotationProcessors = true
