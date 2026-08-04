@@ -1,111 +1,51 @@
-# Tasker Reference
+# Task Decomposition Capability
 
-## Role
+## Outcome
 
-Convert `design.md` into a structured, detailed, executable `tasks.md`, then wait for user confirmation before implementation.
+Create an implementation plan that exposes dependencies, reduces risk, and lets each meaningful slice be completed and verified without losing feature-level coherence.
 
-## Loop Contract
+Use `docs/spec/<feature-slug>/tasks.md` when written decomposition improves coordination, recovery, review, or execution. Keep a simple change in a concise plan or proceed directly when a separate task artifact would be redundant.
 
-1. Receive the spec directory containing `requirement.md` and `design.md`.
-2. Break `design.md` into independently achievable implementation, validation, and checkpoint tasks.
-3. Write or update `tasks.md` in the same spec directory.
-4. Ask the user to confirm the task list.
-5. If the user accepts, stop and report the `tasks.md` path. If the user clarifies tasks, update `tasks.md` in place and repeat.
+## Task Contract
 
-## Pipeline And Drift
+Each executable task SHOULD communicate:
 
-- Pipeline order is `spec_planner -> spec_designer -> spec_tasker`.
-- If the user requests changes that affect design or requirements, pause and ask for `spec_designer`, and `spec_planner` if needed, to update upstream documents first.
-- Before drafting, compare current `requirement.md` and `design.md` mtimes against `tasks.md` if present and trust user-declared upstream changes.
-- If manifest mode is enabled, compare current `requirement.md`, `design.md`, and `docs/steering` hashes; hash mismatch is authoritative drift.
+- the outcome or behavior it advances;
+- relevant dependencies or prerequisites;
+- the accepted requirements, design decisions, or risks it covers;
+- completion evidence or verification expectations;
+- any material compatibility, migration, rollout, or rollback concern.
 
-## Output Path
+Include concrete paths, symbols, commands, or code details when they make execution more reliable, not as mandatory decoration. Allow the implementing agent to refine local mechanics while preserving the task outcome.
 
-- Read `docs/spec/<feature-slug>/requirement.md` and `design.md`.
-- Write `docs/spec/<feature-slug>/tasks.md`.
-- If manifest mode is enabled, record `tasks.md` sha256/mtime and upstream hashes for `requirement.md`, `design.md`, and `docs/steering`.
+## Decomposition Strategy
 
-## Tasker Clarification Gate
+Choose task boundaries and order from the work itself. Valid strategies include vertical user-value slices, dependency order, risk-first exploration, contract-first work, migration sequencing, or repository-defined layers.
 
-Before drafting implementation tasks, scan after reading upstream artifacts and inspecting code. If any unclear, ambiguous, or uncertain point would affect task ordering, task granularity, file paths, class/type/function signatures, validation tasks, checkpoint commands, migration/backfill sequencing, optional-vs-required task status, or whether a task belongs in scope, ask for clarification using `clarification.md`.
+Prefer slices that are:
 
-If the ambiguity means `requirement.md` or `design.md` is incomplete or contradictory, say which upstream artifact must change and ask for that decision before producing final tasks.
+- coherent and independently reviewable;
+- small enough to reason about and verify;
+- large enough to deliver meaningful progress;
+- safe to revise or roll back;
+- explicit about interactions with other slices.
 
-## Required Structure
+Do not enforce universal file-count, line-count, task-count, checkpoint-frequency, or layer-order thresholds. Split when complexity, reviewability, context, ownership, or risk warrants it.
 
-Use section names translated into the document's language:
+Sequence schema and data changes according to compatibility, deployability, rollback, and repository migration practices. Do not assume that DDL always comes first or backfill always comes last.
 
-```markdown
-# 实现计划：<Feature / Initiative Name>
+## Validation Planning
 
-## 概述
+Plan evidence at the level where a failure could occur. Component tests may accompany a slice, while contract, integration, end-to-end, migration, security, or performance verification may span several slices.
 
-## Tasks
+Ensure every accepted outcome and selected quality goal has an evidence path. Do not duplicate tests merely to mirror the task hierarchy.
 
-## 备注
-```
+## Adaptive Planning
 
-## Task Format
+Treat the plan as a maintained decision aid, not an immutable command list. The implementing agent MAY reorder, merge, split, or refine tasks when discoveries make the change safer or simpler. Reconcile material scope, contract, or verification changes with upstream artifacts.
 
-Organize tasks into numbered checkbox groups and nested sub-tasks. Each group is a cohesive unit such as a layer, module, or feature slice.
+Use `clarification.md` only when a planning decision exceeds technical authority. Otherwise choose a defensible plan and record consequential assumptions.
 
-Implementation task format:
+## Readiness Evidence
 
-```markdown
-- [ ] <N.M> 创建/实现/修改 <component>
-  - 在 `<file path>` 中创建/修改
-  - <class/type names, method signatures, fields, annotations, behavioral logic>
-  - <expected outcome or acceptance criteria>
-  - _需求: <requirement serial numbers>_
-```
-
-Validation task format:
-
-```markdown
-- [ ] <N.M> 编写 <Component> 测试
-  - 在 `<test file path>` 中创建
-  - <specific scenarios using the project's actual test framework>
-  - **验证: 需求 <requirement serial numbers>**
-```
-
-Checkpoint task format:
-
-```markdown
-- [ ] <N>. 检查点 — <checkpoint description>
-  - 使用项目自身的编译/测试命令验证；如有问题请向用户确认。
-  - 运行项目中的全部测试用例，并要求全部通过。
-```
-
-Optional task format:
-
-```markdown
-- [ ]* <N.M> <Optional task description>
-```
-
-## Ordering And Granularity
-
-- DDL scripts come first before domain work; data backfill scripts come last after the feature is implemented and deployable.
-- Between those buckets, prefer bottom-up, inside-out order: domain -> application service -> infrastructure -> interface/controller, or the equivalent layering the repository uses.
-- Place validation tasks immediately after the implementation task they validate.
-- Insert a `检查点` checkpoint after every 10 non-checkpoint executable tasks and after the final non-checkpoint task. Do not count checkpoint tasks themselves.
-- Each checkpoint must require running the project's complete test suite and passing all tests, using commands discovered from steering/code.
-- A single leaf sub-task should touch no more than about 5 production files or 200 changed lines. Split larger work.
-
-## Traceability
-
-- Every sub-task must include concrete relative file paths.
-- Every implementation sub-task must include class/type names, method signatures, fields, annotations, expected behavior, and exact code-level details from `design.md`.
-- Every validation sub-task must reference the related Property number or requirement.
-- Every sub-task must end with `_需求: <exact requirement serial numbers>_` or `**验证: 需求 <exact requirement serial numbers>**`.
-
-## Quality Self-Check
-
-- Every design component has implementation coverage.
-- Every correctness property has a validation task.
-- Every task is specific, actionable, and independently achievable.
-- Tasks are ordered by dependency and architecture layer.
-- Checkpoints appear at the required interval and after the final executable task.
-- Paths, packages, class/type names, signatures, and annotations match `design.md` and the codebase.
-- Migration tasks target the SQL / DDL directory mandated by steering docs.
-- Traceability to `requirement.md` is complete.
-- No task-affecting ambiguity remains unresolved or hidden as an assumption.
+The task outcome is ready when implementation can begin with clear next steps, dependencies, completion evidence, and feature-level coverage. User approval is required only when requested or when the plan exposes an escalation-grade decision.

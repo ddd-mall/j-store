@@ -1,60 +1,47 @@
-# Orchestrator Reference
+# Adaptive Coordination Reference
 
-Canonical rules live in `../../SKILL.md`. Use this reference for **cold/mid-pipeline resume**, **drift detection commands**, and **handoff/completion checklists**.
+Use this reference when resuming existing specification work, coordinating specialized roles, or preparing the final handoff. The canonical outcome and autonomy rules live in `../../SKILL.md`.
 
-Work only in `docs/spec/` and the repo root; never touch `/etc`, `~/.ssh`, or `.git/`.
+## Resume Existing Work
 
-## 1. Resume Checklist
+Establish the current state from:
 
-```bash
-# Locate the target spec directory; ask the user if multiple slugs plausibly match.
-ls -la docs/spec/
+- the latest user intent and accepted decisions;
+- relevant current specifications, active change deltas, or legacy files under `docs/spec/`;
+- affected code, tests, and repository guidance;
+- current working-tree changes and available verification evidence.
 
-# For the chosen slug, list artifacts and their mtimes.
-ls -la docs/spec/<feature-slug>/
+Determine semantic gaps rather than routing solely by which file exists. When `change.json` is present, use `specctl status` or `validate` for deterministic state without mistaking it for semantic completion. Continue with the capability that closes the highest-value gap: intent clarification, analysis, design, planning, implementation, convergence, or verification. Work directly when delegation would not improve quality or independence.
 
-# Confirm migration artifacts (if any) live in the directory mandated by docs/steering/.
-```
+## Detect And Reconcile Drift
 
-Then route per the state table in `SKILL.md` (`Subagents And Phase Routing`).
+Treat user-declared edits, content differences, timestamps, and hashes as signals to inspect. Classify the change:
 
-## 2. Upstream Drift Detection
+- **No semantic impact:** formatting, wording, or unrelated guidance; preserve downstream work.
+- **Localized impact:** update affected decisions, tasks, code, or tests only.
+- **Material intent or contract impact:** reconcile all affected downstream behavior and evidence before implementation continues or completion is claimed.
 
-Downstream artifacts (`design.md`, `tasks.md`) must be regenerated when upstream changes:
+Record significant reconciliation decisions. Do not equate a newer timestamp with stale content.
 
-1. **User-declared** — user says they edited `requirement.md` or `design.md`.
-2. **Mtime** — upstream newer than downstream:
+## Coordinate Reviews
 
-   ```bash
-   stat -c '%Y %n' docs/spec/<feature-slug>/requirement.md docs/spec/<feature-slug>/design.md docs/spec/<feature-slug>/tasks.md
-   ```
+Choose review scope from risk:
 
-   `requirement.md` newer than `design.md` → re-run designer + tasker.
-   `design.md` newer than `tasks.md` → re-run tasker.
-3. **Content** — downstream references a class/field/criterion that no longer exists upstream.
+- use self-review and final verification for routine low-risk work;
+- use an independent evaluator for broad, uncertain, security-sensitive, compatibility-sensitive, concurrent, migration, or public-contract changes;
+- review the integrated feature when interactions across slices may fail even though individual slices pass.
 
-On drift, **pause before delegating to `spec-generator`** — generating against stale tasks wastes work.
+On a blocking finding, correct the owning source and re-evaluate the affected scope. Escalate when the decision exceeds agent authority or meaningful safe progress is no longer possible; do not rely on a fixed retry count.
 
-## 3. Handoff Checklist (before pausing or completing a phase)
+## Final Handoff
 
 Report:
 
-- target spec directory (`docs/spec/<feature-slug>/`)
-- artifacts created or revised this turn
-- subagent invoked
-- next phase and whether user approval is required (approval is the default; autonomous only when opted in)
-- blockers, failed evaluations, upstream inconsistencies
-- for `spec-generator` slices: whether `review-log.md` was appended
+- delivered observable behavior and scope;
+- material artifacts and changed paths;
+- significant design decisions and assumptions;
+- verification commands or other evidence and their results;
+- acceptance and quality-goal coverage;
+- skipped checks, deviations, residual risks, and follow-ups.
 
-## 4. Completion Checklist (all tasks checked, last verdict PASS)
-
-- Write/update `docs/spec/<feature-slug>/summary.md`: feature slug, final artifact list, notable design decisions, test coverage summary, known follow-ups.
-- Leave `review-log.md` in place as the audit trail.
-- Announce completion; do not invoke another subagent by default.
-
-## 5. General Rules
-
-- Communicate and write artifacts in the user's language; fall back to the latest user message and existing repo docs when unspecified.
-- Never fabricate a subagent name. Use only the five defined in `.claude/agents/`.
-- Inspect relevant code before delegation so the subagent receives repository-specific context.
-- Stack-agnostic: sub-agents resolve language, framework, error model, test framework, and SQL/migration directory from `docs/steering/` plus the codebase.
+Write or update `summary.md` when the feature is substantial, the repository expects a durable handoff, or the user requests one. A summary does not replace feature-level evidence.

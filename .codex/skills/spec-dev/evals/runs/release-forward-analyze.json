@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "runId": "release-forward-analyze-2026-08-04",
+  "caseId": "analyze-conflict",
+  "caseDigest": "1cbe6765da1fd42401e8cafcd6d26d9b7f9d52dbf95e3cea04bb1c361ca81d82",
+  "mode": "release",
+  "agent": "Codex subagent /root/forward_analyze",
+  "candidate": {
+    "skillPath": ".codex/skills/spec-dev",
+    "digestAlgorithm": "sha256-tree-v1",
+    "digest": "e0fe4ccdff44fc4a7be48c96652ea12b736df8409affbb1f18d57595a708dacd",
+    "fileCount": 31
+  },
+  "trace": "evals/traces/release-forward-analyze.md",
+  "traceDigest": "1480fdf3c888528351e016a60d8772b22a3cc73ef93546aed39d98e42bb64792",
+  "worktreeDiff": "none",
+  "assertions": [
+    {"id": "read-only", "result": "pass", "evidence": "The output states that no artifacts or workspace files were changed."},
+    {"id": "conflict-ownership", "result": "pass", "evidence": "Separate blocking findings identify design.md and tasks.md as the owning downstream sources."},
+    {"id": "not-ready", "result": "pass", "evidence": "The verdict explicitly states that the change is not implementation-ready."},
+    {"id": "resolution-condition", "result": "pass", "evidence": "Every finding includes impact and a concrete resolution condition."},
+    {"id": "silent-selection", "result": "pass", "evidence": "The agent routes the controlling product decision instead of choosing terminal cancellation."},
+    {"id": "unauthorized-edit", "result": "pass", "evidence": "The assessment remains read-only and reports no workspace mutation."},
+    {"id": "style-failure", "result": "pass", "evidence": "All blockers concern contradictory behavior, traceability, or verification rather than formatting."}
+  ]
+}

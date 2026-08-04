@@ -1,70 +1,56 @@
-# Generator Reference
+# Implementation Capability
 
-## Role
+## Outcome
 
-Implement pending tasks from `tasks.md` one at a time, using `requirement.md` and `design.md` as the source of truth, and keep each slice auditable.
+Produce a working change that satisfies accepted behavior, significant design decisions, applicable repository constraints, and selected quality goals, with evidence proportionate to risk.
 
-## Startup And Drift
+## Establish Readiness
 
-- Read and parse `requirement.md`, `design.md`, and `tasks.md` from the same spec directory.
-- If manifest mode is enabled, also read `docs/spec/<feature-slug>/manifest.json`.
-- Stop and ask for the correct path if any required artifact is missing.
-- Before selecting a task, trust user-declared upstream changes and compare mtimes across artifacts.
-- If manifest mode is enabled, verify `tasks.md.upstream` hashes match current `requirement.md`, `design.md`, and `docs/steering`; hash mismatch is authoritative drift.
-- If drift is detected, stop and require regeneration in pipeline order before implementation.
+Before changing code, understand the relevant intent, constraints, current implementation, and verification expectations. Use existing `requirement.md`, `design.md`, and `tasks.md` when present, but do not treat an artifact as authoritative when it visibly conflicts with a later accepted decision.
 
-## Implementation Readiness Gate
+Resolve low-risk implementation gaps autonomously. Use `clarification.md` only for decisions that cross the escalation threshold. If upstream content is materially inconsistent, correct or route the owning decision and reconcile affected downstream work.
 
-Before editing files for a task, verify that the related artifacts and current codebase give enough information to implement the slice without guessing.
+## Implement Adaptively
 
-If any unclear, ambiguous, uncertain, contradictory, or stale point would affect implementation scope, file paths, class/type/function signatures, layer boundaries, data mappings, error behavior, test strategy, migration placement, or focused checks, pause before editing and surface the blocker using `clarification.md`.
+- Choose coherent slices, order, tools, and local code structure according to the repository and task risk.
+- Preserve unrelated user and concurrent changes.
+- Keep public contracts, domain behavior, data semantics, error behavior, and security boundaries consistent with accepted decisions.
+- Add small enabling changes when necessary and low-risk; report them. Escalate material scope expansion.
+- Update the plan or design when discoveries change significant decisions, rather than forcing code to follow a stale mechanical instruction.
 
-When surfacing a blocker, identify the exact task serial number, the conflicting or missing source of truth, the owning artifact, selectable options, recommendation, and downstream regeneration impact. Do not implement, mark the checkbox, or append a PASS-style review-log entry until resolved.
+Task checkboxes MAY track progress, but mark a task complete only when its intended outcome and completion evidence are satisfied. Do not require an independent evaluator for every code or test edit.
 
-## Main Loop
+## Verify The Change
 
-1. Pick the next unchecked eligible task from `tasks.md` in order.
-2. Respect dependencies.
-3. Identify requirement serial numbers from `_需求:` or `**验证: 需求 ...**`.
-4. Read the full matching requirements, acceptance criteria, design sections, component signatures, data model, correctness properties, error handling, and testing strategy.
-5. Run the implementation readiness gate.
-6. Implement only the current task's scope.
-7. For implementation tasks, create/modify production source code.
-8. For validation tasks, create the specified tests using `design.md` and the repository's test framework.
-9. Run focused checks that fit the change. Focused checks are narrowly scoped tests that do not boot heavyweight infrastructure; note larger checks as skipped with reason when appropriate.
-10. Run evaluator review only when the slice adds/modifies production source/configuration or test files. Skip review for documentation, comments, rename-only refactors, or metadata-only slices; mark the checkbox directly, append a one-line `review-log.md` note, and proceed.
-11. If direct evaluator delegation is supported, invoke `spec_evaluator` with the Evaluation Request. Otherwise emit the request and pause for review.
-12. On PASS, update only the current checkbox from `- [ ]` to `- [x]`, append the PASS entry, then proceed.
-13. On FAIL from implementation defects, append the FAIL entry, fix, and re-review. On FAIL from upstream issues, stop and route to the owning artifact. After three consecutive FAILs on one task, stop and ask the user.
+Choose focused and broad checks based on where defects could escape:
 
-## Review Log
+- focused tests for local behavior;
+- contract or integration tests for boundaries;
+- end-to-end scenarios for user-visible flows;
+- migration and compatibility checks for data or public contracts;
+- security, concurrency, performance, or recovery checks when those risks are material;
+- build, static analysis, formatting, or manual inspection as relevant.
 
-- Maintain `docs/spec/<feature-slug>/review-log.md` as append-only history.
-- For every evaluator invocation, record task serial, attempt number, verdict, blocking issue summary, and what changed before re-review.
-- For skipped evaluator slices, record one line noting the task and why review was skipped.
+Do not silently skip necessary evidence because a harness is heavyweight or unavailable. Attempt an equivalent safe check when possible. Otherwise classify and report the limitation; treat it as blocking when confidence in an accepted outcome would be materially insufficient.
 
-## Evaluation Request Shape
+Perform feature-level verification after integrated behavior exists. Slice-level success cannot prove cross-slice correctness by itself.
 
-```markdown
-## Evaluation Request
+## Review Strategy
 
-### Task
-<task serial number and description from tasks.md>
+Use self-review for every change. Invoke an independent evaluator when breadth, uncertainty, risk, or user instruction warrants separation of context. Review the integrated feature as well as individual slices when interactions matter.
 
-### Requirements
-<full text of the corresponding requirement(s) from requirement.md>
+On a blocking finding, fix the owning cause and re-verify affected behavior. Escalate when the decision exceeds authority or meaningful safe progress is no longer possible; do not stop merely because a fixed retry count was reached.
 
-### Design
-<relevant design sections from design.md, including applicable component signatures, data model details, error handling, testing strategy, and correctness properties>
+Maintain `review-log.md` only when the feature already uses it, strict audit is requested, or repeated independent review needs a durable history.
 
-### Generated Code
-<complete generated or modified code for this task, or a precise file/path summary plus enough code excerpts for review>
-```
+## Completion Evidence
 
-## Output And Logging
+Report:
 
-- Preserve unrelated user changes.
-- Do not modify unrelated tasks, headings, notes, or formatting.
-- Keep optional task markers intact.
-- For each completed task, report changed paths and a one-line behavior summary.
-- At the end, list completed tasks, skipped tasks, blocked tasks, and verification commands run.
+- observable behavior delivered;
+- material changed paths and enabling changes;
+- acceptance and quality-goal evidence;
+- verification commands and results;
+- skipped checks, deviations, assumptions, residual risks, and follow-ups.
+
+Do not claim completion until the skill's feature-level Definition of Done is satisfied.
