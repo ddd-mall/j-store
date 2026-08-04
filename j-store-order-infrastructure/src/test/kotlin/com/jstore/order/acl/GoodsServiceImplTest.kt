@@ -18,6 +18,7 @@ class GoodsServiceImplTest : FunSpec({
                 return listOf(
                     GoodsSnapshotInfo(
                         spuId = 1001L,
+                        merchantId = 7L,
                         snapshotVersion = 7L,
                         spuName = "Phone",
                         skuSnapshots = listOf(
@@ -47,6 +48,7 @@ class GoodsServiceImplTest : FunSpec({
         result shouldContainExactly listOf(
             GoodsInfo(
                 id = GoodsId(spuId = 1001L, skuId = 2001L),
+                merchantId = 7L,
                 snapshotVersion = 7L,
                 spuName = "Phone",
                 skuName = "Black 128G",
@@ -55,6 +57,7 @@ class GoodsServiceImplTest : FunSpec({
             ),
             GoodsInfo(
                 id = GoodsId(spuId = 1001L, skuId = 2001L),
+                merchantId = 7L,
                 snapshotVersion = 7L,
                 spuName = "Phone",
                 skuName = "Black 128G",

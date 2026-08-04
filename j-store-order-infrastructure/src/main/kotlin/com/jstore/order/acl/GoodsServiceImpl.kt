@@ -17,6 +17,7 @@ class GoodsServiceImpl(
                 ?: return@mapNotNull null
             GoodsInfo(
                 id = gid,
+                merchantId = snapshot.merchantId,
                 snapshotVersion = snapshot.snapshotVersion,
                 spuName = snapshot.spuName,
                 skuName = skuSnapshot.skuName,

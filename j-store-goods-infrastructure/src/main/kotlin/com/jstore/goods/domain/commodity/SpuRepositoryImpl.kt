@@ -39,6 +39,7 @@ class SpuRepositoryImpl(
         fun toPO(spu: Spu): SpuPO {
             return SpuPO(
                 id = spu.id.value,
+                merchantId = spu.merchantId.value,
                 name = spu.name,
                 description = spu.description,
                 status = spu.status,
@@ -63,6 +64,7 @@ class SpuRepositoryImpl(
         fun toDomain(po: SpuPO): Spu {
             return SpuImpl(
                 id = SpuId(po.id),
+                merchantId = MerchantId(po.merchantId),
                 name = po.name,
                 description = po.description,
                 _status = po.status,

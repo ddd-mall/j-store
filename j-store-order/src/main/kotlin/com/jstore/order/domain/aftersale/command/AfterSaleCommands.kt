@@ -24,4 +24,6 @@ data class AfterSaleCreateCMD(val orderId: OrderId, val applicantId: ApplicantAc
 data class AfterSaleApproveCMD(val afterSaleId: AfterSaleId, val merchantId: MerchantActorId, val idempotencyKey: String) { fun validate() = validateKey(this, idempotencyKey) }
 data class AfterSaleRejectCMD(val afterSaleId: AfterSaleId, val merchantId: MerchantActorId, val rejectionReason: String, val idempotencyKey: String) { fun validate(): Result<AfterSaleRejectCMD, BusinessError> = if (rejectionReason.trim().length !in 1..500) Failure(AfterSaleErrors.REJECTION_REASON_INVALID) else validateKey(this, idempotencyKey) }
 data class AfterSaleCancelCMD(val afterSaleId: AfterSaleId, val applicantId: ApplicantActorId, val idempotencyKey: String) { fun validate() = validateKey(this, idempotencyKey) }
+data class AfterSaleReceiveReturnCMD(val afterSaleId: AfterSaleId, val merchantId: MerchantActorId)
+data class AfterSaleRetryRefundCMD(val afterSaleId: AfterSaleId, val merchantId: MerchantActorId)
 private fun <T> validateKey(value: T, key: String): Result<T, BusinessError> = if (key.trim().length in 1..128) Success(value) else Failure(AfterSaleErrors.IDEMPOTENCY_KEY_INVALID)

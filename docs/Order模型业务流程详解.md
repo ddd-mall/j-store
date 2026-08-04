@@ -296,3 +296,6 @@ flowchart LR
 | `requestRefund` | `OrderRequestRefundCMD` | 买家操作 | `OrderRefundRequestedEvent` |
 | `approveRefund` | `OrderApproveRefundCMD` | 卖家操作 | `OrderRefundApprovedEvent` |
 | `rejectRefund` | `OrderRejectRefundCMD` | 卖家操作 | `OrderRefundRejectedEvent` |
+# 历史文档（已废弃）
+
+本文描述的是订单聚合直接执行支付与履约的旧模型，自 `order-domain-boundary-refactor` 起不再作为实现依据。当前模型、事件流和 API 请以 [变更设计](spec/changes/order-domain-boundary-refactor/design.md) 与 [交付总结](spec/changes/order-domain-boundary-refactor/summary.md) 为准。

@@ -17,6 +17,8 @@ class SpuSnapshotId(override val value: Long) : Id<Long>(value)
  */
 data class SpuSnapshot(
     override val id: SpuSnapshotId,
+    /** 商品所属商户 */
+    val merchantId: MerchantId,
     /** 原始 SPU ID */
     val spuId: SpuId,
     /** 快照版本号（与 SPU.version 对应） */

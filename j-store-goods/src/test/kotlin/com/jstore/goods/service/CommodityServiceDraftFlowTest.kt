@@ -174,6 +174,7 @@ class CommodityServiceDraftFlowTest : FunSpec({
         val draft = createDraftSpu()
         val snapshot = SpuSnapshot(
             id = SpuSnapshotId(999L),
+            merchantId = MerchantId(1),
             spuId = sourceSpuId,
             snapshotVersion = 6L,
             spuName = draft.name,
@@ -263,6 +264,7 @@ class CommodityServiceDraftFlowTest : FunSpec({
     test("createOrUpdate - ON_SALE 商品直接编辑被拦截") {
         val cmd = CommodityCreateCmd(
             spuId = sourceSpuId,
+            merchantId = 1,
             spuName = "新名称",
             description = "新描述",
         )
@@ -280,6 +282,7 @@ class CommodityServiceDraftFlowTest : FunSpec({
     test("createOrUpdate - DRAFT 商品允许直接编辑") {
         val cmd = CommodityCreateCmd(
             spuId = sourceSpuId,
+            merchantId = 1,
             spuName = "更新名称",
             description = "更新描述",
         )
@@ -310,6 +313,7 @@ class CommodityServiceDraftFlowTest : FunSpec({
     test("createOrUpdate - OFF_SALE 商品允许直接编辑") {
         val cmd = CommodityCreateCmd(
             spuId = sourceSpuId,
+            merchantId = 1,
             spuName = "更新名称",
             description = "更新描述",
         )

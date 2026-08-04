@@ -25,10 +25,13 @@ class AfterSalePORoundTripTest {
         val now = LocalDateTime.of(2026, 8, 3, 10, 0)
         val goods = GoodsSnapshot(91, 81, "商品", "红色")
         val source = AfterSaleImpl(
-            AfterSaleId(1), OrderId(2), ApplicantActorId(3), MerchantActorId(4), AfterSaleStatus.REJECTED,
-            RefundReason(RefundCategory.OTHER, "不合适"), FulfillmentSnapshot(FulfillmentStatus.DELIVERED, true),
-            listOf(AfterSaleItemImpl(AfterSaleItemId(5), OrderId(2), OrderItemId(6), 2, Price.ofFen(120), "CNY", RefundEligibilitySnapshot(OrderItemId(6), 3, Price.ofFen(200), "CNY", goods))),
-            ReviewDecision(MerchantActorId(4), now, "已使用"), null, now.minusDays(1), now, 7, LinkedList()
+            id = AfterSaleId(1), orderId = OrderId(2), applicantId = ApplicantActorId(3),
+            merchantId = MerchantActorId(4), _status = AfterSaleStatus.REJECTED,
+            reason = RefundReason(RefundCategory.OTHER, "不合适"),
+            fulfillmentSnapshot = FulfillmentSnapshot(FulfillmentStatus.DELIVERED, true),
+            items = listOf(AfterSaleItemImpl(AfterSaleItemId(5), OrderId(2), OrderItemId(6), 2, Price.ofFen(120), "CNY", RefundEligibilitySnapshot(OrderItemId(6), 3, Price.ofFen(200), "CNY", goods))),
+            _reviewDecision = ReviewDecision(MerchantActorId(4), now, "已使用"),
+            createTime = now.minusDays(1), _updateTime = now, version = 7, domainEventQueue = LinkedList()
         )
 
         val restored = repository.toDomain(repository.toPO(source))

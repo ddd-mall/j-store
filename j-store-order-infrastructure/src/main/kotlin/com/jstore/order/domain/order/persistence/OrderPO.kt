@@ -30,6 +30,9 @@ class OrderPO(
     @Column(name = "id")
     var id: Long = 0,
 
+    @Column(name = "merchant_id", nullable = false)
+    var merchantId: Long = 0,
+
     @Column(name = "buyer_uid", nullable = false)
     var buyerUid: Long = 0,
 
@@ -55,18 +58,39 @@ class OrderPO(
     @Column(name = "fulfillment_status", nullable = false, length = 32)
     var fulfillmentStatus: FulfillmentStatus = FulfillmentStatus.UNFULFILLED,
 
-    @Column(name = "total_refunded_amount", nullable = false, precision = 19, scale = 0)
-    var totalRefundedAmount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "currency", nullable = false, length = 3)
+    var currency: String = "CNY",
+
+    @Column(name = "items_subtotal", nullable = false, precision = 19, scale = 0)
+    var itemsSubtotal: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "discount_amount", nullable = false, precision = 19, scale = 0)
+    var discountAmount: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "shipping_amount", nullable = false, precision = 19, scale = 0)
+    var shippingAmount: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "tax_amount", nullable = false, precision = 19, scale = 0)
+    var taxAmount: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "payable_amount", nullable = false, precision = 19, scale = 0)
+    var payableAmount: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "paid_amount", nullable = false, precision = 19, scale = 0)
+    var paidAmount: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "refunded_amount", nullable = false, precision = 19, scale = 0)
+    var refundedAmount: BigDecimal = BigDecimal.ZERO,
+
+    @Column(name = "payment_reference", length = 64, unique = true)
+    var paymentReference: String? = null,
+
+    @Column(name = "fulfillment_reference", length = 64, unique = true)
+    var fulfillmentReference: String? = null,
 
     @Version
     @Column(name = "version", nullable = false)
     var version: Long = 0,
-
-    @Column(name = "total_amount", nullable = false, precision = 19, scale = 0)
-    var totalAmount: BigDecimal = BigDecimal.ZERO,
-
-    @Column(name = "actual_pay", nullable = false, precision = 19, scale = 0)
-    var actualPay: BigDecimal = BigDecimal.ZERO,
 
     @Column(name = "create_time", nullable = false)
     var createTime: LocalDateTime = LocalDateTime.now(),
@@ -84,10 +108,11 @@ class OrderPO(
 )
 
 @Entity
-@Table(name = "order_refund_facts", uniqueConstraints = [UniqueConstraint(columnNames = ["order_id", "after_sale_id", "order_item_id"])])
+@Table(name = "order_refund_facts", uniqueConstraints = [UniqueConstraint(columnNames = ["order_id", "refund_id", "order_item_id"])])
 class OrderRefundFactPO(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long = 0,
     @Column(name = "order_id", insertable = false, updatable = false) var orderId: Long = 0,
+    @Column(name = "refund_id", nullable = false, length = 64) var refundId: String = "",
     @Column(name = "after_sale_id", nullable = false) var afterSaleId: Long = 0,
     @Column(name = "order_item_id", nullable = false) var orderItemId: Long = 0,
     @Column(nullable = false) var quantity: Int = 0,

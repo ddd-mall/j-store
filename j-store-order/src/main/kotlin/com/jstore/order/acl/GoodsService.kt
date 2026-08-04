@@ -10,6 +10,7 @@ data class GoodsId(val spuId: Long, val skuId: Long)
 
 data class GoodsInfo(
     val id: GoodsId,
+    val merchantId: Long,
     val snapshotVersion: Long,
     val spuName: String,
     val skuName: String,

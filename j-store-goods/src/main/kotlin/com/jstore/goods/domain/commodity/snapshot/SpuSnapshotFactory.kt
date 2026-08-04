@@ -15,6 +15,7 @@ class SpuSnapshotFactoryImpl(
     override fun createSnapshot(spu: Spu): SpuSnapshot {
         return SpuSnapshot(
             id = SpuSnapshotId(snowFlakSequence.nextId()),
+            merchantId = spu.merchantId,
             spuId = spu.id,
             snapshotVersion = spu.version,
             spuName = spu.name,

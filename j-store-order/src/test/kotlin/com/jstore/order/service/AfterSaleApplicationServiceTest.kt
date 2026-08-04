@@ -3,7 +3,6 @@ package com.jstore.order.service
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
-import com.jstore.order.acl.AfterSaleMerchantResolver
 import com.jstore.order.domain.aftersale.*
 import com.jstore.order.domain.aftersale.command.AfterSaleCreateCMD
 import com.jstore.order.domain.aftersale.command.AfterSaleItemRequestCMD
@@ -19,8 +18,7 @@ class AfterSaleApplicationServiceTest {
     private val factory = mock(AfterSaleFactory::class.java)
     private val afterSales = mock(AfterSaleRepository::class.java)
     private val orders = mock(OrderRepository::class.java)
-    private val merchants = mock(AfterSaleMerchantResolver::class.java)
-    private val service = AfterSaleApplicationService(factory, afterSales, orders, merchants)
+    private val service = AfterSaleApplicationService(factory, afterSales, orders)
 
     @Test
     fun `create rejects a non-owner before resolving merchant or saving`() {
@@ -30,16 +28,15 @@ class AfterSaleApplicationServiceTest {
         val result = service.create(command(applicant = 99))
 
         assertEquals(AfterSaleErrors.APPLICANT_FORBIDDEN, assertIs<Failure<*>>(result).error)
-        verifyNoInteractions(merchants, factory)
+        verifyNoInteractions(factory)
     }
 
     @Test
     fun `create propagates factory failure without reserving capacity`() {
         val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.UNPAID)
         `when`(orders.findById(OrderId(1))).thenReturn(order)
-        `when`(merchants.merchantFor(order)).thenReturn(Success(MerchantActorId(7)))
         val sequence = mock(com.jstore.common.persistent.SnowFlakSequence::class.java)
-        val concreteService = AfterSaleApplicationService(AfterSaleFactoryImpl(sequence), afterSales, orders, merchants)
+        val concreteService = AfterSaleApplicationService(AfterSaleFactoryImpl(sequence), afterSales, orders)
 
         val result = concreteService.create(command())
 
@@ -56,7 +53,7 @@ class AfterSaleApplicationServiceTest {
         val result = service.create(command())
 
         assertEquals(aggregate, assertIs<Success<AfterSale>>(result).value)
-        verifyNoInteractions(orders, merchants, factory)
+        verifyNoInteractions(orders, factory)
     }
 
     @Test
@@ -78,10 +75,7 @@ class AfterSaleApplicationServiceTest {
             override fun findByBuyerUserId(uid: Long) = emptyList<Order>()
             override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): com.jstore.common.framework.Page<Order> = throw UnsupportedOperationException()
         }
-        val resolver = object : AfterSaleMerchantResolver {
-            override fun merchantFor(order: Order) = Success(MerchantActorId(7))
-        }
-        val actual = AfterSaleApplicationService(AfterSaleFactoryImpl(com.jstore.common.persistent.SnowFlakSequence(1, 1)), repository, orderRepository, resolver)
+        val actual = AfterSaleApplicationService(AfterSaleFactoryImpl(com.jstore.common.persistent.SnowFlakSequence(1, 1)), repository, orderRepository)
             .create(command())
 
         assertIs<Success<AfterSale>>(actual)

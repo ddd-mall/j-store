@@ -43,6 +43,7 @@ class OrderFactoryUnitTest : FunSpec({
             return goodsId.map {
                 GoodsInfo(
                     id = it,
+                    merchantId = 7,
                     snapshotVersion = 1L,
                     spuName = "测试商品",
                     skuName = "默认规格",
@@ -69,6 +70,7 @@ class OrderFactoryUnitTest : FunSpec({
 
         val cmd = OrderCreateCMD(
             buyerUid = 1L,
+            merchantId = 7,
             buyerPhone = "13800138000",
             buyerName = "买家",
             recipientInfo = OrderCreateCMD.RecipientInfoCMD(
@@ -106,6 +108,7 @@ class OrderFactoryUnitTest : FunSpec({
 
         val cmd = OrderCreateCMD(
             buyerUid = 1L,
+            merchantId = 7,
             buyerPhone = "13800138000",
             buyerName = "买家",
             recipientInfo = OrderCreateCMD.RecipientInfoCMD(

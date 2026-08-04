@@ -73,10 +73,11 @@ class RecipientInfoPOBackwardCompatPropertyTest : FunSpec({
 
             val orderPO = OrderPO(
                 id = 1L,
+                merchantId = 1L,
                 buyerUid = 1L,
                 recipientInfo = historicalPO,
-                totalAmount = BigDecimal.valueOf(100),
-                actualPay = BigDecimal.valueOf(100),
+                itemsSubtotal = BigDecimal.valueOf(100),
+                payableAmount = BigDecimal.valueOf(100),
                 createTime = now,
                 updateTime = now,
                 items = mutableListOf(testItemPO()),
@@ -102,10 +103,11 @@ class RecipientInfoPOBackwardCompatPropertyTest : FunSpec({
 
             val orderPO = OrderPO(
                 id = 1L,
+                merchantId = 1L,
                 buyerUid = 1L,
                 recipientInfo = historicalPO,
-                totalAmount = BigDecimal.valueOf(100),
-                actualPay = BigDecimal.valueOf(100),
+                itemsSubtotal = BigDecimal.valueOf(100),
+                payableAmount = BigDecimal.valueOf(100),
                 createTime = now,
                 updateTime = now,
                 items = mutableListOf(testItemPO()),

@@ -37,6 +37,7 @@ class SpuSnapshotRepositoryImpl(
         fun toPO(snapshot: SpuSnapshot): SpuSnapshotPO {
             return SpuSnapshotPO(
                 id = snapshot.id.value,
+                merchantId = snapshot.merchantId.value,
                 spuId = snapshot.spuId.value,
                 snapshotVersion = snapshot.snapshotVersion,
                 spuName = snapshot.spuName,
@@ -61,6 +62,7 @@ class SpuSnapshotRepositoryImpl(
             val skuMaps: List<Map<String, Any?>> = JsonUtils.deserialize(po.skuSnapshots)
             return SpuSnapshot(
                 id = SpuSnapshotId(po.id),
+                merchantId = MerchantId(po.merchantId),
                 spuId = SpuId(po.spuId),
                 snapshotVersion = po.snapshotVersion,
                 spuName = po.spuName,

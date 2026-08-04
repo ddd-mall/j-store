@@ -14,6 +14,7 @@ import java.io.Serializable
  */
 data class OrderCreateCMD(
     val buyerUid: Long,
+    val merchantId: Long,
     val buyerPhone: String?,
     val buyerName: String?,
     val recipientInfo: RecipientInfoCMD,
@@ -54,6 +55,7 @@ data class OrderCreateCMD(
     fun validate(): Result<OrderCreateCMD, BusinessError> {
         if (items.isEmpty()) return Failure(OrderErrors.ITEMS_EMPTY)
         if (buyerUid <= 0) return Failure(OrderErrors.BUYER_INVALID)
+        if (merchantId <= 0) return Failure(OrderErrors.MERCHANT_INVALID)
         recipientInfo.validate().onFailure { return Failure(it) }
 
         return Success(this)

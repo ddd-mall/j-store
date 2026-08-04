@@ -28,6 +28,7 @@ internal fun testOrder(
     }
     return OrderImpl(
         id = OrderId(1),
+        merchantId = MerchantId(7),
         buyerInfo = UserInfo(1, null, null),
         _items = items.toMutableList(),
         recipientInfo = RecipientInfo(
@@ -49,8 +50,10 @@ internal fun testOrder(
         _tradeStatus = trade,
         _paymentStatus = payment,
         _fulfillmentStatus = fulfillment,
-        totalAmount = Price.ofFen(items.size * 100),
-        _actualPay = Price.ofFen(items.size * 100),
+        amountSnapshot = OrderAmountSnapshot.cny(Price.ofFen(items.size * 100)),
+        _paidAmount = if (payment == PaymentStatus.UNPAID) Price.ZERO else Price.ofFen(items.size * 100),
+        _paymentReference = if (payment == PaymentStatus.UNPAID) null else "payment-1",
+        _fulfillmentReference = if (fulfillment == FulfillmentStatus.UNFULFILLED) null else "fulfillment-1",
         createTime = LocalDateTime.of(2026, 1, 1, 0, 0),
         _updateTime = LocalDateTime.of(2026, 1, 1, 0, 0),
     )

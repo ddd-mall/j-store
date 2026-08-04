@@ -2,7 +2,6 @@ package com.jstore.order.controller
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.fold
 import com.jstore.order.domain.order.*
@@ -24,6 +23,7 @@ class OrderController(
     // ---- Request DTOs ----
 
     data class CreateOrderRequest(
+        val merchantId: Long,
         val recipientInfo: RecipientInfoRequest,
         val items: List<OrderItemRequest>,
     )
@@ -53,15 +53,21 @@ class OrderController(
 
     data class OrderResponse(
         val id: Long,
+        val merchantId: Long,
         val buyerUid: Long,
         val buyerPhone: String?,
         val buyerName: String?,
         val tradeStatus: String,
         val paymentStatus: String,
         val fulfillmentStatus: String,
-        val totalRefundedAmount: Long,
-        val totalAmount: Long,
-        val actualPay: Long,
+        val currency: String,
+        val itemsSubtotal: Long,
+        val discountAmount: Long,
+        val shippingAmount: Long,
+        val taxAmount: Long,
+        val payableAmount: Long,
+        val paidAmount: Long,
+        val refundedAmount: Long,
         val items: List<OrderItemResponse>,
         val createTime: LocalDateTime,
         val updateTime: LocalDateTime,
@@ -100,6 +106,7 @@ class OrderController(
     ): ResponseEntity<*> {
         val cmd = OrderCreateCMD(
             buyerUid = userId,
+            merchantId = request.merchantId,
             buyerPhone = null,
             buyerName = null,
             recipientInfo = OrderCreateCMD.RecipientInfoCMD(
@@ -162,68 +169,25 @@ class OrderController(
         return orderService.cancelOrder(cmd).toResponse { }
     }
 
-    @PostMapping("/{orderId}/confirm-delivery")
-    fun confirmDelivery(
-        @CurrentUserId userId: Long,
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> {
-        return orderService.confirmDelivery(OrderId(orderId)).toResponse { }
-    }
-
-    // ---- 卖家/管理接口 ----
-
-    @PostMapping("/{orderId}/confirm-shipment")
-    fun confirmForShipment(
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> {
-        return orderService.confirmForShipment(OrderId(orderId)).toResponse { }
-    }
-
-    @PostMapping("/{orderId}/ship")
-    fun shipOrder(
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> {
-        return orderService.shipOrder(OrderId(orderId)).toResponse { }
-    }
-
-    @PostMapping("/{orderId}/complete")
-    fun completeOrder(
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> {
-        return orderService.completeOrder(OrderId(orderId)).toResponse { }
-    }
-
-    // ---- 支付回调接口（内部/系统调用） ----
-
-    @PostMapping("/{orderId}/pay-callback")
-    fun payCallback(
-        @PathVariable orderId: Long,
-        @RequestBody request: PayCallbackRequest,
-    ): ResponseEntity<*> {
-        val cmd = OrderPayCMD(
-            orderId = OrderId(orderId),
-            paidAmount = Price.ofFen(request.paidAmountFen),
-        )
-        return orderService.payOrder(cmd).toResponse { }
-    }
-
-    data class PayCallbackRequest(
-        val paidAmountFen: Long,
-    )
-
     // ---- Helpers ----
 
     private fun Order.toOrderResponse() = OrderResponse(
         id = id.value,
+        merchantId = merchantId.value,
         buyerUid = buyerInfo.uid,
         buyerPhone = buyerInfo.phoneNumber?.value,
         buyerName = buyerInfo.userName,
         tradeStatus = tradeStatus.name,
         paymentStatus = paymentStatus.name,
         fulfillmentStatus = fulfillmentStatus.name,
-        totalRefundedAmount = totalRefundedAmount.fen,
-        totalAmount = totalAmount.fen,
-        actualPay = actualPay.fen,
+        currency = amountSnapshot.currency,
+        itemsSubtotal = amountSnapshot.itemsSubtotal.fen,
+        discountAmount = amountSnapshot.discountAmount.fen,
+        shippingAmount = amountSnapshot.shippingAmount.fen,
+        taxAmount = amountSnapshot.taxAmount.fen,
+        payableAmount = amountSnapshot.payableAmount.fen,
+        paidAmount = paidAmount.fen,
+        refundedAmount = refundedAmount.fen,
         items = items.map { it.toOrderItemResponse() },
         createTime = createTime,
         updateTime = updateTime,

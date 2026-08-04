@@ -23,6 +23,7 @@ class SpuFactoryImpl(
     override fun create(createCmd: CommodityCreateCmd): Spu {
         return SpuImpl(
             id = SpuId(snowFlakSequence.nextId()),
+            merchantId = MerchantId(createCmd.merchantId),
             name = createCmd.spuName,
             description = createCmd.description,
             _status = CommodityStatus.DRAFT,
@@ -31,8 +32,10 @@ class SpuFactoryImpl(
     }
 
     override fun update(createCmd: CommodityCreateCmd, old: Spu): Spu {
+        require(createCmd.merchantId == old.merchantId.value) { "商品不能转移到其他商户" }
         return SpuImpl(
             id = old.id,
+            merchantId = old.merchantId,
             name = createCmd.spuName,
             description = createCmd.description,
             _status = old.status,
@@ -63,6 +66,7 @@ class SpuFactoryImpl(
         }
         val draft = SpuImpl(
             id = SpuId(snowFlakSequence.nextId()),
+            merchantId = source.merchantId,
             name = source.name,
             description = source.description,
             _status = CommodityStatus.DRAFT,

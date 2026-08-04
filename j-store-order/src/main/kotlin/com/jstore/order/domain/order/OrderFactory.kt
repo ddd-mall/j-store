@@ -35,11 +35,17 @@ class OrderFactoryImpl(
         val goodsIds = cmd.items.map { GoodsId(it.spuId, it.skuId) }
         val goodsInfoMap = goodsService.queryGoods(goodsIds).associateBy { it.id }
 
+        val requestedMerchantId = MerchantId(cmd.merchantId)
+
         // 2. 构建 OrderItem
         val orderItems = cmd.items.map { itemCmd ->
             val goods = goodsInfoMap[GoodsId(itemCmd.spuId, itemCmd.skuId)]
                 ?: return Failure(OrderErrors.CORRESPONDING_GOODS_NOT_FOUND
                     .msg("商品 SPU ID=${itemCmd.spuId} 快照不存在"))
+
+            if (goods.merchantId != requestedMerchantId.value) {
+                return Failure(OrderErrors.MERCHANT_MISMATCH)
+            }
 
             // 快照版本校验（SPU 粒度）
             if (itemCmd.snapshotVersion != goods.snapshotVersion) {
@@ -60,7 +66,8 @@ class OrderFactoryImpl(
         }
 
         // 3. 计算总金额
-        val totalAmount = Price.sumOf(orderItems.map { it.subtotal() })
+        val itemsSubtotal = Price.sumOf(orderItems.map { it.subtotal() })
+        val amountSnapshot = OrderAmountSnapshot.cny(itemsSubtotal)
 
         // 4. 从 RecipientInfoCMD 构建 ShippingInfo
         val recipientInfoCmd = cmd.recipientInfo
@@ -86,6 +93,7 @@ class OrderFactoryImpl(
         // 5. 组装聚合根
         val order = OrderImpl(
             id = OrderId(snowFlakSequence.nextId()),
+            merchantId = requestedMerchantId,
             buyerInfo = UserInfo(
                 uid = cmd.buyerUid,
                 phoneNumber = cmd.buyerPhone?.let { PhoneNumber(it) },
@@ -96,13 +104,14 @@ class OrderFactoryImpl(
             _tradeStatus = TradeStatus.CREATED,
             _paymentStatus = PaymentStatus.UNPAID,
             _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
-            totalAmount = totalAmount,
-            _actualPay = totalAmount,
+            amountSnapshot = amountSnapshot,
         )
 
         order.publishEvent(OrderCreatedEvent(
             orderId = order.id,
-            totalAmount = totalAmount,
+            merchantId = requestedMerchantId,
+            payableAmount = amountSnapshot.payableAmount,
+            currency = amountSnapshot.currency,
             items = orderItems.map { OrderItemSnapshot(skuId = it.skuId, quantity = it.quantity) }
         ))
         return Success(order)
