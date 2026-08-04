@@ -16,15 +16,16 @@ object ImmediateOutboxRelayTransactionOperations : OutboxRelayTransactionOperati
     override fun <T> executeFailure(action: () -> T): T = action()
 }
 
-class SpringOutboxRelayTransactionOperations(
-    transactionManager: PlatformTransactionManager,
-) : OutboxRelayTransactionOperations {
-    private val deliveryTransaction = TransactionTemplate(transactionManager).apply {
-        propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRED
-    }
-    private val failureTransaction = TransactionTemplate(transactionManager).apply {
-        propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
-    }
+class SpringOutboxRelayTransactionOperations(transactionManager: PlatformTransactionManager) :
+    OutboxRelayTransactionOperations {
+    private val deliveryTransaction =
+        TransactionTemplate(transactionManager).apply {
+            propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRED
+        }
+    private val failureTransaction =
+        TransactionTemplate(transactionManager).apply {
+            propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
+        }
 
     override fun <T> executeDelivery(action: () -> T): T {
         return deliveryTransaction.execute { action() }

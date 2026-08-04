@@ -1,17 +1,17 @@
 package com.jstore.outbox.operations
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.annotation.CurrentUserId
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.spring.AuthenticationInterceptor
+import com.jstore.common.framework.event.outbox.DeadLetterRequeueResult
+import com.jstore.common.framework.event.outbox.OutboxDeadLetterOperations
+import com.jstore.common.framework.event.outbox.OutboxDeadLetterPage
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.mockito.Mockito.mock
-import com.jstore.common.framework.event.outbox.DeadLetterRequeueResult
-import com.jstore.common.framework.event.outbox.OutboxDeadLetterPage
-import com.jstore.common.framework.event.outbox.OutboxDeadLetterOperations
 import com.jstore.user.domain.useraccount.UserId
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.mock
 import org.springframework.core.MethodParameter
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -29,11 +29,20 @@ class OutboxOperationsControllerTest {
     @Test
     fun `controller requires authentication`() {
         check(OutboxOperationsController::class.java.isAnnotationPresent(RequireLogin::class.java))
-        val mvc = MockMvcBuilders
-            .standaloneSetup(OutboxOperationsController(service, OutboxOperationsProperties(setOf(7))))
-            .setCustomArgumentResolvers(CurrentUserResolver())
-            .addInterceptors(AuthenticationInterceptor(mock<TokenProvider>(), mock<TokenStore>(), emptyList(), ObjectMapper()))
-            .build()
+        val mvc =
+            MockMvcBuilders.standaloneSetup(
+                    OutboxOperationsController(service, OutboxOperationsProperties(setOf(7)))
+                )
+                .setCustomArgumentResolvers(CurrentUserResolver())
+                .addInterceptors(
+                    AuthenticationInterceptor(
+                        mock<TokenProvider>(),
+                        mock<TokenStore>(),
+                        emptyList(),
+                        ObjectMapper(),
+                    )
+                )
+                .build()
 
         mvc.perform(get("/api/admin/outbox/dead-letters"))
             .andExpect(status().isUnauthorized)
@@ -67,11 +76,12 @@ class OutboxOperationsControllerTest {
         val mvc = mvc(OutboxOperationsProperties(setOf(7)))
 
         mvc.perform(
-            post("/api/admin/outbox/dead-letters/requeue")
-                .header("X-Test-User", "7")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"ids":["entry-1"],"reason":"dependency recovered"}"""),
-        ).andExpect(status().isOk)
+                post("/api/admin/outbox/dead-letters/requeue")
+                    .header("X-Test-User", "7")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"ids":["entry-1"],"reason":"dependency recovered"}""")
+            )
+            .andExpect(status().isOk)
             .andExpect(jsonPath("$.requeuedCount").value(1))
 
         check(service.lastRequeue?.ids == listOf("entry-1"))
@@ -79,17 +89,18 @@ class OutboxOperationsControllerTest {
         check(service.lastRequeue?.reason == "dependency recovered")
 
         mvc.perform(
-            post("/api/admin/outbox/dead-letters/requeue")
-                .header("X-Test-User", "7")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"ids":["entry-1"],"reason":" "}"""),
-        ).andExpect(status().isBadRequest)
+                post("/api/admin/outbox/dead-letters/requeue")
+                    .header("X-Test-User", "7")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"ids":["entry-1"],"reason":" "}""")
+            )
+            .andExpect(status().isBadRequest)
     }
 
-    private fun mvc(properties: OutboxOperationsProperties) = MockMvcBuilders
-        .standaloneSetup(OutboxOperationsController(service, properties))
-        .setCustomArgumentResolvers(CurrentUserResolver())
-        .build()
+    private fun mvc(properties: OutboxOperationsProperties) =
+        MockMvcBuilders.standaloneSetup(OutboxOperationsController(service, properties))
+            .setCustomArgumentResolvers(CurrentUserResolver())
+            .build()
 
     private class CurrentUserResolver : HandlerMethodArgumentResolver {
         override fun supportsParameter(parameter: MethodParameter) =
@@ -121,5 +132,9 @@ class OutboxOperationsControllerTest {
         }
     }
 
-    private data class RequeueCall(val ids: List<String>, val operatorId: String, val reason: String)
+    private data class RequeueCall(
+        val ids: List<String>,
+        val operatorId: String,
+        val reason: String,
+    )
 }

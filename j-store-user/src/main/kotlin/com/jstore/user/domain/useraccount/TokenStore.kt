@@ -1,9 +1,6 @@
 package com.jstore.user.domain.useraccount
 
-/**
- * Token 存储接口（RefreshToken 存储 + AccessToken 黑名单）
- * 定义在领域层，实现在基础设施层（Redis）
- */
+/** Token 存储接口（RefreshToken 存储 + AccessToken 黑名单） 定义在领域层，实现在基础设施层（Redis） */
 interface TokenStore {
     /** 存储 RefreshToken */
     fun storeRefreshToken(userId: UserId, refreshToken: String, ttlSeconds: Long)

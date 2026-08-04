@@ -2,9 +2,7 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.properties.Price
 
-/**
- * 订单行项实体实现
- */
+/** 订单行项实体实现 */
 class OrderItemImpl(
     override val id: OrderItemId,
     override val skuId: Long,
@@ -18,11 +16,20 @@ class OrderItemImpl(
     private var _refundedQuantity: Int = 0,
     private var _refundedAmount: Price = Price.ZERO,
 ) : OrderItem {
-    override val purchasedAmount get() = subtotal()
-    override val refundedQuantity get() = _refundedQuantity
-    override val refundedAmount get() = _refundedAmount
-    override val refundableQuantity get() = quantity - _refundedQuantity
-    override val refundableAmount get() = purchasedAmount - _refundedAmount
+    override val purchasedAmount
+        get() = subtotal()
+
+    override val refundedQuantity
+        get() = _refundedQuantity
+
+    override val refundedAmount
+        get() = _refundedAmount
+
+    override val refundableQuantity
+        get() = quantity - _refundedQuantity
+
+    override val refundableAmount
+        get() = purchasedAmount - _refundedAmount
 
     init {
         require(quantity > 0 && _refundedQuantity in 0..quantity && _refundedAmount <= subtotal())
@@ -33,17 +40,26 @@ class OrderItemImpl(
     fun markCanceled() {
         status = OrderItemStatus.CANCELED
     }
+
     internal fun markWaitingShipment() {
         status = OrderItemStatus.WAIT_SHIPPING
     }
+
     internal fun markShipping() {
         status = OrderItemStatus.SHIPPING
     }
+
     internal fun markDelivered() {
         status = OrderItemStatus.SHIPPING_FINISHED
     }
+
     internal fun registerRefund(quantity: Int, amount: Price) {
-        require(quantity > 0 && quantity <= refundableQuantity && amount > Price.ZERO && amount <= refundableAmount)
+        require(
+            quantity > 0 &&
+                quantity <= refundableQuantity &&
+                amount > Price.ZERO &&
+                amount <= refundableAmount
+        )
         _refundedQuantity += quantity
         _refundedAmount += amount
     }

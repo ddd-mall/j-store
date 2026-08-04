@@ -32,7 +32,11 @@ class AuthenticationInterceptor(
         configurers.flatMap { it.excludedPathPatterns() }
     }
 
-    override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
+    override fun preHandle(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        handler: Any,
+    ): Boolean {
         if (handler !is HandlerMethod) return true
 
         if (!requiresAuthentication(handler, request)) return true
@@ -73,7 +77,10 @@ class AuthenticationInterceptor(
         AuthenticatedUserContext.clear()
     }
 
-    internal fun requiresAuthentication(handlerMethod: HandlerMethod, request: HttpServletRequest): Boolean {
+    internal fun requiresAuthentication(
+        handlerMethod: HandlerMethod,
+        request: HttpServletRequest,
+    ): Boolean {
         // 1. @SkipLogin → false（最高优先级）
         if (handlerMethod.hasMethodAnnotation(SkipLogin::class.java)) return false
 

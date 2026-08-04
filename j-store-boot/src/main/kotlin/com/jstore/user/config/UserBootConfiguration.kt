@@ -25,9 +25,7 @@ class UserBootConfiguration {
     }
 
     @Bean
-    fun jwtTokenProvider(
-        @Value("\${jwt.secret}") secretKey: String,
-    ): TokenProvider {
+    fun jwtTokenProvider(@Value("\${jwt.secret}") secretKey: String): TokenProvider {
         return JwtTokenProvider(secretKey)
     }
 

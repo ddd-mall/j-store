@@ -8,10 +8,21 @@ import com.jstore.common.utils.Result
 import java.time.Instant
 
 data class PaymentOrderId(override val value: Long) : Id<Long>(value)
+
 data class PaymentRefundId(override val value: Long) : Id<Long>(value)
 
-enum class PaymentOrderStatus { PENDING, CAPTURED, PARTIALLY_REFUNDED, REFUNDED }
-enum class PaymentRefundStatus { PENDING, SUCCEEDED, FAILED }
+enum class PaymentOrderStatus {
+    PENDING,
+    CAPTURED,
+    PARTIALLY_REFUNDED,
+    REFUNDED,
+}
+
+enum class PaymentRefundStatus {
+    PENDING,
+    SUCCEEDED,
+    FAILED,
+}
 
 data class PaymentCapture(
     val providerTransactionId: String,
@@ -56,9 +67,26 @@ interface PaymentOrder : AgreeGate<PaymentOrderId> {
     val capture: PaymentCapture?
     val refunds: List<PaymentRefund>
 
-    fun capture(providerTransactionId: String, amount: Price, currency: String, occurredAt: Instant): Result<Boolean, BusinessError>
+    fun capture(
+        providerTransactionId: String,
+        amount: Price,
+        currency: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError>
+
     fun requestRefund(refund: PaymentRefund, occurredAt: Instant): Result<Boolean, BusinessError>
+
     fun retryRefund(refundId: PaymentRefundId, occurredAt: Instant): Result<Boolean, BusinessError>
-    fun markRefundSucceeded(refundId: PaymentRefundId, providerRefundId: String, occurredAt: Instant): Result<Boolean, BusinessError>
-    fun markRefundFailed(refundId: PaymentRefundId, reason: String, occurredAt: Instant): Result<Boolean, BusinessError>
+
+    fun markRefundSucceeded(
+        refundId: PaymentRefundId,
+        providerRefundId: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError>
+
+    fun markRefundFailed(
+        refundId: PaymentRefundId,
+        reason: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError>
 }

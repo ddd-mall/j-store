@@ -4,7 +4,6 @@ import com.jstore.common.logging.slf4j.Slf4jSimpleImpl
 import java.lang.reflect.Constructor
 import kotlin.reflect.KClass
 
-
 object LoggerFactory {
     const val MARKER: String = "JSTORE"
     private var loggerConstructor: Constructor<out Logger>? = null
@@ -23,7 +22,9 @@ object LoggerFactory {
 
     fun getLogger(name: String): Logger {
         if (null == loggerConstructor) {
-            throw LogException("Error creating logger for logger $name.  Cause: can not find Logger implementation")
+            throw LogException(
+                "Error creating logger for logger $name.  Cause: can not find Logger implementation"
+            )
         }
         try {
             return loggerConstructor!!.newInstance(name)

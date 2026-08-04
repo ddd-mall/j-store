@@ -7,9 +7,7 @@ import com.jstore.user.domain.useraccount.UserId
 import java.time.Instant
 import java.time.LocalDateTime
 
-/**
- * 用户账号强制下线事件
- */
+/** 用户账号强制下线事件 */
 @DomainEventType(name = "user.account-forced-offline", version = 1)
 data class UserAccountForcedOfflineEvent(
     override val source: Any,
@@ -21,5 +19,6 @@ data class UserAccountForcedOfflineEvent(
     override val eventVersion: Int = 1
     override val aggregateType: String = "UserAccount"
     override val aggregateId: String = userId.value.toString()
-    override val eventId: String = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
+    override val eventId: String =
+        stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }

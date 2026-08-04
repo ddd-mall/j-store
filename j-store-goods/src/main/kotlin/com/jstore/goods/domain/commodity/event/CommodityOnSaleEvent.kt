@@ -18,5 +18,6 @@ class CommodityOnSaleEvent(
     override val eventVersion: Int = 1
     override val aggregateType: String = "Commodity"
     override val aggregateId: String = spuId.value.toString()
-    override val eventId: String = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
+    override val eventId: String =
+        stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }

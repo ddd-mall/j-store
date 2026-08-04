@@ -5,13 +5,11 @@ import com.jstore.common.utils.json.JsonUtils
 import com.jstore.goods.domain.commodity.persistence.SkuPO
 import com.jstore.goods.domain.commodity.persistence.SpuPO
 import com.jstore.goods.domain.commodity.persistence.SpuPOJpaRepository
-import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
+import org.springframework.stereotype.Repository
 
 @Repository
-class SpuRepositoryImpl(
-    private val jpaRepository: SpuPOJpaRepository,
-) : SpuRepository {
+class SpuRepositoryImpl(private val jpaRepository: SpuPOJpaRepository) : SpuRepository {
 
     override fun save(entity: Spu): Spu {
         val po = Converter.toPO(entity)
@@ -25,9 +23,12 @@ class SpuRepositoryImpl(
     }
 
     override fun findDraftBySourceSpuId(sourceSpuId: SpuId): Spu? {
-        return jpaRepository.findBySourceSpuIdAndStatus(
-            sourceSpuId.value, CommodityStatus.DRAFT
-        )?.let { Converter.toDomain(it) }
+        return jpaRepository
+            .findBySourceSpuIdAndStatus(
+                sourceSpuId.value,
+                CommodityStatus.DRAFT,
+            )
+            ?.let { Converter.toDomain(it) }
     }
 
     override fun delete(spu: Spu) {

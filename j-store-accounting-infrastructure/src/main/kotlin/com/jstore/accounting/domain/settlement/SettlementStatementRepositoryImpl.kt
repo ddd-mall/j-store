@@ -4,12 +4,12 @@ import com.jstore.accounting.domain.settlement.persistence.SettlementLinePO
 import com.jstore.accounting.domain.settlement.persistence.SettlementStatementPO
 import com.jstore.accounting.domain.settlement.persistence.SettlementStatementPOJpaRepository
 import com.jstore.common.properties.Price
-import org.springframework.stereotype.Repository
 import java.util.concurrent.atomic.AtomicLong
+import org.springframework.stereotype.Repository
 
 @Repository
 class SettlementStatementRepositoryImpl(
-    private val jpaRepository: SettlementStatementPOJpaRepository,
+    private val jpaRepository: SettlementStatementPOJpaRepository
 ) : SettlementStatementRepository {
     override fun save(entity: SettlementStatement): SettlementStatement {
         val saved = jpaRepository.save(Converter.toPO(entity))
@@ -19,15 +19,24 @@ class SettlementStatementRepositoryImpl(
     override fun findById(id: SettlementStatementId): SettlementStatement? =
         jpaRepository.findById(id.value).orElse(null)?.let(Converter::toDomain)
 
-    override fun findByMerchantAndPeriod(merchantId: String, period: SettlementPeriod): SettlementStatement? =
-        jpaRepository.findByMerchantIdAndPeriodStartAndPeriodEnd(merchantId, period.startDate, period.endDate)
+    override fun findByMerchantAndPeriod(
+        merchantId: String,
+        period: SettlementPeriod,
+    ): SettlementStatement? =
+        jpaRepository
+            .findByMerchantIdAndPeriodStartAndPeriodEnd(
+                merchantId,
+                period.startDate,
+                period.endDate,
+            )
             ?.let(Converter::toDomain)
 
     override fun nextId(): SettlementStatementId = SettlementStatementId(sequence.incrementAndGet())
 
     override fun nextLineId(): SettlementLineId = SettlementLineId(sequence.incrementAndGet())
 
-    override fun nextStatementNo(): String = "ST${System.currentTimeMillis()}${sequence.incrementAndGet()}"
+    override fun nextStatementNo(): String =
+        "ST${System.currentTimeMillis()}${sequence.incrementAndGet()}"
 
     object Converter {
         fun toPO(statement: SettlementStatement): SettlementStatementPO =

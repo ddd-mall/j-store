@@ -11,5 +11,6 @@ object PaymentErrors {
     val CAPTURE_CONFLICT = BusinessError("支付单已存在其他捕获流水", "Payment.Capture.Conflict", 409)
     val REFUND_INVALID = BusinessError("退款信息无效", "Payment.Refund.Invalid", 409)
     val REFUND_NOT_FOUND = BusinessError("退款单不存在", "Payment.Refund.NotFound", 404)
-    val REFUND_PROVIDER_CONFLICT = BusinessError("退款单已关联其他渠道流水", "Payment.Refund.ProviderConflict", 409)
+    val REFUND_PROVIDER_CONFLICT =
+        BusinessError("退款单已关联其他渠道流水", "Payment.Refund.ProviderConflict", 409)
 }

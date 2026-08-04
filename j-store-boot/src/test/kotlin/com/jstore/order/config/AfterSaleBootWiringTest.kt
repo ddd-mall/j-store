@@ -3,9 +3,9 @@ package com.jstore.order.config
 import com.jstore.com.jstore.order.config.OrderBootConfiguration
 import com.jstore.order.domain.aftersale.AfterSaleRepository
 import com.jstore.order.domain.order.OrderRepository
+import kotlin.test.assertNotNull
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
-import kotlin.test.assertNotNull
 
 class AfterSaleBootWiringTest {
     @Test

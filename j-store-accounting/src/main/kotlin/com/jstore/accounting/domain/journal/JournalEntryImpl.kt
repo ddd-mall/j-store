@@ -30,11 +30,20 @@ class JournalEntryImpl(
         require(entryNo.isNotBlank()) { "账务凭证号不能为空" }
     }
 
-    override val status: JournalEntryStatus get() = _status
-    override val lines: List<JournalLine> get() = _lines.toList()
-    override val postedAt: Instant? get() = _postedAt
-    override val reversedBy: JournalEntryId? get() = _reversedBy
-    override val reversalOf: JournalEntryId? get() = _reversalOf
+    override val status: JournalEntryStatus
+        get() = _status
+
+    override val lines: List<JournalLine>
+        get() = _lines.toList()
+
+    override val postedAt: Instant?
+        get() = _postedAt
+
+    override val reversedBy: JournalEntryId?
+        get() = _reversedBy
+
+    override val reversalOf: JournalEntryId?
+        get() = _reversalOf
 
     override fun addLine(line: JournalLine): Result<Unit, BusinessError> {
         if (_status != JournalEntryStatus.DRAFT) {
@@ -83,25 +92,28 @@ class JournalEntryImpl(
         if (reason.isBlank()) {
             return Failure(AccountingErrors.JOURNAL_ENTRY_INVALID_STATE.msg("冲正原因不能为空"))
         }
-        val reversal = JournalEntryImpl(
-            id = reversalEntryId,
-            entryNo = reversalEntryNo,
-            type = JournalEntryType.MANUAL_ADJUSTMENT,
-            sourceDocument = SourceDocument(
-                sourceType = SourceDocumentType.ADJUSTMENT,
-                sourceId = id.value.toString(),
-                eventType = "JournalEntryReversed",
-            ),
-            accountingDate = accountingDate,
-            _reversalOf = id,
-        )
+        val reversal =
+            JournalEntryImpl(
+                id = reversalEntryId,
+                entryNo = reversalEntryNo,
+                type = JournalEntryType.MANUAL_ADJUSTMENT,
+                sourceDocument =
+                    SourceDocument(
+                        sourceType = SourceDocumentType.ADJUSTMENT,
+                        sourceId = id.value.toString(),
+                        eventType = "JournalEntryReversed",
+                    ),
+                accountingDate = accountingDate,
+                _reversalOf = id,
+            )
         _lines.forEach { line ->
             reversal.addLine(
                 line.copy(
-                    side = when (line.side) {
-                        EntrySide.DEBIT -> EntrySide.CREDIT
-                        EntrySide.CREDIT -> EntrySide.DEBIT
-                    },
+                    side =
+                        when (line.side) {
+                            EntrySide.DEBIT -> EntrySide.CREDIT
+                            EntrySide.CREDIT -> EntrySide.DEBIT
+                        },
                     memo = reason,
                 )
             )
@@ -110,7 +122,8 @@ class JournalEntryImpl(
     }
 
     private fun isBalanced(): Boolean {
-        fun sum(side: EntrySide): Price = Price.sumOf(_lines.filter { it.side == side }.map { it.amount })
+        fun sum(side: EntrySide): Price =
+            Price.sumOf(_lines.filter { it.side == side }.map { it.amount })
         return sum(EntrySide.DEBIT) == sum(EntrySide.CREDIT)
     }
 }

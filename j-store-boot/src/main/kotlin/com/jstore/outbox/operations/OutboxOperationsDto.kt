@@ -9,12 +9,8 @@ import jakarta.validation.constraints.Size
 import java.time.Instant
 
 data class RequeueDeadLettersRequest(
-    @field:NotEmpty
-    @field:Size(max = 100)
-    val ids: List<@NotBlank String>,
-    @field:NotBlank
-    @field:Size(max = 500)
-    val reason: String,
+    @field:NotEmpty @field:Size(max = 100) val ids: List<@NotBlank String>,
+    @field:NotBlank @field:Size(max = 500) val reason: String,
 )
 
 data class DeadLetterPageResponse(
@@ -24,12 +20,13 @@ data class DeadLetterPageResponse(
     val totalElements: Long,
 ) {
     companion object {
-        fun from(page: OutboxDeadLetterPage) = DeadLetterPageResponse(
-            entries = page.entries.map(DeadLetterSummaryResponse::from),
-            page = page.page,
-            size = page.size,
-            totalElements = page.totalElements,
-        )
+        fun from(page: OutboxDeadLetterPage) =
+            DeadLetterPageResponse(
+                entries = page.entries.map(DeadLetterSummaryResponse::from),
+                page = page.page,
+                size = page.size,
+                totalElements = page.totalElements,
+            )
     }
 }
 
@@ -48,19 +45,20 @@ data class DeadLetterSummaryResponse(
     val lastError: String?,
 ) {
     companion object {
-        fun from(entry: OutboxDeadLetterSummary) = DeadLetterSummaryResponse(
-            id = entry.id,
-            eventId = entry.eventId,
-            eventType = entry.eventType,
-            aggregateType = entry.aggregateType,
-            aggregateId = entry.aggregateId,
-            eventVersion = entry.eventVersion,
-            occurredAt = entry.occurredAt,
-            createdAt = entry.createdAt,
-            updatedAt = entry.updatedAt,
-            retryCount = entry.retryCount,
-            lastError = entry.lastError,
-        )
+        fun from(entry: OutboxDeadLetterSummary) =
+            DeadLetterSummaryResponse(
+                id = entry.id,
+                eventId = entry.eventId,
+                eventType = entry.eventType,
+                aggregateType = entry.aggregateType,
+                aggregateId = entry.aggregateId,
+                eventVersion = entry.eventVersion,
+                occurredAt = entry.occurredAt,
+                createdAt = entry.createdAt,
+                updatedAt = entry.updatedAt,
+                retryCount = entry.retryCount,
+                lastError = entry.lastError,
+            )
     }
 }
 

@@ -1,11 +1,11 @@
 package com.jstore.common.framework.event.outbox
 
-import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "jstore.outbox.observability")
 data class OutboxObservabilityProperties(
@@ -51,14 +51,20 @@ class SchedulerExecutionState {
         consecutiveFailures.incrementAndGet()
     }
 
-    fun snapshot(): SchedulerExecutionSnapshot = SchedulerExecutionSnapshot(
-        lastSuccessAt = lastSuccessAt.get(),
-        lastFailureAt = lastFailureAt.get(),
-        consecutiveFailures = consecutiveFailures.get(),
-    )
+    fun snapshot(): SchedulerExecutionSnapshot =
+        SchedulerExecutionSnapshot(
+            lastSuccessAt = lastSuccessAt.get(),
+            lastFailureAt = lastFailureAt.get(),
+            consecutiveFailures = consecutiveFailures.get(),
+        )
 }
 
-enum class OutboxOperationalStatus { NOT_RUN, HEALTHY, DEGRADED, FAILED }
+enum class OutboxOperationalStatus {
+    NOT_RUN,
+    HEALTHY,
+    DEGRADED,
+    FAILED,
+}
 
 data class OutboxOperationalSnapshot(
     val status: OutboxOperationalStatus,
@@ -82,24 +88,40 @@ class OutboxOperationalHealth(
     fun snapshot(): OutboxOperationalSnapshot {
         val now = clock.instant()
         val oldestReadyAt = repository.findOldestReadyAt(now, maxRetryCount)
-        val lag = oldestReadyAt?.let { Duration.between(it, now).coerceAtLeast(Duration.ZERO) } ?: Duration.ZERO
+        val lag =
+            oldestReadyAt?.let { Duration.between(it, now).coerceAtLeast(Duration.ZERO) }
+                ?: Duration.ZERO
         val expiredLocks = repository.countExpiredLocks(now)
         val deadLetters = repository.countByStatus(OutboxEntryStatus.DEAD_LETTER)
         val scheduler = schedulerState.snapshot()
         val lagAlert = lag >= properties.lagThreshold
         val expiredLockAlert = expiredLocks >= properties.expiredLockThreshold
         val deadLetterAlert = deadLetters >= properties.deadLetterThreshold
-        val status = when {
-            scheduler.consecutiveFailures >= properties.schedulerFailureThreshold -> OutboxOperationalStatus.FAILED
-            scheduler.lastSuccessAt == null && scheduler.lastFailureAt == null -> OutboxOperationalStatus.NOT_RUN
-            scheduler.consecutiveFailures > 0 || lagAlert || expiredLockAlert || deadLetterAlert -> OutboxOperationalStatus.DEGRADED
-            else -> OutboxOperationalStatus.HEALTHY
-        }
+        val status =
+            when {
+                scheduler.consecutiveFailures >= properties.schedulerFailureThreshold ->
+                    OutboxOperationalStatus.FAILED
+                scheduler.lastSuccessAt == null && scheduler.lastFailureAt == null ->
+                    OutboxOperationalStatus.NOT_RUN
+                scheduler.consecutiveFailures > 0 ||
+                    lagAlert ||
+                    expiredLockAlert ||
+                    deadLetterAlert -> OutboxOperationalStatus.DEGRADED
+                else -> OutboxOperationalStatus.HEALTHY
+            }
         return OutboxOperationalSnapshot(
-            status, now, lag, expiredLocks, deadLetters,
-            lagAlert, expiredLockAlert, deadLetterAlert, scheduler,
+            status,
+            now,
+            lag,
+            expiredLocks,
+            deadLetters,
+            lagAlert,
+            expiredLockAlert,
+            deadLetterAlert,
+            scheduler,
         )
     }
 }
 
-private fun Duration.coerceAtLeast(minimum: Duration): Duration = if (this < minimum) minimum else this
+private fun Duration.coerceAtLeast(minimum: Duration): Duration =
+    if (this < minimum) minimum else this

@@ -4,15 +4,11 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.UUID
 
-/**
- * Marker for domain facts emitted by aggregates or domain services.
- */
+/** Marker for domain facts emitted by aggregates or domain services. */
 interface DomainEvent {
     val source: Any
 
-    /**
-     * Stable envelope metadata used by outbox delivery, diagnostics, and idempotent consumers.
-     */
+    /** Stable envelope metadata used by outbox delivery, diagnostics, and idempotent consumers. */
     val metadata: DomainEventMetadata
         get() = DomainEventMetadata.from(this)
 }
@@ -26,14 +22,15 @@ interface ExplicitDomainEvent : DomainEvent {
     val aggregateId: String
 
     override val metadata: DomainEventMetadata
-        get() = DomainEventMetadata(
-            eventId = eventId,
-            eventName = eventName,
-            eventVersion = eventVersion,
-            occurredAt = occurredAt,
-            aggregateType = aggregateType,
-            aggregateId = aggregateId,
-        )
+        get() =
+            DomainEventMetadata(
+                eventId = eventId,
+                eventName = eventName,
+                eventVersion = eventVersion,
+                occurredAt = occurredAt,
+                aggregateType = aggregateType,
+                aggregateId = aggregateId,
+            )
 }
 
 fun stableDomainEventId(
@@ -44,8 +41,10 @@ fun stableDomainEventId(
     occurredAt: Instant,
 ): String {
     return UUID.nameUUIDFromBytes(
-        "$eventName|$eventVersion|$aggregateType|$aggregateId|$occurredAt".toByteArray(StandardCharsets.UTF_8)
-    ).toString()
+            "$eventName|$eventVersion|$aggregateType|$aggregateId|$occurredAt"
+                .toByteArray(StandardCharsets.UTF_8)
+        )
+        .toString()
 }
 
 data class DomainEventMetadata(

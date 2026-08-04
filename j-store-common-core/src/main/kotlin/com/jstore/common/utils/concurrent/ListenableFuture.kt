@@ -4,6 +4,7 @@ import java.util.concurrent.Future
 
 interface ListenableFuture<T> : Future<T> {
     fun addCallback(callback: ListenableFutureCallback<in T>)
+
     fun addCallback(successCallback: SuccessCallback<in T>, failureCallback: FailureCallback)
 }
 
@@ -16,5 +17,3 @@ interface SuccessCallback<T> {
 interface FailureCallback {
     fun onFailure(ex: Throwable?)
 }
-
-

@@ -5,9 +5,8 @@ import org.springframework.beans.factory.InitializingBean
 class SpringDomainEventListenerRegistrationMachine(
     private val springDomainEventBus: SpringDomainEventBus,
     private val domainEventListeners: List<DomainEventListener<*>>,
-): InitializingBean {
+) : InitializingBean {
     override fun afterPropertiesSet() {
         domainEventListeners.forEach(springDomainEventBus::register)
     }
-
 }

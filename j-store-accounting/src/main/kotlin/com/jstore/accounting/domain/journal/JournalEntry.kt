@@ -10,6 +10,7 @@ import java.time.Instant
 import java.time.LocalDate
 
 data class JournalEntryId(override val value: Long) : Id<Long>(value)
+
 data class JournalLineId(override val value: Long) : Id<Long>(value)
 
 data class SourceDocument(
@@ -23,10 +24,31 @@ data class SourceDocument(
     }
 }
 
-enum class SourceDocumentType { ORDER, REFUND, SETTLEMENT, ADJUSTMENT }
-enum class JournalEntryType { ORDER_PAYMENT, ORDER_COMPLETION_COMMISSION, ORDER_REFUND_REVERSAL, SETTLEMENT_PAYMENT, MANUAL_ADJUSTMENT }
-enum class JournalEntryStatus { DRAFT, POSTED, REVERSED }
-enum class EntrySide { DEBIT, CREDIT }
+enum class SourceDocumentType {
+    ORDER,
+    REFUND,
+    SETTLEMENT,
+    ADJUSTMENT,
+}
+
+enum class JournalEntryType {
+    ORDER_PAYMENT,
+    ORDER_COMPLETION_COMMISSION,
+    ORDER_REFUND_REVERSAL,
+    SETTLEMENT_PAYMENT,
+    MANUAL_ADJUSTMENT,
+}
+
+enum class JournalEntryStatus {
+    DRAFT,
+    POSTED,
+    REVERSED,
+}
+
+enum class EntrySide {
+    DEBIT,
+    CREDIT,
+}
 
 interface JournalEntry : AgreeGate<JournalEntryId> {
     override val id: JournalEntryId
@@ -42,8 +64,11 @@ interface JournalEntry : AgreeGate<JournalEntryId> {
     val reversalOf: JournalEntryId?
 
     fun addLine(line: JournalLine): Result<Unit, BusinessError>
+
     fun post(openPeriod: AccountingPeriod): Result<Unit, BusinessError>
+
     fun markReversed(reversalEntryId: JournalEntryId): Result<Unit, BusinessError>
+
     fun createReversal(
         reversalEntryId: JournalEntryId,
         reversalEntryNo: String,

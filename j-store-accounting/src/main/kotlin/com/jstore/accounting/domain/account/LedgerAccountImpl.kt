@@ -22,7 +22,8 @@ class LedgerAccountImpl(
         require(name.isNotBlank()) { "账务账户名称不能为空" }
     }
 
-    override val status: LedgerAccountStatus get() = _status
+    override val status: LedgerAccountStatus
+        get() = _status
 
     override fun deactivate(): Result<Unit, BusinessError> {
         _status = LedgerAccountStatus.INACTIVE

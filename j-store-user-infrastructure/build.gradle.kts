@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.kotlin.plugin.spring)
 }
 
-
 repositories {
     mavenLocal()
     mavenCentral()
@@ -44,6 +43,7 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
 kotlin {
     jvmToolchain(25)
 }

@@ -11,9 +11,7 @@ interface GoodsStyleFactory {
     ): GoodsStyle
 }
 
-class GoodsStyleFactoryImpl(
-    private val snowFlakSequence: SnowFlakSequence,
-) : GoodsStyleFactory {
+class GoodsStyleFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : GoodsStyleFactory {
     override fun create(
         spuId: SpuId,
         mainImages: List<String>,

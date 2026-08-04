@@ -7,8 +7,8 @@ import com.jstore.common.utils.Result
 import java.time.LocalDateTime
 
 /**
- * UserAccount 聚合根接口
- * 封装用户账号的生命周期行为：昵称修改、密码修改、状态管理
+ * UserAccount 聚合根接口 封装用户账号的生命周期行为：昵称修改、密码修改、状态管理
+ *
  * TODO: 补充最后登陆时间,最后登陆地点,最后登陆设备等信息
  */
 interface UserAccount : AgreeGate<UserId> {

@@ -13,11 +13,7 @@ import com.jstore.user.domain.useraccount.event.UserAccountForcedOfflineEvent
 import com.jstore.user.domain.useraccount.event.UserAccountLoggedInEvent
 import java.time.LocalDateTime
 
-/**
- * 用户账号应用服务
- * 编排用例: 加载聚合 → 执行领域行为 → 保存 → 发布事件
- * 不包含业务规则，全部委托给领域对象
- */
+/** 用户账号应用服务 编排用例: 加载聚合 → 执行领域行为 → 保存 → 发布事件 不包含业务规则，全部委托给领域对象 */
 class UserAccountService(
     private val userAccountFactory: UserAccountFactory,
     private val userAccountRepository: UserAccountRepository,
@@ -36,8 +32,10 @@ class UserAccountService(
         if (userAccountRepository.existsByPhoneNumber(cmd.phoneNumber)) {
             return Failure(UserAccountErrors.PHONE_ALREADY_REGISTERED)
         }
-        val account = userAccountFactory.create(cmd, passwordHasher)
-            .onFailure { return Failure(it) } as Success
+        val account =
+            userAccountFactory.create(cmd, passwordHasher).onFailure {
+                return Failure(it)
+            } as Success
         userAccountRepository.add(account.value)
         account.value.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return account
@@ -45,8 +43,9 @@ class UserAccountService(
 
     /** 用户登录 */
     fun login(phoneNumber: PhoneNumber, rawPassword: String): Result<AuthTokenPair, BusinessError> {
-        val account = userAccountRepository.findByPhoneNumber(phoneNumber)
-            ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+        val account =
+            userAccountRepository.findByPhoneNumber(phoneNumber)
+                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
 
         if (!passwordHasher.matches(rawPassword, account.passwordHash.hashedValue)) {
             return Failure(UserAccountErrors.PASSWORD_MISMATCH)
@@ -60,12 +59,13 @@ class UserAccountService(
         val refreshToken = tokenProvider.issueRefreshToken(account.id)
         tokenStore.storeRefreshToken(account.id, refreshToken, REFRESH_TOKEN_TTL_SECONDS)
 
-        val tokenPair = AuthTokenPair(
-            accessToken = accessToken,
-            accessTokenExpiresAt = LocalDateTime.now().plusMinutes(15),
-            refreshToken = refreshToken,
-            refreshTokenExpiresAt = LocalDateTime.now().plusDays(7),
-        )
+        val tokenPair =
+            AuthTokenPair(
+                accessToken = accessToken,
+                accessTokenExpiresAt = LocalDateTime.now().plusMinutes(15),
+                refreshToken = refreshToken,
+                refreshTokenExpiresAt = LocalDateTime.now().plusDays(7),
+            )
 
         domainEventPublisher.publishEvent(
             UserAccountLoggedInEvent(
@@ -80,8 +80,9 @@ class UserAccountService(
 
     /** Token 刷新 */
     fun refreshToken(refreshToken: String): Result<AuthTokenPair, BusinessError> {
-        val userId = tokenProvider.parseRefreshToken(refreshToken)
-            ?: return Failure(UserAccountErrors.TOKEN_INVALID)
+        val userId =
+            tokenProvider.parseRefreshToken(refreshToken)
+                ?: return Failure(UserAccountErrors.TOKEN_INVALID)
 
         val storedToken = tokenStore.getRefreshToken(userId)
         if (storedToken != refreshToken) {
@@ -89,8 +90,9 @@ class UserAccountService(
             return Failure(UserAccountErrors.REFRESH_TOKEN_REVOKED)
         }
 
-        val account = userAccountRepository.findById(userId)
-            ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+        val account =
+            userAccountRepository.findById(userId)
+                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
 
         if (account.status != UserAccountStatus.ACTIVE) {
             tokenStore.removeRefreshToken(userId)
@@ -113,25 +115,34 @@ class UserAccountService(
 
     /** 根据 ID 查询用户 */
     fun findById(userId: UserId): Result<UserAccount, BusinessError> {
-        val account = userAccountRepository.findById(userId)
-            ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+        val account =
+            userAccountRepository.findById(userId)
+                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
         return Success(account)
     }
 
     /** 修改昵称 */
     fun changeNickname(userId: UserId, newNickname: Nickname): Result<Unit, BusinessError> {
-        val account = userAccountRepository.findById(userId)
-            ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
-        account.changeNickname(newNickname).onFailure { return Failure(it) }
+        val account =
+            userAccountRepository.findById(userId)
+                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+        account.changeNickname(newNickname).onFailure {
+            return Failure(it)
+        }
         userAccountRepository.save(account)
         account.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
     }
 
     /** 修改密码 */
-    fun changePassword(userId: UserId, oldPassword: String, newPassword: String): Result<Unit, BusinessError> {
-        val account = userAccountRepository.findById(userId)
-            ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+    fun changePassword(
+        userId: UserId,
+        oldPassword: String,
+        newPassword: String,
+    ): Result<Unit, BusinessError> {
+        val account =
+            userAccountRepository.findById(userId)
+                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
 
         if (!passwordHasher.matches(oldPassword, account.passwordHash.hashedValue)) {
             return Failure(UserAccountErrors.OLD_PASSWORD_MISMATCH)
@@ -142,7 +153,9 @@ class UserAccountService(
         }
 
         val newHash = passwordHasher.hash(newPassword)
-        account.changePassword(Password(newHash)).onFailure { return Failure(it) }
+        account.changePassword(Password(newHash)).onFailure {
+            return Failure(it)
+        }
         userAccountRepository.save(account)
         account.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
@@ -150,9 +163,12 @@ class UserAccountService(
 
     /** 禁用账号（自动执行强制下线） */
     fun disable(userId: UserId): Result<Unit, BusinessError> {
-        val account = userAccountRepository.findById(userId)
-            ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
-        account.disable().onFailure { return Failure(it) }
+        val account =
+            userAccountRepository.findById(userId)
+                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+        account.disable().onFailure {
+            return Failure(it)
+        }
         userAccountRepository.save(account)
         account.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
 
@@ -172,9 +188,12 @@ class UserAccountService(
 
     /** 启用账号 */
     fun enable(userId: UserId): Result<Unit, BusinessError> {
-        val account = userAccountRepository.findById(userId)
-            ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
-        account.enable().onFailure { return Failure(it) }
+        val account =
+            userAccountRepository.findById(userId)
+                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+        account.enable().onFailure {
+            return Failure(it)
+        }
         userAccountRepository.save(account)
         account.getDomainEvent().forEach { domainEventPublisher.publishEvent(it) }
         return Success(Unit)
@@ -182,8 +201,7 @@ class UserAccountService(
 
     /** 强制下线 */
     fun forceOffline(userId: UserId, accessToken: String? = null): Result<Unit, BusinessError> {
-        userAccountRepository.findById(userId)
-            ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+        userAccountRepository.findById(userId) ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
 
         // 如果提供了 AccessToken，将其加入黑名单
         if (accessToken != null) {

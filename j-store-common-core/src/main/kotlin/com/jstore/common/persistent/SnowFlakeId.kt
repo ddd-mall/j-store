@@ -5,6 +5,6 @@ package com.jstore.common.persistent
     AnnotationTarget.FIELD,
     AnnotationTarget.FUNCTION,
     AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.LOCAL_VARIABLE
+    AnnotationTarget.LOCAL_VARIABLE,
 )
 annotation class SnowFlakeId

@@ -16,13 +16,14 @@ import org.junit.jupiter.api.Test;
 
 /**
  * 展示如何在 Java 中使用 Kotlin 的 Result&lt;T, E&gt;。
- * <p>
- * 核心要点：
+ *
+ * <p>核心要点：
+ *
  * <ol>
- *   <li>使用 Results.ok(value) / Results.err(error) 工厂方法构造，避免 raw type 警告</li>
- *   <li>Kotlin 扩展函数在 Java 中变成 ResultKt.xxx(result, ...) 静态调用</li>
- *   <li>Java 21 pattern matching 可以直接 instanceof 匹配 Success/Failure</li>
- *   <li>Lambda 传参用 Java 的 Function/Predicate 接口</li>
+ *   <li>使用 Results.ok(value) / Results.err(error) 工厂方法构造，避免 raw type 警告
+ *   <li>Kotlin 扩展函数在 Java 中变成 ResultKt.xxx(result, ...) 静态调用
+ *   <li>Java 21 pattern matching 可以直接 instanceof 匹配 Success/Failure
+ *   <li>Lambda 传参用 Java 的 Function/Predicate 接口
  * </ol>
  */
 @DisplayName("Result — Java 互操作用法展示")
@@ -98,9 +99,7 @@ class ResultJavaUsageTest {
         @Test
         void getOrThrow_onFailure_throws() {
             Result<Integer, String> result = Results.err("boom");
-            var ex = assertThrows(ResultUnwrapException.class, () ->
-                ResultKt.getOrThrow(result)
-            );
+            var ex = assertThrows(ResultUnwrapException.class, () -> ResultKt.getOrThrow(result));
             assertTrue(ex.getMessage().contains("boom"));
         }
 
@@ -119,9 +118,10 @@ class ResultJavaUsageTest {
         @Test
         void expect_onFailure_throwsWithCustomMessage() {
             Result<String, Integer> result = Results.err(404);
-            var ex = assertThrows(ResultUnwrapException.class, () ->
-                ResultKt.expect(result, "resource not found")
-            );
+            var ex =
+                    assertThrows(
+                            ResultUnwrapException.class,
+                            () -> ResultKt.expect(result, "resource not found"));
             assertTrue(ex.getMessage().contains("resource not found"));
             assertTrue(ex.getMessage().contains("404"));
         }
@@ -213,9 +213,9 @@ class ResultJavaUsageTest {
         @Test
         void flatMap_chainsOnSuccess() {
             Result<Integer, String> result = Results.ok(10);
-            Result<Integer, String> chained = ResultKt.flatMap(result, v ->
-                v > 5 ? Results.ok(v * 2) : Results.err("too small")
-            );
+            Result<Integer, String> chained =
+                    ResultKt.flatMap(
+                            result, v -> v > 5 ? Results.ok(v * 2) : Results.err("too small"));
 
             assertInstanceOf(Success.class, chained);
             assertEquals(20, ((Success<?>) chained).getValue());
@@ -233,9 +233,9 @@ class ResultJavaUsageTest {
         @Test
         void flatMap_propagatesInnerFailure() {
             Result<Integer, String> result = Results.ok(3);
-            Result<Integer, String> chained = ResultKt.flatMap(result, v ->
-                v > 5 ? Results.ok(v) : Results.err("too small: " + v)
-            );
+            Result<Integer, String> chained =
+                    ResultKt.flatMap(
+                            result, v -> v > 5 ? Results.ok(v) : Results.err("too small: " + v));
 
             assertInstanceOf(Failure.class, chained);
             assertEquals("too small: 3", ((Failure<?>) chained).getError());
@@ -277,7 +277,10 @@ class ResultJavaUsageTest {
 
         @Test
         void mapOrElse_onFailure() {
-            assertEquals(3, ResultKt.mapOrElse(Results.<Integer, String>err("abc"), v -> v * 3, String::length));
+            assertEquals(
+                    3,
+                    ResultKt.mapOrElse(
+                            Results.<Integer, String>err("abc"), v -> v * 3, String::length));
         }
     }
 
@@ -365,9 +368,11 @@ class ResultJavaUsageTest {
 
         @Test
         void resultOf_wrapsException() {
-            Result<Integer, Exception> result = ResultKt.resultOf(() -> {
-                throw new IllegalArgumentException("bad");
-            });
+            Result<Integer, Exception> result =
+                    ResultKt.resultOf(
+                            () -> {
+                                throw new IllegalArgumentException("bad");
+                            });
             assertInstanceOf(Failure.class, result);
             assertInstanceOf(IllegalArgumentException.class, ((Failure<?>) result).getError());
         }
@@ -393,28 +398,23 @@ class ResultJavaUsageTest {
 
         @Test
         void chainingSuccess() {
-            Result<Integer, String> result = ResultKt.map(
-                ResultKt.flatMap(parse("42"), this::validatePositive),
-                v -> v * 2
-            );
+            Result<Integer, String> result =
+                    ResultKt.map(ResultKt.flatMap(parse("42"), this::validatePositive), v -> v * 2);
             assertEquals(Results.ok(84), result);
         }
 
         @Test
         void chainingFailsAtParse() {
-            Result<Integer, String> result = ResultKt.map(
-                ResultKt.flatMap(parse("abc"), this::validatePositive),
-                v -> v * 2
-            );
+            Result<Integer, String> result =
+                    ResultKt.map(
+                            ResultKt.flatMap(parse("abc"), this::validatePositive), v -> v * 2);
             assertEquals(Results.err("not a number: abc"), result);
         }
 
         @Test
         void chainingFailsAtValidation() {
-            Result<Integer, String> result = ResultKt.map(
-                ResultKt.flatMap(parse("-1"), this::validatePositive),
-                v -> v * 2
-            );
+            Result<Integer, String> result =
+                    ResultKt.map(ResultKt.flatMap(parse("-1"), this::validatePositive), v -> v * 2);
             assertEquals(Results.err("not positive: -1"), result);
         }
 
@@ -423,10 +423,8 @@ class ResultJavaUsageTest {
         void kotlinStyleVsJavaStyle() {
             // Kotlin: parse("42").flatMap { validatePositive(it) }.map { it * 2 }
             // Java:
-            Result<Integer, String> result = ResultKt.map(
-                ResultKt.flatMap(parse("42"), this::validatePositive),
-                v -> v * 2
-            );
+            Result<Integer, String> result =
+                    ResultKt.map(ResultKt.flatMap(parse("42"), this::validatePositive), v -> v * 2);
             assertEquals(Results.ok(84), result);
 
             // pattern matching 取值：
@@ -458,6 +456,5 @@ class ResultJavaUsageTest {
         void successNotEqualToFailure() {
             assertNotEquals(Results.ok(0), Results.err(0));
         }
-
     }
 }

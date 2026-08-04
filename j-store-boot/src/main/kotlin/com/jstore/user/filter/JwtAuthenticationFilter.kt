@@ -19,11 +19,12 @@ class JwtAuthenticationFilter(
         private const val BEARER_PREFIX = "Bearer "
         const val USER_ID_ATTRIBUTE = "userId"
 
-        private val WHITELIST_PATHS = setOf(
-            "/api/users/register",
-            "/api/users/login",
-            "/api/users/refresh-token",
-        )
+        private val WHITELIST_PATHS =
+            setOf(
+                "/api/users/register",
+                "/api/users/login",
+                "/api/users/refresh-token",
+            )
     }
 
     private val objectMapper = ObjectMapper()
@@ -66,7 +67,11 @@ class JwtAuthenticationFilter(
         filterChain.doFilter(request, response)
     }
 
-    private fun writeUnauthorized(response: HttpServletResponse, message: String, errorCode: String) {
+    private fun writeUnauthorized(
+        response: HttpServletResponse,
+        message: String,
+        errorCode: String,
+    ) {
         response.status = HttpServletResponse.SC_UNAUTHORIZED
         response.contentType = MediaType.APPLICATION_JSON_VALUE
         response.characterEncoding = "UTF-8"

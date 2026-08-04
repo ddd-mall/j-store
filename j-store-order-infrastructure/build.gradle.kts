@@ -5,7 +5,6 @@ plugins {
     kotlin("plugin.lombok")
 }
 
-
 repositories {
     mavenLocal()
     mavenCentral()
@@ -27,7 +26,7 @@ dependencies {
     implementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation("io.zonky.test:embedded-postgres:2.1.0")
-//    annotationProcessor(libs.spring.boot.configuration.processor)
+    //    annotationProcessor(libs.spring.boot.configuration.processor)
 
     runtimeOnly(libs.postgresql)
     testImplementation(libs.kotlin.test)
@@ -42,12 +41,12 @@ dependencies {
     testCompileOnly(libs.lombok)
     testAnnotationProcessor(libs.lombok)
     testImplementation(kotlin("test"))
-
 }
 
 tasks.test {
     useJUnitPlatform()
 }
+
 kotlin {
     jvmToolchain(25)
 }

@@ -9,9 +9,7 @@ import com.jstore.order.domain.order.CancellationReason
 import com.jstore.order.domain.order.OrderErrors
 import com.jstore.order.domain.order.OrderId
 
-/**
- * 取消订单命令
- */
+/** 取消订单命令 */
 data class OrderCancelCMD(
     val orderId: OrderId,
     val category: CancellationCategory,

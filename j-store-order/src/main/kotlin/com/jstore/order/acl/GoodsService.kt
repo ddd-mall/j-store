@@ -15,5 +15,5 @@ data class GoodsInfo(
     val spuName: String,
     val skuName: String,
     val attributes: List<Pair<String, String>>,
-    val price: Price
+    val price: Price,
 )

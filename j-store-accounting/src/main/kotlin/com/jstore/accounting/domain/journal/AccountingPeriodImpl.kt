@@ -26,9 +26,14 @@ class AccountingPeriodImpl(
         require(!startDate.isAfter(endDate)) { "会计期间开始日期不能晚于结束日期" }
     }
 
-    override val status: PeriodStatus get() = _status
-    override val closedAt: Instant? get() = _closedAt
-    override val closedBy: String? get() = _closedBy
+    override val status: PeriodStatus
+        get() = _status
+
+    override val closedAt: Instant?
+        get() = _closedAt
+
+    override val closedBy: String?
+        get() = _closedBy
 
     override fun contains(date: LocalDate): Boolean =
         !date.isBefore(startDate) && !date.isAfter(endDate)

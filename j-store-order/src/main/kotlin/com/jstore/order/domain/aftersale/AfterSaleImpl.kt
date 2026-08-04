@@ -41,14 +41,29 @@ class AfterSaleImpl(
     override val domainEventQueue: Queue<DomainEvent> = LinkedList(),
 ) : AfterSale {
     private val _items = items.toList()
-    override val items: List<AfterSaleItem> get() = _items.toList()
-    override val status: AfterSaleStatus get() = _status
-    override val reviewDecision: ReviewDecision? get() = _reviewDecision
-    override val cancelledAt: LocalDateTime? get() = _cancelledAt
-    override val returnReceivedAt: LocalDateTime? get() = _returnReceivedAt
-    override val refundId: String? get() = _refundId
-    override val refundFailureReason: String? get() = _refundFailureReason
-    override val updateTime: LocalDateTime get() = _updateTime
+    override val items: List<AfterSaleItem>
+        get() = _items.toList()
+
+    override val status: AfterSaleStatus
+        get() = _status
+
+    override val reviewDecision: ReviewDecision?
+        get() = _reviewDecision
+
+    override val cancelledAt: LocalDateTime?
+        get() = _cancelledAt
+
+    override val returnReceivedAt: LocalDateTime?
+        get() = _returnReceivedAt
+
+    override val refundId: String?
+        get() = _refundId
+
+    override val refundFailureReason: String?
+        get() = _refundFailureReason
+
+    override val updateTime: LocalDateTime
+        get() = _updateTime
 
     init {
         require(_items.isNotEmpty())
@@ -57,19 +72,37 @@ class AfterSaleImpl(
         validateState()
     }
 
-    override fun approve(reviewerId: MerchantActorId, occurredAt: Instant): Result<Unit, BusinessError> {
+    override fun approve(
+        reviewerId: MerchantActorId,
+        occurredAt: Instant,
+    ): Result<Unit, BusinessError> {
         if (reviewerId != merchantId) return Failure(AfterSaleErrors.MERCHANT_FORBIDDEN)
         if (_status != AfterSaleStatus.REQUESTED) return Failure(AfterSaleErrors.ILLEGAL_STATE)
         val at = occurredAt.toUtcLocalDateTime()
         _reviewDecision = ReviewDecision(reviewerId, at, null)
-        _status = if (fulfillmentSnapshot.requireReturn) AfterSaleStatus.RETURN_REQUIRED else AfterSaleStatus.REFUND_PENDING
+        _status =
+            if (fulfillmentSnapshot.requireReturn) AfterSaleStatus.RETURN_REQUIRED
+            else AfterSaleStatus.REFUND_PENDING
         _updateTime = at
-        publishEvent(AfterSaleApprovedEvent(id, orderId, reviewerId, eventItems(), fulfillmentSnapshot.requireReturn, occurredAt))
+        publishEvent(
+            AfterSaleApprovedEvent(
+                id,
+                orderId,
+                reviewerId,
+                eventItems(),
+                fulfillmentSnapshot.requireReturn,
+                occurredAt,
+            )
+        )
         if (!fulfillmentSnapshot.requireReturn) publishRefundRequested(occurredAt)
         return Success(Unit)
     }
 
-    override fun reject(reviewerId: MerchantActorId, reason: String, occurredAt: Instant): Result<Unit, BusinessError> {
+    override fun reject(
+        reviewerId: MerchantActorId,
+        reason: String,
+        occurredAt: Instant,
+    ): Result<Unit, BusinessError> {
         if (reviewerId != merchantId) return Failure(AfterSaleErrors.MERCHANT_FORBIDDEN)
         if (_status != AfterSaleStatus.REQUESTED) return Failure(AfterSaleErrors.ILLEGAL_STATE)
         val normalized = reason.trim()
@@ -82,7 +115,10 @@ class AfterSaleImpl(
         return Success(Unit)
     }
 
-    override fun cancel(applicantId: ApplicantActorId, occurredAt: Instant): Result<Unit, BusinessError> {
+    override fun cancel(
+        applicantId: ApplicantActorId,
+        occurredAt: Instant,
+    ): Result<Unit, BusinessError> {
         if (applicantId != this.applicantId) return Failure(AfterSaleErrors.APPLICANT_FORBIDDEN)
         if (_status != AfterSaleStatus.REQUESTED) return Failure(AfterSaleErrors.ILLEGAL_STATE)
         val at = occurredAt.toUtcLocalDateTime()
@@ -93,20 +129,30 @@ class AfterSaleImpl(
         return Success(Unit)
     }
 
-    override fun receiveReturn(reviewerId: MerchantActorId, occurredAt: Instant): Result<Boolean, BusinessError> {
+    override fun receiveReturn(
+        reviewerId: MerchantActorId,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
         if (reviewerId != merchantId) return Failure(AfterSaleErrors.MERCHANT_FORBIDDEN)
-        if (_status == AfterSaleStatus.REFUND_PENDING && _returnReceivedAt != null) return Success(false)
-        if (_status != AfterSaleStatus.RETURN_REQUIRED) return Failure(AfterSaleErrors.ILLEGAL_STATE)
+        if (_status == AfterSaleStatus.REFUND_PENDING && _returnReceivedAt != null)
+            return Success(false)
+        if (_status != AfterSaleStatus.RETURN_REQUIRED)
+            return Failure(AfterSaleErrors.ILLEGAL_STATE)
         val at = occurredAt.toUtcLocalDateTime()
         _returnReceivedAt = at
         _status = AfterSaleStatus.REFUND_PENDING
         _updateTime = at
-        publishEvent(AfterSaleReturnReceivedEvent(id, orderId, reviewerId, eventItems(), occurredAt))
+        publishEvent(
+            AfterSaleReturnReceivedEvent(id, orderId, reviewerId, eventItems(), occurredAt)
+        )
         publishRefundRequested(occurredAt)
         return Success(true)
     }
 
-    override fun retryRefund(reviewerId: MerchantActorId, occurredAt: Instant): Result<Boolean, BusinessError> {
+    override fun retryRefund(
+        reviewerId: MerchantActorId,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
         if (reviewerId != merchantId) return Failure(AfterSaleErrors.MERCHANT_FORBIDDEN)
         if (_status == AfterSaleStatus.REFUND_PENDING) return Success(false)
         if (_status != AfterSaleStatus.REFUND_FAILED) return Failure(AfterSaleErrors.ILLEGAL_STATE)
@@ -117,32 +163,61 @@ class AfterSaleImpl(
         return Success(true)
     }
 
-    override fun markRefundSucceeded(refundId: String, occurredAt: Instant): Result<Boolean, BusinessError> {
+    override fun markRefundSucceeded(
+        refundId: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
         if (_status == AfterSaleStatus.COMPLETED) {
-            return if (_refundId == refundId) Success(false) else Failure(AfterSaleErrors.REFUND_REFERENCE_CONFLICT)
+            return if (_refundId == refundId) Success(false)
+            else Failure(AfterSaleErrors.REFUND_REFERENCE_CONFLICT)
         }
-        if (_status != AfterSaleStatus.REFUND_PENDING || refundId.isBlank()) return Failure(AfterSaleErrors.ILLEGAL_STATE)
+        if (_status != AfterSaleStatus.REFUND_PENDING || refundId.isBlank())
+            return Failure(AfterSaleErrors.ILLEGAL_STATE)
         _refundId = refundId
         _refundFailureReason = null
         _status = AfterSaleStatus.COMPLETED
         _updateTime = occurredAt.toUtcLocalDateTime()
-        publishEvent(AfterSaleRefundSucceededEvent(id, orderId, refundId, eventItems(), totalAmount(), currency(), occurredAt))
+        publishEvent(
+            AfterSaleRefundSucceededEvent(
+                id,
+                orderId,
+                refundId,
+                eventItems(),
+                totalAmount(),
+                currency(),
+                occurredAt,
+            )
+        )
         return Success(true)
     }
 
-    override fun markRefundFailed(refundId: String, reason: String, occurredAt: Instant): Result<Boolean, BusinessError> {
+    override fun markRefundFailed(
+        refundId: String,
+        reason: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
         val normalizedReason = reason.trim()
-        if (_status == AfterSaleStatus.REFUND_FAILED && _refundId == refundId && _refundFailureReason == normalizedReason) {
+        if (
+            _status == AfterSaleStatus.REFUND_FAILED &&
+                _refundId == refundId &&
+                _refundFailureReason == normalizedReason
+        ) {
             return Success(false)
         }
-        if (_status != AfterSaleStatus.REFUND_PENDING || refundId.isBlank() || normalizedReason.isBlank()) {
+        if (
+            _status != AfterSaleStatus.REFUND_PENDING ||
+                refundId.isBlank() ||
+                normalizedReason.isBlank()
+        ) {
             return Failure(AfterSaleErrors.ILLEGAL_STATE)
         }
         _refundId = refundId
         _refundFailureReason = normalizedReason
         _status = AfterSaleStatus.REFUND_FAILED
         _updateTime = occurredAt.toUtcLocalDateTime()
-        publishEvent(AfterSaleRefundFailedEvent(id, orderId, refundId, normalizedReason, occurredAt))
+        publishEvent(
+            AfterSaleRefundFailedEvent(id, orderId, refundId, normalizedReason, occurredAt)
+        )
         return Success(true)
     }
 
@@ -161,7 +236,9 @@ class AfterSaleImpl(
     }
 
     private fun totalAmount(): Price = Price.sumOf(_items.map { it.requestedAmount })
+
     private fun currency(): String = _items.first().currency
+
     private fun eventItems() = _items.map {
         AfterSaleEventItem(
             it.orderItemId,
@@ -179,13 +256,15 @@ class AfterSaleImpl(
                 AfterSaleStatus.RETURN_REQUIRED,
                 AfterSaleStatus.REFUND_PENDING,
                 AfterSaleStatus.REFUND_FAILED,
-                AfterSaleStatus.COMPLETED,
-                -> _reviewDecision?.rejectionReason == null && _cancelledAt == null
-                AfterSaleStatus.REJECTED -> !_reviewDecision?.rejectionReason.isNullOrBlank() && _cancelledAt == null
+                AfterSaleStatus.COMPLETED ->
+                    _reviewDecision?.rejectionReason == null && _cancelledAt == null
+                AfterSaleStatus.REJECTED ->
+                    !_reviewDecision?.rejectionReason.isNullOrBlank() && _cancelledAt == null
                 AfterSaleStatus.CANCELLED -> _reviewDecision == null && _cancelledAt != null
             }
         )
     }
 
-    private fun Instant.toUtcLocalDateTime(): LocalDateTime = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
+    private fun Instant.toUtcLocalDateTime(): LocalDateTime =
+        LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 }

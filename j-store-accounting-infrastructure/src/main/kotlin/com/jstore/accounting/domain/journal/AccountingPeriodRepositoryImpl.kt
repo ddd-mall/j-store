@@ -2,13 +2,12 @@ package com.jstore.accounting.domain.journal
 
 import com.jstore.accounting.domain.journal.persistence.AccountingPeriodPO
 import com.jstore.accounting.domain.journal.persistence.AccountingPeriodPOJpaRepository
-import org.springframework.stereotype.Repository
 import java.time.LocalDate
+import org.springframework.stereotype.Repository
 
 @Repository
-class AccountingPeriodRepositoryImpl(
-    private val jpaRepository: AccountingPeriodPOJpaRepository,
-) : AccountingPeriodRepository {
+class AccountingPeriodRepositoryImpl(private val jpaRepository: AccountingPeriodPOJpaRepository) :
+    AccountingPeriodRepository {
     override fun save(entity: AccountingPeriod): AccountingPeriod {
         val saved = jpaRepository.save(Converter.toPO(entity))
         return Converter.toDomain(saved)

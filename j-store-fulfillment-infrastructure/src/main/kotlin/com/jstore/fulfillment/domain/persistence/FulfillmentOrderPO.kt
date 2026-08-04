@@ -19,7 +19,9 @@ class FulfillmentOrderPO(
     @Id var id: Long = 0,
     @Column(name = "order_id", nullable = false, unique = true) var orderId: Long = 0,
     @Column(name = "merchant_id", nullable = false) var merchantId: Long = 0,
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 32) var status: FulfillmentOrderStatus = FulfillmentOrderStatus.PENDING,
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    var status: FulfillmentOrderStatus = FulfillmentOrderStatus.PENDING,
     @Column(name = "recipient_name", nullable = false, length = 128) var recipientName: String = "",
     @Column(name = "recipient_phone", length = 32) var recipientPhone: String? = null,
     @Column(name = "recipient_email", length = 256) var recipientEmail: String? = null,
@@ -38,7 +40,8 @@ class FulfillmentOrderPO(
 @Table(name = "fulfillment_items")
 class FulfillmentItemPO(
     @Id var id: Long = 0,
-    @Column(name = "fulfillment_order_id", insertable = false, updatable = false) var fulfillmentOrderId: Long = 0,
+    @Column(name = "fulfillment_order_id", insertable = false, updatable = false)
+    var fulfillmentOrderId: Long = 0,
     @Column(name = "order_item_id", nullable = false) var orderItemId: Long = 0,
     @Column(name = "sku_id", nullable = false) var skuId: Long = 0,
     @Column(nullable = false) var quantity: Int = 0,

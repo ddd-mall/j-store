@@ -4,22 +4,21 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import org.springframework.context.support.GenericApplicationContext
 
-class SpringDomainEventListenerRegistryTest : FunSpec({
+class SpringDomainEventListenerRegistryTest :
+    FunSpec({
+        test("register fails when listener generic event type cannot be resolved") {
+            GenericApplicationContext().use { context ->
+                val registry = SpringDomainEventListenerRegistry(context)
 
-    test("register fails when listener generic event type cannot be resolved") {
-        GenericApplicationContext().use { context ->
-            val registry = SpringDomainEventListenerRegistry(context)
-
-            shouldThrow<IllegalArgumentException> {
-                registry.register(UnresolvedGenericListener<DomainEvent>())
+                shouldThrow<IllegalArgumentException> {
+                    registry.register(UnresolvedGenericListener<DomainEvent>())
+                }
             }
         }
-    }
-})
+    })
 
 private class UnresolvedGenericListener<T : DomainEvent> : DomainEventListener<T> {
     override fun listenerId(): String = "test.unresolved-generic"
 
-    override fun onDomainEvent(event: T) {
-    }
+    override fun onDomainEvent(event: T) {}
 }

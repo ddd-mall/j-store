@@ -4,18 +4,16 @@ import com.jstore.common.framework.Page
 import com.jstore.common.framework.SortedPage
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
-import com.jstore.order.domain.order.persistence.RecipientInfoPO
 import com.jstore.order.domain.order.persistence.OrderItemPO
 import com.jstore.order.domain.order.persistence.OrderPO
 import com.jstore.order.domain.order.persistence.OrderPOJpaRepository
+import com.jstore.order.domain.order.persistence.RecipientInfoPO
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Repository
 
 @Repository
-class OrderRepositoryImpl(
-    private val jpaRepository: OrderPOJpaRepository,
-) : OrderRepository {
+class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : OrderRepository {
 
     override fun add(order: Order) {
         val po = Converter.toPO(order)
@@ -37,12 +35,13 @@ class OrderRepositoryImpl(
     }
 
     override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> {
-        val pageable = PageRequest.of(currentPage - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime"))
+        val pageable =
+            PageRequest.of(currentPage - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime"))
         val page = jpaRepository.findByBuyerUid(uid, pageable)
         return SortedPage(
             current = currentPage,
             size = page.totalElements.toInt(),
-            record = page.content.map { Converter.toDomain(it) }
+            record = page.content.map { Converter.toDomain(it) },
         )
     }
 
@@ -50,15 +49,16 @@ class OrderRepositoryImpl(
 
         fun toPO(order: Order): OrderPO {
             val si = order.recipientInfo
-            val recipientInfoPO = RecipientInfoPO(
-                consigneeName = si.name,
-                consigneePhone = si.contractInfo.phoneNumber?.value,
-                consigneeEmail = si.contractInfo.email,
-                countryCode = si.shippingAddress.countryCode.value,
-                districtCode = si.shippingAddress.getLeafCode(),
-                shippingAddress = si.shippingAddress,
-                detailAddress = si.shippingDetailAddress,
-            )
+            val recipientInfoPO =
+                RecipientInfoPO(
+                    consigneeName = si.name,
+                    consigneePhone = si.contractInfo.phoneNumber?.value,
+                    consigneeEmail = si.contractInfo.email,
+                    countryCode = si.shippingAddress.countryCode.value,
+                    districtCode = si.shippingAddress.getLeafCode(),
+                    shippingAddress = si.shippingAddress,
+                    detailAddress = si.shippingDetailAddress,
+                )
             return OrderPO(
                 id = order.id.value,
                 merchantId = order.merchantId.value,
@@ -82,7 +82,20 @@ class OrderRepositoryImpl(
                 createTime = order.createTime,
                 updateTime = order.updateTime,
                 items = order.items.map { toItemPO(it, order.id.value) }.toMutableList(),
-                refundFacts = order.successfulRefundFacts.map { com.jstore.order.domain.order.persistence.OrderRefundFactPO(orderId = order.id.value, refundId = it.refundId, afterSaleId = it.afterSaleId.value, orderItemId = it.orderItemId.value, quantity = it.quantity, amount = it.amount.toBigDecimal(), occurredAt = it.occurredAt) }.toMutableList(),
+                refundFacts =
+                    order.successfulRefundFacts
+                        .map {
+                            com.jstore.order.domain.order.persistence.OrderRefundFactPO(
+                                orderId = order.id.value,
+                                refundId = it.refundId,
+                                afterSaleId = it.afterSaleId.value,
+                                orderItemId = it.orderItemId.value,
+                                quantity = it.quantity,
+                                amount = it.amount.toBigDecimal(),
+                                occurredAt = it.occurredAt,
+                            )
+                        }
+                        .toMutableList(),
             )
         }
 
@@ -105,51 +118,66 @@ class OrderRepositoryImpl(
 
         fun toDomain(po: OrderPO): Order {
             val items = po.items.map { toDomainItem(it) }.toMutableList()
-            val recipientInfoPo = po.recipientInfo
-                ?: error("Order ${po.id} has no consignee_info")
+            val recipientInfoPo = po.recipientInfo ?: error("Order ${po.id} has no consignee_info")
 
-            val address = recipientInfoPo.shippingAddress
-                ?: error("Order ${po.id} consignee_info has no shippingAddress")
+            val address =
+                recipientInfoPo.shippingAddress
+                    ?: error("Order ${po.id} consignee_info has no shippingAddress")
 
-            val contractInfo = ContractInfo(
-                email = recipientInfoPo.consigneeEmail,
-                phoneNumber = recipientInfoPo.consigneePhone?.let { PhoneNumber(it) },
-            )
+            val contractInfo =
+                ContractInfo(
+                    email = recipientInfoPo.consigneeEmail,
+                    phoneNumber = recipientInfoPo.consigneePhone?.let { PhoneNumber(it) },
+                )
 
-            val consignInfo = RecipientInfo(
-                name = recipientInfoPo.consigneeName ?: "",
-                contractInfo = contractInfo,
-                shippingAddress = address,
-                shippingDetailAddress = recipientInfoPo.detailAddress,
-            )
+            val consignInfo =
+                RecipientInfo(
+                    name = recipientInfoPo.consigneeName ?: "",
+                    contractInfo = contractInfo,
+                    shippingAddress = address,
+                    shippingDetailAddress = recipientInfoPo.detailAddress,
+                )
 
             return OrderImpl(
                 id = OrderId(po.id),
                 merchantId = MerchantId(po.merchantId),
-                buyerInfo = UserInfo(
-                    uid = po.buyerUid,
-                    phoneNumber = po.buyerPhone?.let { PhoneNumber(it) },
-                    userName = po.buyerName,
-                ),
+                buyerInfo =
+                    UserInfo(
+                        uid = po.buyerUid,
+                        phoneNumber = po.buyerPhone?.let { PhoneNumber(it) },
+                        userName = po.buyerName,
+                    ),
                 _items = items.toMutableList(),
-
                 recipientInfo = consignInfo,
                 _tradeStatus = po.tradeStatus,
                 _paymentStatus = po.paymentStatus,
                 _fulfillmentStatus = po.fulfillmentStatus,
-                amountSnapshot = OrderAmountSnapshot(
-                    currency = po.currency,
-                    itemsSubtotal = Price.fromBigDecimal(po.itemsSubtotal),
-                    discountAmount = Price.fromBigDecimal(po.discountAmount),
-                    shippingAmount = Price.fromBigDecimal(po.shippingAmount),
-                    taxAmount = Price.fromBigDecimal(po.taxAmount),
-                    payableAmount = Price.fromBigDecimal(po.payableAmount),
-                ),
+                amountSnapshot =
+                    OrderAmountSnapshot(
+                        currency = po.currency,
+                        itemsSubtotal = Price.fromBigDecimal(po.itemsSubtotal),
+                        discountAmount = Price.fromBigDecimal(po.discountAmount),
+                        shippingAmount = Price.fromBigDecimal(po.shippingAmount),
+                        taxAmount = Price.fromBigDecimal(po.taxAmount),
+                        payableAmount = Price.fromBigDecimal(po.payableAmount),
+                    ),
                 _paidAmount = Price.fromBigDecimal(po.paidAmount),
                 _refundedAmount = Price.fromBigDecimal(po.refundedAmount),
                 _paymentReference = po.paymentReference,
                 _fulfillmentReference = po.fulfillmentReference,
-                refundFacts = po.refundFacts.map { RefundFact(it.refundId, com.jstore.order.domain.aftersale.AfterSaleId(it.afterSaleId), OrderItemId(it.orderItemId), it.quantity, Price.fromBigDecimal(it.amount), it.occurredAt) }.toMutableList(),
+                refundFacts =
+                    po.refundFacts
+                        .map {
+                            RefundFact(
+                                it.refundId,
+                                com.jstore.order.domain.aftersale.AfterSaleId(it.afterSaleId),
+                                OrderItemId(it.orderItemId),
+                                it.quantity,
+                                Price.fromBigDecimal(it.amount),
+                                it.occurredAt,
+                            )
+                        }
+                        .toMutableList(),
                 createTime = po.createTime,
                 _updateTime = po.updateTime,
             )

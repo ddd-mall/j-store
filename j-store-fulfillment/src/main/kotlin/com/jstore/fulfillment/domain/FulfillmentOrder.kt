@@ -8,7 +8,12 @@ import java.time.Instant
 
 data class FulfillmentOrderId(override val value: Long) : Id<Long>(value)
 
-enum class FulfillmentOrderStatus { PENDING, READY, SHIPPED, DELIVERED }
+enum class FulfillmentOrderStatus {
+    PENDING,
+    READY,
+    SHIPPED,
+    DELIVERED,
+}
 
 data class ShippingRecipient(
     val name: String,
@@ -39,6 +44,12 @@ interface FulfillmentOrder : AgreeGate<FulfillmentOrderId> {
     val trackingNumber: String?
 
     fun prepare(occurredAt: Instant): Result<Boolean, BusinessError>
-    fun dispatch(carrierCode: String, trackingNumber: String, occurredAt: Instant): Result<Boolean, BusinessError>
+
+    fun dispatch(
+        carrierCode: String,
+        trackingNumber: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError>
+
     fun deliver(occurredAt: Instant): Result<Boolean, BusinessError>
 }

@@ -3,8 +3,7 @@ package com.jstore.goods.acl
 /**
  * 对象存储服务 ACL 接口。
  *
- * 根据图片标识（ImageKey）生成可访问的 URL。
- * 本次仅定义接口，具体实现由基础设施层在后续迭代中提供。
+ * 根据图片标识（ImageKey）生成可访问的 URL。 本次仅定义接口，具体实现由基础设施层在后续迭代中提供。
  */
 interface OssService {
 

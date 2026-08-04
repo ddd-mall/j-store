@@ -16,11 +16,22 @@ data class SettlementConfirmedEvent(
     val payableAmount: Price,
     val period: SettlementPeriod,
 ) : ExplicitDomainEvent {
-    override val source: Any get() = settlementId
-    override val eventName: String get() = "accounting.settlement-confirmed"
-    override val eventVersion: Int get() = 1
+    override val source: Any
+        get() = settlementId
+
+    override val eventName: String
+        get() = "accounting.settlement-confirmed"
+
+    override val eventVersion: Int
+        get() = 1
+
     override val occurredAt: Instant = Instant.now()
-    override val aggregateType: String get() = "SettlementStatement"
-    override val aggregateId: String get() = settlementId.toString()
-    override val eventId: String get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
+    override val aggregateType: String
+        get() = "SettlementStatement"
+
+    override val aggregateId: String
+        get() = settlementId.toString()
+
+    override val eventId: String
+        get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }

@@ -1,8 +1,8 @@
 package com.jstore.common.framework.event.outbox
 
-import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import org.slf4j.LoggerFactory
 
 /**
  * Outbox 定期清理器。
@@ -18,8 +18,13 @@ class OutboxCleaner(
     fun cleanup() {
         try {
             val before = Instant.now().minus(properties.retentionDays.toLong(), ChronoUnit.DAYS)
-            val deleted = outboxEntryRepository.deletePublishedBefore(before, properties.cleanupBatchSize)
-            logger.info("Outbox cleanup completed: deleted={}, retentionDays={}", deleted, properties.retentionDays)
+            val deleted =
+                outboxEntryRepository.deletePublishedBefore(before, properties.cleanupBatchSize)
+            logger.info(
+                "Outbox cleanup completed: deleted={}, retentionDays={}",
+                deleted,
+                properties.retentionDays,
+            )
         } catch (e: Exception) {
             logger.error("Outbox cleanup encountered an unexpected error", e)
         }

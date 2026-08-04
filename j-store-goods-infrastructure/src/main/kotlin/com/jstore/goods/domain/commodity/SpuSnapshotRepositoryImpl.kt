@@ -8,9 +8,8 @@ import com.jstore.goods.domain.commodity.snapshot.*
 import org.springframework.stereotype.Repository
 
 @Repository
-class SpuSnapshotRepositoryImpl(
-    private val jpaRepository: SpuSnapshotPOJpaRepository,
-) : SpuSnapshotRepository {
+class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepository) :
+    SpuSnapshotRepository {
 
     override fun save(entity: SpuSnapshot): SpuSnapshot {
         val po = Converter.toPO(entity)
@@ -23,13 +22,15 @@ class SpuSnapshotRepositoryImpl(
     }
 
     override fun findBySpuIdAndVersion(spuId: SpuId, version: Long): SpuSnapshot? {
-        return jpaRepository.findBySpuIdAndSnapshotVersion(spuId.value, version)
-            ?.let { Converter.toDomain(it) }
+        return jpaRepository.findBySpuIdAndSnapshotVersion(spuId.value, version)?.let {
+            Converter.toDomain(it)
+        }
     }
 
     override fun findLatestBySpuId(spuId: SpuId): SpuSnapshot? {
-        return jpaRepository.findFirstBySpuIdOrderBySnapshotVersionDesc(spuId.value)
-            ?.let { Converter.toDomain(it) }
+        return jpaRepository.findFirstBySpuIdOrderBySnapshotVersionDesc(spuId.value)?.let {
+            Converter.toDomain(it)
+        }
     }
 
     private object Converter {
@@ -42,7 +43,8 @@ class SpuSnapshotRepositoryImpl(
                 snapshotVersion = snapshot.snapshotVersion,
                 spuName = snapshot.spuName,
                 description = snapshot.description,
-                skuSnapshots = JsonUtils.toJsonString(snapshot.skuSnapshots.map { toSkuSnapshotMap(it) }),
+                skuSnapshots =
+                    JsonUtils.toJsonString(snapshot.skuSnapshots.map { toSkuSnapshotMap(it) }),
                 createdAt = snapshot.createdAt,
             )
         }

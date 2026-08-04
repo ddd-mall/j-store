@@ -1,5 +1,7 @@
 package com.jstore.order.expired;
 
+import java.util.List;
+import java.util.concurrent.ThreadPoolExecutor;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -9,19 +11,14 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.List;
-import java.util.concurrent.ThreadPoolExecutor;
-
-
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "timer.job")
 @SuppressWarnings("rawtypes")
 public class TimerJobConfig {
-    /**
-     * 槽位数量
-     */
+    /** 槽位数量 */
     private Integer slotAmount = 8;
+
     public static final String EXPIRE_CENTER_POOL = "expireCenterPool";
     public static final String JOB_KEY_PREFIX = "timer:job:";
 
@@ -33,7 +30,6 @@ public class TimerJobConfig {
         return redisScript;
     }
 
-
     @Bean(name = "rollbackTimerJob")
     public RedisScript<Boolean> rollback() {
         DefaultRedisScript<Boolean> redisScript = new DefaultRedisScript<>();
@@ -42,7 +38,6 @@ public class TimerJobConfig {
         return redisScript;
     }
 
-
     @Bean(name = "rollbackExpired")
     public RedisScript<Boolean> rollbackExpired() {
         DefaultRedisScript<Boolean> redisScript = new DefaultRedisScript<>();
@@ -50,7 +45,6 @@ public class TimerJobConfig {
         redisScript.setResultType(Boolean.class);
         return redisScript;
     }
-
 
     @Bean(name = EXPIRE_CENTER_POOL)
     public ThreadPoolTaskExecutor expireCenterPool() {

@@ -11,9 +11,7 @@ data class MerchantId(override val value: Long) : Id<Long>(value) {
     }
 }
 
-/**
- * TODO: 商品的 Copy-on-Write 流程应该适用于所有状态
- */
+/** TODO: 商品的 Copy-on-Write 流程应该适用于所有状态 */
 interface Spu : AgreeGate<SpuId> {
     /** 商品所属商户。一个商品的全部 SKU 共享同一商户归属。 */
     val merchantId: MerchantId

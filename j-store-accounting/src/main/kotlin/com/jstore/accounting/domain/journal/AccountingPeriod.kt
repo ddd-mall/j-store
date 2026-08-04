@@ -9,7 +9,10 @@ import java.time.LocalDate
 
 data class AccountingPeriodId(override val value: Long) : Id<Long>(value)
 
-enum class PeriodStatus { OPEN, CLOSED }
+enum class PeriodStatus {
+    OPEN,
+    CLOSED,
+}
 
 interface AccountingPeriod : AgreeGate<AccountingPeriodId> {
     override val id: AccountingPeriodId
@@ -21,6 +24,8 @@ interface AccountingPeriod : AgreeGate<AccountingPeriodId> {
     val closedBy: String?
 
     fun contains(date: LocalDate): Boolean
+
     fun close(closedBy: String): Result<Unit, BusinessError>
+
     fun reopen(reason: String): Result<Unit, BusinessError>
 }

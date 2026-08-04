@@ -56,9 +56,14 @@ data class DeadLetterRequeueResult(
     val notRequeuedCount: Int,
 )
 
-enum class OutboxDeadLetterAuditAction { REQUEUE }
+enum class OutboxDeadLetterAuditAction {
+    REQUEUE
+}
 
-enum class OutboxDeadLetterAuditResult { REQUEUED, NOT_REQUEUED }
+enum class OutboxDeadLetterAuditResult {
+    REQUEUED,
+    NOT_REQUEUED,
+}
 
 data class OutboxDeadLetterAudit(
     val entryId: String,

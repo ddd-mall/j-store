@@ -8,10 +8,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 领域事件监听器工具类
- * 
- * 提供反射辅助方法，但将反射逻辑与接口定义分离。
- * 这样领域模型接口保持纯净，反射工具由框架层调用。
- * 
+ *
+ * 提供反射辅助方法，但将反射逻辑与接口定义分离。 这样领域模型接口保持纯净，反射工具由框架层调用。
+ *
  * 设计目的：
  * - 保持 DomainEventListener 接口简洁清晰
  * - 在需要时才使用反射提取泛型信息
@@ -22,10 +21,10 @@ object DomainEventListenerUtils {
 
     /**
      * 获取监听器支持的事件类型（通过泛型参数）
-     * 
+     *
      * @param listener 具体的监听器实例
      * @return 该监听器通过泛型参数声明的事件类型，失败时返回 null
-     * 
+     *
      * 实现原理：
      * 1. 查找监听器类的所有超类型
      * 2. 找到 DomainEventListener 接口的实现
@@ -33,7 +32,9 @@ object DomainEventListenerUtils {
      */
     fun getListeningEventType(listener: DomainEventListener<*>): Class<*>? {
         val listenerClass = resolveUserClass(listener)
-        listeningTypeCache[listenerClass]?.let { return it }
+        listeningTypeCache[listenerClass]?.let {
+            return it
+        }
         val listeningType = extractListeningEventType(listenerClass) ?: return null
         listeningTypeCache[listenerClass] = listeningType
         return listeningType
@@ -57,13 +58,20 @@ object DomainEventListenerUtils {
         return eventClass as Class<out DomainEvent>
     }
 
-    private fun findDomainEventListenerArgument(type: Type, bindings: Map<TypeVariable<*>, Type>): Type? {
+    private fun findDomainEventListenerArgument(
+        type: Type,
+        bindings: Map<TypeVariable<*>, Type>,
+    ): Type? {
         return when (type) {
             is Class<*> -> findInClassHierarchy(type, bindings)
             is ParameterizedType -> {
                 val rawClass = type.rawType as? Class<*> ?: return null
-                val nextBindings = bindings + rawClass.typeParameters.zip(type.actualTypeArguments)
-                    .associate { (variable, actualType) -> variable to substituteTypeVariables(actualType, bindings) }
+                val nextBindings =
+                    bindings +
+                        rawClass.typeParameters.zip(type.actualTypeArguments).associate {
+                            (variable, actualType) ->
+                            variable to substituteTypeVariables(actualType, bindings)
+                        }
 
                 if (rawClass == DomainEventListener::class.java) {
                     substituteTypeVariables(type.actualTypeArguments.first(), nextBindings)
@@ -76,10 +84,13 @@ object DomainEventListenerUtils {
     }
 
     private fun findInClassHierarchy(clazz: Class<*>, bindings: Map<TypeVariable<*>, Type>): Type? {
-        clazz.genericInterfaces.asSequence()
+        clazz.genericInterfaces
+            .asSequence()
             .mapNotNull { findDomainEventListenerArgument(it, bindings) }
             .firstOrNull()
-            ?.let { return it }
+            ?.let {
+                return it
+            }
 
         val genericSuperclass = clazz.genericSuperclass ?: return null
         return findDomainEventListenerArgument(genericSuperclass, bindings)
@@ -97,7 +108,8 @@ object DomainEventListenerUtils {
         return when (type) {
             is Class<*> -> type
             is ParameterizedType -> type.rawType as? Class<*>
-            is WildcardType -> type.upperBounds.asSequence().mapNotNull(::resolveEventClass).firstOrNull()
+            is WildcardType ->
+                type.upperBounds.asSequence().mapNotNull(::resolveEventClass).firstOrNull()
             is TypeVariable<*> -> null
             else -> null
         }
@@ -105,19 +117,20 @@ object DomainEventListenerUtils {
 
     private fun resolveUserClass(listener: DomainEventListener<*>): Class<*> {
         return runCatching {
-            val aopUtils = Class.forName("org.springframework.aop.support.AopUtils")
-            val method = aopUtils.getMethod("getTargetClass", Any::class.java)
-            method.invoke(null, listener) as? Class<*>
-        }.getOrNull() ?: listener::class.java
+                val aopUtils = Class.forName("org.springframework.aop.support.AopUtils")
+                val method = aopUtils.getMethod("getTargetClass", Any::class.java)
+                method.invoke(null, listener) as? Class<*>
+            }
+            .getOrNull() ?: listener::class.java
     }
 
     /**
      * 判断监听器是否支持处理给定的事件
-     * 
+     *
      * @param listener 具体的监听器实例
      * @param event 领域事件
      * @return true 表示监听器可以处理该事件
-     * 
+     *
      * 判断规则：
      * 1. 通过 getListeningEventType() 获取监听器声明的事件类型
      * 2. 检查给定事件是否该类型的实例或子类型

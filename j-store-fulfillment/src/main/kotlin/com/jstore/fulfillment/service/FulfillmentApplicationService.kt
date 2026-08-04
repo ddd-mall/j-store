@@ -33,17 +33,20 @@ class FulfillmentApplicationService(
         repository.findByOrderId(request.orderId)?.let { existing ->
             return if (
                 existing.merchantId == request.merchantId &&
-                existing.recipient == request.recipient &&
-                existing.items == request.items
-            ) Success(existing) else Failure(FulfillmentErrors.ORDER_CONFLICT)
+                    existing.recipient == request.recipient &&
+                    existing.items == request.items
+            )
+                Success(existing)
+            else Failure(FulfillmentErrors.ORDER_CONFLICT)
         }
-        val fulfillment = FulfillmentOrderImpl(
-            id = FulfillmentOrderId(sequence.nextId()),
-            orderId = request.orderId,
-            merchantId = request.merchantId,
-            recipient = request.recipient,
-            items = request.items,
-        )
+        val fulfillment =
+            FulfillmentOrderImpl(
+                id = FulfillmentOrderId(sequence.nextId()),
+                orderId = request.orderId,
+                merchantId = request.merchantId,
+                recipient = request.recipient,
+                items = request.items,
+            )
         repository.save(fulfillment)
         return Success(fulfillment)
     }
@@ -51,28 +54,36 @@ class FulfillmentApplicationService(
     fun getByOrderId(orderId: Long): Result<FulfillmentOrder, BusinessError> =
         repository.findByOrderId(orderId)?.let(::Success) ?: Failure(FulfillmentErrors.NOT_FOUND)
 
-    fun prepare(orderId: Long, occurredAt: Instant = Instant.now()): Result<Boolean, BusinessError> =
-        mutate(orderId) { it.prepare(occurredAt) }
+    fun prepare(
+        orderId: Long,
+        occurredAt: Instant = Instant.now(),
+    ): Result<Boolean, BusinessError> = mutate(orderId) { it.prepare(occurredAt) }
 
     fun dispatch(
         orderId: Long,
         carrierCode: String,
         trackingNumber: String,
         occurredAt: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError> = mutate(orderId) {
-        it.dispatch(carrierCode, trackingNumber, occurredAt)
-    }
+    ): Result<Boolean, BusinessError> =
+        mutate(orderId) {
+            it.dispatch(carrierCode, trackingNumber, occurredAt)
+        }
 
-    fun deliver(orderId: Long, occurredAt: Instant = Instant.now()): Result<Boolean, BusinessError> =
-        mutate(orderId) { it.deliver(occurredAt) }
+    fun deliver(
+        orderId: Long,
+        occurredAt: Instant = Instant.now(),
+    ): Result<Boolean, BusinessError> = mutate(orderId) { it.deliver(occurredAt) }
 
     private fun mutate(
         orderId: Long,
         operation: (FulfillmentOrder) -> Result<Boolean, BusinessError>,
     ): Result<Boolean, BusinessError> {
-        val fulfillment = repository.findByOrderId(orderId) ?: return Failure(FulfillmentErrors.NOT_FOUND)
+        val fulfillment =
+            repository.findByOrderId(orderId) ?: return Failure(FulfillmentErrors.NOT_FOUND)
         val changed = operation(fulfillment)
-        changed.onFailure { return Failure(it) }
+        changed.onFailure {
+            return Failure(it)
+        }
         if (changed.getOrThrow()) {
             repository.save(fulfillment)
             fulfillment.getDomainEvent().forEach { publisher.publishEvent(it) }

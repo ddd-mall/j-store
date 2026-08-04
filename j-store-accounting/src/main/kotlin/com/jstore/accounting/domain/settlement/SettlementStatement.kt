@@ -9,6 +9,7 @@ import java.time.Instant
 import java.time.LocalDate
 
 data class SettlementStatementId(override val value: Long) : Id<Long>(value)
+
 data class SettlementLineId(override val value: Long) : Id<Long>(value)
 
 data class SettlementPeriod(
@@ -20,7 +21,12 @@ data class SettlementPeriod(
     }
 }
 
-enum class SettlementStatementStatus { DRAFT, CONFIRMED, PAID, CANCELLED }
+enum class SettlementStatementStatus {
+    DRAFT,
+    CONFIRMED,
+    PAID,
+    CANCELLED,
+}
 
 data class SettlementLine(
     val id: SettlementLineId,
@@ -47,6 +53,8 @@ interface SettlementStatement : AgreeGate<SettlementStatementId> {
     val paidAt: Instant?
 
     fun addLine(line: SettlementLine): Result<Unit, BusinessError>
+
     fun confirm(): Result<Unit, BusinessError>
+
     fun markPaid(paidAt: Instant): Result<Unit, BusinessError>
 }

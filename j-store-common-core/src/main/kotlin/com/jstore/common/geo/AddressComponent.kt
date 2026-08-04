@@ -5,10 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import java.util.Locale
 
-/**
- * 地址组件：一个行政区划节点
- * 包含编码、层级、多语言名称映射
- */
+/** 地址组件：一个行政区划节点 包含编码、层级、多语言名称映射 */
 data class AddressComponent(
     val code: String,
     val level: DivisionLevel,
@@ -25,7 +22,7 @@ data class AddressComponent(
     @param:JsonDeserialize(using = LocaleDeserializer::class)
     @field:JsonDeserialize(using = LocaleDeserializer::class)
     @get:JsonDeserialize(using = LocaleDeserializer::class)
-    val defaultLocale: Locale
+    val defaultLocale: Locale,
 ) {
     init {
         require(code.isNotBlank()) { "Address component code must not be blank" }
@@ -39,6 +36,5 @@ data class AddressComponent(
     fun getName(locale: Locale): String = names[locale] ?: names.getValue(defaultLocale)
 
     /** 获取默认 Locale 的名称 */
-    @JsonIgnore
-    fun getDefaultName(): String = names.getValue(defaultLocale)
+    @JsonIgnore fun getDefaultName(): String = names.getValue(defaultLocale)
 }

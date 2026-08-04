@@ -26,13 +26,21 @@ class OutboxOperationsController(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
     ): ResponseEntity<*> {
-        forbidden(operatorId)?.let { return it }
-        if (page < 1 || size !in 1..200) {
-            return ResponseEntity.badRequest().body(
-                OutboxOperationsErrorResponse("page must be at least 1 and size must be between 1 and 200", "OUTBOX_OPERATIONS_INVALID_PAGE"),
-            )
+        forbidden(operatorId)?.let {
+            return it
         }
-        return ResponseEntity.ok(DeadLetterPageResponse.from(deadLetterService.findDeadLetters(page, size)))
+        if (page < 1 || size !in 1..200) {
+            return ResponseEntity.badRequest()
+                .body(
+                    OutboxOperationsErrorResponse(
+                        "page must be at least 1 and size must be between 1 and 200",
+                        "OUTBOX_OPERATIONS_INVALID_PAGE",
+                    )
+                )
+        }
+        return ResponseEntity.ok(
+            DeadLetterPageResponse.from(deadLetterService.findDeadLetters(page, size))
+        )
     }
 
     @PostMapping("/requeue")
@@ -40,22 +48,26 @@ class OutboxOperationsController(
         @CurrentUserId operatorId: UserId,
         @Valid @RequestBody request: RequeueDeadLettersRequest,
     ): ResponseEntity<*> {
-        forbidden(operatorId)?.let { return it }
-        val result = deadLetterService.requeue(
-            ids = request.ids,
-            operatorId = operatorId.value.toString(),
-            reason = request.reason,
-        )
+        forbidden(operatorId)?.let {
+            return it
+        }
+        val result =
+            deadLetterService.requeue(
+                ids = request.ids,
+                operatorId = operatorId.value.toString(),
+                reason = request.reason,
+            )
         return ResponseEntity.ok(RequeueDeadLettersResponse.from(result))
     }
 
     private fun forbidden(operatorId: UserId): ResponseEntity<OutboxOperationsErrorResponse>? {
         if (properties.isAdministrator(operatorId.value)) return null
-        return ResponseEntity.status(403).body(
-            OutboxOperationsErrorResponse(
-                message = "Current user is not an Outbox operations administrator",
-                errorCode = "OUTBOX_OPERATIONS_FORBIDDEN",
-            ),
-        )
+        return ResponseEntity.status(403)
+            .body(
+                OutboxOperationsErrorResponse(
+                    message = "Current user is not an Outbox operations administrator",
+                    errorCode = "OUTBOX_OPERATIONS_FORBIDDEN",
+                )
+            )
     }
 }

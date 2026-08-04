@@ -2,9 +2,7 @@ package com.jstore.common.framework.event.outbox
 
 import java.time.Instant
 
-/**
- * Outbox 条目领域模型，表示一条待发布的领域事件记录。
- */
+/** Outbox 条目领域模型，表示一条待发布的领域事件记录。 */
 data class OutboxEntry(
     val id: String,
     val eventType: String,
