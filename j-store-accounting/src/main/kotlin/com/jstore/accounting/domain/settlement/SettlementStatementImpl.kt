@@ -1,12 +1,12 @@
 package com.jstore.accounting.domain.settlement
 
+import com.jstore.accounting.domain.settlement.event.SettlementPaidEvent
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.accounting.domain.settlement.event.SettlementPaidEvent
 import java.time.Instant
 import java.util.LinkedList
 import java.util.Queue
@@ -29,11 +29,20 @@ class SettlementStatementImpl(
         require(merchantId.isNotBlank()) { "商户ID不能为空" }
     }
 
-    override val status: SettlementStatementStatus get() = _status
-    override val lines: List<SettlementLine> get() = _lines.toList()
-    override val payableAmount: Price get() = _payableAmount
-    override val confirmedAt: Instant? get() = _confirmedAt
-    override val paidAt: Instant? get() = _paidAt
+    override val status: SettlementStatementStatus
+        get() = _status
+
+    override val lines: List<SettlementLine>
+        get() = _lines.toList()
+
+    override val payableAmount: Price
+        get() = _payableAmount
+
+    override val confirmedAt: Instant?
+        get() = _confirmedAt
+
+    override val paidAt: Instant?
+        get() = _paidAt
 
     override fun addLine(line: SettlementLine): Result<Unit, BusinessError> {
         if (_status != SettlementStatementStatus.DRAFT) {

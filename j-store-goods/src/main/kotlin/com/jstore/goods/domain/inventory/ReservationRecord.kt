@@ -45,6 +45,5 @@ data class ReservationId(override val value: Long) : Id<Long>(value)
 enum class ReservationStatus {
     RESERVED,
     CONFIRMED,
-    RELEASED
+    RELEASED,
 }
-

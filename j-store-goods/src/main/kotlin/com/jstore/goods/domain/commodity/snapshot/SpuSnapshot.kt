@@ -6,15 +6,10 @@ import com.jstore.common.properties.Price
 import com.jstore.goods.domain.commodity.*
 import java.time.LocalDateTime
 
-/**
- * SPU 快照 ID
- */
+/** SPU 快照 ID */
 class SpuSnapshotId(override val value: Long) : Id<Long>(value)
 
-/**
- * SPU 快照 — 不可变值对象，记录某一时刻的商品完整信息。
- * 订单创建时引用快照版本，确保历史价格和属性可追溯。
- */
+/** SPU 快照 — 不可变值对象，记录某一时刻的商品完整信息。 订单创建时引用快照版本，确保历史价格和属性可追溯。 */
 data class SpuSnapshot(
     override val id: SpuSnapshotId,
     /** 商品所属商户 */
@@ -33,9 +28,7 @@ data class SpuSnapshot(
     val createdAt: LocalDateTime,
 ) : Entity<SpuSnapshotId>
 
-/**
- * SKU 快照 — 不可变值对象
- */
+/** SKU 快照 — 不可变值对象 */
 data class SkuSnapshot(
     val skuId: SkuId,
     val skuName: String,

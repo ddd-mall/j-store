@@ -12,12 +12,21 @@ sealed class OrderDomainEvent(
     open val orderId: OrderId,
     override val occurredAt: Instant = Instant.now(),
 ) : ExplicitDomainEvent {
-    override val source: Any get() = orderId
-    override val eventName: String get() = this::class.java.getAnnotation(DomainEventType::class.java).name
-    override val eventVersion: Int get() = this::class.java.getAnnotation(DomainEventType::class.java).version
+    override val source: Any
+        get() = orderId
+
+    override val eventName: String
+        get() = this::class.java.getAnnotation(DomainEventType::class.java).name
+
+    override val eventVersion: Int
+        get() = this::class.java.getAnnotation(DomainEventType::class.java).version
+
     override val aggregateType: String = "Order"
-    override val aggregateId: String get() = orderId.value.toString()
-    override val eventId: String get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
+    override val aggregateId: String
+        get() = orderId.value.toString()
+
+    override val eventId: String
+        get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }
 
 data class OrderItemSnapshot(val skuId: Long, val quantity: Int)

@@ -8,5 +8,4 @@ class WeakReferenceCache<K, V> {
     private val cache: ConcurrentHashMap<K & Any, V & Any> = ConcurrentHashMap()
 
     private class KeyedReference<K, V>(val key: K, value: V) : WeakReference<V>(value)
-
 }

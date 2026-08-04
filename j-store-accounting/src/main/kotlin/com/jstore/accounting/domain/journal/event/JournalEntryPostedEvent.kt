@@ -15,11 +15,22 @@ data class JournalEntryPostedEvent(
     val entryType: JournalEntryType,
     val accountingDate: LocalDate,
 ) : ExplicitDomainEvent {
-    override val source: Any get() = entryId
-    override val eventName: String get() = "accounting.journal-entry-posted"
-    override val eventVersion: Int get() = 1
+    override val source: Any
+        get() = entryId
+
+    override val eventName: String
+        get() = "accounting.journal-entry-posted"
+
+    override val eventVersion: Int
+        get() = 1
+
     override val occurredAt: Instant = Instant.now()
-    override val aggregateType: String get() = "JournalEntry"
-    override val aggregateId: String get() = entryId.toString()
-    override val eventId: String get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
+    override val aggregateType: String
+        get() = "JournalEntry"
+
+    override val aggregateId: String
+        get() = entryId.toString()
+
+    override val eventId: String
+        get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }

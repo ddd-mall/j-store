@@ -13,7 +13,9 @@ interface GoodsStyle : Entity<GoodsStyleId> {
     val skuImages: Map<SkuId, List<String>>
 
     fun updateMainImages(images: List<String>): Result<Unit, BusinessError>
+
     fun updateDetailHtml(html: String): Result<Unit, BusinessError>
+
     fun updateSkuImages(skuId: SkuId, images: List<String>): Result<Unit, BusinessError>
 }
 
@@ -24,9 +26,14 @@ class GoodsStyleImpl(
     private var _detailHtml: String,
     private val _skuImages: MutableMap<SkuId, List<String>>,
 ) : GoodsStyle {
-    override val mainImages: List<String> get() = _mainImages.toList()
-    override val detailHtml: String get() = _detailHtml
-    override val skuImages: Map<SkuId, List<String>> get() = _skuImages.toMap()
+    override val mainImages: List<String>
+        get() = _mainImages.toList()
+
+    override val detailHtml: String
+        get() = _detailHtml
+
+    override val skuImages: Map<SkuId, List<String>>
+        get() = _skuImages.toMap()
 
     override fun updateMainImages(images: List<String>): Result<Unit, BusinessError> {
         if (images.size != images.distinct().size) {

@@ -18,32 +18,34 @@ import io.kotest.property.checkAll
  *
  * **Validates: Requirements 4.1, 4.2, 4.3**
  */
-class GoodsStyleSkuImagesOrderPropertyTest : FunSpec({
+class GoodsStyleSkuImagesOrderPropertyTest :
+    FunSpec({
+        val skuIdArb: Arb<SkuId> = Arb.long(1L..10000L).map { SkuId(it) }
 
-    val skuIdArb: Arb<SkuId> = Arb.long(1L..10000L).map { SkuId(it) }
+        // Generator for a distinct ImageKey list (including empty lists)
+        val distinctImageKeysArb: Arb<List<String>> =
+            Arb.list(Arb.string(1..30), 0..20).map { it.distinct() }
 
-    // Generator for a distinct ImageKey list (including empty lists)
-    val distinctImageKeysArb: Arb<List<String>> = Arb.list(Arb.string(1..30), 0..20)
-        .map { it.distinct() }
-
-    fun createGoodsStyle(): GoodsStyle {
-        return GoodsStyleImpl(
-            id = GoodsStyleId(1L),
-            spuId = SpuId(1L),
-            _mainImages = mutableListOf(),
-            _detailHtml = "",
-            _skuImages = mutableMapOf(),
-        )
-    }
-
-    test("updateSkuImages should preserve element order and content for any SkuId and distinct ImageKey list") {
-        checkAll(100, skuIdArb, distinctImageKeysArb) { skuId, images ->
-            val goodsStyle = createGoodsStyle()
-
-            val result = goodsStyle.updateSkuImages(skuId, images)
-
-            result.shouldBeInstanceOf<Success<Unit>>()
-            goodsStyle.skuImages[skuId] shouldBe images
+        fun createGoodsStyle(): GoodsStyle {
+            return GoodsStyleImpl(
+                id = GoodsStyleId(1L),
+                spuId = SpuId(1L),
+                _mainImages = mutableListOf(),
+                _detailHtml = "",
+                _skuImages = mutableMapOf(),
+            )
         }
-    }
-})
+
+        test(
+            "updateSkuImages should preserve element order and content for any SkuId and distinct ImageKey list"
+        ) {
+            checkAll(100, skuIdArb, distinctImageKeysArb) { skuId, images ->
+                val goodsStyle = createGoodsStyle()
+
+                val result = goodsStyle.updateSkuImages(skuId, images)
+
+                result.shouldBeInstanceOf<Success<Unit>>()
+                goodsStyle.skuImages[skuId] shouldBe images
+            }
+        }
+    })

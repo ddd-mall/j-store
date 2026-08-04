@@ -31,29 +31,33 @@ internal fun testOrder(
         merchantId = MerchantId(7),
         buyerInfo = UserInfo(1, null, null),
         _items = items.toMutableList(),
-        recipientInfo = RecipientInfo(
-            name = "收货人",
-            contractInfo = ContractInfo(null, null),
-            shippingAddress = I18nGeoAddress(
-                CountryCode.CN,
-                listOf(
-                    AddressComponent(
-                        "110000",
-                        DivisionLevel(1, "省"),
-                        mapOf(Locale.SIMPLIFIED_CHINESE to "北京市"),
-                        Locale.SIMPLIFIED_CHINESE,
-                    )
-                ),
+        recipientInfo =
+            RecipientInfo(
+                name = "收货人",
+                contractInfo = ContractInfo(null, null),
+                shippingAddress =
+                    I18nGeoAddress(
+                        CountryCode.CN,
+                        listOf(
+                            AddressComponent(
+                                "110000",
+                                DivisionLevel(1, "省"),
+                                mapOf(Locale.SIMPLIFIED_CHINESE to "北京市"),
+                                Locale.SIMPLIFIED_CHINESE,
+                            )
+                        ),
+                    ),
+                shippingDetailAddress = "测试地址",
             ),
-            shippingDetailAddress = "测试地址",
-        ),
         _tradeStatus = trade,
         _paymentStatus = payment,
         _fulfillmentStatus = fulfillment,
         amountSnapshot = OrderAmountSnapshot.cny(Price.ofFen(items.size * 100)),
-        _paidAmount = if (payment == PaymentStatus.UNPAID) Price.ZERO else Price.ofFen(items.size * 100),
+        _paidAmount =
+            if (payment == PaymentStatus.UNPAID) Price.ZERO else Price.ofFen(items.size * 100),
         _paymentReference = if (payment == PaymentStatus.UNPAID) null else "payment-1",
-        _fulfillmentReference = if (fulfillment == FulfillmentStatus.UNFULFILLED) null else "fulfillment-1",
+        _fulfillmentReference =
+            if (fulfillment == FulfillmentStatus.UNFULFILLED) null else "fulfillment-1",
         createTime = LocalDateTime.of(2026, 1, 1, 0, 0),
         _updateTime = LocalDateTime.of(2026, 1, 1, 0, 0),
     )

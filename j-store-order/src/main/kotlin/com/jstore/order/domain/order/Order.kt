@@ -4,9 +4,9 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.AgreeGate
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
-import java.time.LocalDateTime
-import java.time.Instant
 import com.jstore.order.domain.aftersale.AfterSaleId
+import java.time.Instant
+import java.time.LocalDateTime
 
 /** 订单聚合根接口。交易、支付、履约和售后状态分别表达并行的业务事实。 */
 interface Order : AgreeGate<OrderId> {
@@ -78,6 +78,7 @@ interface Order : AgreeGate<OrderId> {
     fun cancel(reason: CancellationReason): Result<Unit, BusinessError>
 
     fun refundEligibility(): Result<RefundEligibility, BusinessError>
+
     fun recordRefundSucceeded(
         refundId: String,
         afterSaleId: AfterSaleId,

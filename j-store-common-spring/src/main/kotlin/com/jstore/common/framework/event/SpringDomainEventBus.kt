@@ -18,6 +18,4 @@ class SpringDomainEventBus(
     override fun unregister(domainEventListener: DomainEventListener<*>) {
         registry.unregister(domainEventListener)
     }
-
-
 }

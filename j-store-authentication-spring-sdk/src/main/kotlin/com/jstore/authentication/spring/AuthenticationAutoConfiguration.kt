@@ -45,7 +45,9 @@ class AuthenticationAutoConfiguration {
                 registry.addInterceptor(interceptor).addPathPatterns("/**")
             }
 
-            override fun addArgumentResolvers(resolvers: MutableList<HandlerMethodArgumentResolver>) {
+            override fun addArgumentResolvers(
+                resolvers: MutableList<HandlerMethodArgumentResolver>
+            ) {
                 resolvers.add(resolver)
             }
         }

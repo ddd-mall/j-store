@@ -1,14 +1,12 @@
 package com.jstore.order.expired;
 
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.SmartLifecycle;
-import org.springframework.stereotype.Component;
-
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.SmartLifecycle;
+import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
@@ -20,12 +18,10 @@ public class TimerJobCoordinator implements SmartLifecycle {
     private final JobDispatcher jobDispatcher;
     private final SlotAssigner slotAssigner;
 
-
     public TimerJobCoordinator(JobDispatcher jobDispatcher, SlotAssigner slotAssigner) {
         this.jobDispatcher = jobDispatcher;
         this.slotAssigner = slotAssigner;
     }
-
 
     @Override
     public void start() {
@@ -35,9 +31,7 @@ public class TimerJobCoordinator implements SmartLifecycle {
         } else {
             log.info("定时任务中心已经正在运行中");
         }
-
     }
-
 
     @Override
     public void stop() {

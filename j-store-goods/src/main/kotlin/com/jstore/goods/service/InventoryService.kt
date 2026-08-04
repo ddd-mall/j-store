@@ -11,7 +11,6 @@ import com.jstore.goods.domain.inventory.*
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
-
 class InventoryService(
     private val inventoryRepository: InventoryRepository,
     private val reservationRecordRepository: ReservationRecordRepository,
@@ -39,39 +38,56 @@ class InventoryService(
         commodityCode: CommodityCode,
         amount: BigDecimal,
     ): Result<ReservationRecord, BusinessError> {
-        reservationRecordRepository.findByBizCode(bizCode)?.let { return Success(it) }
-
-        val result = inventoryLock.lock(
-            commodityCode,
-            inventoryLockConfig.getLockTimeout(),
-            inventoryLockConfig.getLockTimeUnit()
-        ).map { lock ->
-            lock.use {
-                val storage = inventoryRepository.findById(commodityCode)
-                    ?: return Failure(StorageErrors.STORAGE_DOSE_NOT_EXIST.msg("inventory $commodityCode does not exist."))
-                val deductResult = storage.reserve(amount)
-                if (deductResult is Failure) {
-                    return deductResult
-                }
-                inventoryRepository.save(storage)
-                val reservationRecord = createReservationRecord(bizCode, commodityCode, amount)
-                reservationRecordRepository.save(reservationRecord)
-            }
-        }.mapError { error ->
-            log.error("[acquire lock failure] - $error")
-            CONCURRENT_CONFLICT_EXCEPTION
+        reservationRecordRepository.findByBizCode(bizCode)?.let {
+            return Success(it)
         }
+
+        val result =
+            inventoryLock
+                .lock(
+                    commodityCode,
+                    inventoryLockConfig.getLockTimeout(),
+                    inventoryLockConfig.getLockTimeUnit(),
+                )
+                .map { lock ->
+                    lock.use {
+                        val storage =
+                            inventoryRepository.findById(commodityCode)
+                                ?: return Failure(
+                                    StorageErrors.STORAGE_DOSE_NOT_EXIST.msg(
+                                        "inventory $commodityCode does not exist."
+                                    )
+                                )
+                        val deductResult = storage.reserve(amount)
+                        if (deductResult is Failure) {
+                            return deductResult
+                        }
+                        inventoryRepository.save(storage)
+                        val reservationRecord =
+                            createReservationRecord(bizCode, commodityCode, amount)
+                        reservationRecordRepository.save(reservationRecord)
+                    }
+                }
+                .mapError { error ->
+                    log.error("[acquire lock failure] - $error")
+                    CONCURRENT_CONFLICT_EXCEPTION
+                }
         return result
     }
 
     fun confirm(bizCode: String): Result<Boolean, BusinessError> {
-        val reservationRecord = reservationRecordRepository.findByBizCode(bizCode)
-            ?: return Failure(StorageErrors.RESERVATION_RECORD_NOT_FOUND)
+        val reservationRecord =
+            reservationRecordRepository.findByBizCode(bizCode)
+                ?: return Failure(StorageErrors.RESERVATION_RECORD_NOT_FOUND)
 
-        reservationRecord.confirm().onFailure { return Failure(it) }
+        reservationRecord.confirm().onFailure {
+            return Failure(it)
+        }
 
         val inventory = inventoryRepository.findById(reservationRecord.commodityCode)!!
-        inventory.deduct(reservationRecord.amount).onFailure { return Failure(it) }
+        inventory.deduct(reservationRecord.amount).onFailure {
+            return Failure(it)
+        }
         inventoryRepository.save(inventory)
 
         reservationRecordRepository.save(reservationRecord)
@@ -79,13 +95,18 @@ class InventoryService(
     }
 
     fun release(bizCode: String): Result<Boolean, BusinessError> {
-        val reservationRecord = reservationRecordRepository.findByBizCode(bizCode)
-            ?: return Failure(StorageErrors.RESERVATION_RECORD_NOT_FOUND)
+        val reservationRecord =
+            reservationRecordRepository.findByBizCode(bizCode)
+                ?: return Failure(StorageErrors.RESERVATION_RECORD_NOT_FOUND)
 
-        reservationRecord.release().onFailure { return Failure(it) }
+        reservationRecord.release().onFailure {
+            return Failure(it)
+        }
 
         val inventory = inventoryRepository.findById(reservationRecord.commodityCode)!!
-        inventory.release(reservationRecord.amount).onFailure { return Failure(it) }
+        inventory.release(reservationRecord.amount).onFailure {
+            return Failure(it)
+        }
 
         reservationRecordRepository.save(reservationRecord)
         return Success(true)
@@ -102,24 +123,29 @@ class InventoryService(
             commodityCode = commodityCode,
             amount = amount,
             status = ReservationStatus.RESERVED,
-            expiryTime = LocalDateTime.now().plusMinutes(30)
+            expiryTime = LocalDateTime.now().plusMinutes(30),
         )
     }
 
     fun add(commodityCode: CommodityCode, quantity: BigDecimal): Result<Boolean, BusinessError> {
-        val result = inventoryLock.lock(
-            commodityCode,
-            inventoryLockConfig.getLockTimeout(),
-            inventoryLockConfig.getLockTimeUnit()
-        ).map { lock ->
-            lock.use {
-                val inventory = inventoryRepository.findById(commodityCode) ?: return Failure(OBJECT_NOT_FOUNT)
-                inventory.add(quantity)
-                inventoryRepository.save(inventory)
-                true
-            }
-        }.mapError { error -> CONCURRENT_CONFLICT_EXCEPTION.msg(error.message!!) }
+        val result =
+            inventoryLock
+                .lock(
+                    commodityCode,
+                    inventoryLockConfig.getLockTimeout(),
+                    inventoryLockConfig.getLockTimeUnit(),
+                )
+                .map { lock ->
+                    lock.use {
+                        val inventory =
+                            inventoryRepository.findById(commodityCode)
+                                ?: return Failure(OBJECT_NOT_FOUNT)
+                        inventory.add(quantity)
+                        inventoryRepository.save(inventory)
+                        true
+                    }
+                }
+                .mapError { error -> CONCURRENT_CONFLICT_EXCEPTION.msg(error.message!!) }
         return result
     }
-
 }

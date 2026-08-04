@@ -5,13 +5,12 @@ import com.jstore.accounting.domain.journal.persistence.JournalEntryPO
 import com.jstore.accounting.domain.journal.persistence.JournalEntryPOJpaRepository
 import com.jstore.accounting.domain.journal.persistence.JournalLinePO
 import com.jstore.common.properties.Price
-import org.springframework.stereotype.Repository
 import java.util.concurrent.atomic.AtomicLong
+import org.springframework.stereotype.Repository
 
 @Repository
-class JournalEntryRepositoryImpl(
-    private val jpaRepository: JournalEntryPOJpaRepository,
-) : JournalEntryRepository {
+class JournalEntryRepositoryImpl(private val jpaRepository: JournalEntryPOJpaRepository) :
+    JournalEntryRepository {
     override fun save(entity: JournalEntry): JournalEntry {
         val saved = jpaRepository.save(Converter.toPO(entity))
         return Converter.toDomain(saved)
@@ -21,32 +20,47 @@ class JournalEntryRepositoryImpl(
         jpaRepository.findById(id.value).orElse(null)?.let(Converter::toDomain)
 
     override fun findBySourceDocument(sourceDocument: SourceDocument): JournalEntry? =
-        jpaRepository.findBySourceTypeAndSourceIdAndSourceEventType(
-            sourceDocument.sourceType,
-            sourceDocument.sourceId,
-            sourceDocument.eventType,
-        )?.let(Converter::toDomain)
+        jpaRepository
+            .findBySourceTypeAndSourceIdAndSourceEventType(
+                sourceDocument.sourceType,
+                sourceDocument.sourceId,
+                sourceDocument.eventType,
+            )
+            ?.let(Converter::toDomain)
 
     override fun nextId(): JournalEntryId = JournalEntryId(sequence.incrementAndGet())
 
     override fun nextLineId(): JournalLineId = JournalLineId(sequence.incrementAndGet())
 
-    override fun nextEntryNo(type: JournalEntryType): String = "${type.name}-${System.currentTimeMillis()}-${sequence.incrementAndGet()}"
+    override fun nextEntryNo(type: JournalEntryType): String =
+        "${type.name}-${System.currentTimeMillis()}-${sequence.incrementAndGet()}"
 
     override fun summarizeBalance(query: AccountingBalanceQuery): List<AccountingBalanceView> {
-        val entries = jpaRepository.findAll()
-            .filter { it.status == JournalEntryStatus.POSTED }
-            .filter { query.startDate == null || !it.accountingDate.isBefore(query.startDate) }
-            .filter { query.endDate == null || !it.accountingDate.isAfter(query.endDate) }
+        val entries =
+            jpaRepository
+                .findAll()
+                .filter { it.status == JournalEntryStatus.POSTED }
+                .filter { query.startDate == null || !it.accountingDate.isBefore(query.startDate) }
+                .filter { query.endDate == null || !it.accountingDate.isAfter(query.endDate) }
         val queryAccountId = query.accountId?.value
-        val lines = entries.flatMap { it.lines }
-            .filter { queryAccountId == null || it.accountId == queryAccountId }
-        return lines.groupBy { it.accountId }.map { (accountId, accountLines) ->
-            val debit = Price.ofFen(accountLines.filter { it.side == EntrySide.DEBIT }.sumOf { it.amountFen })
-            val credit = Price.ofFen(accountLines.filter { it.side == EntrySide.CREDIT }.sumOf { it.amountFen })
-            val balance = if (debit >= credit) debit - credit else credit - debit
-            AccountingBalanceView(LedgerAccountId(accountId), debit, credit, balance)
-        }
+        val lines =
+            entries
+                .flatMap { it.lines }
+                .filter { queryAccountId == null || it.accountId == queryAccountId }
+        return lines
+            .groupBy { it.accountId }
+            .map { (accountId, accountLines) ->
+                val debit =
+                    Price.ofFen(
+                        accountLines.filter { it.side == EntrySide.DEBIT }.sumOf { it.amountFen }
+                    )
+                val credit =
+                    Price.ofFen(
+                        accountLines.filter { it.side == EntrySide.CREDIT }.sumOf { it.amountFen }
+                    )
+                val balance = if (debit >= credit) debit - credit else credit - debit
+                AccountingBalanceView(LedgerAccountId(accountId), debit, credit, balance)
+            }
     }
 
     object Converter {

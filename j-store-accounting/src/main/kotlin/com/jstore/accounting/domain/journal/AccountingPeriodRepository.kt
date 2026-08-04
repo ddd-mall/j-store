@@ -11,7 +11,8 @@ interface AccountingPeriodRepository : Repository<AccountingPeriodId, Accounting
     fun findByDate(date: LocalDate): AccountingPeriod?
 
     fun requireOpenPeriod(date: LocalDate): Result<AccountingPeriod, BusinessError> {
-        val period = findByDate(date) ?: return Failure(AccountingErrors.ACCOUNTING_PERIOD_NOT_FOUND)
+        val period =
+            findByDate(date) ?: return Failure(AccountingErrors.ACCOUNTING_PERIOD_NOT_FOUND)
         if (period.status != PeriodStatus.OPEN) {
             return Failure(AccountingErrors.ACCOUNTING_PERIOD_CLOSED)
         }

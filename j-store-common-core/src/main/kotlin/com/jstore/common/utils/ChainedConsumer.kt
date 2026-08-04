@@ -39,6 +39,4 @@ abstract class ChainedConsumer<T> {
             }
         }
     }
-
 }
-

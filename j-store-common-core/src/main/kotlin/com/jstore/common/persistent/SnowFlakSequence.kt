@@ -19,10 +19,14 @@ open class SnowFlakSequence {
 
     constructor(workerId: Long, datacenterId: Long) {
         if (workerId !in 0..MAX_WORKER_ID) {
-            throw CommonErrors.INVALID_PARAM.msg("worker Id can't be greater than $MAX_WORKER_ID or less than 0")
+            throw CommonErrors.INVALID_PARAM.msg(
+                "worker Id can't be greater than $MAX_WORKER_ID or less than 0"
+            )
         }
         if (datacenterId !in 0..MAX_DATACENTER_ID) {
-            throw CommonErrors.INVALID_PARAM.msg("datacenter Id can't be greater than $MAX_DATACENTER_ID or less than 0")
+            throw CommonErrors.INVALID_PARAM.msg(
+                "datacenter Id can't be greater than $MAX_DATACENTER_ID or less than 0"
+            )
         }
         this.workerId = workerId
         this.datacenterId = datacenterId
@@ -33,39 +37,31 @@ open class SnowFlakSequence {
         this.workerId = getDefaultWorkerId(datacenterId)
     }
 
-
     companion object {
 
         private val logger: Logger = LoggerFactory.getLogger(SnowFlakSequence::class)
-        /**
-         * |-timestamp-|datacenterId|workerId|sequence|
-         * |----41-----|------5-----|----5---|---12---|
-         */
 
         /**
-         * 基准
+         * |-timestamp-|datacenterId|workerId|sequence| |----41-----|------5-----|----5---|---12---|
          */
+
+        /** 基准 */
         private const val TWEPOCH: Long = 1733587936970
 
-        /**
-         * 机器标识位
-         */
+        /** 机器标识位 */
         private const val WORKER_ID_BITS: Int = 5
         private const val DATACENTER_ID_BITS: Int = 5
         private const val MAX_WORKER_ID: Long = (-1L shl WORKER_ID_BITS).inv()
         private const val MAX_DATACENTER_ID: Long = (-1L shl DATACENTER_ID_BITS).inv()
 
-        /**
-         * 毫秒内自增
-         */
+        /** 毫秒内自增 */
         private const val SEQUENCE_BITS: Int = 12
         private const val WORKER_ID_SHIFT: Int = SEQUENCE_BITS
         private const val DATACENTER_SHIFT = SEQUENCE_BITS + WORKER_ID_SHIFT
 
-        /**
-         * 时间戳左移位
-         */
-        private const val TIMESTAMP_SHIFT: Int = SEQUENCE_BITS + WORKER_ID_SHIFT + DATACENTER_ID_BITS
+        /** 时间戳左移位 */
+        private const val TIMESTAMP_SHIFT: Int =
+            SEQUENCE_BITS + WORKER_ID_SHIFT + DATACENTER_ID_BITS
         private const val SEQUENCE_MASK: Long = (-1L shl SEQUENCE_BITS).inv()
 
         private fun getDefaultWorkerId(datacenterId: Long): Long {
@@ -86,7 +82,9 @@ open class SnowFlakSequence {
                 val mac: ByteArray? = network.getHardwareAddress()
                 id = 1
                 mac?.let {
-                    id = ((0x000000FFL and mac[mac.size - 1].toLong()) or (0x0000FF00L and ((mac[mac.size - 2].toLong()) shl 8))) shr 6
+                    id =
+                        ((0x000000FFL and mac[mac.size - 1].toLong()) or
+                            (0x0000FF00L and ((mac[mac.size - 2].toLong()) shl 8))) shr 6
                     id %= (MAX_DATACENTER_ID + 1)
                 }
             } catch (t: Throwable) {
@@ -110,13 +108,17 @@ open class SnowFlakSequence {
                     lock.wait(offset shl 1)
                     timeStamp = timeGen()
                     if (timeStamp < lastTimestamp) {
-                        throw RuntimeException("Clock moved backwards.  Refusing to generate id for $offset milliseconds")
+                        throw RuntimeException(
+                            "Clock moved backwards.  Refusing to generate id for $offset milliseconds"
+                        )
                     }
                 } catch (e: Exception) {
                     throw RuntimeException(e)
                 }
             } else {
-                throw java.lang.RuntimeException("Clock moved backwards.  Refusing to generate id for $offset milliseconds")
+                throw java.lang.RuntimeException(
+                    "Clock moved backwards.  Refusing to generate id for $offset milliseconds"
+                )
             }
         }
 
@@ -131,10 +133,10 @@ open class SnowFlakSequence {
 
         lastTimestamp = timeStamp
         // 时间戳部分 | 数据中心部分 | 机器标识部分 | 序列号部分
-        return (((timeStamp - TWEPOCH) shl TIMESTAMP_SHIFT)
-                or (datacenterId shl DATACENTER_SHIFT)
-                or (workerId shl WORKER_ID_SHIFT)
-                or sequence)
+        return (((timeStamp - TWEPOCH) shl TIMESTAMP_SHIFT) or
+            (datacenterId shl DATACENTER_SHIFT) or
+            (workerId shl WORKER_ID_SHIFT) or
+            sequence)
     }
 
     protected fun tilNextMillis(lastTimeStamp: Long): Long {
@@ -144,7 +146,6 @@ open class SnowFlakSequence {
         }
         return timestamp
     }
-
 
     protected fun timeGen(): Long {
         return SystemLock.now()
@@ -173,18 +174,23 @@ class SystemLock(private val period: Long) {
     }
 
     private fun scheduleClockUpdating() {
-        val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { runnable: Runnable ->
-            run {
-                val thread = Thread(runnable, "System lock")
-                thread.isDaemon = true
-                thread
+        val executor: ScheduledExecutorService =
+            Executors.newSingleThreadScheduledExecutor { runnable: Runnable ->
+                run {
+                    val thread = Thread(runnable, "System lock")
+                    thread.isDaemon = true
+                    thread
+                }
             }
-        }
-        executor.scheduleAtFixedRate({ now.set(System.currentTimeMillis()) }, period, period, TimeUnit.SECONDS)
+        executor.scheduleAtFixedRate(
+            { now.set(System.currentTimeMillis()) },
+            period,
+            period,
+            TimeUnit.SECONDS,
+        )
     }
 
     fun currentTimeMillis(): Long {
         return now.get()
     }
 }
-

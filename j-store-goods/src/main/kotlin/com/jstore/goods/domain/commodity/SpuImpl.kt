@@ -26,15 +26,20 @@ class SpuImpl(
 
     override val domainEventQueue: Queue<DomainEvent> = LinkedList()
 
-    override val name: String get() = _name
+    override val name: String
+        get() = _name
 
-    override val description: String get() = _description
+    override val description: String
+        get() = _description
 
-    override val skus: List<Sku> get() = _skus.toList()
+    override val skus: List<Sku>
+        get() = _skus.toList()
 
-    override val status: CommodityStatus get() = _status
+    override val status: CommodityStatus
+        get() = _status
 
-    override val version: Long get() = _version
+    override val version: Long
+        get() = _version
 
     override fun addSku(sku: Sku): Result<Unit, BusinessError> {
         // 检查属性组合是否重复
@@ -51,7 +56,9 @@ class SpuImpl(
 
     override fun publish(): Result<Unit, BusinessError> {
         if (_status != CommodityStatus.DRAFT) {
-            return Failure(CommodityErrors.INVALID_STATUS_TRANSITION.msg("只有草稿状态可以发布，当前状态: $_status"))
+            return Failure(
+                CommodityErrors.INVALID_STATUS_TRANSITION.msg("只有草稿状态可以发布，当前状态: $_status")
+            )
         }
         if (_skus.isEmpty()) {
             return Failure(CommodityErrors.NO_SKU_FOR_PUBLISH)
@@ -83,18 +90,14 @@ class SpuImpl(
         return Success(Unit)
     }
 
-    /**
-     * 将草稿副本的内容合并到当前 SPU（领域方法）
-     * 前置条件：当前 SPU 必须是 ON_SALE 状态，草稿 SKU 列表不能为空
-     */
+    /** 将草稿副本的内容合并到当前 SPU（领域方法） 前置条件：当前 SPU 必须是 ON_SALE 状态，草稿 SKU 列表不能为空 */
     override fun mergeFromDraft(draft: Spu): Result<Unit, BusinessError> {
         if (draft.merchantId != merchantId) {
             return Failure(CommodityErrors.INVALID_STATUS_TRANSITION.msg("不能合并其他商户的商品草稿"))
         }
         if (_status != CommodityStatus.ON_SALE) {
             return Failure(
-                CommodityErrors.INVALID_STATUS_TRANSITION
-                    .msg("只有在售商品可以合并草稿，当前状态: $_status")
+                CommodityErrors.INVALID_STATUS_TRANSITION.msg("只有在售商品可以合并草稿，当前状态: $_status")
             )
         }
         if (draft.skus.isEmpty()) {

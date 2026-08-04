@@ -21,6 +21,8 @@ object AfterSaleErrors {
     val REJECTION_REASON_INVALID = BusinessError("拒绝原因无效", "AfterSale.Reason.RejectionInvalid", 400)
     val IDEMPOTENCY_KEY_INVALID = BusinessError("幂等键无效", "AfterSale.IdempotencyKey.Invalid", 400)
     val IDEMPOTENCY_CONFLICT = BusinessError("幂等命令冲突", "AfterSale.Idempotency.Conflict", 409)
-    val CONCURRENT_MODIFICATION = BusinessError("售后单已被并发修改", "AfterSale.ConcurrentModification", 409)
-    val REFUND_REFERENCE_CONFLICT = BusinessError("售后单已关联其他退款流水", "AfterSale.Refund.ReferenceConflict", 409)
+    val CONCURRENT_MODIFICATION =
+        BusinessError("售后单已被并发修改", "AfterSale.ConcurrentModification", 409)
+    val REFUND_REFERENCE_CONFLICT =
+        BusinessError("售后单已关联其他退款流水", "AfterSale.Refund.ReferenceConflict", 409)
 }

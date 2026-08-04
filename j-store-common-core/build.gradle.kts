@@ -6,7 +6,6 @@ repositories {
     mavenCentral()
 }
 
-
 dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlin.stdlib)
@@ -26,7 +25,6 @@ dependencies {
     api(libs.jackson.annotations)
     api(libs.jackson.module.kotlin)
     api(libs.money.api)
-
 }
 
 tasks.withType<Test> {

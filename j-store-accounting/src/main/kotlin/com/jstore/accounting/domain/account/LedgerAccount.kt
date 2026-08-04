@@ -22,10 +22,30 @@ data class AccountingSubject(
     }
 }
 
-enum class LedgerAccountType { ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE }
-enum class BalanceDirection { DEBIT, CREDIT }
-enum class LedgerAccountStatus { ACTIVE, INACTIVE }
-enum class SubjectType { PLATFORM, MERCHANT, USER, CHANNEL }
+enum class LedgerAccountType {
+    ASSET,
+    LIABILITY,
+    EQUITY,
+    REVENUE,
+    EXPENSE,
+}
+
+enum class BalanceDirection {
+    DEBIT,
+    CREDIT,
+}
+
+enum class LedgerAccountStatus {
+    ACTIVE,
+    INACTIVE,
+}
+
+enum class SubjectType {
+    PLATFORM,
+    MERCHANT,
+    USER,
+    CHANNEL,
+}
 
 interface LedgerAccount : AgreeGate<LedgerAccountId> {
     override val id: LedgerAccountId
@@ -37,5 +57,6 @@ interface LedgerAccount : AgreeGate<LedgerAccountId> {
     val status: LedgerAccountStatus
 
     fun deactivate(): Result<Unit, BusinessError>
+
     fun activate(): Result<Unit, BusinessError>
 }

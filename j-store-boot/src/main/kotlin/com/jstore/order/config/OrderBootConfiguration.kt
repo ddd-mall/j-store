@@ -4,22 +4,21 @@ import com.jstore.common.framework.event.*
 import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.goods.api.GoodsSnapshotQueryService
+import com.jstore.goods.service.AfterSaleStockRestoreEventHandler
+import com.jstore.goods.service.InventoryService
 import com.jstore.order.acl.GoodsService
 import com.jstore.order.acl.GoodsServiceImpl
+import com.jstore.order.domain.aftersale.*
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderFactoryImpl
 import com.jstore.order.domain.order.OrderRepository
-import com.jstore.order.service.OrderService
 import com.jstore.order.service.AfterSaleApplicationService
-import com.jstore.order.domain.aftersale.*
-import com.jstore.goods.service.AfterSaleStockRestoreEventHandler
-import com.jstore.goods.service.InventoryService
+import com.jstore.order.service.OrderService
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-
 
 @Configuration
 class OrderBootConfiguration {
@@ -29,12 +28,8 @@ class OrderBootConfiguration {
     }
 
     @Bean
-    fun goodsService(
-        goodsSnapshotQueryService: GoodsSnapshotQueryService
-    ): GoodsService {
-        return GoodsServiceImpl(
-            goodsSnapshotQueryService
-        )
+    fun goodsService(goodsSnapshotQueryService: GoodsSnapshotQueryService): GoodsService {
+        return GoodsServiceImpl(goodsSnapshotQueryService)
     }
 
     @Bean
@@ -46,7 +41,7 @@ class OrderBootConfiguration {
         return OrderFactoryImpl(
             snowFlakSequence,
             goodsService,
-            geoAddressService
+            geoAddressService,
         )
     }
 
@@ -59,14 +54,26 @@ class OrderBootConfiguration {
         return OrderService(
             orderFactory,
             orderRepository,
-            domainEventPublisher
+            domainEventPublisher,
         )
     }
 
-    @Bean fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory = AfterSaleFactoryImpl(snowFlakSequence)
-    @Bean fun afterSaleApplicationService(factory:AfterSaleFactory,repository:AfterSaleRepository,orderRepository:OrderRepository)=AfterSaleApplicationService(factory,repository,orderRepository)
-    @Bean fun afterSaleStockRestoreEventHandler(inventoryServices: ObjectProvider<InventoryService>) =
-        AfterSaleStockRestoreEventHandler { inventoryServices.getIfAvailable() }
+    @Bean
+    fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory =
+        AfterSaleFactoryImpl(snowFlakSequence)
+
+    @Bean
+    fun afterSaleApplicationService(
+        factory: AfterSaleFactory,
+        repository: AfterSaleRepository,
+        orderRepository: OrderRepository,
+    ) = AfterSaleApplicationService(factory, repository, orderRepository)
+
+    @Bean
+    fun afterSaleStockRestoreEventHandler(inventoryServices: ObjectProvider<InventoryService>) =
+        AfterSaleStockRestoreEventHandler {
+            inventoryServices.getIfAvailable()
+        }
 
     @Bean
     fun springDomainEventListenerRegistry(
@@ -75,7 +82,7 @@ class OrderBootConfiguration {
     ): SpringDomainEventListenerRegistry {
         return SpringDomainEventListenerRegistry(
             applicationContext,
-            consumptionRepositoryProvider.getIfAvailable() ?: NoopDomainEventConsumptionRepository
+            consumptionRepositoryProvider.getIfAvailable() ?: NoopDomainEventConsumptionRepository,
         )
     }
 
@@ -90,10 +97,11 @@ class OrderBootConfiguration {
     @Bean
     fun springDomainEventListenerRegistrationMachine(
         springDomainEventBus: SpringDomainEventBus,
-        domainEventListeners: List<DomainEventListener<*>>
+        domainEventListeners: List<DomainEventListener<*>>,
     ): SpringDomainEventListenerRegistrationMachine {
-        return SpringDomainEventListenerRegistrationMachine(springDomainEventBus, domainEventListeners)
+        return SpringDomainEventListenerRegistrationMachine(
+            springDomainEventBus,
+            domainEventListeners,
+        )
     }
-
-
 }

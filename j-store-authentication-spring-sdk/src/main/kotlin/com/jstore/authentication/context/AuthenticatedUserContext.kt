@@ -9,8 +9,7 @@ object AuthenticatedUserContext {
         holder.set(userId)
     }
 
-    fun getCurrentUserId(): UserId =
-        holder.get() ?: throw AuthenticationException("当前上下文中无已认证用户")
+    fun getCurrentUserId(): UserId = holder.get() ?: throw AuthenticationException("当前上下文中无已认证用户")
 
     fun getCurrentUserIdOrNull(): UserId? = holder.get()
 

@@ -35,16 +35,35 @@ class OrderImpl(
     private var _updateTime: LocalDateTime = LocalDateTime.now(),
 ) : Order {
     override val domainEventQueue: Queue<DomainEvent> = LinkedList()
-    override val items: List<OrderItem> get() = _items.toList()
-    override val tradeStatus: TradeStatus get() = _tradeStatus
-    override val paymentStatus: PaymentStatus get() = _paymentStatus
-    override val fulfillmentStatus: FulfillmentStatus get() = _fulfillmentStatus
-    override val paidAmount: Price get() = _paidAmount
-    override val refundedAmount: Price get() = _refundedAmount
-    override val paymentReference: String? get() = _paymentReference
-    override val fulfillmentReference: String? get() = _fulfillmentReference
-    override val successfulRefundFacts: List<RefundFact> get() = refundFacts.toList()
-    override val updateTime: LocalDateTime get() = _updateTime
+    override val items: List<OrderItem>
+        get() = _items.toList()
+
+    override val tradeStatus: TradeStatus
+        get() = _tradeStatus
+
+    override val paymentStatus: PaymentStatus
+        get() = _paymentStatus
+
+    override val fulfillmentStatus: FulfillmentStatus
+        get() = _fulfillmentStatus
+
+    override val paidAmount: Price
+        get() = _paidAmount
+
+    override val refundedAmount: Price
+        get() = _refundedAmount
+
+    override val paymentReference: String?
+        get() = _paymentReference
+
+    override val fulfillmentReference: String?
+        get() = _fulfillmentReference
+
+    override val successfulRefundFacts: List<RefundFact>
+        get() = refundFacts.toList()
+
+    override val updateTime: LocalDateTime
+        get() = _updateTime
 
     init {
         require(_items.isNotEmpty())
@@ -55,21 +74,23 @@ class OrderImpl(
         require((_paymentReference == null) == (_paidAmount == Price.ZERO))
     }
 
-    override fun confirmStock(): Result<Unit, BusinessError> = transition(
-        _tradeStatus == TradeStatus.CREATED && unpaid(),
-        "确认库存",
-    ) {
-        _tradeStatus = TradeStatus.ACTIVE
-    }
+    override fun confirmStock(): Result<Unit, BusinessError> =
+        transition(
+            _tradeStatus == TradeStatus.CREATED && unpaid(),
+            "确认库存",
+        ) {
+            _tradeStatus = TradeStatus.ACTIVE
+        }
 
-    override fun markStockInsufficient(reason: String): Result<Unit, BusinessError> = transition(
-        _tradeStatus == TradeStatus.CREATED && unpaid(),
-        "库存不足取消",
-    ) {
-        _tradeStatus = TradeStatus.CLOSED
-        mutableItems().forEach { it.markCanceled() }
-        publishEvent(OrderCancelledEvent(id, reason))
-    }
+    override fun markStockInsufficient(reason: String): Result<Unit, BusinessError> =
+        transition(
+            _tradeStatus == TradeStatus.CREATED && unpaid(),
+            "库存不足取消",
+        ) {
+            _tradeStatus = TradeStatus.CLOSED
+            mutableItems().forEach { it.markCanceled() }
+            publishEvent(OrderCancelledEvent(id, reason))
+        }
 
     override fun recordPaymentCaptured(
         paymentReference: String,
@@ -82,7 +103,11 @@ class OrderImpl(
         if (_tradeStatus != TradeStatus.ACTIVE || _paymentStatus != PaymentStatus.UNPAID) {
             return Failure(OrderErrors.ILLEGAL_STATE.msg("当前订单不允许登记支付成功"))
         }
-        if (paymentReference.isBlank() || currency != amountSnapshot.currency || capturedAmount != amountSnapshot.payableAmount) {
+        if (
+            paymentReference.isBlank() ||
+                currency != amountSnapshot.currency ||
+                capturedAmount != amountSnapshot.payableAmount
+        ) {
             return Failure(OrderErrors.PAYMENT_FACT_INVALID)
         }
 
@@ -104,11 +129,19 @@ class OrderImpl(
         return Success(true)
     }
 
-    override fun recordFulfillmentPrepared(fulfillmentReference: String): Result<Boolean, BusinessError> {
-        if (_fulfillmentReference == fulfillmentReference && _fulfillmentStatus != FulfillmentStatus.UNFULFILLED) {
+    override fun recordFulfillmentPrepared(
+        fulfillmentReference: String
+    ): Result<Boolean, BusinessError> {
+        if (
+            _fulfillmentReference == fulfillmentReference &&
+                _fulfillmentStatus != FulfillmentStatus.UNFULFILLED
+        ) {
             return Success(false)
         }
-        if (_paymentStatus != PaymentStatus.PAID || _fulfillmentStatus != FulfillmentStatus.UNFULFILLED) {
+        if (
+            _paymentStatus != PaymentStatus.PAID ||
+                _fulfillmentStatus != FulfillmentStatus.UNFULFILLED
+        ) {
             return Failure(OrderErrors.ILLEGAL_STATE.msg("当前订单不允许进入待发货"))
         }
         if (fulfillmentReference.isBlank()) return Failure(OrderErrors.FULFILLMENT_FACT_INVALID)
@@ -120,11 +153,19 @@ class OrderImpl(
         return Success(true)
     }
 
-    override fun recordShipmentDispatched(fulfillmentReference: String): Result<Boolean, BusinessError> {
-        if (_fulfillmentReference == fulfillmentReference && _fulfillmentStatus == FulfillmentStatus.SHIPPED) {
+    override fun recordShipmentDispatched(
+        fulfillmentReference: String
+    ): Result<Boolean, BusinessError> {
+        if (
+            _fulfillmentReference == fulfillmentReference &&
+                _fulfillmentStatus == FulfillmentStatus.SHIPPED
+        ) {
             return Success(false)
         }
-        if (_fulfillmentReference != fulfillmentReference || _fulfillmentStatus != FulfillmentStatus.PENDING_SHIPMENT) {
+        if (
+            _fulfillmentReference != fulfillmentReference ||
+                _fulfillmentStatus != FulfillmentStatus.PENDING_SHIPMENT
+        ) {
             return Failure(OrderErrors.FULFILLMENT_FACT_INVALID)
         }
 
@@ -134,11 +175,19 @@ class OrderImpl(
         return Success(true)
     }
 
-    override fun recordShipmentDelivered(fulfillmentReference: String): Result<Boolean, BusinessError> {
-        if (_fulfillmentReference == fulfillmentReference && _fulfillmentStatus == FulfillmentStatus.DELIVERED) {
+    override fun recordShipmentDelivered(
+        fulfillmentReference: String
+    ): Result<Boolean, BusinessError> {
+        if (
+            _fulfillmentReference == fulfillmentReference &&
+                _fulfillmentStatus == FulfillmentStatus.DELIVERED
+        ) {
             return Success(false)
         }
-        if (_fulfillmentReference != fulfillmentReference || _fulfillmentStatus != FulfillmentStatus.SHIPPED) {
+        if (
+            _fulfillmentReference != fulfillmentReference ||
+                _fulfillmentStatus != FulfillmentStatus.SHIPPED
+        ) {
             return Failure(OrderErrors.FULFILLMENT_FACT_INVALID)
         }
 
@@ -148,49 +197,52 @@ class OrderImpl(
         return Success(true)
     }
 
-    override fun complete(): Result<Unit, BusinessError> = transition(
-        _tradeStatus == TradeStatus.ACTIVE &&
-            _paymentStatus in setOf(PaymentStatus.PAID, PaymentStatus.PARTIALLY_REFUNDED) &&
-            _fulfillmentStatus == FulfillmentStatus.DELIVERED,
-        "完成订单",
-    ) {
-        _tradeStatus = TradeStatus.COMPLETED
-        publishEvent(OrderCompletedEvent(id))
-    }
+    override fun complete(): Result<Unit, BusinessError> =
+        transition(
+            _tradeStatus == TradeStatus.ACTIVE &&
+                _paymentStatus in setOf(PaymentStatus.PAID, PaymentStatus.PARTIALLY_REFUNDED) &&
+                _fulfillmentStatus == FulfillmentStatus.DELIVERED,
+            "完成订单",
+        ) {
+            _tradeStatus = TradeStatus.COMPLETED
+            publishEvent(OrderCompletedEvent(id))
+        }
 
-    override fun cancel(reason: CancellationReason): Result<Unit, BusinessError> = transition(
-        (_tradeStatus == TradeStatus.CREATED || _tradeStatus == TradeStatus.ACTIVE) && unpaid(),
-        "取消订单",
-    ) {
-        _tradeStatus = TradeStatus.CLOSED
-        mutableItems().forEach { it.markCanceled() }
-        publishEvent(OrderCancelledEvent(id, reason.description))
-    }
+    override fun cancel(reason: CancellationReason): Result<Unit, BusinessError> =
+        transition(
+            (_tradeStatus == TradeStatus.CREATED || _tradeStatus == TradeStatus.ACTIVE) && unpaid(),
+            "取消订单",
+        ) {
+            _tradeStatus = TradeStatus.CLOSED
+            mutableItems().forEach { it.markCanceled() }
+            publishEvent(OrderCancelledEvent(id, reason.description))
+        }
 
     override fun refundEligibility(): Result<RefundEligibility, BusinessError> {
         if (
             _paymentStatus !in setOf(PaymentStatus.PAID, PaymentStatus.PARTIALLY_REFUNDED) ||
-            _tradeStatus !in setOf(TradeStatus.ACTIVE, TradeStatus.COMPLETED)
+                _tradeStatus !in setOf(TradeStatus.ACTIVE, TradeStatus.COMPLETED)
         ) {
             return Failure(OrderErrors.REFUND_PROJECTION_INVALID)
         }
-        val refundable = _items
-            .filter { it.refundableQuantity > 0 && it.refundableAmount > Price.ZERO }
-            .map {
-                RefundableOrderItem(
-                    orderItemId = it.id,
-                    purchasedQuantity = it.quantity,
-                    purchasedAmount = it.purchasedAmount,
-                    refundedQuantity = it.refundedQuantity,
-                    refundedAmount = it.refundedAmount,
-                    refundableQuantity = it.refundableQuantity,
-                    refundableAmount = it.refundableAmount,
-                    skuId = it.skuId,
-                    spuId = it.spuId,
-                    goodsName = it.goodsName,
-                    skuDescription = it.skuDescription,
-                )
-            }
+        val refundable =
+            _items
+                .filter { it.refundableQuantity > 0 && it.refundableAmount > Price.ZERO }
+                .map {
+                    RefundableOrderItem(
+                        orderItemId = it.id,
+                        purchasedQuantity = it.quantity,
+                        purchasedAmount = it.purchasedAmount,
+                        refundedQuantity = it.refundedQuantity,
+                        refundedAmount = it.refundedAmount,
+                        refundableQuantity = it.refundableQuantity,
+                        refundableAmount = it.refundableAmount,
+                        skuId = it.skuId,
+                        spuId = it.spuId,
+                        goodsName = it.goodsName,
+                        skuDescription = it.skuDescription,
+                    )
+                }
         if (refundable.isEmpty()) return Failure(OrderErrors.REFUND_PROJECTION_INVALID)
         return Success(
             RefundEligibility(
@@ -214,33 +266,43 @@ class OrderImpl(
         items: List<SuccessfulRefundItem>,
         occurredAt: Instant,
     ): Result<RefundProjectionResult, BusinessError> {
-        if (refundFacts.any { it.refundId == refundId }) return Success(RefundProjectionResult(false))
-        if (refundId.isBlank() || items.isEmpty() || items.map { it.orderItemId }.toSet().size != items.size) {
+        if (refundFacts.any { it.refundId == refundId })
+            return Success(RefundProjectionResult(false))
+        if (
+            refundId.isBlank() ||
+                items.isEmpty() ||
+                items.map { it.orderItemId }.toSet().size != items.size
+        ) {
             return Failure(OrderErrors.REFUND_PROJECTION_INVALID)
         }
         val byId = mutableItems().associateBy { it.id }
         for (item in items) {
-            val target = byId[item.orderItemId] ?: return Failure(OrderErrors.REFUND_PROJECTION_INVALID)
+            val target =
+                byId[item.orderItemId] ?: return Failure(OrderErrors.REFUND_PROJECTION_INVALID)
             if (
-                item.quantity <= 0 || item.amount <= Price.ZERO ||
-                item.quantity > target.refundableQuantity || item.amount > target.refundableAmount
+                item.quantity <= 0 ||
+                    item.amount <= Price.ZERO ||
+                    item.quantity > target.refundableQuantity ||
+                    item.amount > target.refundableAmount
             ) {
                 return Failure(OrderErrors.REFUND_PROJECTION_INVALID)
             }
         }
         val amount = Price.sumOf(items.map { it.amount })
-        if (_refundedAmount + amount > _paidAmount) return Failure(OrderErrors.REFUND_PROJECTION_INVALID)
+        if (_refundedAmount + amount > _paidAmount)
+            return Failure(OrderErrors.REFUND_PROJECTION_INVALID)
 
         items.forEach { item ->
             byId.getValue(item.orderItemId).registerRefund(item.quantity, item.amount)
-            refundFacts += RefundFact(
-                refundId = refundId,
-                afterSaleId = afterSaleId,
-                orderItemId = item.orderItemId,
-                quantity = item.quantity,
-                amount = item.amount,
-                occurredAt = occurredAt,
-            )
+            refundFacts +=
+                RefundFact(
+                    refundId = refundId,
+                    afterSaleId = afterSaleId,
+                    orderItemId = item.orderItemId,
+                    quantity = item.quantity,
+                    amount = item.amount,
+                    occurredAt = occurredAt,
+                )
         }
         _refundedAmount += amount
         if (_refundedAmount == _paidAmount) {
@@ -253,7 +315,8 @@ class OrderImpl(
         return Success(RefundProjectionResult(true))
     }
 
-    private fun unpaid(): Boolean = _paymentStatus == PaymentStatus.UNPAID && _paidAmount == Price.ZERO
+    private fun unpaid(): Boolean =
+        _paymentStatus == PaymentStatus.UNPAID && _paidAmount == Price.ZERO
 
     private inline fun transition(
         valid: Boolean,

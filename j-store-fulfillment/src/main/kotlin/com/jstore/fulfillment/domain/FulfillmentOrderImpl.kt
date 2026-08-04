@@ -24,10 +24,17 @@ class FulfillmentOrderImpl(
 ) : FulfillmentOrder {
     override val domainEventQueue: Queue<DomainEvent> = LinkedList()
     private val _items = items.toList()
-    override val status: FulfillmentOrderStatus get() = _status
-    override val items: List<FulfillmentItem> get() = _items.toList()
-    override val carrierCode: String? get() = _carrierCode
-    override val trackingNumber: String? get() = _trackingNumber
+    override val status: FulfillmentOrderStatus
+        get() = _status
+
+    override val items: List<FulfillmentItem>
+        get() = _items.toList()
+
+    override val carrierCode: String?
+        get() = _carrierCode
+
+    override val trackingNumber: String?
+        get() = _trackingNumber
 
     init {
         require(orderId > 0 && merchantId > 0 && _items.isNotEmpty())
@@ -36,7 +43,8 @@ class FulfillmentOrderImpl(
 
     override fun prepare(occurredAt: Instant): Result<Boolean, BusinessError> {
         if (_status == FulfillmentOrderStatus.READY) return Success(false)
-        if (_status != FulfillmentOrderStatus.PENDING) return Failure(FulfillmentErrors.INVALID_STATE)
+        if (_status != FulfillmentOrderStatus.PENDING)
+            return Failure(FulfillmentErrors.INVALID_STATE)
         _status = FulfillmentOrderStatus.READY
         publishEvent(FulfillmentPreparedEvent(id, orderId, occurredAt))
         return Success(true)
@@ -63,13 +71,16 @@ class FulfillmentOrderImpl(
         _carrierCode = normalizedCarrier
         _trackingNumber = normalizedTracking
         _status = FulfillmentOrderStatus.SHIPPED
-        publishEvent(ShipmentDispatchedEvent(id, orderId, normalizedCarrier, normalizedTracking, occurredAt))
+        publishEvent(
+            ShipmentDispatchedEvent(id, orderId, normalizedCarrier, normalizedTracking, occurredAt)
+        )
         return Success(true)
     }
 
     override fun deliver(occurredAt: Instant): Result<Boolean, BusinessError> {
         if (_status == FulfillmentOrderStatus.DELIVERED) return Success(false)
-        if (_status != FulfillmentOrderStatus.SHIPPED) return Failure(FulfillmentErrors.INVALID_STATE)
+        if (_status != FulfillmentOrderStatus.SHIPPED)
+            return Failure(FulfillmentErrors.INVALID_STATE)
         _status = FulfillmentOrderStatus.DELIVERED
         publishEvent(ShipmentDeliveredEvent(id, orderId, occurredAt))
         return Success(true)

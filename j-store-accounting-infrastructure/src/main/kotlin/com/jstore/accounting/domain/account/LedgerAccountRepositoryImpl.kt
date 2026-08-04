@@ -2,13 +2,12 @@ package com.jstore.accounting.domain.account
 
 import com.jstore.accounting.domain.account.persistence.LedgerAccountPO
 import com.jstore.accounting.domain.account.persistence.LedgerAccountPOJpaRepository
-import org.springframework.stereotype.Repository
 import java.time.Instant
+import org.springframework.stereotype.Repository
 
 @Repository
-class LedgerAccountRepositoryImpl(
-    private val jpaRepository: LedgerAccountPOJpaRepository,
-) : LedgerAccountRepository {
+class LedgerAccountRepositoryImpl(private val jpaRepository: LedgerAccountPOJpaRepository) :
+    LedgerAccountRepository {
     override fun save(entity: LedgerAccount): LedgerAccount {
         val saved = jpaRepository.save(Converter.toPO(entity))
         return Converter.toDomain(saved)
@@ -17,8 +16,16 @@ class LedgerAccountRepositoryImpl(
     override fun findById(id: LedgerAccountId): LedgerAccount? =
         jpaRepository.findById(id.value).orElse(null)?.let(Converter::toDomain)
 
-    override fun findByCodeAndSubject(code: LedgerAccountCode, subject: AccountingSubject): LedgerAccount? =
-        jpaRepository.findByCodeAndSubjectTypeAndSubjectId(code.value, subject.subjectType, subject.subjectId)
+    override fun findByCodeAndSubject(
+        code: LedgerAccountCode,
+        subject: AccountingSubject,
+    ): LedgerAccount? =
+        jpaRepository
+            .findByCodeAndSubjectTypeAndSubjectId(
+                code.value,
+                subject.subjectType,
+                subject.subjectId,
+            )
             ?.let(Converter::toDomain)
 
     object Converter {

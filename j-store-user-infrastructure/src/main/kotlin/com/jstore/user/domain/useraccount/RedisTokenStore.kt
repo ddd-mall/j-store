@@ -1,17 +1,15 @@
 package com.jstore.user.domain.useraccount
 
-import org.springframework.data.redis.core.StringRedisTemplate
 import java.util.concurrent.TimeUnit
+import org.springframework.data.redis.core.StringRedisTemplate
 
 /**
  * Redis 实现的 TokenStore
  * - RefreshToken: key = "refresh_token:{userId.value}", value = refreshToken, TTL in seconds
- * - AccessToken 黑名单: key = "token_blacklist:{jti}", value = "1", TTL in seconds
- * todo: 写redis的逻辑之后需要迁移到sdk中,在业务应用中实现
+ * - AccessToken 黑名单: key = "token_blacklist:{jti}", value = "1", TTL in seconds todo:
+ *   写redis的逻辑之后需要迁移到sdk中,在业务应用中实现
  */
-class RedisTokenStore(
-    private val redisTemplate: StringRedisTemplate,
-) : TokenStore {
+class RedisTokenStore(private val redisTemplate: StringRedisTemplate) : TokenStore {
 
     companion object {
         private const val REFRESH_TOKEN_KEY_PREFIX = "refresh_token:"

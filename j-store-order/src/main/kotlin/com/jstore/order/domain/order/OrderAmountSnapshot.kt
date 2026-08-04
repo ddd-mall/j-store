@@ -14,19 +14,20 @@ data class OrderAmountSnapshot(
     init {
         require(currency.matches(Regex("[A-Z]{3}"))) { "currency must be an ISO-4217 code" }
         require(discountAmount <= itemsSubtotal) { "discount cannot exceed item subtotal" }
-        require(
-            payableAmount == itemsSubtotal - discountAmount + shippingAmount + taxAmount
-        ) { "payable amount does not match amount components" }
+        require(payableAmount == itemsSubtotal - discountAmount + shippingAmount + taxAmount) {
+            "payable amount does not match amount components"
+        }
     }
 
     companion object {
-        fun cny(itemsSubtotal: Price): OrderAmountSnapshot = OrderAmountSnapshot(
-            currency = "CNY",
-            itemsSubtotal = itemsSubtotal,
-            discountAmount = Price.ZERO,
-            shippingAmount = Price.ZERO,
-            taxAmount = Price.ZERO,
-            payableAmount = itemsSubtotal,
-        )
+        fun cny(itemsSubtotal: Price): OrderAmountSnapshot =
+            OrderAmountSnapshot(
+                currency = "CNY",
+                itemsSubtotal = itemsSubtotal,
+                discountAmount = Price.ZERO,
+                shippingAmount = Price.ZERO,
+                taxAmount = Price.ZERO,
+                payableAmount = itemsSubtotal,
+            )
     }
 }

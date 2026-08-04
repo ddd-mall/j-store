@@ -3,13 +3,12 @@ package com.jstore.goods.domain.commodity
 import com.jstore.common.utils.json.JsonUtils
 import com.jstore.goods.domain.commodity.persistence.GoodsStylePO
 import com.jstore.goods.domain.commodity.persistence.GoodsStylePOJpaRepository
-import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
+import org.springframework.stereotype.Repository
 
 @Repository
-class GoodsStyleRepositoryImpl(
-    private val jpaRepository: GoodsStylePOJpaRepository,
-) : GoodsStyleRepository {
+class GoodsStyleRepositoryImpl(private val jpaRepository: GoodsStylePOJpaRepository) :
+    GoodsStyleRepository {
 
     override fun save(entity: GoodsStyle): GoodsStyle {
         val po = Converter.toPO(entity)
@@ -29,9 +28,12 @@ class GoodsStyleRepositoryImpl(
     internal object Converter {
 
         fun toPO(goodsStyle: GoodsStyle): GoodsStylePO {
-            val skuImagesMap: Map<String, List<String>> = goodsStyle.skuImages.map { (skuId, images) ->
-                skuId.value.toString() to images
-            }.toMap()
+            val skuImagesMap: Map<String, List<String>> =
+                goodsStyle.skuImages
+                    .map { (skuId, images) ->
+                        skuId.value.toString() to images
+                    }
+                    .toMap()
 
             return GoodsStylePO(
                 id = goodsStyle.id.value,
@@ -45,9 +47,13 @@ class GoodsStyleRepositoryImpl(
         fun toDomain(po: GoodsStylePO): GoodsStyle {
             val mainImages: List<String> = JsonUtils.deserialize(po.mainImages)
             val skuImagesRaw: Map<String, List<String>> = JsonUtils.deserialize(po.skuImages)
-            val skuImages: MutableMap<SkuId, List<String>> = skuImagesRaw.map { (key, images) ->
-                SkuId(key.toLong()) to images
-            }.toMap().toMutableMap()
+            val skuImages: MutableMap<SkuId, List<String>> =
+                skuImagesRaw
+                    .map { (key, images) ->
+                        SkuId(key.toLong()) to images
+                    }
+                    .toMap()
+                    .toMutableMap()
 
             return GoodsStyleImpl(
                 id = GoodsStyleId(po.id),

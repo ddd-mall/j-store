@@ -6,24 +6,25 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.string.shouldNotBeEmpty
 
 // **Validates: Requirements 5.4**
-class AuthenticatedUserContextTest : FunSpec({
-
-    beforeEach {
-        AuthenticatedUserContext.clear()
-    }
-
-    afterEach {
-        AuthenticatedUserContext.clear()
-    }
-
-    test("getCurrentUserId() throws AuthenticationException when no user is set") {
-        val exception = shouldThrow<AuthenticationException> {
-            AuthenticatedUserContext.getCurrentUserId()
+class AuthenticatedUserContextTest :
+    FunSpec({
+        beforeEach {
+            AuthenticatedUserContext.clear()
         }
-        exception.message.shouldNotBeEmpty()
-    }
 
-    test("getCurrentUserIdOrNull() returns null when no user is set") {
-        AuthenticatedUserContext.getCurrentUserIdOrNull().shouldBeNull()
-    }
-})
+        afterEach {
+            AuthenticatedUserContext.clear()
+        }
+
+        test("getCurrentUserId() throws AuthenticationException when no user is set") {
+            val exception =
+                shouldThrow<AuthenticationException> {
+                    AuthenticatedUserContext.getCurrentUserId()
+                }
+            exception.message.shouldNotBeEmpty()
+        }
+
+        test("getCurrentUserIdOrNull() returns null when no user is set") {
+            AuthenticatedUserContext.getCurrentUserIdOrNull().shouldBeNull()
+        }
+    })

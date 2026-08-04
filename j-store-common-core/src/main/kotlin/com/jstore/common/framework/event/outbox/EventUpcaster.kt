@@ -20,9 +20,8 @@ interface EventUpcasterRegistry {
     fun upcast(eventName: String, eventVersion: Int, payload: String): UpcastedEventPayload
 }
 
-class InMemoryEventUpcasterRegistry(
-    upcasters: Iterable<EventUpcaster> = emptyList(),
-) : EventUpcasterRegistry {
+class InMemoryEventUpcasterRegistry(upcasters: Iterable<EventUpcaster> = emptyList()) :
+    EventUpcasterRegistry {
     private val upcasters = linkedMapOf<EventTypeKey, EventUpcaster>()
 
     init {
@@ -44,7 +43,11 @@ class InMemoryEventUpcasterRegistry(
         upcasters[key] = upcaster
     }
 
-    override fun upcast(eventName: String, eventVersion: Int, payload: String): UpcastedEventPayload {
+    override fun upcast(
+        eventName: String,
+        eventVersion: Int,
+        payload: String,
+    ): UpcastedEventPayload {
         var currentVersion = eventVersion
         var currentPayload = payload
 

@@ -2,6 +2,23 @@
 
 j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring Data JPA、PostgreSQL 和 Redis。项目结构、模块边界与测试入口见 [`docs/project-overview.md`](docs/project-overview.md)。
 
+## 代码格式化
+
+Java、Kotlin 和 Gradle Kotlin DSL 代码统一由 Spotless 格式化：Java 使用 Google Java Format（AOSP 风格），Kotlin 使用 ktfmt（Kotlin 风格）。
+
+```bash
+./gradlew spotlessApply
+./gradlew spotlessCheck
+```
+
+如需启用仓库提供的 pre-push hook，可执行：
+
+```bash
+./gradlew spotlessInstallGitPrePushHook
+```
+
+hook 会在推送前检查格式；发现问题时会自动格式化并终止本次推送，确认并提交格式化结果后再重新推送。
+
 ## 本地依赖服务
 
 前置条件：Docker Desktop，或 Docker Engine 与 Compose 插件。

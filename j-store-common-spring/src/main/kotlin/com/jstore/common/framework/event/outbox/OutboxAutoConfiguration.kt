@@ -5,19 +5,19 @@ import com.jstore.common.framework.event.DomainEventBus
 import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.SpringDomainEventMulticasterGuard
-import com.jstore.common.framework.event.persistence.DomainEventConsumptionRepositoryImpl
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryPOJpaRepository
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryRepositoryImpl
+import com.jstore.common.framework.event.persistence.DomainEventConsumptionRepositoryImpl
 import com.jstore.common.persistent.SnowFlakSequence
-import jakarta.persistence.EntityManager
 import io.micrometer.core.instrument.MeterRegistry
-import org.springframework.boot.context.properties.EnableConfigurationProperties
+import jakarta.persistence.EntityManager
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.ApplicationContext
 import org.springframework.scheduling.annotation.EnableScheduling
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
@@ -62,7 +62,9 @@ class OutboxAutoConfiguration {
     }
 
     @Bean
-    fun domainEventConsumptionRepository(entityManager: EntityManager): DomainEventConsumptionRepository {
+    fun domainEventConsumptionRepository(
+        entityManager: EntityManager
+    ): DomainEventConsumptionRepository {
         return DomainEventConsumptionRepositoryImpl(entityManager)
     }
 
@@ -73,7 +75,12 @@ class OutboxAutoConfiguration {
         snowFlakSequence: SnowFlakSequence,
         eventTypeRegistry: EventTypeRegistry,
     ): DomainEventPublisher {
-        return OutboxEventPublisher(outboxEntryRepository, eventSerializer, snowFlakSequence, eventTypeRegistry)
+        return OutboxEventPublisher(
+            outboxEntryRepository,
+            eventSerializer,
+            snowFlakSequence,
+            eventTypeRegistry,
+        )
     }
 
     @Bean
@@ -91,7 +98,7 @@ class OutboxAutoConfiguration {
             domainEventBus,
             properties,
             outboxMonitor,
-            transactionOperations
+            transactionOperations,
         )
     }
 
@@ -118,8 +125,7 @@ class OutboxAutoConfiguration {
         )
     }
 
-    @Bean
-    fun schedulerExecutionState(): SchedulerExecutionState = SchedulerExecutionState()
+    @Bean fun schedulerExecutionState(): SchedulerExecutionState = SchedulerExecutionState()
 
     @Bean
     fun outboxOperationalHealth(
@@ -127,12 +133,13 @@ class OutboxAutoConfiguration {
         schedulerExecutionState: SchedulerExecutionState,
         observabilityProperties: OutboxObservabilityProperties,
         properties: OutboxProperties,
-    ): OutboxOperationalHealth = OutboxOperationalHealth(
-        outboxEntryRepository,
-        schedulerExecutionState,
-        observabilityProperties,
-        properties.maxRetryCount,
-    )
+    ): OutboxOperationalHealth =
+        OutboxOperationalHealth(
+            outboxEntryRepository,
+            schedulerExecutionState,
+            observabilityProperties,
+            properties.maxRetryCount,
+        )
 
     @Bean
     fun outboxMonitor(
@@ -152,7 +159,7 @@ class OutboxAutoConfiguration {
 
     @Bean
     fun outboxRelayTransactionOperations(
-        transactionManager: PlatformTransactionManager,
+        transactionManager: PlatformTransactionManager
     ): OutboxRelayTransactionOperations {
         return SpringOutboxRelayTransactionOperations(transactionManager)
     }
@@ -162,7 +169,10 @@ class OutboxAutoConfiguration {
         applicationContext: ApplicationContext,
         properties: OutboxProperties,
     ): SpringDomainEventMulticasterGuard {
-        return SpringDomainEventMulticasterGuard(applicationContext, properties.asyncMulticasterFailFast)
+        return SpringDomainEventMulticasterGuard(
+            applicationContext,
+            properties.asyncMulticasterFailFast,
+        )
     }
 
     @Bean

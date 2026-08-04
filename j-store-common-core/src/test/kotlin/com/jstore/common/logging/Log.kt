@@ -1,7 +1,3 @@
 package com.jstore.common.logging
 
-class LogTest {
-
-
-
-}
+class LogTest {}

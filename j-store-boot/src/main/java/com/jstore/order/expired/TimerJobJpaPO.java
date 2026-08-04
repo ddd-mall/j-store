@@ -7,19 +7,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import lombok.Data;
-
 import java.util.Date;
+import lombok.Data;
 
 @Data
 @Entity
 @Table(
         name = "timer_job",
-        indexes = {
-                @Index(name = "idx_execute_time_status", columnList = "execute_time, status")
-        }
-
-)
+        indexes = {@Index(name = "idx_execute_time_status", columnList = "execute_time, status")})
 public class TimerJobJpaPO {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +39,5 @@ public class TimerJobJpaPO {
         this.status = status;
     }
 
-    public TimerJobJpaPO() {
-    }
+    public TimerJobJpaPO() {}
 }

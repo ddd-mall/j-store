@@ -15,22 +15,21 @@ import org.springframework.stereotype.Component
  */
 @Component
 class StockReservedToOrderConfirmedTranslator(
-    private val domainEventPublisher: DomainEventPublisher,
+    private val domainEventPublisher: DomainEventPublisher
 ) : DomainEventListener<StockReservedEvent> {
     override fun listenerId(): String = "translator.stock-reserved.to-order-stock-confirmed"
 
     override fun onDomainEvent(event: StockReservedEvent) {
-        domainEventPublisher.publishEvent(
-            OrderStockConfirmedEvent(orderId = event.orderId)
-        )
+        domainEventPublisher.publishEvent(OrderStockConfirmedEvent(orderId = event.orderId))
     }
 }
 
 @Component
 class StockReservationFailedToOrderInsufficientTranslator(
-    private val domainEventPublisher: DomainEventPublisher,
+    private val domainEventPublisher: DomainEventPublisher
 ) : DomainEventListener<StockReservationFailedEvent> {
-    override fun listenerId(): String = "translator.stock-reservation-failed.to-order-stock-insufficient"
+    override fun listenerId(): String =
+        "translator.stock-reservation-failed.to-order-stock-insufficient"
 
     override fun onDomainEvent(event: StockReservationFailedEvent) {
         domainEventPublisher.publishEvent(

@@ -1,11 +1,10 @@
 package com.jstore.order.expired;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.Data;
-import org.springframework.web.bind.annotation.*;
-
 import java.security.InvalidParameterException;
 import java.util.Date;
+import lombok.Data;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/timer/job")
@@ -14,7 +13,8 @@ public class TimerJobTestController {
     private final TimerJobService timerJobService;
     private final TimerJobCoordinator coordinator;
 
-    public TimerJobTestController(TimerJobService timerJobService, TimerJobCoordinator coordinator) {
+    public TimerJobTestController(
+            TimerJobService timerJobService, TimerJobCoordinator coordinator) {
         this.timerJobService = timerJobService;
         this.coordinator = coordinator;
     }
@@ -36,14 +36,14 @@ public class TimerJobTestController {
         return timerJobService.submitAt(
                 jobCreateParam.getTopic(),
                 jobCreateParam.getContent(),
-                jobCreateParam.getExecuteTime()
-        );
+                jobCreateParam.getExecuteTime());
     }
 
     @Data
     public static class JobCreateParam {
         private String topic;
         private String content;
+
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
         private Date executeTime;
 
@@ -59,8 +59,6 @@ public class TimerJobTestController {
                     .setTopic(this.topic)
                     .setExecuteTime(this.executeTime)
                     .setContent(this.content);
-
         }
     }
-
 }

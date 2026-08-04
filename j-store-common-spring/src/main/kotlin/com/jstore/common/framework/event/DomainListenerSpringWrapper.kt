@@ -7,7 +7,8 @@ import org.springframework.core.ResolvableType
 
 class DomainListenerSpringWrapper(
     private val domainEventListener: DomainEventListener<*>,
-    private val consumptionRepository: DomainEventConsumptionRepository = NoopDomainEventConsumptionRepository,
+    private val consumptionRepository: DomainEventConsumptionRepository =
+        NoopDomainEventConsumptionRepository,
 ) : GenericApplicationListener {
     override fun onApplicationEvent(event: ApplicationEvent) {
         (event as? PayloadApplicationEvent<*>)?.let {
@@ -16,7 +17,9 @@ class DomainListenerSpringWrapper(
                     val listenerId = domainEventListener.listenerId()
                     if (consumptionRepository.tryStart(listenerId, domainEvent)) {
                         @Suppress("UNCHECKED_CAST")
-                        (domainEventListener as DomainEventListener<DomainEvent>).onDomainEvent(domainEvent)
+                        (domainEventListener as DomainEventListener<DomainEvent>).onDomainEvent(
+                            domainEvent
+                        )
                     }
                 }
             }
@@ -34,10 +37,10 @@ class DomainListenerSpringWrapper(
         }
 
         val payloadType = eventType.generics.firstOrNull()?.resolve() ?: return false
-        val listenerEventType = DomainEventListenerUtils.getListeningEventType(domainEventListener) ?: return false
+        val listenerEventType =
+            DomainEventListenerUtils.getListeningEventType(domainEventListener) ?: return false
         return listenerEventType.isAssignableFrom(payloadType)
     }
-
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -47,7 +50,6 @@ class DomainListenerSpringWrapper(
 
         return true
     }
-
 
     override fun hashCode(): Int {
         return domainEventListener.hashCode()

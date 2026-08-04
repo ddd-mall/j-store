@@ -25,9 +25,14 @@ class PaymentOrderImpl(
     private val _refunds: MutableList<PaymentRefund> = mutableListOf(),
 ) : PaymentOrder {
     override val domainEventQueue: Queue<DomainEvent> = LinkedList()
-    override val status: PaymentOrderStatus get() = _status
-    override val capture: PaymentCapture? get() = _capture
-    override val refunds: List<PaymentRefund> get() = _refunds.toList()
+    override val status: PaymentOrderStatus
+        get() = _status
+
+    override val capture: PaymentCapture?
+        get() = _capture
+
+    override val refunds: List<PaymentRefund>
+        get() = _refunds.toList()
 
     init {
         require(orderId > 0 && merchantId > 0 && payableAmount > Price.ZERO)
@@ -48,35 +53,59 @@ class PaymentOrderImpl(
             }
         }
         if (_status != PaymentOrderStatus.PENDING) return Failure(PaymentErrors.INVALID_STATE)
-        if (providerTransactionId.isBlank() || currency != this.currency || amount != payableAmount) {
+        if (
+            providerTransactionId.isBlank() || currency != this.currency || amount != payableAmount
+        ) {
             return Failure(PaymentErrors.CAPTURE_INVALID)
         }
 
         _capture = PaymentCapture(providerTransactionId, amount, occurredAt)
         _status = PaymentOrderStatus.CAPTURED
         publishEvent(
-            PaymentCapturedEvent(id, orderId, merchantId, providerTransactionId, amount, currency, occurredAt)
+            PaymentCapturedEvent(
+                id,
+                orderId,
+                merchantId,
+                providerTransactionId,
+                amount,
+                currency,
+                occurredAt,
+            )
         )
         return Success(true)
     }
 
-    override fun requestRefund(refund: PaymentRefund, occurredAt: Instant): Result<Boolean, BusinessError> {
-        _refunds.firstOrNull { it.afterSaleId == refund.afterSaleId }?.let { return Success(false) }
+    override fun requestRefund(
+        refund: PaymentRefund,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
+        _refunds
+            .firstOrNull { it.afterSaleId == refund.afterSaleId }
+            ?.let {
+                return Success(false)
+            }
         if (_status !in setOf(PaymentOrderStatus.CAPTURED, PaymentOrderStatus.PARTIALLY_REFUNDED)) {
             return Failure(PaymentErrors.INVALID_STATE)
         }
-        val committedOrPending = Price.sumOf(
-            _refunds.filter { it.status != PaymentRefundStatus.FAILED }.map { it.amount }
-        )
-        if (committedOrPending + refund.amount > payableAmount) return Failure(PaymentErrors.REFUND_INVALID)
+        val committedOrPending =
+            Price.sumOf(
+                _refunds.filter { it.status != PaymentRefundStatus.FAILED }.map { it.amount }
+            )
+        if (committedOrPending + refund.amount > payableAmount)
+            return Failure(PaymentErrors.REFUND_INVALID)
 
         _refunds += refund
         publishRefundRequested(refund, occurredAt)
         return Success(true)
     }
 
-    override fun retryRefund(refundId: PaymentRefundId, occurredAt: Instant): Result<Boolean, BusinessError> {
-        val refund = _refunds.firstOrNull { it.id == refundId } ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
+    override fun retryRefund(
+        refundId: PaymentRefundId,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
+        val refund =
+            _refunds.firstOrNull { it.id == refundId }
+                ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
         if (refund.status == PaymentRefundStatus.PENDING) return Success(false)
         if (refund.status != PaymentRefundStatus.FAILED) return Failure(PaymentErrors.INVALID_STATE)
         refund.status = PaymentRefundStatus.PENDING
@@ -91,7 +120,9 @@ class PaymentOrderImpl(
         providerRefundId: String,
         occurredAt: Instant,
     ): Result<Boolean, BusinessError> {
-        val refund = _refunds.firstOrNull { it.id == refundId } ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
+        val refund =
+            _refunds.firstOrNull { it.id == refundId }
+                ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
         if (refund.status == PaymentRefundStatus.SUCCEEDED) {
             return if (refund.providerRefundId == providerRefundId) Success(false)
             else Failure(PaymentErrors.REFUND_PROVIDER_CONFLICT)
@@ -102,12 +133,25 @@ class PaymentOrderImpl(
         refund.status = PaymentRefundStatus.SUCCEEDED
         refund.providerRefundId = providerRefundId
         refund.completedAt = occurredAt
-        val refunded = Price.sumOf(_refunds.filter { it.status == PaymentRefundStatus.SUCCEEDED }.map { it.amount })
-        _status = if (refunded == payableAmount) PaymentOrderStatus.REFUNDED else PaymentOrderStatus.PARTIALLY_REFUNDED
+        val refunded =
+            Price.sumOf(
+                _refunds.filter { it.status == PaymentRefundStatus.SUCCEEDED }.map { it.amount }
+            )
+        _status =
+            if (refunded == payableAmount) PaymentOrderStatus.REFUNDED
+            else PaymentOrderStatus.PARTIALLY_REFUNDED
         publishEvent(
             PaymentRefundSucceededEvent(
-                id, refund.id, orderId, refund.afterSaleId, merchantId, providerRefundId,
-                refund.items, refund.amount, currency, occurredAt,
+                id,
+                refund.id,
+                orderId,
+                refund.afterSaleId,
+                merchantId,
+                providerRefundId,
+                refund.items,
+                refund.amount,
+                currency,
+                occurredAt,
             )
         )
         return Success(true)
@@ -118,19 +162,33 @@ class PaymentOrderImpl(
         reason: String,
         occurredAt: Instant,
     ): Result<Boolean, BusinessError> {
-        val refund = _refunds.firstOrNull { it.id == refundId } ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
-        if (refund.status == PaymentRefundStatus.FAILED && refund.failureReason == reason) return Success(false)
-        if (refund.status != PaymentRefundStatus.PENDING || reason.isBlank()) return Failure(PaymentErrors.INVALID_STATE)
+        val refund =
+            _refunds.firstOrNull { it.id == refundId }
+                ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
+        if (refund.status == PaymentRefundStatus.FAILED && refund.failureReason == reason)
+            return Success(false)
+        if (refund.status != PaymentRefundStatus.PENDING || reason.isBlank())
+            return Failure(PaymentErrors.INVALID_STATE)
         refund.status = PaymentRefundStatus.FAILED
         refund.failureReason = reason
         refund.completedAt = occurredAt
-        publishEvent(PaymentRefundFailedEvent(id, refund.id, orderId, refund.afterSaleId, reason, occurredAt))
+        publishEvent(
+            PaymentRefundFailedEvent(id, refund.id, orderId, refund.afterSaleId, reason, occurredAt)
+        )
         return Success(true)
     }
 
     private fun publishRefundRequested(refund: PaymentRefund, occurredAt: Instant) {
         publishEvent(
-            PaymentRefundRequestedEvent(id, refund.id, orderId, refund.afterSaleId, refund.amount, currency, occurredAt)
+            PaymentRefundRequestedEvent(
+                id,
+                refund.id,
+                orderId,
+                refund.afterSaleId,
+                refund.amount,
+                currency,
+                occurredAt,
+            )
         )
     }
 }

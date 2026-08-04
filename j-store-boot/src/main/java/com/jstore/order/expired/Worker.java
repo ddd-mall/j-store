@@ -1,9 +1,7 @@
 package com.jstore.order.expired;
 
-
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class Worker {
@@ -11,16 +9,10 @@ public class Worker {
     private final TimerJobRepository jobRepository;
     private final Map<String, TimerJobHandler> handlers;
 
-
-    public Worker(
-            TimerJobRepository jobRepository,
-            Map<String, TimerJobHandler> handlers
-    ) {
+    public Worker(TimerJobRepository jobRepository, Map<String, TimerJobHandler> handlers) {
         this.jobRepository = jobRepository;
         this.handlers = handlers;
-
     }
-
 
     public void handle(TimerJob job, Integer slot) {
         if (null == job) return;

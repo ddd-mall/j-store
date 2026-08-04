@@ -1,6 +1,5 @@
 package com.jstore.goods.domain.inventory
 
-
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.Entity
 import com.jstore.common.properties.Id
@@ -17,21 +16,16 @@ data class CommodityCode(override val value: Long) : Id<Long>(value)
  * 幂等性：使用bizCode作为幂等的key，若同一个bizCode已经有操作过库存，则返回之前的操作记录
  *
  * 并发安全：通过storageLock保证并发安全，StorageLock在不同的应用形式中可以有不同的实现，在分布式系统中可以通过分布式锁等
- *
  */
 interface Inventory : Entity<CommodityCode> {
-    /**
-     * 预扣减
-     */
+    /** 预扣减 */
     fun reserve(amount: BigDecimal): Result<Boolean, BusinessError>
 
     fun deduct(amount: BigDecimal): Result<Boolean, BusinessError>
 
     fun release(amount: BigDecimal): Result<Boolean, BusinessError>
 
-    /**
-     * 增加 (prepare)
-     */
+    /** 增加 (prepare) */
     fun add(quantity: BigDecimal): Result<Boolean, BusinessError>
 }
 
@@ -39,9 +33,9 @@ class InventoryImpl(
     override val id: CommodityCode,
     private var availableQuantity: BigDecimal = BigDecimal.ZERO,
     private var reservedQuantity: BigDecimal = BigDecimal.ZERO,
-    private val version: Long = 0
+    private val version: Long = 0,
 ) : Inventory {
-    override fun reserve(amount: BigDecimal):  Result<Boolean, BusinessError> {
+    override fun reserve(amount: BigDecimal): Result<Boolean, BusinessError> {
         if (availableQuantity < amount) {
             return Failure(StorageErrors.INSUFFICIENT_INVENTORY)
         }
@@ -52,7 +46,11 @@ class InventoryImpl(
 
     override fun deduct(amount: BigDecimal): Result<Boolean, BusinessError> {
         if (reservedQuantity < amount) {
-            return Failure(StorageErrors.STORAGE_OPERATION_FAILED.msg("inventory deduct failed! because insufficient reserved inventor"))
+            return Failure(
+                StorageErrors.STORAGE_OPERATION_FAILED.msg(
+                    "inventory deduct failed! because insufficient reserved inventor"
+                )
+            )
         }
         reservedQuantity -= amount
         return Success(true)
@@ -60,7 +58,11 @@ class InventoryImpl(
 
     override fun release(amount: BigDecimal): Result<Boolean, BusinessError> {
         if (reservedQuantity < amount) {
-            return Failure(StorageErrors.STORAGE_OPERATION_FAILED.msg("inventory release failed! because insufficient reserved inventor"))
+            return Failure(
+                StorageErrors.STORAGE_OPERATION_FAILED.msg(
+                    "inventory release failed! because insufficient reserved inventor"
+                )
+            )
         }
         reservedQuantity -= amount
         availableQuantity += amount
@@ -71,6 +73,4 @@ class InventoryImpl(
         availableQuantity += quantity
         return Success(true)
     }
-
-
 }

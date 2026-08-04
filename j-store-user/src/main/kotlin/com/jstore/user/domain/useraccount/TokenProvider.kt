@@ -1,9 +1,6 @@
 package com.jstore.user.domain.useraccount
 
-/**
- * 令牌提供者接口
- * 定义在领域层，实现在基础设施层（JWT）
- */
+/** 令牌提供者接口 定义在领域层，实现在基础设施层（JWT） */
 interface TokenProvider {
     /** 签发 AccessToken，返回 token 字符串 */
     fun issueAccessToken(userId: UserId): String

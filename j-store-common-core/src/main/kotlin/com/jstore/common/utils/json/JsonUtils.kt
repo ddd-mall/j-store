@@ -16,10 +16,10 @@ object JsonUtils {
 
     init {
         try {
-            //配置序列化级别
+            // 配置序列化级别
             JSON.setSerializationInclusion(JsonInclude.Include.NON_NULL)
-            /****配置普通属性****/
-            //有属性不能映射的时候不报错,主要用于：json串传了这个字段，但是类对象没有这个字段，这种不需要报错
+            /** **配置普通属性*** */
+            // 有属性不能映射的时候不报错,主要用于：json串传了这个字段，但是类对象没有这个字段，这种不需要报错
             JSON.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             // 当你遇到这个错误时，通常是因为你正在尝试序列化一个 Java 对象，而这个对象的某些字段是空的（null），而 Jackson 默认情况下不允许这种情况
             JSON.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
@@ -28,7 +28,6 @@ object JsonUtils {
             throw RuntimeException(e)
         }
     }
-
 
     fun <T> deserialize(jsonStr: String, clazz: Class<T>): T {
         try {
@@ -50,7 +49,6 @@ object JsonUtils {
         }
     }
 
-
     inline fun <reified T> deserialize(jsonStr: String): T {
         return try {
             JSON.readValue<T>(jsonStr)
@@ -70,5 +68,4 @@ object JsonUtils {
             throw CommonErrors.INTERNAL_ERROR.msgAndCause(errorMsg, e)
         }
     }
-
 }

@@ -9,6 +9,7 @@ import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.common.utils.getOrThrow
 import com.jstore.common.utils.onFailure
+import com.jstore.payment.domain.payment.PaymentErrors
 import com.jstore.payment.domain.payment.PaymentOrder
 import com.jstore.payment.domain.payment.PaymentOrderId
 import com.jstore.payment.domain.payment.PaymentOrderImpl
@@ -16,8 +17,6 @@ import com.jstore.payment.domain.payment.PaymentOrderRepository
 import com.jstore.payment.domain.payment.PaymentRefund
 import com.jstore.payment.domain.payment.PaymentRefundId
 import com.jstore.payment.domain.payment.PaymentRefundItem
-import com.jstore.payment.domain.payment.PaymentRefundStatus
-import com.jstore.payment.domain.payment.PaymentErrors
 import java.time.Instant
 
 data class PaymentOrderRequest(
@@ -50,17 +49,20 @@ class PaymentApplicationService(
         repository.findByOrderId(request.orderId)?.let { existing ->
             return if (
                 existing.merchantId == request.merchantId &&
-                existing.payableAmount == request.payableAmount &&
-                existing.currency == request.currency
-            ) Success(existing) else Failure(PaymentErrors.ORDER_CONFLICT)
+                    existing.payableAmount == request.payableAmount &&
+                    existing.currency == request.currency
+            )
+                Success(existing)
+            else Failure(PaymentErrors.ORDER_CONFLICT)
         }
-        val payment = PaymentOrderImpl(
-            id = PaymentOrderId(sequence.nextId()),
-            orderId = request.orderId,
-            merchantId = request.merchantId,
-            payableAmount = request.payableAmount,
-            currency = request.currency,
-        )
+        val payment =
+            PaymentOrderImpl(
+                id = PaymentOrderId(sequence.nextId()),
+                orderId = request.orderId,
+                merchantId = request.merchantId,
+                payableAmount = request.payableAmount,
+                currency = request.currency,
+            )
         repository.save(payment)
         return Success(payment)
     }
@@ -69,62 +71,91 @@ class PaymentApplicationService(
         repository.findByOrderId(orderId)?.let(::Success) ?: Failure(PaymentErrors.ORDER_NOT_FOUND)
 
     fun getByRefundId(refundId: PaymentRefundId): Result<PaymentOrder, BusinessError> =
-        repository.findByRefundId(refundId)?.let(::Success) ?: Failure(PaymentErrors.REFUND_NOT_FOUND)
+        repository.findByRefundId(refundId)?.let(::Success)
+            ?: Failure(PaymentErrors.REFUND_NOT_FOUND)
 
-    fun capture(command: PaymentCaptureCommand, occurredAt: Instant = Instant.now()): Result<Boolean, BusinessError> {
-        val payment = repository.findByOrderId(command.orderId) ?: return Failure(PaymentErrors.ORDER_NOT_FOUND)
-        val changed = payment.capture(
-            command.providerTransactionId,
-            command.amount,
-            command.currency,
-            occurredAt,
-        )
-        changed.onFailure { return Failure(it) }
+    fun capture(
+        command: PaymentCaptureCommand,
+        occurredAt: Instant = Instant.now(),
+    ): Result<Boolean, BusinessError> {
+        val payment =
+            repository.findByOrderId(command.orderId)
+                ?: return Failure(PaymentErrors.ORDER_NOT_FOUND)
+        val changed =
+            payment.capture(
+                command.providerTransactionId,
+                command.amount,
+                command.currency,
+                occurredAt,
+            )
+        changed.onFailure {
+            return Failure(it)
+        }
         if (changed.getOrThrow()) persistAndPublish(payment)
         return changed
     }
 
-    fun requestRefund(request: PaymentRefundRequest, occurredAt: Instant = Instant.now()): Result<PaymentRefundId, BusinessError> {
-        val payment = repository.findByOrderId(request.orderId) ?: return Failure(PaymentErrors.ORDER_NOT_FOUND)
-        payment.refunds.firstOrNull { it.afterSaleId == request.afterSaleId }?.let { return Success(it.id) }
-        val refund = PaymentRefund(
-            id = PaymentRefundId(sequence.nextId()),
-            afterSaleId = request.afterSaleId,
-            items = request.items,
-            amount = request.amount,
-            requestedAt = occurredAt,
-        )
-        payment.requestRefund(refund, occurredAt).onFailure { return Failure(it) }
+    fun requestRefund(
+        request: PaymentRefundRequest,
+        occurredAt: Instant = Instant.now(),
+    ): Result<PaymentRefundId, BusinessError> {
+        val payment =
+            repository.findByOrderId(request.orderId)
+                ?: return Failure(PaymentErrors.ORDER_NOT_FOUND)
+        payment.refunds
+            .firstOrNull { it.afterSaleId == request.afterSaleId }
+            ?.let {
+                return Success(it.id)
+            }
+        val refund =
+            PaymentRefund(
+                id = PaymentRefundId(sequence.nextId()),
+                afterSaleId = request.afterSaleId,
+                items = request.items,
+                amount = request.amount,
+                requestedAt = occurredAt,
+            )
+        payment.requestRefund(refund, occurredAt).onFailure {
+            return Failure(it)
+        }
         persistAndPublish(payment)
         return Success(refund.id)
     }
 
-    fun retryRefund(refundId: PaymentRefundId, occurredAt: Instant = Instant.now()): Result<Boolean, BusinessError> =
+    fun retryRefund(
+        refundId: PaymentRefundId,
+        occurredAt: Instant = Instant.now(),
+    ): Result<Boolean, BusinessError> =
         mutateRefund(refundId) { it.retryRefund(refundId, occurredAt) }
 
     fun markRefundSucceeded(
         refundId: PaymentRefundId,
         providerRefundId: String,
         occurredAt: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError> = mutateRefund(refundId) {
-        it.markRefundSucceeded(refundId, providerRefundId, occurredAt)
-    }
+    ): Result<Boolean, BusinessError> =
+        mutateRefund(refundId) {
+            it.markRefundSucceeded(refundId, providerRefundId, occurredAt)
+        }
 
     fun markRefundFailed(
         refundId: PaymentRefundId,
         reason: String,
         occurredAt: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError> = mutateRefund(refundId) {
-        it.markRefundFailed(refundId, reason, occurredAt)
-    }
+    ): Result<Boolean, BusinessError> =
+        mutateRefund(refundId) {
+            it.markRefundFailed(refundId, reason, occurredAt)
+        }
 
     private fun mutateRefund(
         refundId: PaymentRefundId,
         mutation: (PaymentOrder) -> Result<Boolean, BusinessError>,
     ): Result<Boolean, BusinessError> {
-        val payment = repository.findByRefundId(refundId) ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
+        val payment =
+            repository.findByRefundId(refundId) ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
         val changed = mutation(payment)
-        changed.onFailure { return Failure(it) }
+        changed.onFailure {
+            return Failure(it)
+        }
         if (changed.getOrThrow()) persistAndPublish(payment)
         return changed
     }

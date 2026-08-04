@@ -1,9 +1,9 @@
 package com.jstore.common.framework.event.outbox
 
-import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import org.junit.jupiter.api.Test
 
 class OutboxDeadLetterServiceTest {
     @Test
@@ -12,10 +12,14 @@ class OutboxDeadLetterServiceTest {
         val service = OutboxDeadLetterService(repository)
         val at = Instant.parse("2026-08-04T01:02:03Z")
 
-        val result = service.requeue(listOf("entry-1", "entry-2"), "user-7", "dependency recovered", at)
+        val result =
+            service.requeue(listOf("entry-1", "entry-2"), "user-7", "dependency recovered", at)
 
         assertEquals(2, result.requeuedCount)
-        assertEquals(RequeueCommand(listOf("entry-1", "entry-2"), "user-7", "dependency recovered", at), repository.command)
+        assertEquals(
+            RequeueCommand(listOf("entry-1", "entry-2"), "user-7", "dependency recovered", at),
+            repository.command,
+        )
     }
 
     @Test
@@ -36,10 +40,12 @@ class OutboxDeadLetterServiceTest {
         val nextAttemptAt: Instant,
     )
 
-    private class FakeOperationsRepository : OutboxEntryRepository, OutboxDeadLetterOperationsRepository {
+    private class FakeOperationsRepository :
+        OutboxEntryRepository, OutboxDeadLetterOperationsRepository {
         var command: RequeueCommand? = null
 
-        override fun findDeadLetters(page: Int, size: Int) = OutboxDeadLetterPage(emptyList(), page, size, 0)
+        override fun findDeadLetters(page: Int, size: Int) =
+            OutboxDeadLetterPage(emptyList(), page, size, 0)
 
         override fun requeueDeadLetters(
             ids: Collection<String>,
@@ -52,16 +58,38 @@ class OutboxDeadLetterServiceTest {
         }
 
         override fun save(entry: OutboxEntry) = entry
-        override fun findPendingAndRetryable(maxRetryCount: Int, batchSize: Int) = emptyList<OutboxEntry>()
-        override fun claimPendingAndRetryable(maxRetryCount: Int, batchSize: Int, lockedBy: String, lockedUntil: Instant) = emptyList<OutboxEntry>()
-        override fun renewLease(id: String, lockedBy: String, lockToken: Long, lockedUntil: Instant) = false
+
+        override fun findPendingAndRetryable(maxRetryCount: Int, batchSize: Int) =
+            emptyList<OutboxEntry>()
+
+        override fun claimPendingAndRetryable(
+            maxRetryCount: Int,
+            batchSize: Int,
+            lockedBy: String,
+            lockedUntil: Instant,
+        ) = emptyList<OutboxEntry>()
+
+        override fun renewLease(
+            id: String,
+            lockedBy: String,
+            lockToken: Long,
+            lockedUntil: Instant,
+        ) = false
+
         override fun markPublished(entry: OutboxEntry, lockedBy: String) = false
+
         override fun markFailed(entry: OutboxEntry, lockedBy: String) = false
+
         override fun findDeadLetters(batchSize: Int) = emptyList<OutboxEntry>()
+
         override fun requeueDeadLetters(ids: Collection<String>, nextAttemptAt: Instant) = 0
+
         override fun countByStatus(status: OutboxEntryStatus) = 0L
+
         override fun findOldestReadyAt(now: Instant, maxRetryCount: Int): Instant? = null
+
         override fun countExpiredLocks(now: Instant) = 0L
+
         override fun deletePublishedBefore(before: Instant, batchSize: Int) = 0
     }
 }

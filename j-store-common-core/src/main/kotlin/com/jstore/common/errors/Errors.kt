@@ -1,22 +1,26 @@
 package com.jstore.common.errors
 
-open class Errors: RuntimeException {
+open class Errors : RuntimeException {
     private val msg: String
     private val errorCode: String
     private val httpCode: Int
 
-    constructor(msg: String, errorCode: String, httpCode: Int, thrown: Throwable): super(msg, thrown) {
-        this.msg = msg
-        this.errorCode = errorCode
-        this.httpCode = httpCode
-    }
-    constructor(msg: String, errorCode: String, httpCode: Int): super(msg) {
+    constructor(
+        msg: String,
+        errorCode: String,
+        httpCode: Int,
+        thrown: Throwable,
+    ) : super(msg, thrown) {
         this.msg = msg
         this.errorCode = errorCode
         this.httpCode = httpCode
     }
 
-
+    constructor(msg: String, errorCode: String, httpCode: Int) : super(msg) {
+        this.msg = msg
+        this.errorCode = errorCode
+        this.httpCode = httpCode
+    }
 
     fun msg(msg: String): Errors {
         return Errors(msg, this.errorCode, this.httpCode)
@@ -37,8 +41,3 @@ object CommonErrors {
     val INTERNAL_ERROR: Errors = Errors("内部错误", "App.InternalError", 500)
     val OBJECT_NOT_FOUND: Errors = Errors("访问的资源不存在", "Resource.notfound", 404)
 }
-
-
-
-
-

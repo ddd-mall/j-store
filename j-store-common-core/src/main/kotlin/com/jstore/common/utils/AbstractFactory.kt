@@ -9,7 +9,6 @@ abstract class AbstractFactory<T : Any>(private val candidateClass: Collection<C
     @Volatile private var lock = Any()
     private val candidateMap: MutableMap<String, Constructor<out T>> = HashMap()
 
-
     private fun getCandidateMapKey(args: Array<out Any>): String {
         return args.map { it::class.java.name }.toString()
     }
@@ -27,7 +26,9 @@ abstract class AbstractFactory<T : Any>(private val candidateClass: Collection<C
             for (candidateClazz in candidateClass) {
                 try {
                     val candidateConstructor =
-                        candidateClazz.getDeclaredConstructor(*args.map { it::class.java }.toTypedArray())
+                        candidateClazz.getDeclaredConstructor(
+                            *args.map { it::class.java }.toTypedArray()
+                        )
                     candidateConstructor.isAccessible = true
                     val newInstance = candidateConstructor.newInstance(*args)
                     candidateMap[getCandidateMapKey(args)] = candidateConstructor

@@ -16,17 +16,28 @@ class SettlementApplicationService(
     private val settlementStatementRepository: SettlementStatementRepository,
     private val domainEventPublisher: DomainEventPublisher? = null,
 ) {
-    fun confirmStatement(statementId: SettlementStatementId): Result<SettlementStatement, BusinessError> {
-        val statement = settlementStatementRepository.findById(statementId)
-            ?: return Failure(SettlementErrors.SETTLEMENT_STATEMENT_NOT_FOUND)
-        statement.confirm().onFailure { return Failure(it) }
+    fun confirmStatement(
+        statementId: SettlementStatementId
+    ): Result<SettlementStatement, BusinessError> {
+        val statement =
+            settlementStatementRepository.findById(statementId)
+                ?: return Failure(SettlementErrors.SETTLEMENT_STATEMENT_NOT_FOUND)
+        statement.confirm().onFailure {
+            return Failure(it)
+        }
         return Success(settlementStatementRepository.save(statement))
     }
 
-    fun markPaid(statementId: SettlementStatementId, paidAt: Instant): Result<SettlementStatement, BusinessError> {
-        val statement = settlementStatementRepository.findById(statementId)
-            ?: return Failure(SettlementErrors.SETTLEMENT_STATEMENT_NOT_FOUND)
-        statement.markPaid(paidAt).onFailure { return Failure(it) }
+    fun markPaid(
+        statementId: SettlementStatementId,
+        paidAt: Instant,
+    ): Result<SettlementStatement, BusinessError> {
+        val statement =
+            settlementStatementRepository.findById(statementId)
+                ?: return Failure(SettlementErrors.SETTLEMENT_STATEMENT_NOT_FOUND)
+        statement.markPaid(paidAt).onFailure {
+            return Failure(it)
+        }
         val saved = settlementStatementRepository.save(statement)
         saved.getDomainEvent().forEach { domainEventPublisher?.publishEvent(it) }
         return Success(saved)

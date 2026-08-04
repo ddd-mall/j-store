@@ -2,19 +2,19 @@ package com.jstore.common.framework.event
 
 import org.springframework.context.ConfigurableApplicationContext
 
-
 class SpringDomainEventListenerRegistry(
     private val applicationContext: ConfigurableApplicationContext,
-    private val consumptionRepository: DomainEventConsumptionRepository = NoopDomainEventConsumptionRepository,
-) :
-    DomainEventListenerRegistry {
-
+    private val consumptionRepository: DomainEventConsumptionRepository =
+        NoopDomainEventConsumptionRepository,
+) : DomainEventListenerRegistry {
 
     private val registeredListeners: MutableSet<DomainEventListener<*>> = mutableSetOf()
 
     override fun register(listener: DomainEventListener<*>) {
         DomainEventListenerUtils.requireListeningEventType(listener)
-        applicationContext.addApplicationListener(DomainListenerSpringWrapper(listener, consumptionRepository))
+        applicationContext.addApplicationListener(
+            DomainListenerSpringWrapper(listener, consumptionRepository)
+        )
         registeredListeners.add(listener)
     }
 
@@ -22,7 +22,7 @@ class SpringDomainEventListenerRegistry(
         applicationContext.removeApplicationListener(
             DomainListenerSpringWrapper(
                 listener,
-                consumptionRepository
+                consumptionRepository,
             )
         )
         registeredListeners.remove(listener)
@@ -31,6 +31,4 @@ class SpringDomainEventListenerRegistry(
     override fun getListeners(): List<DomainEventListener<*>> {
         return registeredListeners.toList()
     }
-
-
 }

@@ -5,6 +5,4 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 @ConditionalOnProperty(prefix = "jstore.outbox", name = ["enabled"], havingValue = "true")
-class GoodsConfig {
-
-}
+class GoodsConfig {}

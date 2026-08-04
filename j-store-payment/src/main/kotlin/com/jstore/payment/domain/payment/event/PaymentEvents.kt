@@ -13,12 +13,21 @@ sealed class PaymentDomainEvent(
     open val paymentId: PaymentOrderId,
     override val occurredAt: Instant,
 ) : ExplicitDomainEvent {
-    override val source: Any get() = paymentId
-    override val eventName: String get() = this::class.java.getAnnotation(DomainEventType::class.java).name
-    override val eventVersion: Int get() = this::class.java.getAnnotation(DomainEventType::class.java).version
+    override val source: Any
+        get() = paymentId
+
+    override val eventName: String
+        get() = this::class.java.getAnnotation(DomainEventType::class.java).name
+
+    override val eventVersion: Int
+        get() = this::class.java.getAnnotation(DomainEventType::class.java).version
+
     override val aggregateType: String = "PaymentOrder"
-    override val aggregateId: String get() = paymentId.value.toString()
-    override val eventId: String get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
+    override val aggregateId: String
+        get() = paymentId.value.toString()
+
+    override val eventId: String
+        get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }
 
 @DomainEventType(name = "payment.captured")

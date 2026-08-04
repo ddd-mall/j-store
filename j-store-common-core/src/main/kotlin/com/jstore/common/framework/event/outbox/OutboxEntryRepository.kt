@@ -17,7 +17,7 @@ interface OutboxEntryRepository {
         maxRetryCount: Int,
         batchSize: Int,
         lockedBy: String,
-        lockedUntil: Instant
+        lockedUntil: Instant,
     ): List<OutboxEntry>
 
     fun renewLease(id: String, lockedBy: String, lockToken: Long, lockedUntil: Instant): Boolean

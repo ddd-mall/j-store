@@ -7,12 +7,23 @@ import org.slf4j.spi.LocationAwareLogger
 
 class Slf4jSimpleImpl(clazz: String) : Logger {
     private val log: Logger
+
     init {
         val logger = LoggerFactory.getLogger(clazz)
         var loggerTemporary: Logger
         if (logger is LocationAwareLogger) {
             try {
-                logger::class.java.getDeclaredMethod("log", Marker::class.java, String::class.java, Int::class.java, String::class.java, Array<Any>::class.java, Throwable::class.java)
+                logger::class
+                    .java
+                    .getDeclaredMethod(
+                        "log",
+                        Marker::class.java,
+                        String::class.java,
+                        Int::class.java,
+                        String::class.java,
+                        Array<Any>::class.java,
+                        Throwable::class.java,
+                    )
                 loggerTemporary = Slf4jLocationAwareLoggerImpl(logger)
             } catch (e: NoSuchMethodException) {
                 loggerTemporary = Slf4jLoggerImpl(logger)
@@ -92,7 +103,7 @@ class Slf4jSimpleImpl(clazz: String) : Logger {
     }
 }
 
-class Slf4jLoggerImpl(private val logger: org.slf4j.Logger): Logger {
+class Slf4jLoggerImpl(private val logger: org.slf4j.Logger) : Logger {
     override fun isDebugEnabled(): Boolean {
         return logger.isDebugEnabled
     }
@@ -177,4 +188,3 @@ class Slf4jLoggerImpl(private val logger: org.slf4j.Logger): Logger {
         logger.error(format, *args)
     }
 }
-

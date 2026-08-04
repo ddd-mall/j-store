@@ -7,9 +7,7 @@ import java.util.*
 import javax.crypto.SecretKey
 
 /**
- * JWT 实现的 TokenProvider
- * AccessToken: 15 分钟有效期，claims 包含 userId, jti, exp, iat
- * RefreshToken: 7 天有效期
+ * JWT 实现的 TokenProvider AccessToken: 15 分钟有效期，claims 包含 userId, jti, exp, iat RefreshToken: 7 天有效期
  * 使用 HS256 算法签名
  */
 class JwtTokenProvider(secretKeyString: String) : TokenProvider {
@@ -17,7 +15,7 @@ class JwtTokenProvider(secretKeyString: String) : TokenProvider {
     private val secretKey: SecretKey = Keys.hmacShaKeyFor(secretKeyString.toByteArray())
 
     companion object {
-        private const val ACCESS_TOKEN_EXPIRY_SECONDS = 15L * 60          // 15 minutes
+        private const val ACCESS_TOKEN_EXPIRY_SECONDS = 15L * 60 // 15 minutes
         private const val REFRESH_TOKEN_EXPIRY_SECONDS = 7L * 24 * 60 * 60 // 7 days
         private const val CLAIM_USER_ID = "userId"
         private const val CLAIM_TOKEN_TYPE = "type"
@@ -59,11 +57,8 @@ class JwtTokenProvider(secretKeyString: String) : TokenProvider {
 
     override fun getAccessTokenJti(token: String): String? {
         return try {
-            val claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .payload
+            val claims =
+                Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).payload
             claims.id
         } catch (_: Exception) {
             null
@@ -72,11 +67,8 @@ class JwtTokenProvider(secretKeyString: String) : TokenProvider {
 
     override fun getAccessTokenRemainingSeconds(token: String): Long {
         return try {
-            val claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .payload
+            val claims =
+                Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).payload
             val expiration = claims.expiration.toInstant()
             val remaining = expiration.epochSecond - Instant.now().epochSecond
             if (remaining > 0) remaining else 0
@@ -87,11 +79,8 @@ class JwtTokenProvider(secretKeyString: String) : TokenProvider {
 
     private fun parseToken(token: String, expectedType: String): UserId? {
         return try {
-            val claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .payload
+            val claims =
+                Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).payload
             val type = claims[CLAIM_TOKEN_TYPE] as? String
             if (type != expectedType) return null
             val userId = claims[CLAIM_USER_ID] as? Number ?: return null

@@ -1,7 +1,7 @@
 package com.jstore.common.framework.event.outbox
 
-import org.slf4j.LoggerFactory
 import java.time.Instant
+import org.slf4j.LoggerFactory
 
 class OutboxDeadLetterService(
     private val outboxEntryRepository: OutboxEntryRepository,
@@ -39,12 +39,14 @@ class OutboxDeadLetterService(
         require(operatorId.isNotBlank()) { "operatorId must not be blank" }
         require(reason.isNotBlank()) { "reason must not be blank" }
 
-        val result = operationsRepository().requeueDeadLetters(
-            ids = ids.toList().distinct(),
-            operatorId = operatorId,
-            reason = reason.trim(),
-            nextAttemptAt = nextAttemptAt,
-        )
+        val result =
+            operationsRepository()
+                .requeueDeadLetters(
+                    ids = ids.toList().distinct(),
+                    operatorId = operatorId,
+                    reason = reason.trim(),
+                    nextAttemptAt = nextAttemptAt,
+                )
         if (result.requeuedCount > 0) {
             logger.warn(
                 "Outbox dead letters requeued: count={}, requestedCount={}, operatorId={}",
