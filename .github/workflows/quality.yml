@@ -37,6 +37,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Run deterministic quality gate
+        timeout-minutes: 20
         run: ./scripts/quality-gate.sh
 
       - name: Upload test reports on failure

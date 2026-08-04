@@ -24,6 +24,6 @@ else
 fi
 
 printf '%s\n' '[3/3] Gradle regression tests'
-./gradlew test
+./gradlew test --no-daemon --console=plain
 
 printf '%s\n' 'PASS: all local quality gates completed.'

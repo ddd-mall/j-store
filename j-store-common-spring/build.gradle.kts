@@ -13,7 +13,6 @@ dependencies {
     implementation(platform(libs.spring.boot.dependencies))
     api(libs.spring.data.jpa)
     api(libs.spring.boot.starter.data.jpa)
-    api(libs.seata.all)
     implementation(project(":j-store-common-core"))
     implementation(libs.fastexcel)
     implementation("io.micrometer:micrometer-core")
