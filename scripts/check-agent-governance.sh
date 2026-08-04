@@ -41,6 +41,7 @@ required_files=(
   AGENTS.md
   docs/steering/agent-governance.md
   .env.example
+  requirements-security.txt
   .github/CODEOWNERS
   .github/workflows/quality.yml
   .github/workflows/security.yml
@@ -85,6 +86,19 @@ search_quietly "Spring Boot ${spring_version}" docs/project-overview.md || \
   fail "docs/project-overview.md does not match the Spring Boot catalog version"
 search_quietly "amazoncorretto:${java_version}-" j-store-boot/Dockerfile || \
   fail "j-store-boot Docker runtime does not match the Java toolchain"
+
+if search_quietly 'actions/dependency-review-action|gitleaks/gitleaks-action|github/codeql-action' \
+  .github/workflows/security.yml; then
+  fail "security workflow depends on a paid or unavailable organization scanning action"
+fi
+search_quietly 'semgrep scan' .github/workflows/security.yml || \
+  fail "security workflow is missing Semgrep static analysis"
+search_quietly 'osv-scanner.*scan source' .github/workflows/security.yml || \
+  fail "security workflow is missing OSV dependency vulnerability scanning"
+search_quietly 'cyclonedxDirectBom' .github/workflows/security.yml || \
+  fail "security workflow is missing a resolved production dependency SBOM"
+search_quietly 'gitleaks.*git' .github/workflows/security.yml || \
+  fail "security workflow is missing Gitleaks CLI history scanning"
 
 if ((failures > 0)); then
   printf '%d governance check(s) failed.\n' "$failures" >&2

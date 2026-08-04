@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     kotlin("plugin.spring") version "2.3.0"
+    id("org.cyclonedx.bom") version "3.3.0"
 }
 
 allprojects {
@@ -24,4 +25,10 @@ repositories {
 }
 dependencies {
     implementation(kotlin("stdlib"))
+}
+
+allprojects {
+    tasks.cyclonedxDirectBom {
+        includeConfigs = listOf("runtimeClasspath")
+    }
 }
