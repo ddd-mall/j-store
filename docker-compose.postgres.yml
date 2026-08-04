@@ -7,16 +7,16 @@ services:
     container_name: j-store-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: j_store
-      POSTGRES_USER: develop
-      POSTGRES_PASSWORD: Jupeter104741
+      POSTGRES_DB: ${POSTGRES_DB:-j_store}
+      POSTGRES_USER: ${POSTGRES_USER:-develop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in an untracked .env file}
       TZ: Asia/Shanghai
     ports:
-      - "30432:5432"
+      - "${POSTGRES_PORT:-30432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U develop -d j_store"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +28,7 @@ services:
     environment:
       TZ: Asia/Shanghai
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

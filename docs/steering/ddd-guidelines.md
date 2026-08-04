@@ -9,7 +9,7 @@ This project is a Kotlin/Spring Boot e-commerce system following Domain-Driven D
 
 ## Tech Stack
 
-- Kotlin 2.1, Java 21, Spring Boot 3.3, Spring Data JPA, PostgreSQL
+- Kotlin 2.3, Java 25, Spring Boot 3.5, Spring Data JPA, PostgreSQL
 - Build: Gradle Kotlin DSL with version catalog (`gradle/libs.versions.toml`)
 - Base package: `com.jstore`
 
