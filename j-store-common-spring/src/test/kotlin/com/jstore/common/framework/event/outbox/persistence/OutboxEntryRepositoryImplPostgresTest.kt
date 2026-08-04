@@ -4,6 +4,17 @@ import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import com.jstore.common.framework.event.outbox.OutboxEntry
 import com.jstore.common.framework.event.outbox.OutboxEntryRepository
 import com.jstore.common.framework.event.outbox.OutboxEntryStatus
+import com.jstore.common.framework.event.outbox.OutboxDeadLetterOperationsRepository
+import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventBus
+import com.jstore.common.framework.event.DomainEventConsumptionRepository
+import com.jstore.common.framework.event.DomainEventListener
+import com.jstore.common.framework.event.ExplicitDomainEvent
+import com.jstore.common.framework.event.outbox.EventSerializer
+import com.jstore.common.framework.event.outbox.OutboxProperties
+import com.jstore.common.framework.event.outbox.OutboxPublisher
+import com.jstore.common.framework.event.outbox.SpringOutboxRelayTransactionOperations
+import com.jstore.common.framework.event.persistence.DomainEventConsumptionRepositoryImpl
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -21,7 +32,12 @@ import org.springframework.context.annotation.Bean
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
+import java.util.concurrent.Executors
+import java.util.concurrent.CountDownLatch
+import javax.sql.DataSource
 
 @SpringBootTest(classes = [OutboxEntryRepositoryImplPostgresTest.TestConfig::class])
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -33,10 +49,121 @@ class OutboxEntryRepositoryImplPostgresTest {
     @Autowired
     private lateinit var jpaRepository: OutboxEntryPOJpaRepository
 
+    @Autowired
+    private lateinit var transactionManager: PlatformTransactionManager
+
+    @Autowired
+    private lateinit var entityManager: EntityManager
+
+    @Autowired
+    private lateinit var dataSource: DataSource
+
+    @Autowired
+    private lateinit var consumptionRepository: DomainEventConsumptionRepository
+
     @BeforeEach
     fun cleanDatabase() {
         jpaRepository.deleteAll()
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute("CREATE TABLE IF NOT EXISTS outbox_tx_probe (id VARCHAR(64) PRIMARY KEY)")
+                statement.executeUpdate("DELETE FROM outbox_tx_probe")
+                statement.execute("CREATE TABLE IF NOT EXISTS outbox_listener_probe (event_id VARCHAR(64) PRIMARY KEY)")
+                statement.executeUpdate("DELETE FROM outbox_listener_probe")
+                statement.executeUpdate("DELETE FROM outbox_dead_letter_audit")
+                statement.execute(
+                    "CREATE TABLE IF NOT EXISTS domain_event_consumption (" +
+                        "listener_id VARCHAR(512) NOT NULL, event_id VARCHAR(64) NOT NULL, " +
+                        "event_name VARCHAR(256) NOT NULL, event_version INTEGER NOT NULL, " +
+                        "consumed_at TIMESTAMPTZ NOT NULL, PRIMARY KEY(listener_id,event_id))"
+                )
+                statement.executeUpdate("DELETE FROM domain_event_consumption")
+            }
+        }
     }
+
+    @Test
+    fun `business row and outbox row commit and rollback atomically`() {
+        val transactions = TransactionTemplate(transactionManager)
+        transactions.executeWithoutResult {
+            entityManager.createNativeQuery("INSERT INTO outbox_tx_probe(id) VALUES ('committed')").executeUpdate()
+            repository.save(entry("committed-event"))
+        }
+
+        runCatching {
+            transactions.executeWithoutResult {
+                entityManager.createNativeQuery("INSERT INTO outbox_tx_probe(id) VALUES ('rolled-back')").executeUpdate()
+                repository.save(entry("rolled-back-event"))
+                error("simulate business failure")
+            }
+        }
+
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT id FROM outbox_tx_probe ORDER BY id").use { rows ->
+                    val ids = buildList { while (rows.next()) add(rows.getString(1)) }
+                    assertEquals(listOf("committed"), ids)
+                }
+            }
+        }
+        assertTrue(jpaRepository.existsById("committed-event"))
+        assertFalse(jpaRepository.existsById("rolled-back-event"))
+    }
+
+    @Test
+    fun `relay commits listener side effect consumption receipt and published state in one transaction`() {
+        repository.save(entry("relay-success", payload = "relay-success", aggregateId = "relay-success"))
+        repository.save(entry("relay-failure", payload = "relay-failure", aggregateId = "relay-failure",
+            createdAt = Instant.now().plusMillis(1)))
+        val serializer = object : EventSerializer {
+            override fun serialize(event: DomainEvent) = error("not used")
+            override fun deserialize(payload: String, eventName: String, eventVersion: Int): DomainEvent =
+                RelayProbeEvent(payload)
+        }
+        val bus = object : DomainEventBus {
+            override fun publishEvent(domainEvent: DomainEvent) {
+                if (consumptionRepository.tryStart("relay-probe-listener", domainEvent)) {
+                    entityManager.createNativeQuery("INSERT INTO outbox_listener_probe(event_id) VALUES (:id)")
+                        .setParameter("id", domainEvent.metadata.eventId).executeUpdate()
+                    if (domainEvent.metadata.eventId == "relay-failure") error("listener failed after side effect")
+                }
+            }
+            override fun register(domainEventListener: DomainEventListener<*>) = Unit
+            override fun unregister(domainEventListener: DomainEventListener<*>) = Unit
+        }
+        OutboxPublisher(
+            repository,
+            serializer,
+            bus,
+            OutboxProperties(batchSize = 10, workerId = "relay-e2e"),
+            transactionOperations = SpringOutboxRelayTransactionOperations(transactionManager),
+        ).pollAndPublish()
+
+        assertEquals(OutboxEntryStatus.PUBLISHED, jpaRepository.findById("relay-success").orElseThrow().status)
+        assertEquals(OutboxEntryStatus.FAILED, jpaRepository.findById("relay-failure").orElseThrow().status)
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT event_id FROM outbox_listener_probe ORDER BY event_id").use { rows ->
+                    val ids = buildList { while (rows.next()) add(rows.getString(1)) }
+                    assertEquals(listOf("relay-success"), ids)
+                }
+                statement.executeQuery("SELECT event_id FROM domain_event_consumption ORDER BY event_id").use { rows ->
+                    val ids = buildList { while (rows.next()) add(rows.getString(1)) }
+                    assertEquals(listOf("relay-success"), ids)
+                }
+            }
+        }
+    }
+
+    private data class RelayProbeEvent(
+        override val eventId: String,
+        override val source: Any = "relay-e2e",
+        override val eventName: String = "relay.probe",
+        override val eventVersion: Int = 1,
+        override val occurredAt: Instant = Instant.now(),
+        override val aggregateType: String = "RelayProbe",
+        override val aggregateId: String = eventId,
+    ) : ExplicitDomainEvent
 
     @Test
     fun `claim locks rows and increments attempt count without duplicate sequential claims`() {
@@ -65,7 +192,71 @@ class OutboxEntryRepositoryImplPostgresTest {
             assertEquals(1, it.retryCount)
             assertEquals("worker-a", it.lockedBy)
             assertNotNull(it.lockedUntil)
+            assertEquals(1L, it.lockToken)
         }
+    }
+
+    @Test
+    fun `concurrent workers never claim the same entry`() {
+        val base = Instant.parse("2026-01-01T00:00:00Z")
+        repeat(12) { index ->
+            repository.save(entry("concurrent-$index", createdAt = base.plusSeconds(index.toLong()), aggregateId = "aggregate-$index"))
+        }
+        val start = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val futures = listOf("worker-a", "worker-b").map { worker ->
+                pool.submit<List<String>> {
+                    start.await()
+                    repository.claimPendingAndRetryable(5, 12, worker, Instant.now().plusSeconds(60)).map { it.id }
+                }
+            }
+            start.countDown()
+            val claimed = futures.flatMap { it.get() }
+            assertEquals(12, claimed.size)
+            assertEquals(12, claimed.toSet().size)
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `concurrent workers cannot overtake an in-flight event from the same aggregate`() {
+        val base = Instant.parse("2026-01-01T00:00:00Z")
+        repository.save(entry("same-aggregate-first", createdAt = base, aggregateId = "same-aggregate"))
+        repository.save(entry("same-aggregate-second", createdAt = base.plusSeconds(1), aggregateId = "same-aggregate"))
+        val start = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val futures = listOf("worker-a", "worker-b").map { worker ->
+                pool.submit<List<String>> {
+                    start.await()
+                    repository.claimPendingAndRetryable(5, 2, worker, Instant.now().plusSeconds(60)).map { it.id }
+                }
+            }
+            start.countDown()
+            val claimed = futures.flatMap { it.get() }
+            assertEquals(listOf("same-aggregate-first"), claimed)
+            assertEquals(OutboxEntryStatus.PENDING, jpaRepository.findById("same-aggregate-second").orElseThrow().status)
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `same aggregate cannot overtake while different aggregate can proceed`() {
+        val base = Instant.parse("2026-01-01T00:00:00Z")
+        repository.save(entry("order-1-first", createdAt = base, aggregateId = "order-1"))
+        repository.save(entry("order-1-second", createdAt = base.plusSeconds(1), aggregateId = "order-1"))
+        repository.save(entry("order-2-first", createdAt = base.plusSeconds(2), aggregateId = "order-2"))
+
+        val firstClaim = repository.claimPendingAndRetryable(5, 10, "worker-a", Instant.now().plusSeconds(60))
+
+        assertEquals(listOf("order-1-first", "order-2-first"), firstClaim.map { it.id })
+        assertTrue(repository.markPublished(firstClaim.first(), "worker-a"))
+
+        val nextClaim = repository.claimPendingAndRetryable(5, 10, "worker-b", Instant.now().plusSeconds(60))
+        assertEquals(listOf("order-1-second"), nextClaim.map { it.id })
     }
 
     @Test
@@ -146,6 +337,41 @@ class OutboxEntryRepositoryImplPostgresTest {
     }
 
     @Test
+    fun `expired lease recovery fences the old token and current token can renew`() {
+        val now = Instant.now()
+        repository.save(entry("fenced", status = OutboxEntryStatus.IN_PROGRESS, retryCount = 1,
+            lockedBy = "old-worker", lockedAt = now.minusSeconds(120), lockedUntil = now.minusSeconds(60), lockToken = 7))
+
+        val expired = jpaRepository.findById("fenced").orElseThrow().let {
+            entry("fenced", status = it.status, retryCount = it.retryCount, lockedBy = it.lockedBy,
+                lockedAt = it.lockedAt, lockedUntil = it.lockedUntil, lockToken = it.lockToken)
+        }
+        assertFalse(repository.renewLease(expired.id, "old-worker", 7, now.plusSeconds(120)))
+        assertFalse(repository.markPublished(expired, "old-worker"))
+
+        val recovered = repository.claimPendingAndRetryable(5, 1, "new-worker", now.plusSeconds(60)).single()
+        assertEquals(8L, recovered.lockToken)
+        assertFalse(repository.renewLease(recovered.id, "old-worker", 7, now.plusSeconds(120)))
+        assertFalse(repository.markPublished(recovered.copy(lockToken = 7), "new-worker"))
+        assertTrue(repository.renewLease(recovered.id, "new-worker", 8, now.plusSeconds(120)))
+        assertTrue(repository.markPublished(recovered, "new-worker"))
+    }
+
+    @Test
+    fun `operational queries report oldest ready and expired locks`() {
+        val now = Instant.now()
+        repository.save(entry("ready-old", createdAt = now.minusSeconds(30)))
+        repository.save(entry("ready-new", createdAt = now.minusSeconds(10)))
+        repository.save(entry("future", status = OutboxEntryStatus.FAILED, retryCount = 1,
+            createdAt = now.minusSeconds(60), nextAttemptAt = now.plusSeconds(60)))
+        repository.save(entry("expired", status = OutboxEntryStatus.IN_PROGRESS, retryCount = 1,
+            createdAt = now.minusSeconds(20), lockedBy = "dead", lockedUntil = now.minusSeconds(1)))
+
+        assertEquals(now.minusSeconds(30).toEpochMilli(), repository.findOldestReadyAt(now, 5)?.toEpochMilli())
+        assertEquals(1L, repository.countExpiredLocks(now))
+    }
+
+    @Test
     fun `delete published before honors batch size`() {
         val old = Instant.parse("2025-01-01T00:00:00Z")
         repository.save(entry("old-1", status = OutboxEntryStatus.PUBLISHED, createdAt = old))
@@ -164,7 +390,7 @@ class OutboxEntryRepositoryImplPostgresTest {
     @Test
     fun `dead letters can be queried counted and requeued`() {
         val base = Instant.parse("2026-01-01T00:00:00Z")
-        repository.save(entry("dead-1", status = OutboxEntryStatus.DEAD_LETTER, createdAt = base, updatedAt = base.plusSeconds(2)))
+        repository.save(entry("dead-1", status = OutboxEntryStatus.DEAD_LETTER, createdAt = base, updatedAt = base.plusSeconds(2), retryCount = 5))
         repository.save(entry("dead-2", status = OutboxEntryStatus.DEAD_LETTER, createdAt = base, updatedAt = base.plusSeconds(1)))
         repository.save(entry("failed-1", status = OutboxEntryStatus.FAILED, createdAt = base))
 
@@ -183,8 +409,18 @@ class OutboxEntryRepositoryImplPostgresTest {
         assertEquals(nextAttemptAt, dead1.nextAttemptAt)
         assertEquals(null, dead1.lockedBy)
         assertEquals(null, dead1.lastError)
+        assertEquals(0, dead1.retryCount)
         assertEquals(1L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER))
         assertEquals(2L, repository.countByStatus(OutboxEntryStatus.FAILED))
+
+        val claimed = repository.claimPendingAndRetryable(
+            maxRetryCount = 5,
+            batchSize = 1,
+            lockedBy = "recovery-worker",
+            lockedUntil = nextAttemptAt.plusSeconds(60)
+        )
+        assertEquals(listOf("dead-1"), claimed.map { it.id })
+        assertEquals(1, claimed.single().retryCount)
     }
 
     private fun entry(
@@ -197,13 +433,16 @@ class OutboxEntryRepositoryImplPostgresTest {
         lockedBy: String? = null,
         lockedAt: Instant? = null,
         lockedUntil: Instant? = null,
-        lastError: String? = null
+        lockToken: Long = 0,
+        aggregateId: String = id,
+        lastError: String? = null,
+        payload: String = """{"source":"test"}""",
     ) = OutboxEntry(
         id = id,
         eventType = "com.example.Event",
-        payload = """{"source":"test"}""",
+        payload = payload,
         aggregateType = "Order",
-        aggregateId = id,
+        aggregateId = aggregateId,
         status = status,
         createdAt = createdAt,
         updatedAt = updatedAt,
@@ -212,6 +451,7 @@ class OutboxEntryRepositoryImplPostgresTest {
         lockedBy = lockedBy,
         lockedAt = lockedAt,
         lockedUntil = lockedUntil,
+        lockToken = lockToken,
         lastError = lastError
     )
 
@@ -225,6 +465,10 @@ class OutboxEntryRepositoryImplPostgresTest {
             jpaRepository: OutboxEntryPOJpaRepository,
             entityManager: EntityManager,
         ): OutboxEntryRepository = OutboxEntryRepositoryImpl(jpaRepository, entityManager)
+
+        @Bean
+        fun domainEventConsumptionRepository(entityManager: EntityManager): DomainEventConsumptionRepository =
+            DomainEventConsumptionRepositoryImpl(entityManager)
     }
 
     companion object {
@@ -239,6 +483,43 @@ class OutboxEntryRepositoryImplPostgresTest {
             registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
             registry.add("spring.jpa.hibernate.ddl-auto") { "create-drop" }
             registry.add("spring.flyway.enabled") { "false" }
+        }
+    }
+
+    @Test
+    fun `production dead-letter requeue resets budget and audits every requested target atomically`() {
+        repository.save(entry("audited-dead", status = OutboxEntryStatus.DEAD_LETTER, retryCount = 5))
+        val operations = repository as OutboxDeadLetterOperationsRepository
+
+        val result = operations.requeueDeadLetters(
+            ids = listOf("audited-dead", "missing-entry"),
+            operatorId = "admin-7",
+            reason = "dependency recovered",
+            nextAttemptAt = Instant.now(),
+        )
+
+        assertEquals(1, result.requeuedCount)
+        assertEquals(1, result.notRequeuedCount)
+        val claimed = repository.claimPendingAndRetryable(5, 1, "worker", Instant.now().plusSeconds(60)).single()
+        assertEquals("audited-dead", claimed.id)
+        assertEquals(1, claimed.retryCount)
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery(
+                    "SELECT outbox_entry_id, operator_id, reason, result FROM outbox_dead_letter_audit ORDER BY id"
+                ).use { rows ->
+                    val audits = buildList {
+                        while (rows.next()) add(listOf(rows.getString(1), rows.getString(2), rows.getString(3), rows.getString(4)))
+                    }
+                    assertEquals(
+                        listOf(
+                            listOf("audited-dead", "admin-7", "dependency recovered", "REQUEUED"),
+                            listOf("missing-entry", "admin-7", "dependency recovered", "NOT_REQUEUED"),
+                        ),
+                        audits,
+                    )
+                }
+            }
         }
     }
 }

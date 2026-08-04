@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.springframework)
+    kotlin("plugin.lombok")
+    kotlin("kapt")
 }
 
 java {
@@ -71,6 +73,7 @@ dependencies {
     testAnnotationProcessor(libs.lombok)
 
     implementation(libs.fastexcel)
+    testImplementation(kotlin("test"))
 }
 
 tasks.test {
@@ -82,3 +85,6 @@ tasks.withType<Tar> {
 }
 
 
+kapt {
+    keepJavacAnnotationProcessors = true
+}

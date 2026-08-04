@@ -20,6 +20,8 @@ interface OutboxEntryRepository {
         lockedUntil: Instant
     ): List<OutboxEntry>
 
+    fun renewLease(id: String, lockedBy: String, lockToken: Long, lockedUntil: Instant): Boolean
+
     fun markPublished(entry: OutboxEntry, lockedBy: String): Boolean
 
     fun markFailed(entry: OutboxEntry, lockedBy: String): Boolean
@@ -29,6 +31,10 @@ interface OutboxEntryRepository {
     fun requeueDeadLetters(ids: Collection<String>, nextAttemptAt: Instant): Int
 
     fun countByStatus(status: OutboxEntryStatus): Long
+
+    fun findOldestReadyAt(now: Instant, maxRetryCount: Int): Instant?
+
+    fun countExpiredLocks(now: Instant): Long
 
     fun deletePublishedBefore(before: Instant, batchSize: Int): Int
 }

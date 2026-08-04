@@ -3,6 +3,7 @@ package com.jstore.common.framework.event.outbox
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventBus
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import org.mockito.kotlin.*
 import java.time.Instant
@@ -131,7 +132,7 @@ class OutboxPublisherTest : FunSpec({
         captor.firstValue.lockedUntil shouldBe null
     }
 
-    test("top-level exception does not interrupt scheduling") {
+    test("top-level exception is propagated so scheduler health records failure") {
         val mockRepo = mock<OutboxEntryRepository> {
             on { claimPendingAndRetryable(any(), any(), any(), any()) } doThrow RuntimeException("DB connection lost")
         }
@@ -141,8 +142,7 @@ class OutboxPublisherTest : FunSpec({
 
         val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
 
-        // Should NOT throw — top-level catch prevents scheduling interruption
-        publisher.pollAndPublish()
+        shouldThrow<RuntimeException> { publisher.pollAndPublish() }
 
         // Verify no delivery was attempted
         verify(mockBus, never()).publishEvent(any())

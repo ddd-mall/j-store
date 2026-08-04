@@ -10,6 +10,7 @@ data class OutboxProperties(
     val enabled: Boolean = false,
     val pollingInterval: Long = 5000,
     val batchSize: Int = 100,
+    val maxInFlightPerPoll: Int = batchSize,
     val maxRetryCount: Int = 5,
     val initialRetryDelayMillis: Long = 1000,
     val maxRetryDelayMillis: Long = 60000,
@@ -24,6 +25,7 @@ data class OutboxProperties(
     init {
         require(pollingInterval > 0) { "jstore.outbox.polling-interval must be greater than 0" }
         require(batchSize > 0) { "jstore.outbox.batch-size must be greater than 0" }
+        require(maxInFlightPerPoll > 0) { "jstore.outbox.max-in-flight-per-poll must be greater than 0" }
         require(maxRetryCount > 0) { "jstore.outbox.max-retry-count must be greater than 0" }
         require(initialRetryDelayMillis >= 0) { "jstore.outbox.initial-retry-delay-millis must be greater than or equal to 0" }
         require(maxRetryDelayMillis >= initialRetryDelayMillis) {
