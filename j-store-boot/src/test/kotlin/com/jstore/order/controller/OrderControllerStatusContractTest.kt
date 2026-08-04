@@ -1,28 +1,29 @@
 package com.jstore.order.controller
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.jstore.common.properties.Price
 import com.jstore.common.framework.SortedPage
+import com.jstore.common.properties.Price
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.order.FulfillmentStatus
+import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.Order
+import com.jstore.order.domain.order.OrderAmountSnapshot
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderItem
 import com.jstore.order.domain.order.OrderItemId
 import com.jstore.order.domain.order.OrderItemStatus
-import com.jstore.order.domain.order.MerchantId
-import com.jstore.order.domain.order.OrderAmountSnapshot
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
 import com.jstore.order.domain.order.UserInfo
 import com.jstore.order.service.OrderService
-import org.junit.jupiter.api.Test
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.`when`
+import com.jstore.user.domain.useraccount.UserId
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.Test
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 
 class OrderControllerStatusContractTest {
     @Test
@@ -55,8 +56,11 @@ class OrderControllerStatusContractTest {
         `when`(order.updateTime).thenReturn(now)
         `when`(service.getOrderById(OrderId(1))).thenReturn(Success(order))
 
-        val body = OrderController(service).getOrder(2, 1).body
-        val json = jacksonObjectMapper().findAndRegisterModules().valueToTree<com.fasterxml.jackson.databind.JsonNode>(body)
+        val body = OrderController(service).getOrder(UserId(2), 1).body
+        val json =
+            jacksonObjectMapper()
+                .findAndRegisterModules()
+                .valueToTree<com.fasterxml.jackson.databind.JsonNode>(body)
         assertEquals("ACTIVE", json["tradeStatus"].asText())
         assertEquals("PARTIALLY_REFUNDED", json["paymentStatus"].asText())
         assertEquals("DELIVERED", json["fulfillmentStatus"].asText())
@@ -67,8 +71,12 @@ class OrderControllerStatusContractTest {
         assertEquals("CANCELED", json["items"][0]["status"].asText())
 
         `when`(service.pageListByUserId(2, 1, 10)).thenReturn(SortedPage(1, 1, listOf(order)))
-        val pageJson = jacksonObjectMapper().findAndRegisterModules()
-            .valueToTree<com.fasterxml.jackson.databind.JsonNode>(OrderController(service).listMyOrders(2, 1, 10).body)
+        val pageJson =
+            jacksonObjectMapper()
+                .findAndRegisterModules()
+                .valueToTree<com.fasterxml.jackson.databind.JsonNode>(
+                    OrderController(service).listMyOrders(UserId(2), 1, 10).body
+                )
         assertTrue(pageJson["records"][0].has("tradeStatus"))
         assertFalse(pageJson["records"][0].has("status"))
     }

@@ -1,8 +1,8 @@
-# 设计文档：C 端用户账号模型
+# 设计文档：平台统一用户账号模型
 
 ## 概述
 
-本设计在 j-store 项目中实现 C 端用户账号限界上下文，遵循现有 DDD 架构模式（参照 j-store-order）。核心聚合根 `UserAccount` 封装用户注册、登录、信息维护和状态管理等生命周期行为。认证采用双 Token 机制（短期 AccessToken + 长期 RefreshToken），配合 Redis Token 黑名单实现即时强制下线。
+本设计在 j-store 项目中实现平台统一自然人账号限界上下文。核心聚合根 `UserAccount` 只封装登录身份、凭据和账号生命周期，不携带 C/B 类型；商户经营身份由 shop 上下文的 `MerchantMembership` 独立表达。认证采用双 Token 机制（短期 AccessToken + 长期 RefreshToken），配合 Redis Token 黑名单实现即时强制下线。
 
 ### 设计决策
 
@@ -11,6 +11,7 @@
 3. **Token 策略**：AccessToken（15min JWT，无状态校验 + Redis 黑名单检查）+ RefreshToken（7d，Redis 存储，支持 Rotation）
 4. **聚合根模式**：采用接口 + Impl 模式，与 Order 聚合保持一致
 5. **跨上下文引用**：其他限界上下文通过 `UserId` 值引用用户，不直接依赖 UserAccount
+6. **业务身份分离**：同一 `UserId` 可同时作为买家和多个商户的成员；商户权限不写入全局账号或 Token
 
 ## 架构
 

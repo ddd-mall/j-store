@@ -28,34 +28,67 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDateTime
 
+data class AfterSaleOrderAccess(
+    val buyerId: Long,
+    val merchantId: MerchantActorId,
+    val afterSales: List<AfterSale>,
+)
+
 class AfterSaleApplicationService(
     private val factory: AfterSaleFactory,
     private val afterSaleRepository: AfterSaleRepository,
     private val orderRepository: OrderRepository,
 ) {
+    fun findById(id: AfterSaleId): Result<AfterSale, BusinessError> =
+        afterSaleRepository.findById(id)?.let(::Success) ?: Failure(AfterSaleErrors.NOT_FOUND)
+
+    fun listByOrderForAccess(orderId: OrderId): Result<AfterSaleOrderAccess, BusinessError> {
+        val order = orderRepository.findById(orderId) ?: return Failure(AfterSaleErrors.NOT_FOUND)
+        return Success(
+            AfterSaleOrderAccess(
+                buyerId = order.buyerInfo.uid,
+                merchantId = MerchantActorId(order.merchantId.value),
+                afterSales = afterSaleRepository.findByOrderId(orderId),
+            )
+        )
+    }
+
     fun create(cmd: AfterSaleCreateCMD): Result<AfterSale, BusinessError> {
-        val valid = when (val result = cmd.validate()) {
-            is Success -> result.value
-            is Failure -> return result
-        }
-        receipt(valid.applicantId.value, AfterSaleCommandType.CREATE, valid.idempotencyKey, hash(valid.toString()))?.let {
-            return it
-        }
-        val order = orderRepository.findById(valid.orderId) ?: return Failure(AfterSaleErrors.ORDER_NOT_FOUND)
-        if (order.buyerInfo.uid != valid.applicantId.value) return Failure(AfterSaleErrors.APPLICANT_FORBIDDEN)
+        val valid =
+            when (val result = cmd.validate()) {
+                is Success -> result.value
+                is Failure -> return result
+            }
+        receipt(
+                valid.applicantId.value,
+                AfterSaleCommandType.CREATE,
+                valid.idempotencyKey,
+                hash(valid.toString()),
+            )
+            ?.let {
+                return it
+            }
+        val order =
+            orderRepository.findById(valid.orderId)
+                ?: return Failure(AfterSaleErrors.ORDER_NOT_FOUND)
+        if (order.buyerInfo.uid != valid.applicantId.value)
+            return Failure(AfterSaleErrors.APPLICANT_FORBIDDEN)
         val merchant = MerchantActorId(order.merchantId.value)
-        val afterSale = when (
-            val result = factory.create(valid, order, merchant, LocalDateTime.now(), Instant.now())
-        ) {
-            is Success -> result.value
-            is Failure -> return result
-        }
+        val afterSale =
+            when (
+                val result =
+                    factory.create(valid, order, merchant, LocalDateTime.now(), Instant.now())
+            ) {
+                is Success -> result.value
+                is Failure -> return result
+            }
         val requestedItemIds = afterSale.items.mapTo(mutableSetOf()) { it.orderItemId }
-        val ceilings = order.items
-            .asSequence()
-            .filter { it.id in requestedItemIds }
-            .map { RefundCapacityCeiling(order.id, it.id, it.quantity, it.purchasedAmount) }
-            .toList()
+        val ceilings =
+            order.items
+                .asSequence()
+                .filter { it.id in requestedItemIds }
+                .map { RefundCapacityCeiling(order.id, it.id, it.quantity, it.purchasedAmount) }
+                .toList()
         return afterSaleRepository.createWithAllocation(
             afterSale,
             ceilings,
@@ -71,78 +104,80 @@ class AfterSaleApplicationService(
         )
     }
 
-    fun get(id: AfterSaleId, actorId: Long): Result<AfterSale, BusinessError> =
-        afterSaleRepository.findById(id)
-            ?.takeIf { it.applicantId.value == actorId || it.merchantId.value == actorId }
-            ?.let(::Success)
-            ?: Failure(AfterSaleErrors.NOT_FOUND)
-
-    fun listByOrder(orderId: OrderId, actorId: Long): Result<List<AfterSale>, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(AfterSaleErrors.NOT_FOUND)
-        if (order.buyerInfo.uid != actorId && order.merchantId.value != actorId) {
-            return Failure(AfterSaleErrors.NOT_FOUND)
+    fun approve(cmd: AfterSaleApproveCMD): Result<AfterSale, BusinessError> =
+        decide(
+            cmd.merchantId.value,
+            AfterSaleCommandType.APPROVE,
+            cmd.idempotencyKey,
+            cmd.afterSaleId,
+            "",
+            AllocationAction.APPROVE,
+        ) {
+            it.approve(cmd.merchantId, Instant.now())
         }
-        return Success(afterSaleRepository.findByOrderId(orderId))
-    }
 
-    fun approve(cmd: AfterSaleApproveCMD): Result<AfterSale, BusinessError> = decide(
-        cmd.merchantId.value,
-        AfterSaleCommandType.APPROVE,
-        cmd.idempotencyKey,
-        cmd.afterSaleId,
-        "",
-        AllocationAction.APPROVE,
-    ) { it.approve(cmd.merchantId, Instant.now()) }
+    fun reject(cmd: AfterSaleRejectCMD): Result<AfterSale, BusinessError> =
+        decide(
+            cmd.merchantId.value,
+            AfterSaleCommandType.REJECT,
+            cmd.idempotencyKey,
+            cmd.afterSaleId,
+            cmd.rejectionReason.trim(),
+            AllocationAction.RELEASE,
+        ) {
+            it.reject(cmd.merchantId, cmd.rejectionReason, Instant.now())
+        }
 
-    fun reject(cmd: AfterSaleRejectCMD): Result<AfterSale, BusinessError> = decide(
-        cmd.merchantId.value,
-        AfterSaleCommandType.REJECT,
-        cmd.idempotencyKey,
-        cmd.afterSaleId,
-        cmd.rejectionReason.trim(),
-        AllocationAction.RELEASE,
-    ) { it.reject(cmd.merchantId, cmd.rejectionReason, Instant.now()) }
+    fun cancel(cmd: AfterSaleCancelCMD): Result<AfterSale, BusinessError> =
+        decide(
+            cmd.applicantId.value,
+            AfterSaleCommandType.CANCEL,
+            cmd.idempotencyKey,
+            cmd.afterSaleId,
+            "",
+            AllocationAction.RELEASE,
+        ) {
+            it.cancel(cmd.applicantId, Instant.now())
+        }
 
-    fun cancel(cmd: AfterSaleCancelCMD): Result<AfterSale, BusinessError> = decide(
-        cmd.applicantId.value,
-        AfterSaleCommandType.CANCEL,
-        cmd.idempotencyKey,
-        cmd.afterSaleId,
-        "",
-        AllocationAction.RELEASE,
-    ) { it.cancel(cmd.applicantId, Instant.now()) }
+    fun receiveReturn(cmd: AfterSaleReceiveReturnCMD): Result<AfterSale, BusinessError> =
+        mutate(cmd.afterSaleId) {
+            it.receiveReturn(cmd.merchantId, Instant.now())
+        }
 
-    fun receiveReturn(cmd: AfterSaleReceiveReturnCMD): Result<AfterSale, BusinessError> = mutate(cmd.afterSaleId) {
-        it.receiveReturn(cmd.merchantId, Instant.now())
-    }
-
-    fun retryRefund(cmd: AfterSaleRetryRefundCMD): Result<AfterSale, BusinessError> = mutate(cmd.afterSaleId) {
-        it.retryRefund(cmd.merchantId, Instant.now())
-    }
+    fun retryRefund(cmd: AfterSaleRetryRefundCMD): Result<AfterSale, BusinessError> =
+        mutate(cmd.afterSaleId) {
+            it.retryRefund(cmd.merchantId, Instant.now())
+        }
 
     fun recordRefundSucceeded(
         afterSaleId: AfterSaleId,
         refundId: String,
         occurredAt: Instant,
-    ): Result<Boolean, BusinessError> = recordExternal(afterSaleId) {
-        it.markRefundSucceeded(refundId, occurredAt)
-    }
+    ): Result<Boolean, BusinessError> =
+        recordExternal(afterSaleId) {
+            it.markRefundSucceeded(refundId, occurredAt)
+        }
 
     fun recordRefundFailed(
         afterSaleId: AfterSaleId,
         refundId: String,
         reason: String,
         occurredAt: Instant,
-    ): Result<Boolean, BusinessError> = recordExternal(afterSaleId) {
-        it.markRefundFailed(refundId, reason, occurredAt)
-    }
+    ): Result<Boolean, BusinessError> =
+        recordExternal(afterSaleId) {
+            it.markRefundFailed(refundId, reason, occurredAt)
+        }
 
     private fun mutate(
         id: AfterSaleId,
         operation: (AfterSale) -> Result<Boolean, BusinessError>,
     ): Result<AfterSale, BusinessError> {
-        val aggregate = afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
-        operation(aggregate).onFailure { return Failure(it) }
+        val aggregate =
+            afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
+        operation(aggregate).onFailure {
+            return Failure(it)
+        }
         return Success(afterSaleRepository.save(aggregate))
     }
 
@@ -150,9 +185,12 @@ class AfterSaleApplicationService(
         id: AfterSaleId,
         operation: (AfterSale) -> Result<Boolean, BusinessError>,
     ): Result<Boolean, BusinessError> {
-        val aggregate = afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
+        val aggregate =
+            afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
         val changed = operation(aggregate)
-        changed.onFailure { return Failure(it) }
+        changed.onFailure {
+            return Failure(it)
+        }
         if (changed.getOrThrow()) afterSaleRepository.save(aggregate)
         return changed
     }
@@ -168,9 +206,14 @@ class AfterSaleApplicationService(
     ): Result<AfterSale, BusinessError> {
         if (key.trim().length !in 1..128) return Failure(AfterSaleErrors.IDEMPOTENCY_KEY_INVALID)
         val digest = hash("$type|$id|$actor|$payload")
-        receipt(actor, type, key, digest)?.let { return it }
-        val aggregate = afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
-        operation(aggregate).onFailure { return Failure(it) }
+        receipt(actor, type, key, digest)?.let {
+            return it
+        }
+        val aggregate =
+            afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
+        operation(aggregate).onFailure {
+            return Failure(it)
+        }
         return afterSaleRepository.saveDecision(
             aggregate,
             action,
@@ -198,7 +241,8 @@ class AfterSaleApplicationService(
             ?: Failure(AfterSaleErrors.NOT_FOUND)
     }
 
-    private fun hash(value: String): String = MessageDigest.getInstance("SHA-256")
-        .digest(value.toByteArray())
-        .joinToString("") { "%02x".format(it) }
+    private fun hash(value: String): String =
+        MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") {
+            "%02x".format(it)
+        }
 }
