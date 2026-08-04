@@ -55,6 +55,8 @@ When ambiguity is low-risk and the decision is reversible, choose a conservative
 
 Inspect the code and project guidance relevant to the affected area. Satisfy applicable steering rules and established conventions for architecture, language, framework, persistence, errors, tests, logging, naming, and file placement.
 
+Implementation code MUST follow the Single Responsibility Principle (SRP): each module, class, function, or other cohesive unit MUST have one well-defined responsibility and one primary reason to change. Separate unrelated responsibilities instead of accumulating them in the same unit.
+
 Do not require every role to rediscover all repository facts on every pass. Reuse trustworthy context and reload information when scope changes, evidence is stale, or independent verification benefits from fresh discovery.
 
 Preserve unrelated user changes. Do not broaden the product scope silently. Small enabling changes MAY be included when they are necessary, low-risk, and reported; escalate material scope expansion.
