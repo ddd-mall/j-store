@@ -1,9 +1,9 @@
 package com.jstore.order.domain.order
 
-import com.jstore.common.query.Page
-import com.jstore.common.query.SortedPage
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
+import com.jstore.common.query.Page
+import com.jstore.common.query.SortedPage
 import com.jstore.order.domain.order.persistence.OrderItemPO
 import com.jstore.order.domain.order.persistence.OrderPO
 import com.jstore.order.domain.order.persistence.OrderPOJpaRepository

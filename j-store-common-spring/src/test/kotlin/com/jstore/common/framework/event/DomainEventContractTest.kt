@@ -9,13 +9,14 @@ class DomainEventContractTest :
         test("domain event supplies stable metadata without reflection fallback") {
             val metadata =
                 StubDomainEvent(
-                    eventId = "event-1",
-                    eventName = "catalog.stub-explicit",
-                    eventVersion = 3,
-                    occurredAt = Instant.parse("2026-01-01T00:00:00Z"),
-                    aggregateType = "Catalog",
-                    aggregateId = "aggregate-1",
-                ).metadata
+                        eventId = "event-1",
+                        eventName = "catalog.stub-explicit",
+                        eventVersion = 3,
+                        occurredAt = Instant.parse("2026-01-01T00:00:00Z"),
+                        aggregateType = "Catalog",
+                        aggregateId = "aggregate-1",
+                    )
+                    .metadata
 
             metadata.eventId shouldBe "event-1"
             metadata.eventName shouldBe "catalog.stub-explicit"

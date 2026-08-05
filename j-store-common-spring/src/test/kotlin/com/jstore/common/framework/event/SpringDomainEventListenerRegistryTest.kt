@@ -1,8 +1,8 @@
 package com.jstore.common.framework.event
 
+import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
-import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import org.springframework.context.support.GenericApplicationContext
 
 class SpringDomainEventListenerRegistryTest :

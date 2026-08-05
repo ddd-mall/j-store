@@ -162,9 +162,7 @@ class AfterSaleImpl(
         _returnReceivedAt = at
         _status = AfterSaleStatus.REFUND_PENDING
         _updateTime = at
-        raise(
-            AfterSaleReturnReceivedEvent(id, orderId, reviewerId, eventItems(), occurredAt)
-        )
+        raise(AfterSaleReturnReceivedEvent(id, orderId, reviewerId, eventItems(), occurredAt))
         publishRefundRequested(occurredAt)
         return Success(true)
     }
@@ -235,9 +233,7 @@ class AfterSaleImpl(
         _refundFailureReason = normalizedReason
         _status = AfterSaleStatus.REFUND_FAILED
         _updateTime = occurredAt.toUtcLocalDateTime()
-        raise(
-            AfterSaleRefundFailedEvent(id, orderId, refundId, normalizedReason, occurredAt)
-        )
+        raise(AfterSaleRefundFailedEvent(id, orderId, refundId, normalizedReason, occurredAt))
         return Success(true)
     }
 

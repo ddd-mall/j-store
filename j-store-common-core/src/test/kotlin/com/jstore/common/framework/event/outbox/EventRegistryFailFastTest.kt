@@ -28,23 +28,23 @@ class EventRegistryFailFastTest :
         }
     })
 
-private data class FirstDuplicateEvent(
-    override val eventId: String = "first",
-) : StubDomainEvent
+private data class FirstDuplicateEvent(override val eventId: String = "first") : StubDomainEvent
 
-private data class SecondDuplicateEvent(
-    override val eventId: String = "second",
-) : StubDomainEvent
+private data class SecondDuplicateEvent(override val eventId: String = "second") : StubDomainEvent
 
 private interface StubDomainEvent : DomainEvent {
     override val eventName: String
         get() = "test.duplicate"
+
     override val eventVersion: Int
         get() = 1
+
     override val occurredAt: Instant
         get() = Instant.EPOCH
+
     override val aggregateType: String
         get() = "Test"
+
     override val aggregateId: String
         get() = "1"
 }

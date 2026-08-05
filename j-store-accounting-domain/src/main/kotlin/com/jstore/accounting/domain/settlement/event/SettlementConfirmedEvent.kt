@@ -30,5 +30,4 @@ data class SettlementConfirmedEvent(
 
     override val aggregateId: String
         get() = settlementId.toString()
-
 }

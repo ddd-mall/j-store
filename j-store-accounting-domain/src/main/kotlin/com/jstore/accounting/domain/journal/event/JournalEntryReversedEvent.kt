@@ -25,5 +25,4 @@ data class JournalEntryReversedEvent(
 
     override val aggregateId: String
         get() = originalEntryId.toString()
-
 }

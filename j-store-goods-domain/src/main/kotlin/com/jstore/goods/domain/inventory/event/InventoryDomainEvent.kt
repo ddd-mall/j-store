@@ -24,7 +24,6 @@ data class StockReservedEvent(
 
     override val aggregateId: String
         get() = orderId.toString()
-
 }
 
 /** 库存预扣失败事件 */
@@ -47,5 +46,4 @@ data class StockReservationFailedEvent(
 
     override val aggregateId: String
         get() = orderId.toString()
-
 }

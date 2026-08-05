@@ -31,5 +31,4 @@ data class SettlementPaidEvent(
 
     override val aggregateId: String
         get() = settlementId.toString()
-
 }

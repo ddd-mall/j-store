@@ -19,7 +19,6 @@ sealed class OrderDomainEvent(
     override val aggregateType: String = "Order"
     override val aggregateId: String
         get() = orderId.value.toString()
-
 }
 
 data class OrderItemSnapshot(val skuId: Long, val quantity: Int)
