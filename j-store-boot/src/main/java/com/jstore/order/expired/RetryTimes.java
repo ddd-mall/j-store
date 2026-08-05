@@ -1,8 +1,7 @@
 package com.jstore.order.expired;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class RetryTimes {
@@ -55,7 +54,8 @@ public class RetryTimes {
                             exceptionHandler.accept(e);
                         } catch (Exception handlerException) {
                             // 异常处理器本身抛出异常时，记录但不中断重试流程
-                            log.error("Exception handler failed: {}", handlerException.getMessage());
+                            log.error(
+                                    "Exception handler failed: {}", handlerException.getMessage());
                         }
                     }
                 }
@@ -76,5 +76,4 @@ public class RetryTimes {
     public interface ThrowableRunnable {
         void run() throws Throwable;
     }
-
 }

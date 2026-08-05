@@ -4,14 +4,16 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.AgreeGate
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
+import com.jstore.order.domain.aftersale.AfterSaleId
+import java.time.Instant
 import java.time.LocalDateTime
 
-/**
- * 订单聚合根接口
- * 正向流程: 创建(PENDING_PAYMENT) → 支付(PAID) → 确认备货(PENDING_SHIPMENT) → 发货(SHIPPED) → 确认收货(DELIVERED) → 完成(COMPLETED)
- */
+/** 订单聚合根接口。交易、支付、履约和售后状态分别表达并行的业务事实。 */
 interface Order : AgreeGate<OrderId> {
     override val id: OrderId
+
+    /** 结算和履约主体。订单内所有行项必须属于该商户。 */
+    val merchantId: MerchantId
 
     /** 买家信息（不可变值对象） */
     val buyerInfo: UserInfo
@@ -22,14 +24,23 @@ interface Order : AgreeGate<OrderId> {
     /** 收货信息（不可变值对象） */
     val recipientInfo: RecipientInfo
 
-    /** 订单状态 */
-    val status: OrderStatus
+    val tradeStatus: TradeStatus
+    val paymentStatus: PaymentStatus
+    val fulfillmentStatus: FulfillmentStatus
+    val refundedAmount: Price
+    val successfulRefundFacts: List<RefundFact>
 
-    /** 订单总金额 */
-    val totalAmount: Price
+    /** 下单时冻结的成交金额组成 */
+    val amountSnapshot: OrderAmountSnapshot
 
-    /** 实际支付金额 */
-    val actualPay: Price
+    /** 已由支付上下文确认捕获的金额 */
+    val paidAmount: Price
+
+    /** 对应的支付聚合标识，支付成功前为空 */
+    val paymentReference: String?
+
+    /** 对应的履约聚合标识，履约建立前为空 */
+    val fulfillmentReference: String?
 
     /** 创建时间 */
     val createTime: LocalDateTime
@@ -37,39 +48,41 @@ interface Order : AgreeGate<OrderId> {
     /** 更新时间 */
     val updateTime: LocalDateTime
 
-    /** 支付 */
-    fun pay(paidAmount: Price): Result<Unit, BusinessError>
-
     /** 库存预扣成功，转为待支付 */
     fun confirmStock(): Result<Unit, BusinessError>
 
     /** 库存不足，取消订单 */
     fun markStockInsufficient(reason: String): Result<Unit, BusinessError>
 
-    /** 确认备货（支付确认后转为待发货） */
-    fun confirmForShipment(): Result<Unit, BusinessError>
+    /** 登记支付上下文已经发生的全额捕获事实。 */
+    fun recordPaymentCaptured(
+        paymentReference: String,
+        capturedAmount: Price,
+        currency: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError>
 
-    /** 发货 */
-    fun ship(): Result<Unit, BusinessError>
+    /** 登记履约单已进入待发货。 */
+    fun recordFulfillmentPrepared(fulfillmentReference: String): Result<Boolean, BusinessError>
 
-    /** 确认收货 */
-    fun confirmDelivery(): Result<Unit, BusinessError>
+    /** 登记履约单已发货。 */
+    fun recordShipmentDispatched(fulfillmentReference: String): Result<Boolean, BusinessError>
+
+    /** 登记履约单已送达。 */
+    fun recordShipmentDelivered(fulfillmentReference: String): Result<Boolean, BusinessError>
 
     /** 完成订单 */
     fun complete(): Result<Unit, BusinessError>
 
-    /** 进入 REFUNDING 前的 Order 级别状态，用于退款拒绝时恢复 */
-    val previousStatus: OrderStatus?
-
     /** 买家主动取消订单（未支付阶段） */
     fun cancel(reason: CancellationReason): Result<Unit, BusinessError>
 
-    /** 申请退款（已支付未发货 / 已签收退货退款），指定行项 */
-    fun requestRefund(reason: RefundReason, itemIds: List<OrderItemId>): Result<Unit, BusinessError>
+    fun refundEligibility(): Result<RefundEligibility, BusinessError>
 
-    /** 卖家批准退款，指定行项 */
-    fun approveRefund(itemIds: List<OrderItemId>): Result<Unit, BusinessError>
-
-    /** 卖家拒绝退款，指定行项 */
-    fun rejectRefund(rejectReason: String, itemIds: List<OrderItemId>): Result<Unit, BusinessError>
+    fun recordRefundSucceeded(
+        refundId: String,
+        afterSaleId: AfterSaleId,
+        items: List<SuccessfulRefundItem>,
+        occurredAt: Instant,
+    ): Result<RefundProjectionResult, BusinessError>
 }

@@ -1,0 +1,7 @@
+The module follows a layered DDD layout under `com.jstore.accounting`:
+- `domain/` contains three bounded contexts — `account` (LedgerAccount), `journal` (JournalEntry, JournalLine, AccountingPeriod), and `settlement` (SettlementStatement) — each exposing an interface plus an `*Impl` implementation, all extending the shared `AgreeGate<T>` base from `j-store-common`. Each domain entity has a corresponding `*Repository` interface, keeping persistence abstracted.
+- `service/` holds application-layer orchestrators (`AccountingApplicationService`, `SettlementApplicationService`) that compose repositories, enforce business rules (idempotency via source-document dedup, open-period checks, reversal workflows), and publish domain events through `DomainEventPublisher`.
+- `service/command/` defines immutable command DTOs (`RecordOrderPaidCMD`, `RecordOrderCompletedCMD`, `RecordOrderRefundApprovedCMD`, `RecordSettlementPaidCMD`) consumed by the application service.
+- `acl/` exposes cross-boundary interfaces (`AccountingOrderService`, `AccountingPaymentService`, `AccountingShopService`) with lightweight info DTOs (`OrderAccountingInfo`, `PaymentAccountingInfo`, `ShopAccountingInfo`) used by other modules to query accounting state.
+- Domain events live in `domain/*/event/` subpackages (e.g. `JournalEntryPostedEvent`, `SettlementConfirmedEvent`) and are published by application services.
+- Dependency direction is strictly inward: `service` → `domain` + repositories; `acl` depends only on domain types; no infrastructure code lives here.

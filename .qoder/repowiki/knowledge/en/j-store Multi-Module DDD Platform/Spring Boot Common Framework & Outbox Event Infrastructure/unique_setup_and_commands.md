@@ -1,0 +1,1 @@
+Build uses Gradle Kotlin DSL with JVM toolchain 25. Tests run via `./gradlew test` using JUnit Platform; integration tests use `io.zonky.test:embedded-postgres:2.1.0` for an in-memory Postgres instance. The outbox feature is opt-in via `jstore.outbox.enabled=true` property.

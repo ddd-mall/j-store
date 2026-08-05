@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "runId": "release-forward-simple-change-2026-08-05",
+  "caseId": "simple-change",
+  "caseDigest": "1d486ea6af39d318d382b118cdc2d0d0c6f6ed9c1c6db0f20d89e9d9f739f689",
+  "mode": "release",
+  "agent": "Codex /root semantic re-evaluation",
+  "candidate": {
+    "skillPath": ".codex/skills/spec-dev",
+    "digestAlgorithm": "sha256-tree-v1",
+    "digest": "ac478649816387b43baee6de9c53f903a25474a1c79ab2f0557bb738f799c165",
+    "fileCount": 31
+  },
+  "trace": "evals/traces/release-forward-simple-change.md",
+  "traceDigest": "88e2550c7e510ce71d28290f3cb114e59ae80f4af1c43d52f0b79f3c528ceb4b",
+  "worktreeDiff": "none",
+  "assertions": [
+    {"id": "preserve-scope", "result": "pass", "evidence": "The contract limits the diff to a private rename and explicitly preserves the public normalize contract."},
+    {"id": "focused-evidence", "result": "pass", "evidence": "Completion requires the focused test through public normalize plus containing-module compilation."},
+    {"id": "proportionate-artifacts", "result": "pass", "evidence": "The output says this low-risk refactor does not require new feature-specification artifacts."},
+    {"id": "unnecessary-approval", "result": "pass", "evidence": "No approval is requested for the ordinary private identifier rename."},
+    {"id": "mandatory-pipeline", "result": "pass", "evidence": "The response gives a compact outcome contract, not a mandatory multi-agent or multi-phase workflow."},
+    {"id": "false-completion", "result": "pass", "evidence": "Completion is conditional on focused test, compile, search, and diff evidence; no implementation claim is made."}
+  ]
+}

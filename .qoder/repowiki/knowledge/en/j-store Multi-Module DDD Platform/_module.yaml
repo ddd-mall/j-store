@@ -1,0 +1,20 @@
+schema_version: 1
+module_path: ""
+title: j-store Multi-Module DDD Platform
+scope:
+    - README.md
+    - AGENT.md
+    - claude-workflow.md
+    - .gitignore
+    - .gitattributes
+    - build.gradle.kts
+    - gradle.properties
+    - settings.gradle.kts
+    - gradlew.bat
+    - batch_insert_200k.sql
+    - docker-compose.postgres.yml
+    - gradlew
+    - spec-workflow.skill
+source_files: []
+depends_on: []
+related_to: []

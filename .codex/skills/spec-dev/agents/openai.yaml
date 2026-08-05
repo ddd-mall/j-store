@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spec-Driven Delivery"
+  short_description: "Outcome-focused change, bugfix, analysis, and verification"
+  default_prompt: "Use $spec-dev to turn this change intent into a verified result with proportionate specifications and evidence."

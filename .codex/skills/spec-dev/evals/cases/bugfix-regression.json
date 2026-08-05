@@ -1,0 +1,16 @@
+{
+  "id": "bugfix-regression",
+  "prompt": "Use $spec-dev to fix a 500 response when a customer name contains an apostrophe. Normal names, email validation, and password validation must behave exactly as before.",
+  "expectedInvariants": [
+    {"id": "behavior-contract", "statement": "The agent distinguishes current, expected, and unchanged behavior."},
+    {"id": "root-cause-integrity", "statement": "The agent gathers reproduction or causal evidence before claiming a root cause."},
+    {"id": "regression-evidence", "statement": "Verification covers the corrected scenario and meaningful unchanged behavior."},
+    {"id": "proportionate-artifacts", "statement": "The repair and its durable artifacts remain proportionate to the defect."}
+  ],
+  "prohibitedBehaviors": [
+    {"id": "guessed-root-cause", "statement": "Labels a suspected code location as the proven root cause without evidence."},
+    {"id": "feature-misclassification", "statement": "Treats the bugfix as a new feature without examining current expectations."},
+    {"id": "false-verification", "statement": "Reports verified when the reproduction or equivalent evidence was not exercised."}
+  ],
+  "tags": ["bugfix", "root-cause", "regression"]
+}

@@ -1,0 +1,1 @@
+Tests are executed with Gradle's `test` task which uses JUnit Platform; they rely on an H2 in-memory database configured via `spring.datasource.url=jdbc:h2:mem:accounting-journal;MODE=PostgreSQL` and auto-create-drop schema generation (`spring.jpa.hibernate.ddl-auto=create-drop`).

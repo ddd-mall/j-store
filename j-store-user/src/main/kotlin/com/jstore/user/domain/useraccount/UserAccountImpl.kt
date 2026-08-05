@@ -9,9 +9,7 @@ import com.jstore.common.utils.Success
 import java.time.LocalDateTime
 import java.util.*
 
-/**
- * UserAccount 聚合根实现
- */
+/** UserAccount 聚合根实现 */
 class UserAccountImpl(
     override val id: UserId,
     override val phoneNumber: PhoneNumber,

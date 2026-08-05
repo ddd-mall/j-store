@@ -7,12 +7,10 @@ import com.jstore.common.utils.onFailure
 import com.jstore.order.acl.event.OrderStockInsufficientEvent
 import com.jstore.order.domain.order.OrderId
 
-/**
- * 订单应用层事件处理器：监听库存不足事件，取消订单
- */
-class OrderStockInsufficientEventHandler(
-    private val orderService: OrderService,
-) : DomainEventListener<OrderStockInsufficientEvent> {
+/** 订单应用层事件处理器：监听库存不足事件，取消订单 */
+class OrderStockInsufficientEventHandler(private val orderService: OrderService) :
+    DomainEventListener<OrderStockInsufficientEvent> {
+    override fun listenerId(): String = "order.cancel-on-stock-insufficient"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

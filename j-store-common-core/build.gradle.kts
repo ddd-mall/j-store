@@ -6,7 +6,6 @@ repositories {
     mavenCentral()
 }
 
-
 dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlin.stdlib)
@@ -19,15 +18,13 @@ dependencies {
 
     api(libs.guava)
     api(libs.slf4j.api)
-    api(libs.seata.all)
-
     api(platform(libs.jackson.bom))
+    api(platform(libs.netty.bom))
     api(libs.jackson.core)
     api(libs.jackson.databind)
     api(libs.jackson.annotations)
     api(libs.jackson.module.kotlin)
     api(libs.money.api)
-
 }
 
 tasks.withType<Test> {
@@ -36,5 +33,5 @@ tasks.withType<Test> {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }

@@ -6,9 +6,8 @@ import com.jstore.user.domain.useraccount.persistence.UserAccountPOJpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-class UserAccountRepositoryImpl(
-    private val jpaRepository: UserAccountPOJpaRepository,
-) : UserAccountRepository {
+class UserAccountRepositoryImpl(private val jpaRepository: UserAccountPOJpaRepository) :
+    UserAccountRepository {
 
     override fun add(userAccount: UserAccount) {
         val po = Converter.toPO(userAccount)

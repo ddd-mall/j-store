@@ -5,8 +5,8 @@ import jakarta.persistence.AttributeConverter
 import jakarta.persistence.Converter
 
 /**
- * JPA AttributeConverter: RecipientInfoPO ↔ JSON 字符串
- * 使用 JsonUtils 中的共享 ObjectMapper，已注册 KotlinModule
+ * JPA AttributeConverter: RecipientInfoPO ↔ JSON 字符串 使用 JsonUtils 中的共享 ObjectMapper，已注册
+ * KotlinModule
  */
 @Converter(autoApply = false)
 class RecipientInfoPOConverter : AttributeConverter<RecipientInfoPO, String> {

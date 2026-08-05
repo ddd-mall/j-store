@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: user_infrastructure
+title: User Account Infrastructure & Persistence
+scope:
+    - j-store-user-infrastructure/
+source_files: []
+depends_on: []
+related_to:
+    - path: authentication_sdk
+    - path: order_infrastructure

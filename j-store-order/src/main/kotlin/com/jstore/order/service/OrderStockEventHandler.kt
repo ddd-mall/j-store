@@ -7,12 +7,10 @@ import com.jstore.common.utils.onFailure
 import com.jstore.order.acl.event.OrderStockConfirmedEvent
 import com.jstore.order.domain.order.OrderId
 
-/**
- * 订单应用层事件处理器：监听库存确认成功事件，将订单转为待支付
- */
-class OrderStockConfirmedEventHandler(
-    private val orderService: OrderService,
-) : DomainEventListener<OrderStockConfirmedEvent> {
+/** 订单应用层事件处理器：监听库存确认成功事件，将订单转为待支付 */
+class OrderStockConfirmedEventHandler(private val orderService: OrderService) :
+    DomainEventListener<OrderStockConfirmedEvent> {
+    override fun listenerId(): String = "order.confirm-stock-on-stock-confirmed"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

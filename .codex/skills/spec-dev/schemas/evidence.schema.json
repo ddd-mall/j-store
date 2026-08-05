@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://j-store.local/spec-dev/evidence.schema.json",
+  "title": "Spec change evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "changeId", "evidence"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "changeId": {"type": "string", "minLength": 1},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "outcomeIds", "result", "summary"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "type": {"enum": ["test", "command", "inspection", "review", "manual", "monitoring"]},
+          "outcomeIds": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "result": {"enum": ["passed", "failed", "partial", "not_run"]},
+          "summary": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "minLength": 1},
+          "environment": {"type": "string"},
+          "limitations": {"type": "string"},
+          "recordedAt": {"type": "string", "format": "date-time"}
+        }
+      }
+    }
+  }
+}

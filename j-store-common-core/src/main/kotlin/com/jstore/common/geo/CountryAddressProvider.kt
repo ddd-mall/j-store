@@ -3,10 +3,7 @@ package com.jstore.common.geo
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
 
-/**
- * 国家地址提供者接口
- * 每个支持的国家实现此接口，负责地址查询、编码验证、层级配置和格式化
- */
+/** 国家地址提供者接口 每个支持的国家实现此接口，负责地址查询、编码验证、层级配置和格式化 */
 interface CountryAddressProvider {
     /** 该 Provider 支持的国家编码 */
     fun supportedCountryCode(): CountryCode

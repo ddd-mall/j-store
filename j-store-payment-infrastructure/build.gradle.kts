@@ -1,0 +1,29 @@
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.plugin.jpa)
+    alias(libs.plugins.kotlin.plugin.spring)
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api(project(":j-store-payment"))
+    implementation(project(":j-store-common-core"))
+    implementation(platform(libs.spring.boot.dependencies))
+    implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.data.jpa)
+    runtimeOnly(libs.postgresql)
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.kotlin.test)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+}
+
+kotlin {
+    jvmToolchain(25)
+}
+
+tasks.test {
+    useJUnitPlatform()
+}

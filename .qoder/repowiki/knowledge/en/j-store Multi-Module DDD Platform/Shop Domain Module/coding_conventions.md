@@ -1,0 +1,2 @@
+- Domain abstractions are expressed as Kotlin `interface`s within the `com.jstore.shop` package.
+- The module uses the Gradle alias convention via `libs.plugins.kotlin.jvm` instead of hard-coded plugin versions.

@@ -7,15 +7,13 @@ import com.jstore.common.utils.fold
 import com.jstore.user.domain.useraccount.*
 import com.jstore.user.domain.useraccount.command.UserRegisterCMD
 import com.jstore.user.service.UserAccountService
+import java.time.LocalDateTime
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/api/users")
-class UserAccountController(
-    private val userAccountService: UserAccountService,
-) {
+class UserAccountController(private val userAccountService: UserAccountService) {
 
     // ---- Request DTOs ----
 
@@ -30,13 +28,9 @@ class UserAccountController(
         val password: String,
     )
 
-    data class RefreshTokenRequest(
-        val refreshToken: String,
-    )
+    data class RefreshTokenRequest(val refreshToken: String)
 
-    data class ChangeNicknameRequest(
-        val nickname: String,
-    )
+    data class ChangeNicknameRequest(val nickname: String)
 
     data class ChangePasswordRequest(
         val oldPassword: String,
@@ -70,11 +64,12 @@ class UserAccountController(
 
     @PostMapping("/register")
     fun register(@RequestBody request: RegisterRequest): ResponseEntity<*> {
-        val cmd = UserRegisterCMD(
-            phoneNumber = PhoneNumber(request.phoneNumber),
-            nickname = request.nickname,
-            rawPassword = request.password,
-        )
+        val cmd =
+            UserRegisterCMD(
+                phoneNumber = PhoneNumber(request.phoneNumber),
+                nickname = request.nickname,
+                rawPassword = request.password,
+            )
         return userAccountService.register(cmd).toResponse { account ->
             UserResponse(
                 id = account.id.value,
@@ -89,17 +84,19 @@ class UserAccountController(
 
     @PostMapping("/login")
     fun login(@RequestBody request: LoginRequest): ResponseEntity<*> {
-        return userAccountService.login(
-            phoneNumber = PhoneNumber(request.phoneNumber),
-            rawPassword = request.password,
-        ).toResponse { tokenPair ->
-            TokenResponse(
-                accessToken = tokenPair.accessToken,
-                accessTokenExpiresAt = tokenPair.accessTokenExpiresAt,
-                refreshToken = tokenPair.refreshToken,
-                refreshTokenExpiresAt = tokenPair.refreshTokenExpiresAt,
+        return userAccountService
+            .login(
+                phoneNumber = PhoneNumber(request.phoneNumber),
+                rawPassword = request.password,
             )
-        }
+            .toResponse { tokenPair ->
+                TokenResponse(
+                    accessToken = tokenPair.accessToken,
+                    accessTokenExpiresAt = tokenPair.accessTokenExpiresAt,
+                    refreshToken = tokenPair.refreshToken,
+                    refreshTokenExpiresAt = tokenPair.refreshTokenExpiresAt,
+                )
+            }
     }
 
     @PostMapping("/refresh-token")
@@ -133,10 +130,12 @@ class UserAccountController(
         @PathVariable id: Long,
         @RequestBody request: ChangeNicknameRequest,
     ): ResponseEntity<*> {
-        return userAccountService.changeNickname(
-            userId = UserId(id),
-            newNickname = Nickname(request.nickname),
-        ).toResponse { }
+        return userAccountService
+            .changeNickname(
+                userId = UserId(id),
+                newNickname = Nickname(request.nickname),
+            )
+            .toResponse {}
     }
 
     @PutMapping("/{id}/password")
@@ -144,26 +143,28 @@ class UserAccountController(
         @PathVariable id: Long,
         @RequestBody request: ChangePasswordRequest,
     ): ResponseEntity<*> {
-        return userAccountService.changePassword(
-            userId = UserId(id),
-            oldPassword = request.oldPassword,
-            newPassword = request.newPassword,
-        ).toResponse { }
+        return userAccountService
+            .changePassword(
+                userId = UserId(id),
+                oldPassword = request.oldPassword,
+                newPassword = request.newPassword,
+            )
+            .toResponse {}
     }
 
     @PostMapping("/{id}/disable")
     fun disable(@PathVariable id: Long): ResponseEntity<*> {
-        return userAccountService.disable(UserId(id)).toResponse { }
+        return userAccountService.disable(UserId(id)).toResponse {}
     }
 
     @PostMapping("/{id}/enable")
     fun enable(@PathVariable id: Long): ResponseEntity<*> {
-        return userAccountService.enable(UserId(id)).toResponse { }
+        return userAccountService.enable(UserId(id)).toResponse {}
     }
 
     @PostMapping("/{id}/force-offline")
     fun forceOffline(@PathVariable id: Long): ResponseEntity<*> {
-        return userAccountService.forceOffline(UserId(id)).toResponse { }
+        return userAccountService.forceOffline(UserId(id)).toResponse {}
     }
 
     // ---- Helper ----
@@ -172,9 +173,8 @@ class UserAccountController(
         return fold(
             onSuccess = { ResponseEntity.ok(mapper(it)) },
             onFailure = { error ->
-                ResponseEntity.status(error.httpCode).body(
-                    ErrorResponse(message = error.message, errorCode = error.errorCode)
-                )
+                ResponseEntity.status(error.httpCode)
+                    .body(ErrorResponse(message = error.message, errorCode = error.errorCode))
             },
         )
     }

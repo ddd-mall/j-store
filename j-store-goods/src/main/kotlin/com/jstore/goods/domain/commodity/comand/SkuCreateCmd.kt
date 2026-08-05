@@ -9,4 +9,6 @@ data class SkuCreateCmd(
     val skuName: String,
     val attributes: List<Attribute<String, String>>,
     val price: Price,
+    val merchantCode: String? = null,
+    val barcode: String? = null,
 )

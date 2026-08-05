@@ -6,12 +6,10 @@ import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.onFailure
 import com.jstore.goods.acl.event.StockConfirmRequestedEvent
 
-/**
- * 库存应用层事件处理器：监听确认扣减请求，将预扣转为真正扣减
- */
-class InventoryConfirmEventHandler(
-    private val inventoryService: InventoryService,
-) : DomainEventListener<StockConfirmRequestedEvent> {
+/** 库存应用层事件处理器：监听确认扣减请求，将预扣转为真正扣减 */
+class InventoryConfirmEventHandler(private val inventoryService: InventoryService) :
+    DomainEventListener<StockConfirmRequestedEvent> {
+    override fun listenerId(): String = "goods.inventory.confirm-stock-on-request"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

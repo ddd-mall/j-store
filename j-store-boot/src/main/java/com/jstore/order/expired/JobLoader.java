@@ -1,6 +1,11 @@
 package com.jstore.order.expired;
 
-
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.CRC32;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -9,16 +14,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
 
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.CRC32;
-
-/**
- * 负责将任务从数据库中取出并放置到redis中
- */
+/** 负责将任务从数据库中取出并放置到redis中 */
 @Component
 @Slf4j
 public class JobLoader {
@@ -27,21 +23,18 @@ public class JobLoader {
     private final TimerJobRepository timerJobQueue;
     private final PlatformTransactionManager transactionManager;
 
-
-    public JobLoader(TimerJobRepository timerJobRepository,
-                     TimerJobConfig timerJobConfig,
-                     TimerJobRepository jobRepository,
-                     PlatformTransactionManager transactionManager
-    ) {
+    public JobLoader(
+            TimerJobRepository timerJobRepository,
+            TimerJobConfig timerJobConfig,
+            TimerJobRepository jobRepository,
+            PlatformTransactionManager transactionManager) {
         this.timerJobRepository = timerJobRepository;
         this.timerJobConfig = timerJobConfig;
         this.timerJobQueue = jobRepository;
         this.transactionManager = transactionManager;
     }
 
-    /**
-     * 将未来10秒内要执行的任务从数据库中取出并加载到store queue中，并将其在库中的状态设置为 HANDLING
-     */
+    /** 将未来10秒内要执行的任务从数据库中取出并加载到store queue中，并将其在库中的状态设置为 HANDLING */
     @Scheduled(cron = "${timer.job.producer.cron: */5 * * * * ?}")
     public void loadJobsFromDbToRedis() {
         if (TimerJobCoordinator.stopped.get()) {
@@ -50,8 +43,9 @@ public class JobLoader {
         AtomicBoolean acquired = new AtomicBoolean(false);
         try {
             acquired.set(
-                    TimerJobCoordinator.lifeCycleLock.readLock().tryLock(300, TimeUnit.MILLISECONDS)
-            );
+                    TimerJobCoordinator.lifeCycleLock
+                            .readLock()
+                            .tryLock(300, TimeUnit.MILLISECONDS));
         } catch (Exception ignore) {
         }
         if (!acquired.get()) {
@@ -60,17 +54,23 @@ public class JobLoader {
 
         try {
             long tenSecondsLater = System.currentTimeMillis() + 1000 * 10;
-            Iterator<List<TimerJob>> iterator = timerJobRepository.getIteratorOfUnhandledAndBefore(new Date(tenSecondsLater), 100);
+            Iterator<List<TimerJob>> iterator =
+                    timerJobRepository.getIteratorOfUnhandledAndBefore(
+                            new Date(tenSecondsLater), 100);
             while (iterator.hasNext() && !TimerJobCoordinator.stopped.get()) {
 
-                DefaultTransactionDefinition transactionDefinition = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRED);
-                TransactionStatus transaction = transactionManager.getTransaction(transactionDefinition);
+                DefaultTransactionDefinition transactionDefinition =
+                        new DefaultTransactionDefinition(
+                                TransactionDefinition.PROPAGATION_REQUIRED);
+                TransactionStatus transaction =
+                        transactionManager.getTransaction(transactionDefinition);
                 try {
                     List<TimerJob> next = iterator.next();
-                    next.forEach(timerJob -> {
-                        long slot = slot(timerJob);
-                        timerJobQueue.addOneJobToWaitingQueue(timerJob, slot);
-                    });
+                    next.forEach(
+                            timerJob -> {
+                                long slot = slot(timerJob);
+                                timerJobQueue.addOneJobToWaitingQueue(timerJob, slot);
+                            });
                     transactionManager.commit(transaction);
                 } catch (Exception e) {
                     transactionManager.rollback(transaction);
@@ -83,18 +83,14 @@ public class JobLoader {
         }
     }
 
-
     /**
      * 补偿扫描：将 HANDLING 状态但已超时的任务重新加载到 Redis。
-     * <p>
-     * 正常流程中，任务通过 addNewJobAndEnqueue 创建时 DB 状态直接设为 HANDLING，
-     * 同时写入 Redis WaitingQueue。如果 Redis 故障导致数据丢失，这些任务会卡在
-     * HANDLING 状态，既不在 Redis 中，也不会被 loadJobsFromDbToRedis 扫描到
-     * （因为它只扫 UNHANDLED）。
-     * <p>
-     * 补偿逻辑：扫描 status=HANDLING 且 executeTime 已过期超过 60 秒的任务。
-     * 60 秒的阈值是为了避免误伤刚创建的正常任务（正常任务从创建到消费完成通常在秒级）。
-     * 将这些任务重新放入 Redis WaitingQueue，让调度流程重新接管。
+     *
+     * <p>正常流程中，任务通过 addNewJobAndEnqueue 创建时 DB 状态直接设为 HANDLING， 同时写入 Redis WaitingQueue。如果 Redis
+     * 故障导致数据丢失，这些任务会卡在 HANDLING 状态，既不在 Redis 中，也不会被 loadJobsFromDbToRedis 扫描到 （因为它只扫 UNHANDLED）。
+     *
+     * <p>补偿逻辑：扫描 status=HANDLING 且 executeTime 已过期超过 60 秒的任务。 60
+     * 秒的阈值是为了避免误伤刚创建的正常任务（正常任务从创建到消费完成通常在秒级）。 将这些任务重新放入 Redis WaitingQueue，让调度流程重新接管。
      */
     @Scheduled(cron = "${timer.job.compensate.cron: 0 */1 * * * ?}")
     public void compensateStuckHandlingJobs() {
@@ -104,8 +100,9 @@ public class JobLoader {
         AtomicBoolean acquired = new AtomicBoolean(false);
         try {
             acquired.set(
-                    TimerJobCoordinator.lifeCycleLock.readLock().tryLock(300, TimeUnit.MILLISECONDS)
-            );
+                    TimerJobCoordinator.lifeCycleLock
+                            .readLock()
+                            .tryLock(300, TimeUnit.MILLISECONDS));
         } catch (Exception ignore) {
         }
         if (!acquired.get()) {
@@ -115,22 +112,25 @@ public class JobLoader {
         try {
             // 只补偿 executeTime 已过期超过 60 秒的 HANDLING 任务
             long sixtySecondsAgo = System.currentTimeMillis() - 60_000;
-            Iterator<List<TimerJob>> iterator = timerJobRepository.getIteratorOfUnhandledAndBefore(
-                    new Date(sixtySecondsAgo),
-                    TimerJob.TimerJobStatus.HANDLING.name(),
-                    100
-            );
+            Iterator<List<TimerJob>> iterator =
+                    timerJobRepository.getIteratorOfUnhandledAndBefore(
+                            new Date(sixtySecondsAgo),
+                            TimerJob.TimerJobStatus.HANDLING.name(),
+                            100);
 
             int compensatedCount = 0;
             while (iterator.hasNext() && !TimerJobCoordinator.stopped.get()) {
-                DefaultTransactionDefinition txDef = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRED);
+                DefaultTransactionDefinition txDef =
+                        new DefaultTransactionDefinition(
+                                TransactionDefinition.PROPAGATION_REQUIRED);
                 TransactionStatus transaction = transactionManager.getTransaction(txDef);
                 try {
                     List<TimerJob> batch = iterator.next();
-                    batch.forEach(timerJob -> {
-                        long slot = slot(timerJob);
-                        timerJobQueue.addOneJobToWaitingQueue(timerJob, slot);
-                    });
+                    batch.forEach(
+                            timerJob -> {
+                                long slot = slot(timerJob);
+                                timerJobQueue.addOneJobToWaitingQueue(timerJob, slot);
+                            });
                     transactionManager.commit(transaction);
                     compensatedCount += batch.size();
                 } catch (Exception e) {
@@ -191,6 +191,4 @@ public class JobLoader {
         if (value <= 0xFFFFFFFFL) return 4;
         return 8; // 对于非常大的值，使用8字节
     }
-
-
 }

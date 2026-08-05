@@ -1,8 +1,10 @@
 package com.jstore.order.expired;
 
-
 import com.jstore.common.errors.CommonErrors;
 import com.jstore.common.utils.json.JsonUtils;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
@@ -11,10 +13,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
@@ -33,8 +31,7 @@ public class TimerJobRepository {
             TimerJobDeadQueueJpaRepository timerJobDeadQueueJpaRepository,
             RedisTemplate<Object, Object> redisTemplate,
             @Qualifier("pickOneOutAndPrepare") RedisScript<List> pickOneOutAndPrepare,
-            @Qualifier("rollbackTimerJob") RedisScript<Boolean> rollbackTimerJob
-    ) {
+            @Qualifier("rollbackTimerJob") RedisScript<Boolean> rollbackTimerJob) {
 
         this.timerJobJAPRepository = timerJobJAPRepository;
         this.handledTimerJobJpaRepository = handledTimerJobJpaRepository;
@@ -45,17 +42,17 @@ public class TimerJobRepository {
     }
 
     public TimerJobJpaPO addNewOneToDB(TimerJob timerJob) {
-        TimerJobJpaPO timerJobJPAPO = new TimerJobJpaPO(timerJob, TimerJob.TimerJobStatus.UNHANDLED.name());
+        TimerJobJpaPO timerJobJPAPO =
+                new TimerJobJpaPO(timerJob, TimerJob.TimerJobStatus.UNHANDLED.name());
         return timerJobJAPRepository.save(timerJobJPAPO);
     }
 
     /**
-     * 创建任务时同时写 DB 和 Redis，实现低延迟调度。
-     * DB 作为持久化底座（状态直接设为 HANDLING，因为已经进入 Redis 调度流程），
-     * Redis WaitingQueue 作为实时调度层。
+     * 创建任务时同时写 DB 和 Redis，实现低延迟调度。 DB 作为持久化底座（状态直接设为 HANDLING，因为已经进入 Redis 调度流程）， Redis
+     * WaitingQueue 作为实时调度层。
      *
      * @param timerJob 任务
-     * @param slot     槽位
+     * @param slot 槽位
      * @return 持久化后的任务
      */
     @Transactional(rollbackFor = Exception.class)
@@ -77,17 +74,18 @@ public class TimerJobRepository {
      * 放入任务
      *
      * @param timerJob 任务
-     * @param slot     放入的槽位
+     * @param slot 放入的槽位
      */
     public void addOneJobToWaitingQueue(TimerJob timerJob, long slot) {
-        redisTemplate.opsForZSet().add(WaitingQueue.key(timerJob.getTopic(), slot), TimerJob.toJsonStr(timerJob), timerJob.getExecuteTime().getTime());
+        redisTemplate
+                .opsForZSet()
+                .add(
+                        WaitingQueue.key(timerJob.getTopic(), slot),
+                        TimerJob.toJsonStr(timerJob),
+                        timerJob.getExecuteTime().getTime());
     }
 
-
-    /**
-     * 从store queue中获取任务，并且将它移动到prepare queue中，
-     * 如果是第一次被取出，则将ttl
-     */
+    /** 从store queue中获取任务，并且将它移动到prepare queue中， 如果是第一次被取出，则将ttl */
     private static final String emptyJsonStr = "";
 
     public Optional<TimerJob> getOneJobFromWaitingQueue(String topic, long slot) {
@@ -97,13 +95,15 @@ public class TimerJobRepository {
         }
         List<Object> result;
         try {
-            result = redisTemplate.execute(
-                    pickOneOutAndPrepare,
-                    Arrays.asList(WaitingQueue.key(topic, slot), PrepareQueue.key(topic, slot)),
-                    currentTimeStamp
-            );
+            result =
+                    redisTemplate.execute(
+                            pickOneOutAndPrepare,
+                            Arrays.asList(
+                                    WaitingQueue.key(topic, slot), PrepareQueue.key(topic, slot)),
+                            currentTimeStamp);
         } catch (Exception e) {
-            log.warn("Failed to execute Redis script, possibly during shutdown: {}", e.getMessage());
+            log.warn(
+                    "Failed to execute Redis script, possibly during shutdown: {}", e.getMessage());
             return Optional.empty();
         }
 
@@ -115,7 +115,6 @@ public class TimerJobRepository {
         log.debug("从store queue中获取");
         String timerJobJsonStr = (String) (null == result.get(0) ? emptyJsonStr : result.get(0));
         TimerJob timerJob = TimerJob.fromJsonStr(timerJobJsonStr);
-
 
         Object ttlObj = result.get(1);
         timerJob.setTtl(ttlToNumber(ttlObj));
@@ -138,12 +137,13 @@ public class TimerJobRepository {
         return ttl;
     }
 
-
     public Iterator<List<TimerJob>> getIteratorOfUnhandledAndBefore(Date date, int batchSize) {
-        return getIteratorOfUnhandledAndBefore(date, TimerJob.TimerJobStatus.UNHANDLED.name(), batchSize);
+        return getIteratorOfUnhandledAndBefore(
+                date, TimerJob.TimerJobStatus.UNHANDLED.name(), batchSize);
     }
 
-    public Iterator<List<TimerJob>> getIteratorOfUnhandledAndBefore(Date date, String status, int batchSize) {
+    public Iterator<List<TimerJob>> getIteratorOfUnhandledAndBefore(
+            Date date, String status, int batchSize) {
         return new Iterator<>() {
             boolean hasNext = true;
 
@@ -154,14 +154,14 @@ public class TimerJobRepository {
 
             @Override
             public List<TimerJob> next() {
-                Page<TimerJobJpaPO> result = timerJobJAPRepository.findAllByExecuteTimeBeforeAndStatus(
-                        date,
-                        status,
-                        Pageable.ofSize(batchSize)
-                );
+                Page<TimerJobJpaPO> result =
+                        timerJobJAPRepository.findAllByExecuteTimeBeforeAndStatus(
+                                date, status, Pageable.ofSize(batchSize));
                 List<TimerJobJpaPO> content = result.getContent();
                 if (!content.isEmpty()) {
-                    content.forEach(timerJob -> timerJob.setStatus(TimerJob.TimerJobStatus.HANDLING.name()));
+                    content.forEach(
+                            timerJob ->
+                                    timerJob.setStatus(TimerJob.TimerJobStatus.HANDLING.name()));
                     content = timerJobJAPRepository.saveAllAndFlush(content);
                 }
                 hasNext = !(result.getContent().size() < batchSize);
@@ -171,50 +171,69 @@ public class TimerJobRepository {
     }
 
     /**
-     * roll back
-     * TODO: 回滚这里的逻辑可能存在错误，需要进行排查，lua脚本中出现score为nil的情况
+     * roll back TODO: 回滚这里的逻辑可能存在错误，需要进行排查，lua脚本中出现score为nil的情况
      *
-     * @param job  回滚指定任务到waiting queue
+     * @param job 回滚指定任务到waiting queue
      * @param slot 任务所属的槽/分组或者...随便
      */
     @Transactional(rollbackFor = Exception.class)
     public void rollbackOnFailure(TimerJob job, long slot) {
         RetryTimes.of(3)
-                .doWithRetry(() ->
-                        redisTemplate.execute(
-                                rollbackTimerJob,
-                                Arrays.asList(PrepareQueue.key(job.getTopic(), slot), WaitingQueue.key(job.getTopic(), slot)),
-                                TimerJob.toJsonStr(job))
-                ).whenException(exception -> log.error("回滚任务时发生异常，将进行重试: job={}, slot={}", job.getId(), slot, exception))
-                .onFailure(() -> {
-                    log.error("回滚任务 {} 失败", job);
-                    markAsFailure(job, slot);
-                });
+                .doWithRetry(
+                        () ->
+                                redisTemplate.execute(
+                                        rollbackTimerJob,
+                                        Arrays.asList(
+                                                PrepareQueue.key(job.getTopic(), slot),
+                                                WaitingQueue.key(job.getTopic(), slot)),
+                                        TimerJob.toJsonStr(job)))
+                .whenException(
+                        exception ->
+                                log.error(
+                                        "回滚任务时发生异常，将进行重试: job={}, slot={}",
+                                        job.getId(),
+                                        slot,
+                                        exception))
+                .onFailure(
+                        () -> {
+                            log.error("回滚任务 {} 失败", job);
+                            markAsFailure(job, slot);
+                        });
     }
-
 
     @Transactional(rollbackFor = Exception.class)
     public void markAsHandled(TimerJob timerJob, long slot) {
         AtomicReference<TimerJobJpaPO> timerJobRef = new AtomicReference<>(null);
         RetryTimes.of(3)
-                .doWithRetry(() -> {
-                    timerJobJAPRepository.
-                            findById(timerJob.getId())
-                            .ifPresent(timerJobJAPPO -> {
-                                timerJobRef.set(timerJobJAPPO);
-                                timerJobJAPRepository.deleteById(timerJob.getId());
-                            });
-                    handledTimerJobJpaRepository.save(new HandledTimerJobJpaPO(timerJob));
-                    removeFromPrepareQueue(timerJob, slot);
-                }).whenException(exception -> log.error("标记任务为已处理过程发生异常", exception))
-                .onFailure(() -> {
-                    throw CommonErrors.INSTANCE.getINTERNAL_ERROR().msg(String.format("标记任务 %s 为已处理过程发生异常", JsonUtils.INSTANCE.toJsonString(timerJobRef.get())));
-                });
+                .doWithRetry(
+                        () -> {
+                            timerJobJAPRepository
+                                    .findById(timerJob.getId())
+                                    .ifPresent(
+                                            timerJobJAPPO -> {
+                                                timerJobRef.set(timerJobJAPPO);
+                                                timerJobJAPRepository.deleteById(timerJob.getId());
+                                            });
+                            handledTimerJobJpaRepository.save(new HandledTimerJobJpaPO(timerJob));
+                            removeFromPrepareQueue(timerJob, slot);
+                        })
+                .whenException(exception -> log.error("标记任务为已处理过程发生异常", exception))
+                .onFailure(
+                        () -> {
+                            throw CommonErrors.INSTANCE
+                                    .getINTERNAL_ERROR()
+                                    .msg(
+                                            String.format(
+                                                    "标记任务 %s 为已处理过程发生异常",
+                                                    JsonUtils.INSTANCE.toJsonString(
+                                                            timerJobRef.get())));
+                        });
     }
 
-
     private void removeFromPrepareQueue(TimerJob timerJob, long slot) {
-        redisTemplate.opsForZSet().remove(PrepareQueue.key(timerJob.getTopic(), slot), TimerJob.toJsonStr(timerJob));
+        redisTemplate
+                .opsForZSet()
+                .remove(PrepareQueue.key(timerJob.getTopic(), slot), TimerJob.toJsonStr(timerJob));
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -231,35 +250,44 @@ public class TimerJobRepository {
         final int retryTimes = 3;
         AtomicReference<List<TimerJob>> timerJobRef = new AtomicReference<>(null);
         RetryTimes.of(retryTimes)
-                .doWithRetry(() -> {
-                    List<TimerJobJpaPO> pos = timerJobJAPRepository.findAllById(ids);
-                    for (TimerJobJpaPO po : pos) {
-                        po.setStatus(status);
-                    }
-                    List<TimerJob> list = timerJobJAPRepository.saveAll(pos).stream().map(TimerJob::new).toList();
-                    timerJobRef.set(list);
-                }).whenException(exception -> log.error("[任务状态更新]-更新任务状态时发生异常, 将进行重试", exception))
-                .onFailure(() -> log.error("[任务状态更新]- 更新任务 {} 的状态为 {} 失败", JsonUtils.INSTANCE.toJsonString(ids), status));
+                .doWithRetry(
+                        () -> {
+                            List<TimerJobJpaPO> pos = timerJobJAPRepository.findAllById(ids);
+                            for (TimerJobJpaPO po : pos) {
+                                po.setStatus(status);
+                            }
+                            List<TimerJob> list =
+                                    timerJobJAPRepository.saveAll(pos).stream()
+                                            .map(TimerJob::new)
+                                            .toList();
+                            timerJobRef.set(list);
+                        })
+                .whenException(exception -> log.error("[任务状态更新]-更新任务状态时发生异常, 将进行重试", exception))
+                .onFailure(
+                        () ->
+                                log.error(
+                                        "[任务状态更新]- 更新任务 {} 的状态为 {} 失败",
+                                        JsonUtils.INSTANCE.toJsonString(ids),
+                                        status));
         return timerJobRef.get();
-
     }
-
 
     private void addJobToDeadQueue(TimerJob timerJob) {
         TimerJobDeadQueueJpaPO timerJobDeadQueueJpaPO = new TimerJobDeadQueueJpaPO(timerJob);
         timerJobDeadQueueJpaRepository.save(timerJobDeadQueueJpaPO);
     }
 
-
     public static class WaitingQueue {
         public static String key(String topic, long slot) {
-            return TimerJobConfig.JOB_KEY_PREFIX + String.join("_", "waiting", hashTag(slot), topic);
+            return TimerJobConfig.JOB_KEY_PREFIX
+                    + String.join("_", "waiting", hashTag(slot), topic);
         }
     }
 
     public static class PrepareQueue {
         public static String key(String topic, long slot) {
-            return TimerJobConfig.JOB_KEY_PREFIX + String.join("_", "prepare", hashTag(slot), topic);
+            return TimerJobConfig.JOB_KEY_PREFIX
+                    + String.join("_", "prepare", hashTag(slot), topic);
         }
     }
 

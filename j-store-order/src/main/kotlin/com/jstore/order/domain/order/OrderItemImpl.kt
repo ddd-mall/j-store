@@ -2,9 +2,7 @@ package com.jstore.order.domain.order
 
 import com.jstore.common.properties.Price
 
-/**
- * 订单行项实体实现
- */
+/** 订单行项实体实现 */
 class OrderItemImpl(
     override val id: OrderItemId,
     override val skuId: Long,
@@ -13,35 +11,56 @@ class OrderItemImpl(
     override val skuDescription: String,
     override val quantity: Int,
     override val unitPrice: Price,
+    override val snapshotVersion: Long = 0,
     override var status: OrderItemStatus = OrderItemStatus.NONE,
-    private var _previousItemStatus: OrderItemStatus? = null,
+    private var _refundedQuantity: Int = 0,
+    private var _refundedAmount: Price = Price.ZERO,
 ) : OrderItem {
+    override val purchasedAmount
+        get() = subtotal()
 
-    override val previousItemStatus: OrderItemStatus? get() = _previousItemStatus
+    override val refundedQuantity
+        get() = _refundedQuantity
+
+    override val refundedAmount
+        get() = _refundedAmount
+
+    override val refundableQuantity
+        get() = quantity - _refundedQuantity
+
+    override val refundableAmount
+        get() = purchasedAmount - _refundedAmount
 
     init {
-        require(quantity > 0) { "商品数量必须大于0" }
+        require(quantity > 0 && _refundedQuantity in 0..quantity && _refundedAmount <= subtotal())
     }
 
     override fun subtotal(): Price = unitPrice * quantity
 
-    /** 进入退款状态，记录当前状态以便恢复 */
-    fun enterRefunding() {
-        _previousItemStatus = status
-        status = OrderItemStatus.REFUNDING
-    }
-
-    /** 退款被批准，进入 CANCELED */
     fun markCanceled() {
-        _previousItemStatus = null
         status = OrderItemStatus.CANCELED
     }
 
-    /** 退款被拒绝，恢复到进入退款前的状态 */
-    fun restoreFromRefunding() {
-        val restoreTo = _previousItemStatus
-            ?: throw IllegalStateException("previousItemStatus 为空，无法恢复")
-        status = restoreTo
-        _previousItemStatus = null
+    internal fun markWaitingShipment() {
+        status = OrderItemStatus.WAIT_SHIPPING
+    }
+
+    internal fun markShipping() {
+        status = OrderItemStatus.SHIPPING
+    }
+
+    internal fun markDelivered() {
+        status = OrderItemStatus.SHIPPING_FINISHED
+    }
+
+    internal fun registerRefund(quantity: Int, amount: Price) {
+        require(
+            quantity > 0 &&
+                quantity <= refundableQuantity &&
+                amount > Price.ZERO &&
+                amount <= refundableAmount
+        )
+        _refundedQuantity += quantity
+        _refundedAmount += amount
     }
 }

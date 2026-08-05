@@ -1,0 +1,1 @@
+Build and test via Gradle: `./gradlew :j-store-user:test` runs Kotest tests on JUnit Platform (configured in `build.gradle.kts`). Tests require Java 25 toolchain as declared by `kotlin { jvmToolchain(25) }`.

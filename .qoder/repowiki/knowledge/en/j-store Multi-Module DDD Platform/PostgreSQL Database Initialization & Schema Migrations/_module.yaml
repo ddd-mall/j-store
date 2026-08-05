@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: infrastructure
+title: PostgreSQL Database Initialization & Schema Migrations
+scope:
+    - docker/
+source_files: []
+depends_on: []
+related_to:
+    - path: accounting_infrastructure
+    - path: goods_infrastructure

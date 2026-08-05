@@ -1,6 +1,3 @@
 package com.jstore.common.logging
 
-
-class LoggerFactoryTest {
-
-}
+class LoggerFactoryTest {}

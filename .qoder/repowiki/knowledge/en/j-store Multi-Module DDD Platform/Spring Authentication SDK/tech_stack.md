@@ -1,0 +1,1 @@
+Kotlin JVM with Spring Boot 3.x (`spring-boot-starter-web`), Jackson for JSON error responses, Kotest + property-based testing for tests, compiled against JVM toolchain 25. Uses Spring's `@AutoConfiguration` with `@ConditionalOnBean(TokenProvider::class, TokenStore::class)` and `@ConditionalOnWebApplication(type = SERVLET)` to opt-in only when token infrastructure is present.

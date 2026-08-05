@@ -1,12 +1,24 @@
 package com.jstore.com.jstore.order.config
 
 import com.jstore.common.framework.event.*
+import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
+import com.jstore.goods.api.GoodsSnapshotQueryService
+import com.jstore.goods.service.AfterSaleStockRestoreEventHandler
+import com.jstore.goods.service.InventoryService
+import com.jstore.order.acl.GoodsService
+import com.jstore.order.acl.GoodsServiceImpl
+import com.jstore.order.domain.aftersale.*
+import com.jstore.order.domain.order.OrderFactory
+import com.jstore.order.domain.order.OrderFactoryImpl
+import com.jstore.order.domain.order.OrderRepository
+import com.jstore.order.service.AfterSaleApplicationService
+import com.jstore.order.service.OrderService
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-
 
 @Configuration
 class OrderBootConfiguration {
@@ -16,29 +28,80 @@ class OrderBootConfiguration {
     }
 
     @Bean
-    fun springDomainEventListenerRegistry(applicationContext: ConfigurableApplicationContext) : SpringDomainEventListenerRegistry {
-        return SpringDomainEventListenerRegistry(applicationContext)
+    fun goodsService(goodsSnapshotQueryService: GoodsSnapshotQueryService): GoodsService {
+        return GoodsServiceImpl(goodsSnapshotQueryService)
     }
 
     @Bean
-    fun springDomainEventDispatcher(applicationEventPublisher: ApplicationEventPublisher): SpringDomainEventDispatcher {
-        return SpringDomainEventDispatcher(applicationEventPublisher)
+    fun orderFactory(
+        snowFlakSequence: SnowFlakSequence,
+        goodsService: GoodsService,
+        geoAddressService: GeoAddressService,
+    ): OrderFactory {
+        return OrderFactoryImpl(
+            snowFlakSequence,
+            goodsService,
+            geoAddressService,
+        )
     }
 
     @Bean
-    fun springDomainEventBus(springDomainEventRegistry: SpringDomainEventListenerRegistry, springDomainEventDispatcher: SpringDomainEventDispatcher): SpringDomainEventBus {
-        return SpringDomainEventBus(springDomainEventRegistry, springDomainEventDispatcher)
+    fun orderService(
+        orderFactory: OrderFactory,
+        orderRepository: OrderRepository,
+        domainEventPublisher: DomainEventPublisher,
+    ): OrderService {
+        return OrderService(
+            orderFactory,
+            orderRepository,
+            domainEventPublisher,
+        )
     }
 
     @Bean
-    fun domainEventPublisher(springDomainEventBus: SpringDomainEventBus) : DomainEventPublisher {
-        return SpringDomainEventPublisher(springDomainEventBus)
+    fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory =
+        AfterSaleFactoryImpl(snowFlakSequence)
+
+    @Bean
+    fun afterSaleApplicationService(
+        factory: AfterSaleFactory,
+        repository: AfterSaleRepository,
+        orderRepository: OrderRepository,
+    ) = AfterSaleApplicationService(factory, repository, orderRepository)
+
+    @Bean
+    fun afterSaleStockRestoreEventHandler(inventoryServices: ObjectProvider<InventoryService>) =
+        AfterSaleStockRestoreEventHandler {
+            inventoryServices.getIfAvailable()
+        }
+
+    @Bean
+    fun springDomainEventListenerRegistry(
+        applicationContext: ConfigurableApplicationContext,
+        consumptionRepositoryProvider: ObjectProvider<DomainEventConsumptionRepository>,
+    ): SpringDomainEventListenerRegistry {
+        return SpringDomainEventListenerRegistry(
+            applicationContext,
+            consumptionRepositoryProvider.getIfAvailable() ?: NoopDomainEventConsumptionRepository,
+        )
     }
 
     @Bean
-    fun springDomainEventListenerRegistrationMachine(springDomainEventBus: SpringDomainEventBus, domainEventListeners: List<DomainEventListener<*>>): SpringDomainEventListenerRegistrationMachine {
-        return SpringDomainEventListenerRegistrationMachine(springDomainEventBus, domainEventListeners)
+    fun springDomainEventBus(
+        springDomainEventRegistry: SpringDomainEventListenerRegistry,
+        applicationEventPublisher: ApplicationEventPublisher,
+    ): SpringDomainEventBus {
+        return SpringDomainEventBus(springDomainEventRegistry, applicationEventPublisher)
     }
 
-
+    @Bean
+    fun springDomainEventListenerRegistrationMachine(
+        springDomainEventBus: SpringDomainEventBus,
+        domainEventListeners: List<DomainEventListener<*>>,
+    ): SpringDomainEventListenerRegistrationMachine {
+        return SpringDomainEventListenerRegistrationMachine(
+            springDomainEventBus,
+            domainEventListeners,
+        )
+    }
 }

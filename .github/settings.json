@@ -8,7 +8,7 @@
     "java.home": "${JAVA_HOME}"
   },
   "terminal.integrated.env.windows": {
-    "java.jdt.ls.java.home": "${env:JAVA_21}",
-    "java.home": "${env:JAVA_21}"
+    "java.jdt.ls.java.home": "${env:JAVA_25}",
+    "java.home": "${env:JAVA_25}"
   }
 }

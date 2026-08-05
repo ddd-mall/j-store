@@ -6,12 +6,10 @@ import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.onFailure
 import com.jstore.goods.acl.event.StockReleaseRequestedEvent
 
-/**
- * 库存应用层事件处理器：监听释放请求，释放预扣库存
- */
-class InventoryReleaseEventHandler(
-    private val inventoryService: InventoryService,
-) : DomainEventListener<StockReleaseRequestedEvent> {
+/** 库存应用层事件处理器：监听释放请求，释放预扣库存 */
+class InventoryReleaseEventHandler(private val inventoryService: InventoryService) :
+    DomainEventListener<StockReleaseRequestedEvent> {
+    override fun listenerId(): String = "goods.inventory.release-stock-on-request"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)

@@ -14,51 +14,60 @@ import io.kotest.property.checkAll
 /**
  * Feature: order-consignee-info, Property 2: RecipientInfoCMD 空白字段验证
  *
- * For any 仅由空白字符组成的字符串，当用作 RecipientInfoCMD 的 consigneeName 时，
- * validate() 应返回 Failure；当用作 shippingDistrictCode 时，validate() 同样应返回 Failure。
+ * For any 仅由空白字符组成的字符串，当用作 RecipientInfoCMD 的 consigneeName 时， validate() 应返回 Failure；当用作
+ * shippingDistrictCode 时，validate() 同样应返回 Failure。
  *
  * **Validates: Requirements 3.1, 3.2**
  */
-class RecipientInfoCMDValidationPropertyTest : FunSpec({
-
-    val validContractInfo = OrderCreateCMD.ContractInfoCMD(
-        phoneNumber = PhoneNumber("13800138000"),
-        emailAddress = null,
-    )
-
-    val whitespaceStrings = Arb.string(0..20).filter { it.isBlank() }
-
-    test("blank consigneeName should cause validate() to return Failure with CONSIGNEE_NAME_BLANK") {
-        checkAll(100, whitespaceStrings) { blankName ->
-            val cmd = OrderCreateCMD.RecipientInfoCMD(
-                consigneeName = blankName,
-                countryCode = "CN",
-                consigneeContractInfo = validContractInfo,
-                shippingDistrictCode = "110105",
-                shippingDetailAddress = "三里屯街道xx号",
+class RecipientInfoCMDValidationPropertyTest :
+    FunSpec({
+        val validContractInfo =
+            OrderCreateCMD.ContractInfoCMD(
+                phoneNumber = PhoneNumber("13800138000"),
+                emailAddress = null,
             )
 
-            val result = cmd.validate()
+        val whitespaceStrings = Arb.string(0..20).filter { it.isBlank() }
 
-            result.shouldBeInstanceOf<Failure<*>>()
-            (result as Failure).error.errorCode shouldBe OrderErrors.CONSIGNEE_NAME_BLANK.errorCode
+        test(
+            "blank consigneeName should cause validate() to return Failure with CONSIGNEE_NAME_BLANK"
+        ) {
+            checkAll(100, whitespaceStrings) { blankName ->
+                val cmd =
+                    OrderCreateCMD.RecipientInfoCMD(
+                        consigneeName = blankName,
+                        countryCode = "CN",
+                        consigneeContractInfo = validContractInfo,
+                        shippingDistrictCode = "110105",
+                        shippingDetailAddress = "三里屯街道xx号",
+                    )
+
+                val result = cmd.validate()
+
+                result.shouldBeInstanceOf<Failure<*>>()
+                (result as Failure).error.errorCode shouldBe
+                    OrderErrors.CONSIGNEE_NAME_BLANK.errorCode
+            }
         }
-    }
 
-    test("blank shippingDistrictCode should cause validate() to return Failure with DISTRICT_CODE_BLANK") {
-        checkAll(100, whitespaceStrings) { blankCode ->
-            val cmd = OrderCreateCMD.RecipientInfoCMD(
-                consigneeName = "张三",
-                countryCode = "CN",
-                consigneeContractInfo = validContractInfo,
-                shippingDistrictCode = blankCode,
-                shippingDetailAddress = "三里屯街道xx号",
-            )
+        test(
+            "blank shippingDistrictCode should cause validate() to return Failure with DISTRICT_CODE_BLANK"
+        ) {
+            checkAll(100, whitespaceStrings) { blankCode ->
+                val cmd =
+                    OrderCreateCMD.RecipientInfoCMD(
+                        consigneeName = "张三",
+                        countryCode = "CN",
+                        consigneeContractInfo = validContractInfo,
+                        shippingDistrictCode = blankCode,
+                        shippingDetailAddress = "三里屯街道xx号",
+                    )
 
-            val result = cmd.validate()
+                val result = cmd.validate()
 
-            result.shouldBeInstanceOf<Failure<*>>()
-            (result as Failure).error.errorCode shouldBe OrderErrors.DISTRICT_CODE_BLANK.errorCode
+                result.shouldBeInstanceOf<Failure<*>>()
+                (result as Failure).error.errorCode shouldBe
+                    OrderErrors.DISTRICT_CODE_BLANK.errorCode
+            }
         }
-    }
-})
+    })

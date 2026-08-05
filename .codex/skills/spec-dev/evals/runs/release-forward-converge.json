@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "runId": "release-forward-converge-2026-08-05",
+  "caseId": "converge-missing-evidence",
+  "caseDigest": "0a371d0dd40beca4d1d7006e612c7ddb6cdd9bafb24e1129eef4d349cbb0e8b2",
+  "mode": "release",
+  "agent": "Codex /root semantic re-evaluation",
+  "candidate": {
+    "skillPath": ".codex/skills/spec-dev",
+    "digestAlgorithm": "sha256-tree-v1",
+    "digest": "ac478649816387b43baee6de9c53f903a25474a1c79ab2f0557bb738f799c165",
+    "fileCount": 31
+  },
+  "trace": "evals/traces/release-forward-converge.md",
+  "traceDigest": "505b95cb051c647597f31cda68d38aa7563f45b135cc42e9bb1925a006baad07",
+  "worktreeDiff": "none",
+  "assertions": [
+    {"id": "no-checkbox-inference", "result": "pass", "evidence": "The output rejects completed tasks and a green build as proof of rollback or compatibility."},
+    {"id": "missing-evidence", "result": "pass", "evidence": "Rollback and backward-compatibility evidence are reported as separate gaps."},
+    {"id": "honest-verdict", "result": "pass", "evidence": "The semantic verdict is gaps, with no converged claim."},
+    {"id": "false-converged", "result": "pass", "evidence": "The output explicitly says the change has not converged."},
+    {"id": "invented-evidence", "result": "pass", "evidence": "Both required checks are accurately recorded as not run."},
+    {"id": "risk-acceptance", "result": "pass", "evidence": "Waiver requires authorized revision or explicit recorded acceptance of material residual risk."}
+  ]
+}

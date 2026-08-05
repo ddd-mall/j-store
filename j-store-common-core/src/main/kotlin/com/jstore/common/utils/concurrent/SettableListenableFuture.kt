@@ -3,13 +3,13 @@ package com.jstore.common.utils.concurrent
 import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
 
-
 open class SettableListenableFuture<T> : ListenableFuture<T> {
     companion object {
-        private val DUMMY_CALLABLE: Callable<out Any> = Callable<Any> { throw IllegalStateException("Should never be called") }
+        private val DUMMY_CALLABLE: Callable<out Any> =
+            Callable<Any> { throw IllegalStateException("Should never be called") }
+
         private fun <T> dummyCallable(): Callable<T> {
-            @Suppress("UNCHECKED_CAST")
-            val result =  DUMMY_CALLABLE as Callable<T>
+            @Suppress("UNCHECKED_CAST") val result = DUMMY_CALLABLE as Callable<T>
             return result
         }
     }
@@ -28,7 +28,10 @@ open class SettableListenableFuture<T> : ListenableFuture<T> {
         this.task.addCallback(callback)
     }
 
-    override fun addCallback(successCallback: SuccessCallback<in T>, failureCallback: FailureCallback) {
+    override fun addCallback(
+        successCallback: SuccessCallback<in T>,
+        failureCallback: FailureCallback,
+    ) {
         this.task.addCallback(successCallback, failureCallback)
     }
 

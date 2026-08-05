@@ -1,21 +1,15 @@
 package com.jstore.order.expired;
 
 import jakarta.persistence.*;
-import lombok.Data;
-
 import java.util.Date;
+import lombok.Data;
 
 @Data
 @Entity
 @Table(
         name = "handled_timer_job",
-        indexes = {
-                @Index(name="idx_execute_time_topic", columnList = "execute_time, topic")
-        },
-        uniqueConstraints = {
-                @UniqueConstraint(name= "uk_job_id", columnNames = "timer_job_id")
-        }
-)
+        indexes = {@Index(name = "idx_execute_time_topic", columnList = "execute_time, topic")},
+        uniqueConstraints = {@UniqueConstraint(name = "uk_job_id", columnNames = "timer_job_id")})
 public class HandledTimerJobJpaPO {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

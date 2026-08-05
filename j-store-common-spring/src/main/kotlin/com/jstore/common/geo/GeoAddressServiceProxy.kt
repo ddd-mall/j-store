@@ -6,9 +6,7 @@ import com.jstore.common.utils.Result
 import org.springframework.stereotype.Service
 
 @Service
-class GeoAddressServiceProxy(
-    providers: List<CountryAddressProvider>
-) : GeoAddressService {
+class GeoAddressServiceProxy(providers: List<CountryAddressProvider>) : GeoAddressService {
 
     private val providerMap: Map<CountryCode, CountryAddressProvider>
 
@@ -22,14 +20,19 @@ class GeoAddressServiceProxy(
         providerMap = grouped.mapValues { it.value.single() }
     }
 
-    override fun getByCode(countryCode: String, addressCode: String): Result<I18nGeoAddress, BusinessError> {
-        val code = try {
-            CountryCode(countryCode)
-        } catch (e: IllegalArgumentException) {
-            return Failure(AddressErrors.UnsupportedCountry.msg("非法国家编码: $countryCode"))
-        }
-        val provider = providerMap[code]
-            ?: return Failure(AddressErrors.UnsupportedCountry.msg("不支持的国家: $countryCode"))
+    override fun getByCode(
+        countryCode: String,
+        addressCode: String,
+    ): Result<I18nGeoAddress, BusinessError> {
+        val code =
+            try {
+                CountryCode(countryCode)
+            } catch (e: IllegalArgumentException) {
+                return Failure(AddressErrors.UnsupportedCountry.msg("非法国家编码: $countryCode"))
+            }
+        val provider =
+            providerMap[code]
+                ?: return Failure(AddressErrors.UnsupportedCountry.msg("不支持的国家: $countryCode"))
         return provider.getByCode(addressCode)
     }
 }

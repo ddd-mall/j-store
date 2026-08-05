@@ -16,48 +16,53 @@ import io.kotest.property.checkAll
 /**
  * Property 6: 国家特定地址编码验证
  *
- * For any string, Chinese validateCode succeeds if and only if the string is
- * all-digit and its length is one of the valid code lengths defined by DIVISION_LEVEL_META.
- * Other strings fail with error code `Address.Code.Invalid`.
+ * For any string, Chinese validateCode succeeds if and only if the string is all-digit and its
+ * length is one of the valid code lengths defined by DIVISION_LEVEL_META. Other strings fail with
+ * error code `Address.Code.Invalid`.
  *
  * **Validates: Requirements 5.1, 5.2, 5.3**
  */
-class AddressCodeValidationPropertyTest : FunSpec({
+class AddressCodeValidationPropertyTest :
+    FunSpec({
+        val provider = ChinaAddressProvider()
+        val validLengths = ChinaAddressProvider.VALID_CODE_LENGTHS
 
-    val provider = ChinaAddressProvider()
-    val validLengths = ChinaAddressProvider.VALID_CODE_LENGTHS
-
-    /** Generates a valid Chinese address code string with one of the valid lengths */
-    fun arbValidCode(): Arb<String> = arbitrary {
-        val length = validLengths.random()
-        val maxVal = "9".repeat(length).toLong()
-        val minVal = "1" + "0".repeat(length - 1)
-        val num = Arb.int(minVal.toInt().coerceAtLeast(0)..maxVal.toInt().coerceAtMost(Int.MAX_VALUE)).bind()
-        num.toString().padStart(length, '0')
-    }
-
-    test("Property 6: Chinese code validation succeeds for valid-length digit strings") {
-        // Feature: geo-address-i18n, Property 6: 国家特定地址编码验证
-        checkAll(100, arbValidCode()) { code ->
-            val result = provider.validateCode(code)
-            result.shouldBeInstanceOf<Success<Unit>>()
-            result.value shouldBe Unit
+        /** Generates a valid Chinese address code string with one of the valid lengths */
+        fun arbValidCode(): Arb<String> = arbitrary {
+            val length = validLengths.random()
+            val maxVal = "9".repeat(length).toLong()
+            val minVal = "1" + "0".repeat(length - 1)
+            val num =
+                Arb.int(minVal.toInt().coerceAtLeast(0)..maxVal.toInt().coerceAtMost(Int.MAX_VALUE))
+                    .bind()
+            num.toString().padStart(length, '0')
         }
-    }
 
-    test("Property 6: Non-valid-length or non-numeric strings fail with Address.Code.Invalid error code") {
-        // Feature: geo-address-i18n, Property 6: 国家特定地址编码验证
-        checkAll(100, Arb.string(0..20)) { randomStr ->
-            val isValidDigitCode = randomStr.all { it.isDigit() } && randomStr.length in validLengths
-            val result = provider.validateCode(randomStr)
-
-            if (isValidDigitCode) {
+        test("Property 6: Chinese code validation succeeds for valid-length digit strings") {
+            // Feature: geo-address-i18n, Property 6: 国家特定地址编码验证
+            checkAll(100, arbValidCode()) { code ->
+                val result = provider.validateCode(code)
                 result.shouldBeInstanceOf<Success<Unit>>()
-            } else {
-                result.shouldBeInstanceOf<Failure<*>>()
-                val error = (result as Failure).error as com.jstore.common.errors.BusinessError
-                error.errorCode shouldBe "Address.Code.Invalid"
+                result.value shouldBe Unit
             }
         }
-    }
-})
+
+        test(
+            "Property 6: Non-valid-length or non-numeric strings fail with Address.Code.Invalid error code"
+        ) {
+            // Feature: geo-address-i18n, Property 6: 国家特定地址编码验证
+            checkAll(100, Arb.string(0..20)) { randomStr ->
+                val isValidDigitCode =
+                    randomStr.all { it.isDigit() } && randomStr.length in validLengths
+                val result = provider.validateCode(randomStr)
+
+                if (isValidDigitCode) {
+                    result.shouldBeInstanceOf<Success<Unit>>()
+                } else {
+                    result.shouldBeInstanceOf<Failure<*>>()
+                    val error = (result as Failure).error as com.jstore.common.errors.BusinessError
+                    error.errorCode shouldBe "Address.Code.Invalid"
+                }
+            }
+        }
+    })

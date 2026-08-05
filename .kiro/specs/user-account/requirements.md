@@ -1,14 +1,14 @@
-# 需求文档：C 端用户账号模型
+# 需求文档：平台统一用户账号模型
 
 ## 简介
 
-在 j-store-user 模块中搭建 C 端用户（消费者）账号领域模型，支持账号注册与登录功能。用户账号是电商平台的基础身份实体，为下单、订单查询等 C 端操作提供身份标识。其他限界上下文（如订单、商品）通过 UserId 引用用户身份。
+在 j-store-user 模块中搭建平台统一自然人账号领域模型，支持账号注册与登录功能。用户账号是电商平台的全局登录身份，可用于买家行为，也可通过商户成员关系参与一个或多个商户经营。其他限界上下文通过 UserId 引用用户身份，不通过账号类型区分 C 端或 B 端。
 
 本需求聚焦于用户身份管理（注册、登录、基本信息维护），权限/授权体系明确不在本期范围内。认证方式采用双 Token 机制（短期 Access Token + 长期 Refresh Token），配合 Redis Token 黑名单实现即时踢人下线和拉黑能力。
 
 ## 术语表
 
-- **UserAccount**：用户账号聚合根，封装 C 端用户的注册、登录、信息维护等生命周期行为
+- **UserAccount**：全局自然人账号聚合根，封装注册、登录、信息维护等生命周期行为
 - **UserId**：用户唯一标识，类型化 ID 值对象，其他限界上下文通过 UserId 引用用户
 - **PhoneNumber**：手机号值对象，已在 j-store-common-core 中定义，包含格式校验
 - **Nickname**：用户昵称值对象，封装昵称长度和内容校验规则
@@ -30,11 +30,11 @@
 
 ### 需求 1：用户注册
 
-**用户故事：** 作为 C 端消费者，我希望通过手机号注册账号，以便获得平台身份并进行下单等操作。
+**用户故事：** 作为平台用户，我希望通过手机号注册账号，以便获得可用于消费和商户经营的平台身份。
 
 #### 验收标准
 
-1. WHEN 消费者提交注册请求（包含 PhoneNumber、Nickname 和明文密码）, THE UserAccountFactory SHALL 创建一个状态为 ACTIVE 的 UserAccount 聚合，并为其分配唯一的 UserId
+1. WHEN 用户提交注册请求（包含 PhoneNumber、Nickname 和明文密码）, THE UserAccountFactory SHALL 创建一个状态为 ACTIVE 的 UserAccount 聚合，并为其分配唯一的 UserId
 2. WHEN UserAccount 被成功创建, THE UserAccountRepository SHALL 持久化该 UserAccount
 3. WHEN UserAccount 被成功创建, THE UserAccount SHALL 发布 UserAccountRegisteredEvent 领域事件，事件中携带 userId 和 phoneNumber
 4. THE Password SHALL 在创建时通过 PasswordHasher 将明文密码转换为哈希密文，明文密码不存储在 UserAccount 中
@@ -44,11 +44,11 @@
 
 ### 需求 2：用户登录
 
-**用户故事：** 作为 C 端消费者，我希望通过手机号和密码登录，以便获取认证令牌并访问平台功能。
+**用户故事：** 作为平台用户，我希望通过手机号和密码登录，以便获取认证令牌并访问平台功能。
 
 #### 验收标准
 
-1. WHEN 消费者提交登录请求（包含 PhoneNumber 和明文密码）, THE UserAccountService SHALL 根据 PhoneNumber 查找对应的 UserAccount
+1. WHEN 用户提交登录请求（包含 PhoneNumber 和明文密码）, THE UserAccountService SHALL 根据 PhoneNumber 查找对应的 UserAccount
 2. WHEN UserAccount 被找到, THE UserAccountService SHALL 通过 PasswordHasher 验证明文密码与存储的哈希密文是否匹配
 3. WHEN 密码验证通过且 UserAccount 状态为 ACTIVE, THE UserAccountService SHALL 通过 TokenProvider 签发 AuthTokenPair（包含 AccessToken 和 RefreshToken），并将 RefreshToken 存储到 Redis（key 为 `refresh_token:{userId}`，TTL 为 7 天）
 4. WHEN 登录成功, THE UserAccountService SHALL 返回 AuthTokenPair，其中 AccessToken 有效期为 15 分钟，RefreshToken 有效期为 7 天
@@ -69,31 +69,31 @@
 
 ### 需求 4：用户基本信息查询
 
-**用户故事：** 作为 C 端消费者，我希望能查看自己的账号基本信息，以便确认个人资料。
+**用户故事：** 作为平台用户，我希望能查看自己的账号基本信息，以便确认个人资料。
 
 #### 验收标准
 
-1. WHEN 消费者提供 UserId 查询账号信息, THE UserAccountService SHALL 返回对应 UserAccount 的 userId、phoneNumber、nickname 和 status
+1. WHEN 用户提供 UserId 查询账号信息, THE UserAccountService SHALL 返回对应 UserAccount 的 userId、phoneNumber、nickname 和 status
 2. IF 提供的 UserId 对应的 UserAccount 不存在, THEN THE UserAccountService SHALL 返回用户不存在的业务错误
 3. THE UserAccountService SHALL 在返回结果中排除密码哈希等敏感信息
 
 ### 需求 5：用户昵称修改
 
-**用户故事：** 作为 C 端消费者，我希望能修改自己的昵称，以便更新个人展示信息。
+**用户故事：** 作为平台用户，我希望能修改自己的昵称，以便更新个人展示信息。
 
 #### 验收标准
 
-1. WHEN 消费者提交昵称修改请求（包含 UserId 和新 Nickname）, THE UserAccount SHALL 将昵称更新为新值
+1. WHEN 用户提交昵称修改请求（包含 UserId 和新 Nickname）, THE UserAccount SHALL 将昵称更新为新值
 2. IF 新 Nickname 为空或长度超过 20 个字符, THEN THE UserAccount SHALL 拒绝修改并返回昵称无效的业务错误
 3. IF 提供的 UserId 对应的 UserAccount 不存在, THEN THE UserAccountService SHALL 返回用户不存在的业务错误
 
 ### 需求 6：密码修改
 
-**用户故事：** 作为 C 端消费者，我希望能修改自己的登录密码，以便保障账号安全。
+**用户故事：** 作为平台用户，我希望能修改自己的登录密码，以便保障账号安全。
 
 #### 验收标准
 
-1. WHEN 消费者提交密码修改请求（包含 UserId、旧密码和新密码）, THE UserAccountService SHALL 通过 PasswordHasher 验证旧密码与存储的哈希密文是否匹配
+1. WHEN 用户提交密码修改请求（包含 UserId、旧密码和新密码）, THE UserAccountService SHALL 通过 PasswordHasher 验证旧密码与存储的哈希密文是否匹配
 2. WHEN 旧密码验证通过, THE UserAccount SHALL 通过 PasswordHasher 将新密码哈希后更新存储的密码哈希值
 3. IF 旧密码验证不通过, THEN THE UserAccountService SHALL 返回旧密码错误的业务错误
 4. IF 新密码不满足强度要求（长度 8-32 位，至少包含字母和数字）, THEN THE UserAccountService SHALL 返回密码强度不足的业务错误
@@ -101,11 +101,11 @@
 
 ### 需求 7：Token 刷新
 
-**用户故事：** 作为 C 端消费者，我希望在 AccessToken 过期后能通过 RefreshToken 自动获取新的令牌对，以便无需重新登录即可继续使用平台。
+**用户故事：** 作为平台用户，我希望在 AccessToken 过期后能通过 RefreshToken 自动获取新的令牌对，以便无需重新登录即可继续使用平台。
 
 #### 验收标准
 
-1. WHEN 消费者提交刷新请求（包含 RefreshToken）, THE UserAccountService SHALL 验证 RefreshToken 的有效性（签名、过期时间）
+1. WHEN 用户提交刷新请求（包含 RefreshToken）, THE UserAccountService SHALL 验证 RefreshToken 的有效性（签名、过期时间）
 2. WHEN RefreshToken 有效, THE UserAccountService SHALL 从 Redis 中查找对应的存储记录（key 为 `refresh_token:{userId}`），验证提交的 RefreshToken 与存储值一致
 3. WHEN RefreshToken 验证通过, THE UserAccountService SHALL 签发新的 AuthTokenPair（新 AccessToken + 新 RefreshToken），并用新 RefreshToken 替换 Redis 中的旧值（Refresh Token Rotation）
 4. IF RefreshToken 签名无效或已过期, THEN THE UserAccountService SHALL 返回令牌无效的业务错误

@@ -1,92 +1,72 @@
 package com.jstore.common.framework.event
 
+import java.nio.charset.StandardCharsets
+import java.time.Instant
+import java.util.UUID
 
-/**
- * ### 1. 事件发布与业务操作的一致性
- * **问题:**  领域事件的发布必须与业务操作（如聚合的持久化）保持原子性。若事件发布失败，可能导致系统状态不一致。
- *
- * **处理方案:**
- *
- * - **事务性发件箱（Transactional Outbox）：**
- *
- *      将事件和业务数据存储在同一数据库事务中，通过一个独立的进程（如轮询或CDC）异步将事件投递到消息中间件（如Kafka、RabbitMQ）。
- *
- * - **两阶段提交（2PC）：**
- *
- *      在需要强一致性的场景（如单体数据库），通过分布式事务协调器（如Seata）保证事务原子性，但可能牺牲性能。
- *
- *
- * ### 2. 事件消费的幂等性
- * **问题:** 消息中间件的重试机制可能导致消费者重复接收事件，需避免重复处理引发状态错误。
- *
- * **解决方案:**
- *
- * - **唯一事件ID + 幂等消费表：**
- *
- *      消费者记录已处理的事件ID，并在处理前检查是否已存在。
- *
- *
- * ### 3. 跨聚合/限界上下文的事务
- * **问题：** 领域事件通常用于跨聚合或限界上下文的协作，传统ACID事务无法覆盖分布式场景。
- *
- * **解决方案：**
- *
- * - **Saga模式：**
- *
- *      将长事务拆分为多个本地事务，每个步骤触发后续事件，失败时触发补偿操作（如 CreateOrderSaga → ReserveInventory → CancelOrderOnFailure）。
- *
- * - **事件溯源（Event Sourcing）：**
- *
- *      通过存储事件流重建聚合状态，结合Command和Event的严格顺序保证最终一致性。
- *
- *
- * ### 4. 事件顺序与因果一致性
- * **问题：** 分布式环境中事件的乱序可能导致状态错误（如“支付完成”事件早于“订单创建”到达）。
- *
- * **解决方案：**
- *
- * - **版本号或时间戳：**
- *
- *      在事件中携带聚合版本号或全局时序（如数据库事务日志的LSN），消费者按顺序处理。
- *
- * - **分区顺序性保证：**
- *
- *      使用支持分区顺序的消息队列（如Kafka分区键），确保同一聚合的事件顺序固定。
- *
- *
- * ### 5. 处理失败与重试
- * **问题：** 消费者处理事件时可能因依赖服务不可用、逻辑错误等失败。
- *
- * **解决方案：**
- *
- * - **死信队列（DLQ）：**
- *
- *      将多次重试失败的事件转入DLQ，人工介入或异步修复。
- *
- * - **指数退避重试：**
- *
- *      在消息中间件或消费者端实现渐进式重试策略（如首次立即重试，后续延迟1s、5s、10s）。
- *
- *
- * ### 6. 最终一致性的业务影响
- * **问题：** 领域事件的异步性可能导致短暂的不一致（如用户看到订单创建成功，但库存未扣减）。
- *
- * **解决方案：**
- *
- * - **UI层补偿：**
- *
- *      在前端显示中间状态（如“处理中”），通过轮询或WebSocket通知最终结果。
- *
- * - **业务容忍设计：**
- *
- *      明确业务对不一致的容忍窗口（如库存超卖后通过后续补货补偿）。
- *
- *
- */
+/** Marker for domain facts emitted by aggregates or domain services. */
 interface DomainEvent {
     val source: Any
+
+    /** Stable envelope metadata used by outbox delivery, diagnostics, and idempotent consumers. */
+    val metadata: DomainEventMetadata
+        get() = DomainEventMetadata.from(this)
 }
 
-// TODO("发件箱模式")
-// TODO("死信队列")
-// TODO("事件溯源")
+interface ExplicitDomainEvent : DomainEvent {
+    val eventId: String
+    val eventName: String
+    val eventVersion: Int
+    val occurredAt: Instant
+    val aggregateType: String
+    val aggregateId: String
+
+    override val metadata: DomainEventMetadata
+        get() =
+            DomainEventMetadata(
+                eventId = eventId,
+                eventName = eventName,
+                eventVersion = eventVersion,
+                occurredAt = occurredAt,
+                aggregateType = aggregateType,
+                aggregateId = aggregateId,
+            )
+}
+
+fun stableDomainEventId(
+    eventName: String,
+    eventVersion: Int,
+    aggregateType: String,
+    aggregateId: String,
+    occurredAt: Instant,
+): String {
+    return UUID.nameUUIDFromBytes(
+            "$eventName|$eventVersion|$aggregateType|$aggregateId|$occurredAt"
+                .toByteArray(StandardCharsets.UTF_8)
+        )
+        .toString()
+}
+
+data class DomainEventMetadata(
+    val eventId: String,
+    val eventName: String,
+    val eventVersion: Int,
+    val occurredAt: Instant,
+    val aggregateType: String,
+    val aggregateId: String,
+) {
+    companion object {
+        fun from(event: DomainEvent): DomainEventMetadata {
+            if (event is ExplicitDomainEvent) {
+                return event.metadata
+            }
+            throw IllegalArgumentException(
+                "DomainEvent must implement ExplicitDomainEvent to provide stable envelope metadata: ${event::class.java.name}"
+            )
+        }
+    }
+}
+
+// DONE: 发件箱模式（Transactional Outbox）基础设施已实现。
+// PARTIAL: 死信队列以 outbox DEAD_LETTER 状态实现，已具备基础查询和 requeue，仍需业务运维界面/告警策略。
+// TODO: 事件溯源（Event Sourcing）尚未实现。

@@ -38,3 +38,18 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+.gradle-home
+
+### Local secrets ###
+.env
+.env.*
+!.env.example
+*.local.properties
+
+### Python ###
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

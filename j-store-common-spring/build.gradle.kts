@@ -13,9 +13,9 @@ dependencies {
     implementation(platform(libs.spring.boot.dependencies))
     api(libs.spring.data.jpa)
     api(libs.spring.boot.starter.data.jpa)
-    api(libs.seata.all)
     implementation(project(":j-store-common-core"))
     implementation(libs.fastexcel)
+    implementation("io.micrometer:micrometer-core")
 
     // Spring Boot autoconfigure (for @ConditionalOnProperty, @EnableScheduling, etc.)
     implementation(libs.spirng.boot.boot)
@@ -29,12 +29,15 @@ dependencies {
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
     testImplementation(project(":j-store-order"))
+    testRuntimeOnly(libs.postgresql)
 }
 
 tasks.test {
     useJUnitPlatform()
 }
+
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }

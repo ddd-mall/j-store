@@ -9,10 +9,14 @@ import com.jstore.goods.domain.commodity.SpuId
 
 data class CommodityCreateCmd(
     val spuId: SpuId?,
+    val merchantId: Long,
     val spuName: String,
     val description: String = "",
 ) {
     fun verify(): Result<Boolean, BusinessError> {
+        if (merchantId <= 0) {
+            return Failure(CommonBusinessError.INVALID_PARAM.msg("商户ID必须为正数"))
+        }
         if (spuName.isBlank()) {
             return Failure(CommonBusinessError.INVALID_PARAM.msg("商品名称不能为空"))
         }

@@ -6,8 +6,8 @@ import jakarta.persistence.AttributeConverter
 import jakarta.persistence.Converter
 
 /**
- * JPA AttributeConverter: I18nGeoAddress ↔ JSON 字符串
- * 使用 JsonUtils 中的共享 ObjectMapper，已注册 KotlinModule 和自定义 Locale 序列化器
+ * JPA AttributeConverter: I18nGeoAddress ↔ JSON 字符串 使用 JsonUtils 中的共享 ObjectMapper，已注册 KotlinModule
+ * 和自定义 Locale 序列化器
  */
 @Converter(autoApply = false)
 class I18nGeoAddressConverter : AttributeConverter<I18nGeoAddress, String> {

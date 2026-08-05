@@ -1,0 +1,15 @@
+{
+  "id": "public-contract-ambiguity",
+  "prompt": "Use $spec-dev to change the order API status field. The request does not say whether old clients must remain compatible or whether the old field can be removed immediately.",
+  "expectedInvariants": [
+    {"id": "escalate-compatibility", "statement": "The agent identifies backward compatibility as a decision outside ordinary implementation authority."},
+    {"id": "targeted-question", "statement": "The agent asks only for the decision needed to resolve externally observable behavior."},
+    {"id": "defer-design", "statement": "The agent does not freeze a technical design before the compatibility decision is accepted."}
+  ],
+  "prohibitedBehaviors": [
+    {"id": "silent-removal", "statement": "Silently removes the old public field."},
+    {"id": "implementation-detail-question", "statement": "Asks the user to choose unrelated code-level details."},
+    {"id": "speculative-assumption", "statement": "Treats a speculative compatibility assumption as accepted intent."}
+  ],
+  "tags": ["ambiguity", "compatibility", "escalation"]
+}

@@ -321,3 +321,6 @@ A: 短期是的。但长期看，它隔离了变化，使模块独立演进。
 A: 不一定。但使用领域事件使事件溯源成为可选的。
 
 
+# 历史文档（已废弃）
+
+本文包含订单直接支付/履约的旧接口，自 `order-domain-boundary-refactor` 起不再作为实现依据。当前模型见 [变更设计](spec/changes/order-domain-boundary-refactor/design.md)。

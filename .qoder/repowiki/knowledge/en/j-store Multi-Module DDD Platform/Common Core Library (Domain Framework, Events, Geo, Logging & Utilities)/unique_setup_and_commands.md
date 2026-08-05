@@ -1,0 +1,1 @@
+Build and test via Gradle with `./gradlew build` (uses `useJUnitPlatform()` and `failOnNoDiscoveredTests = false`). Requires JDK 25 as configured by `kotlin { jvmToolchain(25) }`. Property-based tests are written with Kotest's `@PropertyTest` style.

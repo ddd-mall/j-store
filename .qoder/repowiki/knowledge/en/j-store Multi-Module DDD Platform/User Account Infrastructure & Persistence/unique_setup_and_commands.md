@@ -1,0 +1,1 @@
+Build and test via Gradle with `useJUnitPlatform()`; requires JDK 25 (`kotlin { jvmToolchain(25) }`). PostgreSQL and Redis must be available at runtime for the JPA entity and `RedisTokenStore` respectively.

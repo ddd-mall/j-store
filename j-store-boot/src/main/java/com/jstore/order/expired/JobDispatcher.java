@@ -1,21 +1,18 @@
 package com.jstore.order.expired;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.stereotype.Component;
+import static com.jstore.order.expired.TimerJobConfig.EXPIRE_CENTER_POOL;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static com.jstore.order.expired.TimerJobConfig.EXPIRE_CENTER_POOL;
-
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Component;
 
 /**
- * 负责给worker分配slot和topic及其对应的handler，并放入到线程池中执行。
- * 通过 SlotAssigner 实现分布式 slot 分配，每个实例只消费自己持有的 slot。
+ * 负责给worker分配slot和topic及其对应的handler，并放入到线程池中执行。 通过 SlotAssigner 实现分布式 slot 分配，每个实例只消费自己持有的 slot。
  */
 @Slf4j
 @Component
@@ -27,46 +24,46 @@ public class JobDispatcher {
     private final Map<String, TimerJobHandler> handlers;
     private final List<String> topics;
 
-    /**
-     * 无任务时的空闲等待时间（毫秒），避免 CPU 空转
-     */
+    /** 无任务时的空闲等待时间（毫秒），避免 CPU 空转 */
     private static final long IDLE_SLEEP_MS = 50;
 
-    /**
-     * 一轮 dispatch 完成后的短暂让步时间（毫秒）
-     */
+    /** 一轮 dispatch 完成后的短暂让步时间（毫秒） */
     private static final long YIELD_SLEEP_MS = 5;
-
 
     public JobDispatcher(
             @Qualifier(EXPIRE_CENTER_POOL) ThreadPoolTaskExecutor executorService,
             TimerJobRepository jobRepository,
             SlotAssigner slotAssigner,
-            List<TimerJobHandler> handlers
-    ) {
+            List<TimerJobHandler> handlers) {
         this.executorService = executorService;
         this.jobRepository = jobRepository;
         this.slotAssigner = slotAssigner;
-        this.handlers = handlers.stream().collect(Collectors.toUnmodifiableMap(TimerJobHandler::topic, handler -> handler));
+        this.handlers =
+                handlers.stream()
+                        .collect(
+                                Collectors.toUnmodifiableMap(
+                                        TimerJobHandler::topic, handler -> handler));
         this.topics = handlers.stream().map(TimerJobHandler::topic).collect(Collectors.toList());
     }
 
     public void start() {
-        Thread dispatcherThread = new Thread(() -> {
-            while (!TimerJobCoordinator.stopped.get()) {
-                try {
-                    dispatch();
-                } catch (Exception e) {
-                    log.info(e.getMessage());
-                }
-                try {
-                    Thread.sleep(YIELD_SLEEP_MS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        });
+        Thread dispatcherThread =
+                new Thread(
+                        () -> {
+                            while (!TimerJobCoordinator.stopped.get()) {
+                                try {
+                                    dispatch();
+                                } catch (Exception e) {
+                                    log.info(e.getMessage());
+                                }
+                                try {
+                                    Thread.sleep(YIELD_SLEEP_MS);
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    break;
+                                }
+                            }
+                        });
         dispatcherThread.setName("dispatcher");
         dispatcherThread.setDaemon(true);
         dispatcherThread.start();
@@ -99,23 +96,38 @@ public class JobDispatcher {
                         }
                         job = jobRepository.getOneJobFromWaitingQueue(topic, slot);
                         final int finalSlot = slot;
-                        job.ifPresent(timerJob -> executorService.execute(() -> {
-                            try {
-                                TimerJobCoordinator.handlingJobs.incrementAndGet();
-                                new Worker(jobRepository, handlers).handle(timerJob, finalSlot);
-                            } finally {
-                                TimerJobCoordinator.handlingJobs.decrementAndGet();
-                            }
-                        }));
+                        job.ifPresent(
+                                timerJob ->
+                                        executorService.execute(
+                                                () -> {
+                                                    try {
+                                                        TimerJobCoordinator.handlingJobs
+                                                                .incrementAndGet();
+                                                        new Worker(jobRepository, handlers)
+                                                                .handle(timerJob, finalSlot);
+                                                    } finally {
+                                                        TimerJobCoordinator.handlingJobs
+                                                                .decrementAndGet();
+                                                    }
+                                                }));
                         if (job.isPresent()) {
                             dispatched = true;
                         }
                     } catch (Exception e) {
                         if (job.isPresent()) {
-                            log.error("Failed to dispatch job: {} in topic: {} at slot: {}", job.get(), topic, slot, e);
+                            log.error(
+                                    "Failed to dispatch job: {} in topic: {} at slot: {}",
+                                    job.get(),
+                                    topic,
+                                    slot,
+                                    e);
                             jobRepository.rollbackOnFailure(job.get(), slot);
                         } else {
-                            log.warn("Failed to dispatch job in topic: {} at slot: {}, possibly during shutdown: {}", topic, slot, e.getMessage());
+                            log.warn(
+                                    "Failed to dispatch job in topic: {} at slot: {}, possibly during shutdown: {}",
+                                    topic,
+                                    slot,
+                                    e.getMessage());
                         }
                     } finally {
                         allows--;
@@ -144,7 +156,8 @@ public class JobDispatcher {
 
             // 获取队列大小信息
             int queueSize = executorService.getThreadPoolExecutor().getQueue().size();
-            int queueCapacity = executorService.getThreadPoolExecutor().getQueue().remainingCapacity();
+            int queueCapacity =
+                    executorService.getThreadPoolExecutor().getQueue().remainingCapacity();
 
             // 计算真正可用的容量
             // 如果队列有剩余容量，即使活跃线程数达到最大值，任务仍可能被接受
@@ -155,17 +168,23 @@ public class JobDispatcher {
 
             // 记录详细信息用于调试
             if (log.isDebugEnabled()) {
-                log.debug("线程池状态 - 最大线程数: {}, 当前活跃线程: {}, 当前线程池大小: {}, " +
-                                "队列中任务数: {}, 队列剩余容量: {}, 计算可用容量: {}, 安全容量: {}",
-                        maxPoolSize, activeCount, poolSize, queueSize, queueCapacity,
-                        availableCapacity, safeCapacity);
+                log.debug(
+                        "线程池状态 - 最大线程数: {}, 当前活跃线程: {}, 当前线程池大小: {}, "
+                                + "队列中任务数: {}, 队列剩余容量: {}, 计算可用容量: {}, 安全容量: {}",
+                        maxPoolSize,
+                        activeCount,
+                        poolSize,
+                        queueSize,
+                        queueCapacity,
+                        availableCapacity,
+                        safeCapacity);
             }
 
             // 如果线程池接近饱和，额外检查线程池状态
             if (safeCapacity <= 1) {
                 // 检查线程池是否正在关闭
-                if (executorService.getThreadPoolExecutor().isShutdown() ||
-                        executorService.getThreadPoolExecutor().isTerminating()) {
+                if (executorService.getThreadPoolExecutor().isShutdown()
+                        || executorService.getThreadPoolExecutor().isTerminating()) {
                     log.warn("线程池正在关闭，停止分配新任务");
                     return 0;
                 }
@@ -180,5 +199,4 @@ public class JobDispatcher {
             return 0;
         }
     }
-
 }

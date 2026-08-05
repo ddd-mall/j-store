@@ -7,11 +7,15 @@ repositories {
 }
 
 dependencies {
+    api(project(":j-store-common-core"))
+    implementation(kotlin("stdlib"))
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotlin.test.junit5)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
 
 tasks.test {

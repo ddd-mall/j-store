@@ -37,5 +37,4 @@ object StringUtils {
         }
         return true
     }
-
 }

@@ -1,0 +1,1 @@
+No build or runtime setup required for this module; it is read-only documentation. The `docs/文档索引.md` file acts as a navigational index linking all other docs by role (developer, architect, manager).

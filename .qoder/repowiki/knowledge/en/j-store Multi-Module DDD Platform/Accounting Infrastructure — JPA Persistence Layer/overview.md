@@ -1,0 +1,1 @@
+Spring Data JPA persistence implementation for the accounting domain, providing repository adapters that map between domain entities and JPA persistent objects for ledger accounts, journal entries, and settlement statements.

@@ -2,8 +2,8 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
+    kotlin("plugin.lombok")
 }
-
 
 repositories {
     mavenLocal()
@@ -14,6 +14,7 @@ dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
     api(project(":j-store-order"))
+    implementation(project(":j-store-goods-api"))
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)
@@ -24,7 +25,8 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.test)
-//    annotationProcessor(libs.spring.boot.configuration.processor)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+    //    annotationProcessor(libs.spring.boot.configuration.processor)
 
     runtimeOnly(libs.postgresql)
     testImplementation(libs.kotlin.test)
@@ -38,12 +40,13 @@ dependencies {
     annotationProcessor(libs.lombok)
     testCompileOnly(libs.lombok)
     testAnnotationProcessor(libs.lombok)
-
+    testImplementation(kotlin("test"))
 }
 
 tasks.test {
     useJUnitPlatform()
 }
+
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }

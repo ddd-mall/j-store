@@ -2,9 +2,7 @@ package com.jstore.common.utils.concurrent
 
 import java.util.*
 
-/**
- * 抄spring的
- */
+/** 抄spring的 */
 class ListenableFutureCallbackRegistry<T> {
     private val successCallBacks: Queue<SuccessCallback<in T>> = LinkedList()
     private val failureCallBacks: Queue<FailureCallback> = LinkedList()
@@ -116,6 +114,9 @@ class ListenableFutureCallbackRegistry<T> {
         }
     }
 
-
-    private enum class State { NEW, SUCCESS, FAILURE }
+    private enum class State {
+        NEW,
+        SUCCESS,
+        FAILURE,
+    }
 }

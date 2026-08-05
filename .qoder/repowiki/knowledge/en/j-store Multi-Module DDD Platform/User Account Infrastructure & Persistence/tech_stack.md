@@ -1,0 +1,1 @@
+Kotlin JVM on JDK 25, Spring Boot with Spring Data JPA (PostgreSQL runtime), Spring Data Redis (`StringRedisTemplate`), jjwt for HS256 JWT signing, and Spring Security Crypto's `BCryptPasswordEncoder`. Tests use Kotest with property-based testing (`kotest.property`).

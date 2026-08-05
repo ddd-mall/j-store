@@ -1,5 +1,3 @@
 package com.jstore.common.logging.slf4j
 
-class Slf4jLocationAwareLoggerImplTest {
-
-}
+class Slf4jLocationAwareLoggerImplTest {}

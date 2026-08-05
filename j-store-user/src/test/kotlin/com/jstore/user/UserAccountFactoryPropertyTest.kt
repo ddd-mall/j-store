@@ -16,71 +16,80 @@ import io.kotest.property.checkAll
 /**
  * Feature: user-account, Property 1: 注册创建不变量
  *
- * For any 合法的注册参数（有效 PhoneNumber、有效 Nickname、满足强度要求的密码），
- * UserAccountFactory 创建的 UserAccount 状态应为 ACTIVE，
- * 且其 domainEventQueue 中应包含一个 UserAccountRegisteredEvent，
- * 事件携带的 userId 和 phoneNumber 与聚合根一致。
+ * For any 合法的注册参数（有效 PhoneNumber、有效 Nickname、满足强度要求的密码）， UserAccountFactory 创建的 UserAccount 状态应为
+ * ACTIVE， 且其 domainEventQueue 中应包含一个 UserAccountRegisteredEvent， 事件携带的 userId 和 phoneNumber 与聚合根一致。
  *
  * **Validates: Requirements 1.1, 1.3, 11.1**
  */
-class UserAccountFactoryPropertyTest : FunSpec({
+class UserAccountFactoryPropertyTest :
+    FunSpec({
 
-    // Simple PasswordHasher that returns a predictable hash
-    val simpleHasher = object : PasswordHasher {
-        override fun hash(rawPassword: String): String = "hashed_$rawPassword"
-        override fun matches(rawPassword: String, hashedPassword: String): Boolean =
-            hashedPassword == "hashed_$rawPassword"
-    }
+        // Simple PasswordHasher that returns a predictable hash
+        val simpleHasher =
+            object : PasswordHasher {
+                override fun hash(rawPassword: String): String = "hashed_$rawPassword"
 
-    val factory = UserAccountFactoryImpl(SnowFlakSequence())
+                override fun matches(rawPassword: String, hashedPassword: String): Boolean =
+                    hashedPassword == "hashed_$rawPassword"
+            }
 
-    // Generator for valid Chinese phone numbers (11 digits starting with 13x)
-    val validPhoneArb: Arb<PhoneNumber> = Arb.int(0..99999999).map { num ->
-        PhoneNumber("13${num.toString().padStart(9, '0')}")
-    }
+        val factory = UserAccountFactoryImpl(SnowFlakSequence())
 
-    // Generator for valid nicknames (non-blank, 1-20 chars)
-    val validNicknameArb: Arb<String> = Arb.string(1..20).filter { it.isNotBlank() }
+        // Generator for valid Chinese phone numbers (11 digits starting with 13x)
+        val validPhoneArb: Arb<PhoneNumber> =
+            Arb.int(0..99999999).map { num ->
+                PhoneNumber("13${num.toString().padStart(9, '0')}")
+            }
 
-    // Generator for valid passwords (8-32 chars, at least one letter and one digit)
-    val validPasswordArb: Arb<String> = Arb.int(8..30).flatMap { len ->
-        val letterCount = len - 2
-        Arb.bind(
-            Arb.list(Arb.char('a'..'z'), letterCount..letterCount),
-            Arb.char('0'..'9'),
-            Arb.char('0'..'9'),
-        ) { letters, d1, d2 -> (letters + d1 + d2).shuffled().joinToString("") }
-    }
+        // Generator for valid nicknames (non-blank, 1-20 chars)
+        val validNicknameArb: Arb<String> = Arb.string(1..20).filter { it.isNotBlank() }
 
-    test("factory creates UserAccount with ACTIVE status and correct registered event") {
-        checkAll(100, validPhoneArb, validNicknameArb, validPasswordArb) { phone, nickname, password ->
-            val cmd = UserRegisterCMD(
-                phoneNumber = phone,
-                nickname = nickname,
-                rawPassword = password,
-            )
+        // Generator for valid passwords (8-32 chars, at least one letter and one digit)
+        val validPasswordArb: Arb<String> =
+            Arb.int(8..30).flatMap { len ->
+                val letterCount = len - 2
+                Arb.bind(
+                    Arb.list(Arb.char('a'..'z'), letterCount..letterCount),
+                    Arb.char('0'..'9'),
+                    Arb.char('0'..'9'),
+                ) { letters, d1, d2 ->
+                    (letters + d1 + d2).shuffled().joinToString("")
+                }
+            }
 
-            val result = factory.create(cmd, simpleHasher)
+        test("factory creates UserAccount with ACTIVE status and correct registered event") {
+            checkAll(100, validPhoneArb, validNicknameArb, validPasswordArb) {
+                phone,
+                nickname,
+                password ->
+                val cmd =
+                    UserRegisterCMD(
+                        phoneNumber = phone,
+                        nickname = nickname,
+                        rawPassword = password,
+                    )
 
-            result.shouldBeInstanceOf<Success<UserAccount>>()
-            val account = result.value
+                val result = factory.create(cmd, simpleHasher)
 
-            // Status should be ACTIVE
-            account.status shouldBe UserAccountStatus.ACTIVE
+                result.shouldBeInstanceOf<Success<UserAccount>>()
+                val account = result.value
 
-            // Phone number should match
-            account.phoneNumber shouldBe phone
+                // Status should be ACTIVE
+                account.status shouldBe UserAccountStatus.ACTIVE
 
-            // Nickname should match
-            account.nickname shouldBe Nickname(nickname)
+                // Phone number should match
+                account.phoneNumber shouldBe phone
 
-            // domainEventQueue should contain UserAccountRegisteredEvent
-            val events = account.domainEventQueue.toList()
-            events.size shouldBe 1
-            val event = events[0]
-            event.shouldBeInstanceOf<UserAccountRegisteredEvent>()
-            event.userId shouldBe account.id
-            event.phoneNumber shouldBe phone
+                // Nickname should match
+                account.nickname shouldBe Nickname(nickname)
+
+                // domainEventQueue should contain UserAccountRegisteredEvent
+                val events = account.domainEventQueue.toList()
+                events.size shouldBe 1
+                val event = events[0]
+                event.shouldBeInstanceOf<UserAccountRegisteredEvent>()
+                event.userId shouldBe account.id
+                event.phoneNumber shouldBe phone
+            }
         }
-    }
-})
+    })

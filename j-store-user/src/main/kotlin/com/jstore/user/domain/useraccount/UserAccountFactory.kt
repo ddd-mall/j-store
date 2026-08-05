@@ -8,10 +8,7 @@ import com.jstore.common.utils.Success
 import com.jstore.user.domain.useraccount.command.UserRegisterCMD
 import com.jstore.user.domain.useraccount.event.UserAccountRegisteredEvent
 
-/**
- * 用户账号工厂接口
- * 负责创建初始状态的 UserAccount 聚合
- */
+/** 用户账号工厂接口 负责创建初始状态的 UserAccount 聚合 */
 interface UserAccountFactory {
     fun create(
         cmd: UserRegisterCMD,
@@ -19,17 +16,13 @@ interface UserAccountFactory {
     ): Result<UserAccount, BusinessError>
 }
 
-class UserAccountFactoryImpl(
-    private val snowFlakSequence: SnowFlakSequence,
-) : UserAccountFactory {
+class UserAccountFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : UserAccountFactory {
 
     companion object {
         private val PASSWORD_LETTER_REGEX = Regex("[a-zA-Z]")
         private val PASSWORD_DIGIT_REGEX = Regex("[0-9]")
 
-        /**
-         * 校验密码强度：8-32 位，至少包含一个字母和一个数字
-         */
+        /** 校验密码强度：8-32 位，至少包含一个字母和一个数字 */
         fun validatePasswordStrength(rawPassword: String): Boolean {
             if (rawPassword.length !in 8..32) return false
             if (!rawPassword.contains(PASSWORD_LETTER_REGEX)) return false
@@ -48,11 +41,12 @@ class UserAccountFactoryImpl(
         }
 
         // 2. 校验 Nickname
-        val nickname = try {
-            Nickname(cmd.nickname)
-        } catch (e: IllegalArgumentException) {
-            return Failure(UserAccountErrors.NICKNAME_INVALID)
-        }
+        val nickname =
+            try {
+                Nickname(cmd.nickname)
+            } catch (e: IllegalArgumentException) {
+                return Failure(UserAccountErrors.NICKNAME_INVALID)
+            }
 
         // 3. 哈希密码
         val hashedPassword = passwordHasher.hash(cmd.rawPassword)
@@ -61,13 +55,14 @@ class UserAccountFactoryImpl(
         val userId = UserId(snowFlakSequence.nextId())
 
         // 5. 创建聚合根
-        val userAccount = UserAccountImpl(
-            id = userId,
-            phoneNumber = cmd.phoneNumber,
-            nickname = nickname,
-            passwordHash = Password(hashedPassword),
-            status = UserAccountStatus.ACTIVE,
-        )
+        val userAccount =
+            UserAccountImpl(
+                id = userId,
+                phoneNumber = cmd.phoneNumber,
+                nickname = nickname,
+                passwordHash = Password(hashedPassword),
+                status = UserAccountStatus.ACTIVE,
+            )
 
         // 6. 发布领域事件
         userAccount.publishEvent(

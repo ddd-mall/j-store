@@ -1,6 +1,3 @@
 package com.jstore.common.logging.slf4j
 
-class Slf4jSimpleImplTest {
-
-}
-
+class Slf4jSimpleImplTest {}

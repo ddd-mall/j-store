@@ -1,0 +1,1 @@
+Markdown-only documentation; content references Kotlin/Spring Boot 3.3.10, Gradle Kotlin DSL, JPA, PostgreSQL, Redis, Testcontainers, Flyway, and Kotest used elsewhere in the project.
