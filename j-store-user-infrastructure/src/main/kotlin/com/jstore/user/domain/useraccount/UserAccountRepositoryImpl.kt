@@ -20,16 +20,20 @@ import com.jstore.common.properties.PhoneNumber
 import com.jstore.user.domain.useraccount.persistence.UserAccountPO
 import com.jstore.user.domain.useraccount.persistence.UserAccountPOJpaRepository
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class UserAccountRepositoryImpl(private val jpaRepository: UserAccountPOJpaRepository) :
     UserAccountRepository {
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun add(userAccount: UserAccount) {
         val po = Converter.toPO(userAccount)
         jpaRepository.save(po)
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: UserAccount): UserAccount {
         val po = Converter.toPO(entity)
         val saved = jpaRepository.save(po)

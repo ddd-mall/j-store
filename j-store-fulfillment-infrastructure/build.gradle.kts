@@ -9,7 +9,7 @@ repositories {
 }
 
 dependencies {
-    api(project(":j-store-fulfillment"))
+    api(project(":j-store-fulfillment-domain"))
     implementation(project(":j-store-common-core"))
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)

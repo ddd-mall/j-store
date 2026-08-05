@@ -51,6 +51,23 @@ interface AfterSaleCapacityPOJpaRepository : JpaRepository<AfterSaleCapacityPO, 
 }
 
 interface AfterSaleCommandReceiptPOJpaRepository : JpaRepository<AfterSaleCommandReceiptPO, Long> {
+    @Modifying
+    @Query(
+        value =
+            "insert into after_sale_command_receipts(id,actor_id,command_type,idempotency_key,request_hash,after_sale_id,result_status,created_at) values (:id,:actorId,:commandType,:idempotencyKey,:requestHash,:afterSaleId,:resultStatus,:createdAt) on conflict (actor_id,command_type,idempotency_key) do nothing",
+        nativeQuery = true,
+    )
+    fun tryInsert(
+        @Param("id") id: Long,
+        @Param("actorId") actorId: Long,
+        @Param("commandType") commandType: String,
+        @Param("idempotencyKey") idempotencyKey: String,
+        @Param("requestHash") requestHash: String,
+        @Param("afterSaleId") afterSaleId: Long,
+        @Param("resultStatus") resultStatus: String,
+        @Param("createdAt") createdAt: java.time.LocalDateTime,
+    ): Int
+
     fun findByActorIdAndCommandTypeAndIdempotencyKey(
         actorId: Long,
         commandType: String,

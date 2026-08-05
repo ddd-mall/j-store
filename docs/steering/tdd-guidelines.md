@@ -47,9 +47,9 @@ inclusion: always
 优先运行最小相关模块测试，完成后按影响范围扩大：
 
 ```bash
-./gradlew :j-store-order:test
-./gradlew :j-store-goods:test
-./gradlew :j-store-accounting:test
+./gradlew :j-store-order-domain:test :j-store-order-application:test :j-store-order-boot:test
+./gradlew :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
+./gradlew :j-store-accounting-domain:test :j-store-accounting-application:test :j-store-accounting-boot:test
 ./gradlew test
 ```
 
@@ -61,4 +61,3 @@ inclusion: always
 - 正常路径、关键失败路径、边界条件和回归场景均有覆盖。
 - 测试命名能表达业务意图。
 - 所有相关测试通过；若因外部环境无法运行，必须记录未验证项和原因。
-
