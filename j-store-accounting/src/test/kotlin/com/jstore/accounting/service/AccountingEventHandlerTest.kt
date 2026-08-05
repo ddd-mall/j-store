@@ -27,13 +27,10 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.order.event.OrderCompletedEvent
-import com.jstore.payment.domain.payment.PaymentOrderId
-import com.jstore.payment.domain.payment.PaymentRefundId
-import com.jstore.payment.domain.payment.PaymentRefundItem
-import com.jstore.payment.domain.payment.event.PaymentCapturedEvent
-import com.jstore.payment.domain.payment.event.PaymentRefundSucceededEvent
+import com.jstore.contracts.commerce.ContractRefundItem
+import com.jstore.contracts.commerce.OrderCompletedIntegrationEvent
+import com.jstore.contracts.commerce.PaymentCapturedIntegrationEvent
+import com.jstore.contracts.commerce.PaymentRefundSucceededIntegrationEvent
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.time.Instant
@@ -50,15 +47,16 @@ class AccountingEventHandlerTest :
                 )
             val handler = PaymentCapturedAccountingEventHandler(FakeOrderAccountingService(), app)
 
-            handler.onDomainEvent(
-                PaymentCapturedEvent(
-                    PaymentOrderId(2),
-                    1,
-                    10,
-                    "txn-1",
-                    Price.ofFen(1000),
-                    "CNY",
-                    Instant.parse("2026-04-30T01:00:00Z"),
+            handler.handle(
+                PaymentCapturedIntegrationEvent(
+                    paymentId = 2,
+                    orderId = 1,
+                    merchantId = 10,
+                    providerTransactionId = "txn-1",
+                    amountFen = 1000,
+                    currency = "CNY",
+                    sourceMessageId = "payment-captured-1",
+                    occurredAtValue = Instant.parse("2026-04-30T01:00:00Z"),
                 )
             )
 
@@ -77,8 +75,12 @@ class AccountingEventHandlerTest :
                 )
             val handler = OrderCompletedAccountingEventHandler(FakeOrderAccountingService(), app)
 
-            handler.onDomainEvent(
-                OrderCompletedEvent(OrderId(1), Instant.parse("2026-04-30T01:00:00Z"))
+            handler.handle(
+                OrderCompletedIntegrationEvent(
+                    orderId = 1,
+                    sourceMessageId = "order-completed-1",
+                    occurredAtValue = Instant.parse("2026-04-30T01:00:00Z"),
+                )
             )
 
             journalRepo.savedEntries.single().sourceDocument shouldBe
@@ -106,18 +108,19 @@ class AccountingEventHandlerTest :
             val handler =
                 PaymentRefundSucceededAccountingEventHandler(FakeOrderAccountingService(), app)
 
-            handler.onDomainEvent(
-                PaymentRefundSucceededEvent(
-                    paymentId = PaymentOrderId(2),
-                    refundId = PaymentRefundId(9),
+            handler.handle(
+                PaymentRefundSucceededIntegrationEvent(
+                    paymentId = 2,
+                    refundId = 9,
                     orderId = 1,
                     afterSaleId = 8,
                     merchantId = 10,
                     providerRefundId = "refund-1",
-                    items = listOf(PaymentRefundItem(10, 20, 1, Price.ofFen(500))),
-                    amount = Price.ofFen(500),
+                    items = listOf(ContractRefundItem(10, 20, 1, 500)),
+                    amountFen = 500,
                     currency = "CNY",
-                    occurredAt = Instant.parse("2026-04-30T01:00:00Z"),
+                    sourceMessageId = "refund-succeeded-1",
+                    occurredAtValue = Instant.parse("2026-04-30T01:00:00Z"),
                 )
             )
 

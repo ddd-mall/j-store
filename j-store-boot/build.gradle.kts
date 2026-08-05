@@ -39,6 +39,7 @@ dependencies {
     implementation(project(":j-store-shop-infrastructure"))
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-common-spring"))
+    implementation(project(":j-store-integration-contracts"))
     implementation(project(":j-store-authentication-spring-sdk"))
     implementation(project(":j-store-accounting"))
     implementation(project(":j-store-accounting-infrastructure"))

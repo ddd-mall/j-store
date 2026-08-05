@@ -16,7 +16,9 @@
  */
 package com.jstore.common.framework.event.outbox.persistence
 
+import com.jstore.common.framework.event.outbox.OutboxDeliveryTarget
 import com.jstore.common.framework.event.outbox.OutboxEntryStatus
+import com.jstore.common.framework.event.outbox.OutboxMessageKind
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -50,4 +52,15 @@ class OutboxEntryPO(
     @Column(name = "locked_until") var lockedUntil: Instant? = null,
     @Column(name = "lock_token", nullable = false) var lockToken: Long = 0,
     @Column(name = "last_error", columnDefinition = "TEXT") var lastError: String? = null,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "message_kind", nullable = false, length = 32)
+    var messageKind: OutboxMessageKind = OutboxMessageKind.DOMAIN_EVENT,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_target", nullable = false, length = 32)
+    var deliveryTarget: OutboxDeliveryTarget = OutboxDeliveryTarget.LOCAL_DOMAIN,
+    @Column(name = "destination", nullable = false, length = 512) var destination: String = "",
+    @Column(name = "partition_key", nullable = false, length = 256) var partitionKey: String = "",
+    @Column(name = "correlation_id", nullable = false, length = 128) var correlationId: String = "",
+    @Column(name = "causation_id", length = 128) var causationId: String? = null,
+    @Column(name = "tenant_id", length = 128) var tenantId: String? = null,
 )

@@ -456,6 +456,13 @@ open class OutboxEntryRepositoryImpl(
                 lockedUntil = entry.lockedUntil,
                 lockToken = entry.lockToken,
                 lastError = entry.lastError,
+                messageKind = entry.messageKind,
+                deliveryTarget = entry.deliveryTarget,
+                destination = entry.destination,
+                partitionKey = entry.partitionKey,
+                correlationId = entry.correlationId,
+                causationId = entry.causationId,
+                tenantId = entry.tenantId,
             )
 
         fun toDomain(po: OutboxEntryPO) =
@@ -479,6 +486,13 @@ open class OutboxEntryRepositoryImpl(
                 lockedUntil = po.lockedUntil,
                 lockToken = po.lockToken,
                 lastError = po.lastError,
+                messageKind = po.messageKind,
+                deliveryTarget = po.deliveryTarget,
+                destination = po.destination.ifBlank { po.eventType },
+                partitionKey = po.partitionKey.ifBlank { po.aggregateId },
+                correlationId = po.correlationId.ifBlank { po.eventId.ifBlank { po.id } },
+                causationId = po.causationId,
+                tenantId = po.tenantId,
             )
     }
 }

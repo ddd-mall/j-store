@@ -7,6 +7,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":j-store-integration-contracts"))
     api(libs.kotlin.stdlib)
     api(project(":j-store-common-core"))
     testImplementation(libs.kotlin.test)

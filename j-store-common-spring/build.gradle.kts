@@ -31,6 +31,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation("io.zonky.test:embedded-postgres:2.1.0")
     testImplementation(project(":j-store-order"))
+    testImplementation(project(":j-store-integration-contracts"))
     testRuntimeOnly(libs.postgresql)
 }
 

@@ -17,15 +17,19 @@
 package com.jstore.common.framework.event.outbox.persistence
 
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.framework.event.DomainEventBus
 import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.event.ExplicitDomainEvent
+import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.common.framework.event.outbox.EventSerializer
+import com.jstore.common.framework.event.outbox.LocalDomainEventDeliveryChannel
 import com.jstore.common.framework.event.outbox.OutboxDeadLetterOperationsRepository
+import com.jstore.common.framework.event.outbox.OutboxDeliveryRouter
+import com.jstore.common.framework.event.outbox.OutboxDeliveryTarget
 import com.jstore.common.framework.event.outbox.OutboxEntry
 import com.jstore.common.framework.event.outbox.OutboxEntryRepository
 import com.jstore.common.framework.event.outbox.OutboxEntryStatus
+import com.jstore.common.framework.event.outbox.OutboxMessageKind
 import com.jstore.common.framework.event.outbox.OutboxProperties
 import com.jstore.common.framework.event.outbox.OutboxPublisher
 import com.jstore.common.framework.event.outbox.SpringOutboxRelayTransactionOperations
@@ -97,6 +101,32 @@ class OutboxEntryRepositoryImplPostgresTest {
     }
 
     @Test
+    fun `integration delivery routing metadata survives persistence round trip`() {
+        val integrationEntry =
+            entry("integration-routing")
+                .copy(
+                    messageKind = OutboxMessageKind.INTEGRATION_COMMAND,
+                    deliveryTarget = OutboxDeliveryTarget.BROKER,
+                    destination = "inventory.commands",
+                    partitionKey = "order-42",
+                    correlationId = "checkout-42",
+                    causationId = "order-created-42",
+                    tenantId = "merchant-7",
+                )
+
+        val saved =
+            TransactionTemplate(transactionManager).execute { repository.save(integrationEntry) }!!
+
+        assertEquals(OutboxMessageKind.INTEGRATION_COMMAND, saved.messageKind)
+        assertEquals(OutboxDeliveryTarget.BROKER, saved.deliveryTarget)
+        assertEquals("inventory.commands", saved.destination)
+        assertEquals("order-42", saved.partitionKey)
+        assertEquals("checkout-42", saved.correlationId)
+        assertEquals("order-created-42", saved.causationId)
+        assertEquals("merchant-7", saved.tenantId)
+    }
+
+    @Test
     fun `business row and outbox row commit and rollback atomically`() {
         val transactions = TransactionTemplate(transactionManager)
         transactions.executeWithoutResult {
@@ -152,7 +182,7 @@ class OutboxEntryRepositoryImplPostgresTest {
                 ): DomainEvent = RelayProbeEvent(payload)
             }
         val bus =
-            object : DomainEventBus {
+            object : LocalDomainEventBus {
                 override fun publishEvent(domainEvent: DomainEvent) {
                     if (consumptionRepository.tryStart("relay-probe-listener", domainEvent)) {
                         entityManager
@@ -172,8 +202,7 @@ class OutboxEntryRepositoryImplPostgresTest {
             }
         OutboxPublisher(
                 repository,
-                serializer,
-                bus,
+                OutboxDeliveryRouter(listOf(LocalDomainEventDeliveryChannel(serializer, bus))),
                 OutboxProperties(batchSize = 10, workerId = "relay-e2e"),
                 transactionOperations = SpringOutboxRelayTransactionOperations(transactionManager),
             )
