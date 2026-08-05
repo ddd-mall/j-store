@@ -23,11 +23,16 @@ import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.common.properties.Price
 import java.time.LocalDateTime
 import java.util.Locale
+import com.jstore.order.acl.OfferInfo
+import com.jstore.order.acl.OfferService
 
 fun testOrder(
     trade: TradeStatus = TradeStatus.CREATED,
     payment: PaymentStatus = PaymentStatus.UNPAID,
     fulfillment: FulfillmentStatus = FulfillmentStatus.UNFULFILLED,
+    commitment: CommitmentStatus =
+        if (trade == TradeStatus.CREATED) CommitmentStatus.PENDING_OFFER
+        else CommitmentStatus.CONFIRMED,
     itemStatuses: List<OrderItemStatus> = listOf(OrderItemStatus.NONE),
 ): OrderImpl {
     val items = itemStatuses.mapIndexed { index, status ->
@@ -68,6 +73,7 @@ fun testOrder(
         _tradeStatus = trade,
         _paymentStatus = payment,
         _fulfillmentStatus = fulfillment,
+        _commitmentStatus = commitment,
         amountSnapshot = OrderAmountSnapshot.cny(Price.ofFen(items.size * 100)),
         _paidAmount =
             if (payment == PaymentStatus.UNPAID) Price.ZERO else Price.ofFen(items.size * 100),
@@ -78,3 +84,24 @@ fun testOrder(
         _updateTime = LocalDateTime.of(2026, 1, 1, 0, 0),
     )
 }
+
+fun testOfferService(
+    merchantId: Long = 7,
+    price: Price = Price.ofFen(100),
+): OfferService =
+    OfferService { ids ->
+        ids.map {
+            OfferInfo(
+                offerId = it,
+                storeId = 1,
+                merchantId = merchantId,
+                skuId = it,
+                channelId = "ONLINE",
+                market = "CN",
+                price = price,
+                version = 1,
+                fulfillmentNodeId = "DEFAULT",
+                allowBackorder = false,
+            )
+        }
+    }

@@ -55,6 +55,8 @@ class OrderController(private val orderService: OrderUseCase) {
     )
 
     data class OrderItemRequest(
+        val offerId: Long,
+        val offerVersion: Long,
         val spuId: Long,
         val skuId: Long,
         val quantity: Int,
@@ -77,6 +79,7 @@ class OrderController(private val orderService: OrderUseCase) {
         val tradeStatus: String,
         val paymentStatus: String,
         val fulfillmentStatus: String,
+        val commitmentStatus: String,
         val currency: String,
         val itemsSubtotal: Long,
         val discountAmount: Long,
@@ -92,6 +95,11 @@ class OrderController(private val orderService: OrderUseCase) {
 
     data class OrderItemResponse(
         val id: Long,
+        val offerId: Long,
+        val storeId: Long,
+        val offerVersion: Long,
+        val fulfillmentNodeId: String,
+        val channelId: String,
         val skuId: Long,
         val spuId: Long,
         val goodsName: String,
@@ -149,6 +157,8 @@ class OrderController(private val orderService: OrderUseCase) {
                             skuId = it.skuId,
                             quantity = it.quantity,
                             snapshotVersion = it.snapshotVersion,
+                            offerId = it.offerId,
+                            offerVersion = it.offerVersion,
                         )
                     },
             )
@@ -206,6 +216,7 @@ class OrderController(private val orderService: OrderUseCase) {
             tradeStatus = tradeStatus.name,
             paymentStatus = paymentStatus.name,
             fulfillmentStatus = fulfillmentStatus.name,
+            commitmentStatus = commitmentStatus.name,
             currency = amountSnapshot.currency,
             itemsSubtotal = amountSnapshot.itemsSubtotal.fen,
             discountAmount = amountSnapshot.discountAmount.fen,
@@ -222,6 +233,11 @@ class OrderController(private val orderService: OrderUseCase) {
     private fun OrderItem.toOrderItemResponse() =
         OrderItemResponse(
             id = id.value,
+            offerId = offerId,
+            storeId = storeId,
+            offerVersion = offerVersion,
+            fulfillmentNodeId = fulfillmentNodeId,
+            channelId = channelId,
             skuId = skuId,
             spuId = spuId,
             goodsName = goodsName,

@@ -45,7 +45,6 @@ class GoodsServiceImplTest :
                                             skuName = "Black 128G",
                                             attributes =
                                                 listOf("color" to "black", "storage" to "128G"),
-                                            price = Price.ofFen(399900),
                                         )
                                     ),
                             )
@@ -74,7 +73,6 @@ class GoodsServiceImplTest :
                         spuName = "Phone",
                         skuName = "Black 128G",
                         attributes = listOf("color" to "black", "storage" to "128G"),
-                        price = Price.ofFen(399900),
                     ),
                     GoodsInfo(
                         id = GoodsId(spuId = 1001L, skuId = 2001L),
@@ -83,7 +81,6 @@ class GoodsServiceImplTest :
                         spuName = "Phone",
                         skuName = "Black 128G",
                         attributes = listOf("color" to "black", "storage" to "128G"),
-                        price = Price.ofFen(399900),
                     ),
                 )
         }

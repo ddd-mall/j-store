@@ -44,6 +44,8 @@ interface Order : AggregateRoot<OrderId>, RecordsDomainEvents {
     val tradeStatus: TradeStatus
     val paymentStatus: PaymentStatus
     val fulfillmentStatus: FulfillmentStatus
+    val commitmentStatus: CommitmentStatus
+    val saleAuthorizations: List<SaleAuthorizationRef>
     val refundedAmount: Price
     val successfulRefundFacts: List<RefundFact>
 
@@ -65,7 +67,15 @@ interface Order : AggregateRoot<OrderId>, RecordsDomainEvents {
     /** 更新时间 */
     val updateTime: LocalDateTime
 
-    /** 库存预扣成功，转为待支付 */
+    /** Store 已经签发一个或多个销售授权。 */
+    fun recordSaleAuthorized(
+        authorizations: List<SaleAuthorizationRef>
+    ): Result<Unit, BusinessError>
+
+    /** Store 拒绝销售授权，关闭订单。 */
+    fun markSaleAuthorizationFailed(reason: String): Result<Unit, BusinessError>
+
+    /** ATP 库存预扣成功，形成完整销售承诺并转为待支付。 */
     fun confirmStock(): Result<Unit, BusinessError>
 
     /** 库存不足，取消订单 */

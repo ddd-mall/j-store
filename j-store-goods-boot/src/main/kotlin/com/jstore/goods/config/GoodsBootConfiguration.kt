@@ -30,7 +30,6 @@ import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
 class GoodsBootConfiguration {
-
     @Bean
     fun spuFactory(snowFlakSequence: SnowFlakSequence): SpuFactory {
         return SpuFactoryImpl(snowFlakSequence)

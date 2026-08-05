@@ -17,7 +17,6 @@
 package com.jstore.goods.domain.commodity
 
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Success
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -32,7 +31,7 @@ import io.kotest.property.checkAll
 /**
  * Property 1: createDraftCopy 保持源商品数据完整性
  *
- * For any 有效的 ON_SALE 状态 SPU（包含任意 name、description、SKU 列表和 version）， 通过 SpuFactory.createDraftCopy
+ * For any 有效的 PUBLISHED 状态 SPU（包含任意 name、description、SKU 列表和 version）， 通过 SpuFactory.createDraftCopy
  * 创建的草稿副本应满足： 草稿的 name 等于源商品的 name，草稿的 description 等于源商品的 description， 草稿的 SKU 列表与源商品的 SKU
  * 列表内容一致，草稿的 version 等于源商品的 version， 草稿的 status 为 DRAFT，草稿的 sourceSpuId 等于源商品的 id， 草稿的 id 不等于源商品的
  * id。
@@ -57,13 +56,12 @@ class CreateDraftCopyDataIntegrityPropertyTest :
                         id = SkuId(skuIdVal),
                         skuName = skuName,
                         attributes = listOf(Attribute("variant", attrValue)),
-                        price = Price.ofFen(priceFen),
                     )
                 },
                 1..5,
             )
 
-        // Generator for an ON_SALE source SPU
+        // Generator for an PUBLISHED source SPU
         val onSaleSpuArb: Arb<SpuImpl> =
             Arb.bind(
                 Arb.long(1L..Long.MAX_VALUE),
@@ -76,13 +74,13 @@ class CreateDraftCopyDataIntegrityPropertyTest :
                     id = SpuId(spuIdVal),
                     name = name,
                     description = description,
-                    _status = CommodityStatus.ON_SALE,
+                    _status = CommodityStatus.PUBLISHED,
                     _skus = skus.toMutableList(),
                     _version = version,
                 )
             }
 
-        test("createDraftCopy should preserve source data integrity for ON_SALE SPU") {
+        test("createDraftCopy should preserve source data integrity for PUBLISHED SPU") {
             checkAll(100, onSaleSpuArb) { source ->
                 val result = factory.createDraftCopy(source)
 

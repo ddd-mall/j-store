@@ -17,7 +17,6 @@
 package com.jstore.goods.service
 
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.properties.Price
 import com.jstore.goods.api.GoodsSkuSnapshotInfo
 import com.jstore.goods.domain.commodity.Attribute
 import com.jstore.goods.domain.commodity.GoodsStyleFactory
@@ -54,7 +53,6 @@ class CommodityServiceGoodsSnapshotQueryTest :
                     goodsStyleRepository = mock<GoodsStyleRepository>(),
                     goodsStyleFactory = mock<GoodsStyleFactory>(),
                 )
-            val price = Price.ofFen(12800)
             val snapshot =
                 SpuSnapshot(
                     id = SpuSnapshotId(9001L),
@@ -70,7 +68,6 @@ class CommodityServiceGoodsSnapshotQueryTest :
                                 skuName = "Blue Switch",
                                 attributes =
                                     listOf(Attribute("switch", "blue"), Attribute("layout", "87")),
-                                price = price,
                             )
                         ),
                     createdAt = LocalDateTime.parse("2026-05-08T10:15:30"),
@@ -95,7 +92,6 @@ class CommodityServiceGoodsSnapshotQueryTest :
                             skuId = 2001L,
                             skuName = "Blue Switch",
                             attributes = listOf("switch" to "blue", "layout" to "87"),
-                            price = price,
                         )
                     )
                 )

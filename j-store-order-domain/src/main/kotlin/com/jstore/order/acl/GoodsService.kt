@@ -16,8 +16,6 @@
  */
 package com.jstore.order.acl
 
-import com.jstore.common.properties.Price
-
 interface GoodsService {
     fun queryGoods(goodsId: List<GoodsId>): List<GoodsInfo>
 }
@@ -31,5 +29,4 @@ data class GoodsInfo(
     val spuName: String,
     val skuName: String,
     val attributes: List<Pair<String, String>>,
-    val price: Price,
 )

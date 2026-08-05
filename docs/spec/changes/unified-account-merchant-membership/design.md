@@ -17,10 +17,12 @@ UserAccount (全局登录身份)
 
 ## 模块边界
 
-- `j-store-shop`：Merchant、MerchantMembership、角色/权限、仓储端口和应用服务。
+- `j-store-shop-domain`：Merchant、MerchantMembership、角色/权限和仓储端口。
+- `j-store-shop-application`：商户用例、授权服务和 `UserAccountLookup` 端口。
 - `j-store-shop-infrastructure`：JPA PO、Spring Data Repository 和领域仓储实现。
-- `j-store-boot`：Bean 装配、商户管理 API、跨上下文接口鉴权和 Flyway 迁移。
-- `j-store-user`：继续负责全局登录身份，不依赖 shop 上下文。
+- `j-store-shop-boot`：Bean 装配、商户管理 API 和用例事务边界。
+- `j-store-boot`：组合 shop boot 并继续持有整站 Flyway 迁移。
+- `j-store-user-domain`：继续负责全局登录身份，不依赖 shop 上下文。
 
 ## 权限模型
 

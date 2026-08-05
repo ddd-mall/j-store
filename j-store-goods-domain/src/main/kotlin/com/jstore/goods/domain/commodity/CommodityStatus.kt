@@ -17,10 +17,10 @@
 package com.jstore.goods.domain.commodity
 
 enum class CommodityStatus {
-    /** 草稿 — 新建未发布 */
+    /** 商品资料草稿。 */
     DRAFT,
-    /** 已发布/下架 — 可上架 */
-    OFF_SALE,
-    /** 在售 — 可下架 */
-    ON_SALE,
+    /** 商品资料已经发布，可被 Store/Offer 引用。 */
+    PUBLISHED,
+    /** 商品资料已归档，不再允许建立新的销售要约。 */
+    ARCHIVED,
 }

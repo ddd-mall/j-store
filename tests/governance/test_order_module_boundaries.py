@@ -29,6 +29,7 @@ class OrderModuleBoundaryTests(unittest.TestCase):
             "j-store-order-infrastructure": {
                 "j-store-order-domain",
                 "j-store-goods-api",
+                "j-store-shop-api",
             },
         }
         for module, allowed in expected.items():

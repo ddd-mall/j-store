@@ -121,9 +121,7 @@ class PaymentOrderImpl(
                 ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
         if (refund.status == PaymentRefundStatus.PENDING) return Success(false)
         if (refund.status != PaymentRefundStatus.FAILED) return Failure(PaymentErrors.INVALID_STATE)
-        refund.status = PaymentRefundStatus.PENDING
-        refund.failureReason = null
-        refund.completedAt = null
+        refund.markPending()
         publishRefundRequested(refund, occurredAt)
         return Success(true)
     }
@@ -143,9 +141,7 @@ class PaymentOrderImpl(
         if (refund.status != PaymentRefundStatus.PENDING || providerRefundId.isBlank()) {
             return Failure(PaymentErrors.INVALID_STATE)
         }
-        refund.status = PaymentRefundStatus.SUCCEEDED
-        refund.providerRefundId = providerRefundId
-        refund.completedAt = occurredAt
+        refund.markSucceeded(providerRefundId, occurredAt)
         val refunded =
             Price.sumOf(
                 _refunds.filter { it.status == PaymentRefundStatus.SUCCEEDED }.map { it.amount }
@@ -182,9 +178,7 @@ class PaymentOrderImpl(
             return Success(false)
         if (refund.status != PaymentRefundStatus.PENDING || reason.isBlank())
             return Failure(PaymentErrors.INVALID_STATE)
-        refund.status = PaymentRefundStatus.FAILED
-        refund.failureReason = reason
-        refund.completedAt = occurredAt
+        refund.markFailed(reason, occurredAt)
         raise(
             PaymentRefundFailedEvent(id, refund.id, orderId, refund.afterSaleId, reason, occurredAt)
         )

@@ -17,7 +17,6 @@
 package com.jstore.goods.service
 
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Success
 import com.jstore.goods.domain.commodity.*
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactory
@@ -35,7 +34,7 @@ import org.mockito.kotlin.*
 /**
  * Property 8: discardDraft 不影响源商品
  *
- * For any ON_SALE 状态的源 SPU 及其草稿副本，执行 discardDraft 后， 源 SPU 的 name、description、SKU 列表、version、status
+ * For any PUBLISHED 状态的源 SPU 及其草稿副本，执行 discardDraft 后， 源 SPU 的 name、description、SKU 列表、version、status
  * 均保持不变。
  *
  * **Validates: Requirements 7.2, 7.4**
@@ -84,13 +83,12 @@ class DiscardDraftSourceUnchangedPropertyTest :
                         id = SkuId(skuIdVal),
                         skuName = skuName,
                         attributes = listOf(Attribute("variant", attrValue)),
-                        price = Price.ofFen(priceFen),
                     )
                 },
                 1..5,
             )
 
-        // Generator for an ON_SALE source SPU
+        // Generator for an PUBLISHED source SPU
         val sourceSpuArb: Arb<SpuImpl> =
             Arb.bind(
                 Arb.long(1L..Long.MAX_VALUE),
@@ -103,7 +101,7 @@ class DiscardDraftSourceUnchangedPropertyTest :
                     id = SpuId(spuIdVal),
                     name = name,
                     description = description,
-                    _status = CommodityStatus.ON_SALE,
+                    _status = CommodityStatus.PUBLISHED,
                     _skus = skus.toMutableList(),
                     _version = version,
                 )

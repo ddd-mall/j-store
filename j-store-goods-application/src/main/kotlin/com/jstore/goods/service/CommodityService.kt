@@ -42,7 +42,7 @@ class CommodityService(
 ) : CommodityUseCase, GoodsSnapshotQueryService {
 
     /**
-     * 创建/更新SPU（拦截 ON_SALE 商品的直接编辑）
+     * 创建/更新 SPU（已发布资料必须通过草稿副本修改）
      *
      * TODO: 与 editOnSale 可能存在职能上的重复
      */
@@ -51,9 +51,8 @@ class CommodityService(
             cmd.spuId?.let {
                 val old =
                     spuRepository.findById(it) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
-                // 拦截 ON_SALE 商品直接编辑
-                if (old.status == CommodityStatus.ON_SALE) {
-                    return Failure(CommodityErrors.ON_SALE_DIRECT_EDIT_REJECTED)
+                if (old.status == CommodityStatus.PUBLISHED) {
+                    return Failure(CommodityErrors.PUBLISHED_DIRECT_EDIT_REJECTED)
                 }
                 val update = spuFactory.update(cmd, old)
                 return@map spuRepository.save(update)
@@ -78,28 +77,13 @@ class CommodityService(
     }
 
     /**
-     * 发布商品: DRAFT → OFF_SALE
+     * 发布商品资料并创建版本快照。
      *
      * TODO: 如果此对象是另一个SPU的草稿副本，不应该允许发布，应该先合并回源商品后由源商品发布
      */
-    override fun publish(spuId: SpuId): Result<Unit, BusinessError> {
+    override fun publish(spuId: SpuId): Result<SpuSnapshot, BusinessError> {
         val spu = spuRepository.findById(spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
         spu.publish().onFailure {
-            return Failure(it)
-        }
-        spuRepository.save(spu)
-        spu.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    /**
-     * 上架商品: OFF_SALE → ON_SALE，同时创建快照
-     *
-     * TODO: 同样的，如果SPU本身是另一个SPU的草稿副本，不应该被允许上架
-     */
-    override fun putOnSale(spuId: SpuId): Result<SpuSnapshot, BusinessError> {
-        val spu = spuRepository.findById(spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
-        spu.putOnSale().onFailure {
             return Failure(it)
         }
         val snapshot = snapshotFactory.createSnapshot(spu)
@@ -109,10 +93,9 @@ class CommodityService(
         return Success(snapshot)
     }
 
-    /** 下架商品: ON_SALE → OFF_SALE */
-    override fun takeOffSale(spuId: SpuId): Result<Unit, BusinessError> {
+    override fun archive(spuId: SpuId): Result<Unit, BusinessError> {
         val spu = spuRepository.findById(spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
-        spu.takeOffSale().onFailure {
+        spu.archive().onFailure {
             return Failure(it)
         }
         spuRepository.save(spu)
@@ -134,7 +117,6 @@ class CommodityService(
                                 skuId = skuSnapshot.skuId.value,
                                 skuName = skuSnapshot.skuName,
                                 attributes = skuSnapshot.attributes.map { it.key to it.value },
-                                price = skuSnapshot.price,
                             )
                         },
                 )
@@ -143,14 +125,14 @@ class CommodityService(
     }
 
     /**
-     * 获取在售商品的可编辑草稿副本
+     * 获取已发布商品资料的可编辑草稿副本
      * - 已有草稿 → 直接返回（幂等）
      * - 无草稿 → 创建并持久化后返回
      */
     override fun getDraft(spuId: SpuId): Result<Spu, BusinessError> {
         val spu = spuRepository.findById(spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
-        if (spu.status != CommodityStatus.ON_SALE) {
-            return Failure(CommodityErrors.ONLY_ON_SALE_NEEDS_DRAFT)
+        if (spu.status != CommodityStatus.PUBLISHED) {
+            return Failure(CommodityErrors.ONLY_PUBLISHED_NEEDS_DRAFT)
         }
         // 幂等：已有草稿直接返回
         val existingDraft = spuRepository.findDraftBySourceSpuId(spuId)
