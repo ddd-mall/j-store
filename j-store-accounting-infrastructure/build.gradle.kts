@@ -15,7 +15,7 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
-    api(project(":j-store-accounting"))
+    api(project(":j-store-accounting-domain"))
     implementation(project(":j-store-common-core"))
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)

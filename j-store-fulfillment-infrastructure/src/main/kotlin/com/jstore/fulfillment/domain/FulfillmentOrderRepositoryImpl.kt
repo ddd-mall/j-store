@@ -20,10 +20,13 @@ import com.jstore.fulfillment.domain.persistence.FulfillmentItemPO
 import com.jstore.fulfillment.domain.persistence.FulfillmentOrderPO
 import com.jstore.fulfillment.domain.persistence.FulfillmentOrderPOJpaRepository
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class FulfillmentOrderRepositoryImpl(private val jpaRepository: FulfillmentOrderPOJpaRepository) :
     FulfillmentOrderRepository {
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: FulfillmentOrder): FulfillmentOrder =
         toDomain(jpaRepository.save(toPO(entity)))
 

@@ -11,7 +11,7 @@ dependencies {
     api(libs.kotlin.stdlib)
     api(libs.kotlin.reflect)
     api(project(":j-store-common-core"))
-    api(project(":j-store-user"))
+    api(project(":j-store-user-domain"))
 
     // Spring MVC（仅 spring/ 包使用）
     implementation(platform(libs.spring.boot.dependencies))
