@@ -124,6 +124,13 @@ CREATE TABLE IF NOT EXISTS outbox_entry (
     event_id          VARCHAR(64)   NOT NULL,
     event_class_name  VARCHAR(512)  NOT NULL,
     event_version     INTEGER       NOT NULL DEFAULT 1,
+    message_kind      VARCHAR(32)   NOT NULL DEFAULT 'DOMAIN_EVENT',
+    delivery_target   VARCHAR(32)   NOT NULL DEFAULT 'LOCAL_DOMAIN',
+    destination       VARCHAR(512)  NOT NULL,
+    partition_key     VARCHAR(256)  NOT NULL,
+    correlation_id    VARCHAR(128)  NOT NULL,
+    causation_id      VARCHAR(128),
+    tenant_id         VARCHAR(128),
     payload           TEXT          NOT NULL,
     aggregate_type    VARCHAR(256)  NOT NULL,
     aggregate_id      VARCHAR(128)  NOT NULL,
@@ -159,6 +166,9 @@ CREATE INDEX IF NOT EXISTS idx_outbox_entry_aggregate
 
 CREATE INDEX IF NOT EXISTS idx_outbox_entry_event_id
     ON outbox_entry (event_id);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_entry_target_ready
+    ON outbox_entry (delivery_target, status, next_attempt_at, created_at);
 
 CREATE TABLE IF NOT EXISTS domain_event_consumption (
     listener_id    VARCHAR(512) NOT NULL,

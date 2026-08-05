@@ -17,7 +17,7 @@
 package com.jstore.common.framework.event.outbox
 
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.framework.event.DomainEventBus
+import com.jstore.common.framework.event.LocalDomainEventBus
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -85,10 +85,11 @@ class OutboxPublisherTest :
                 mock<EventSerializer> {
                     on { deserialize(any(), any(), any()) } doReturn StubEvent()
                 }
-            val mockBus = mock<DomainEventBus>()
+            val mockBus = mock<LocalDomainEventBus>()
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-            val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+            val publisher =
+                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
             publisher.pollAndPublish()
 
             verify(mockBus).publishEvent(any())
@@ -113,12 +114,13 @@ class OutboxPublisherTest :
                     on { deserialize(any(), any(), any()) } doReturn StubEvent()
                 }
             val mockBus =
-                mock<DomainEventBus> {
+                mock<LocalDomainEventBus> {
                     on { publishEvent(any()) } doThrow RuntimeException("bus error")
                 }
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-            val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+            val publisher =
+                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
             publisher.pollAndPublish()
 
             val captor = argumentCaptor<OutboxEntry>()
@@ -144,12 +146,13 @@ class OutboxPublisherTest :
                     on { deserialize(any(), any(), any()) } doReturn StubEvent()
                 }
             val mockBus =
-                mock<DomainEventBus> {
+                mock<LocalDomainEventBus> {
                     on { publishEvent(any()) } doThrow RuntimeException("bus error")
                 }
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-            val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+            val publisher =
+                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
             publisher.pollAndPublish()
 
             val captor = argumentCaptor<OutboxEntry>()
@@ -167,10 +170,11 @@ class OutboxPublisherTest :
                         RuntimeException("DB connection lost")
                 }
             val mockSerializer = mock<EventSerializer>()
-            val mockBus = mock<DomainEventBus>()
+            val mockBus = mock<LocalDomainEventBus>()
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-            val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+            val publisher =
+                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
 
             shouldThrow<RuntimeException> { publisher.pollAndPublish() }
 
@@ -184,7 +188,7 @@ class OutboxPublisherTest :
                     on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn emptyList()
                 }
             val mockSerializer = mock<EventSerializer>()
-            val mockBus = mock<DomainEventBus>()
+            val mockBus = mock<LocalDomainEventBus>()
             val properties =
                 OutboxProperties(
                     maxRetryCount = 5,
@@ -193,7 +197,8 @@ class OutboxPublisherTest :
                     workerId = "worker-a",
                 )
 
-            val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+            val publisher =
+                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
             val before = Instant.now()
             publisher.pollAndPublish()
 
@@ -212,10 +217,11 @@ class OutboxPublisherTest :
                     on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn emptyList()
                 }
             val mockSerializer = mock<EventSerializer>()
-            val mockBus = mock<DomainEventBus>()
+            val mockBus = mock<LocalDomainEventBus>()
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-            val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+            val publisher =
+                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
             publisher.pollAndPublish()
 
             verify(mockBus, never()).publishEvent(any())
@@ -242,7 +248,7 @@ class OutboxPublisherTest :
                     on { deserialize(any(), any(), any()) } doReturn stubEvent
                 }
             val mockBus =
-                mock<DomainEventBus> {
+                mock<LocalDomainEventBus> {
                     on { publishEvent(any()) } doAnswer
                         {
                             callCount++
@@ -251,7 +257,8 @@ class OutboxPublisherTest :
                 }
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-            val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+            val publisher =
+                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
             publisher.pollAndPublish()
 
             verify(mockRepo, times(2)).markPublished(any(), any())
@@ -274,7 +281,7 @@ class OutboxPublisherTest :
                     on { deserialize(any(), any(), any()) } doReturn StubEvent()
                 }
             val mockBus =
-                mock<DomainEventBus> {
+                mock<LocalDomainEventBus> {
                     on { publishEvent(any()) } doThrow RuntimeException("bus error")
                 }
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
@@ -282,8 +289,7 @@ class OutboxPublisherTest :
             val publisher =
                 OutboxPublisher(
                     mockRepo,
-                    mockSerializer,
-                    mockBus,
+                    deliveryRouter(mockSerializer, mockBus),
                     properties,
                     transactionOperations = transactions,
                 )
@@ -313,14 +319,13 @@ class OutboxPublisherTest :
                 mock<EventSerializer> {
                     on { deserialize(any(), any(), any()) } doReturn StubEvent()
                 }
-            val mockBus = mock<DomainEventBus>()
+            val mockBus = mock<LocalDomainEventBus>()
             val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
             val publisher =
                 OutboxPublisher(
                     mockRepo,
-                    mockSerializer,
-                    mockBus,
+                    deliveryRouter(mockSerializer, mockBus),
                     properties,
                     transactionOperations = transactions,
                 )
@@ -337,3 +342,9 @@ class OutboxPublisherTest :
             verify(mockRepo).markFailed(any(), any())
         }
     })
+
+private fun deliveryRouter(
+    serializer: EventSerializer,
+    bus: LocalDomainEventBus,
+): OutboxDeliveryRouter =
+    OutboxDeliveryRouter(listOf(LocalDomainEventDeliveryChannel(serializer, bus)))

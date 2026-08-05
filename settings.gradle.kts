@@ -10,6 +10,8 @@ include("j-store-common-core")
 
 include("j-store-common-spring")
 
+include("j-store-integration-contracts")
+
 include("j-store-order")
 
 include("j-store-order-infrastructure")

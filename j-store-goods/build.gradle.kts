@@ -7,6 +7,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":j-store-integration-contracts"))
     implementation(libs.kotlin.stdlib)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotest.runner.junit5)

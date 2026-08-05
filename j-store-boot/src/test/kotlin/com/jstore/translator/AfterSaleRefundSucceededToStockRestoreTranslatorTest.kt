@@ -16,10 +16,10 @@
  */
 package com.jstore.translator
 
-import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.framework.messaging.IntegrationMessage
+import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.common.properties.Price
-import com.jstore.goods.acl.event.AfterSaleStockRestoreRequestedEvent
+import com.jstore.contracts.commerce.RestoreInventoryAfterRefundCommand
 import com.jstore.order.domain.aftersale.AfterSaleId
 import com.jstore.order.domain.aftersale.event.AfterSaleEventItem
 import com.jstore.order.domain.aftersale.event.AfterSaleRefundSucceededEvent
@@ -46,15 +46,15 @@ class AfterSaleRefundSucceededToStockRestoreTranslatorTest {
 
         AfterSaleRefundSucceededToStockRestoreTranslator(publisher).onDomainEvent(event)
 
-        val restored = publisher.events.single() as AfterSaleStockRestoreRequestedEvent
+        val restored = publisher.messages.single() as RestoreInventoryAfterRefundCommand
         assertEquals(2, restored.items.single().quantity)
     }
 
-    private class CapturingPublisher : DomainEventPublisher {
-        val events = mutableListOf<DomainEvent>()
+    private class CapturingPublisher : IntegrationMessagePublisher {
+        val messages = mutableListOf<IntegrationMessage>()
 
-        override fun <T : DomainEvent> publishEvent(event: T) {
-            events += event
+        override fun publish(message: IntegrationMessage) {
+            messages += message
         }
     }
 }

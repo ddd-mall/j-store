@@ -16,13 +16,13 @@
  */
 package com.jstore.goods.service
 
-import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
-import com.jstore.goods.acl.event.StockReservationRequestedEvent
+import com.jstore.contracts.commerce.ReserveInventoryCommand
 import com.jstore.goods.domain.inventory.CommodityCode
 import com.jstore.goods.domain.inventory.event.StockReservationFailedEvent
 import com.jstore.goods.domain.inventory.event.StockReservedEvent
@@ -32,14 +32,15 @@ import java.math.BigDecimal
 class InventoryReservationEventHandler(
     private val inventoryService: InventoryService,
     private val domainEventPublisher: DomainEventPublisher,
-) : DomainEventListener<StockReservationRequestedEvent> {
-    override fun listenerId(): String = "goods.inventory.reserve-stock-on-request"
+) : IntegrationMessageHandler<ReserveInventoryCommand> {
+    override fun handlerId(): String = "goods.inventory.reserve-stock-on-request.v2"
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(this::class)
     }
 
-    override fun onDomainEvent(event: StockReservationRequestedEvent) {
+    override fun handle(message: ReserveInventoryCommand) {
+        val event = message
         val orderId = event.orderId
         val bizCodePrefix = "ORDER-$orderId"
 

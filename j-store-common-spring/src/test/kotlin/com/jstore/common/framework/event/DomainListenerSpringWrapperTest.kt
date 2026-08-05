@@ -47,8 +47,13 @@ class DomainListenerSpringWrapperTest :
             DomainEventConsumptionRepository {
             val attempts = mutableListOf<String>()
 
-            override fun tryStart(listenerId: String, event: DomainEvent): Boolean {
-                attempts.add("$listenerId:${event.metadata.eventId}")
+            override fun tryStart(
+                consumerId: String,
+                messageId: String,
+                messageName: String,
+                messageVersion: Int,
+            ): Boolean {
+                attempts.add("$consumerId:$messageId")
                 return accepted
             }
         }
