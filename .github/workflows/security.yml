@@ -135,7 +135,9 @@ jobs:
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             range="${PR_BASE_SHA}..${PR_HEAD_SHA}"
-            "$RUNNER_TEMP/gitleaks" git . --redact --no-banner --log-opts="$range"
+            "$RUNNER_TEMP/gitleaks" git . --redact --no-banner \
+              --gitleaks-ignore-path .gitleaksignore --log-opts="$range"
           else
-            "$RUNNER_TEMP/gitleaks" git . --redact --no-banner
+            "$RUNNER_TEMP/gitleaks" git . --redact --no-banner \
+              --gitleaks-ignore-path .gitleaksignore
           fi

@@ -26,12 +26,17 @@ class BehavioralEvalValidationTest(unittest.TestCase):
             for path in sorted((SKILL_ROOT / "evals" / "cases").glob("*.json"))
             for data in [json.loads(path.read_text(encoding="utf-8"))]
         }
-        cls.run_record = json.loads(
-            (SKILL_ROOT / "evals" / "runs" / "release-forward-analyze.json").read_text(encoding="utf-8")
-        )
+        cls.run_records = {
+            path: json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted((SKILL_ROOT / "evals" / "runs").glob("*.json"))
+        }
+        cls.run_record = cls.run_records[SKILL_ROOT / "evals" / "runs" / "release-forward-analyze.json"]
 
-    def test_recorded_run_matches_current_case_candidate_and_trace(self) -> None:
-        errors = validate_evals.validate_run(self.run_record, "run.json", self.cases, SKILL_ROOT)
+    def test_all_recorded_runs_match_current_cases_candidate_and_traces(self) -> None:
+        errors = []
+        for path, run_record in self.run_records.items():
+            errors.extend(validate_evals.schema_errors(run_record, "eval-run.schema.json", path.name))
+            errors.extend(validate_evals.validate_run(run_record, path.name, self.cases, SKILL_ROOT))
         self.assertEqual([], errors)
 
     def test_run_schema_requires_durable_provenance(self) -> None:
