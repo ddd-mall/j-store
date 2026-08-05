@@ -52,8 +52,8 @@ class OrderServiceStatusDimensionsTest :
             val published = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
             val publisher =
                 object : DomainEventPublisher {
-                    override fun <T : com.jstore.common.framework.event.DomainEvent> publishEvent(
-                        event: T
+                    override fun publishEvent(
+                        event: com.jstore.common.framework.event.DomainEvent
                     ) {
                         published += event
                     }
@@ -65,6 +65,6 @@ class OrderServiceStatusDimensionsTest :
                 Success(Unit)
 
             published.single().shouldBeInstanceOf<OrderCompletedEvent>()
-            order.domainEventQueue.size shouldBe 0
+            order.pendingDomainEvents().size shouldBe 0
         }
     })

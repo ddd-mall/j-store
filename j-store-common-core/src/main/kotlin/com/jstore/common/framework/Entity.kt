@@ -1,5 +1,5 @@
 package com.jstore.common.framework
 
-interface Entity<I : Identify> {
+interface Entity<I : Identifier> {
     val id: I
 }

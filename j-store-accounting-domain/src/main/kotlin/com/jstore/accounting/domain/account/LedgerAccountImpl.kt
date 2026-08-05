@@ -1,11 +1,9 @@
 package com.jstore.accounting.domain.account
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import java.util.LinkedList
-import java.util.Queue
 
 class LedgerAccountImpl(
     override val id: LedgerAccountId,
@@ -15,8 +13,7 @@ class LedgerAccountImpl(
     override val direction: BalanceDirection,
     override val subject: AccountingSubject,
     private var _status: LedgerAccountStatus,
-) : LedgerAccount {
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+) : EventRecordingAggregateRoot<LedgerAccountId>(), LedgerAccount {
 
     init {
         require(name.isNotBlank()) { "账务账户名称不能为空" }

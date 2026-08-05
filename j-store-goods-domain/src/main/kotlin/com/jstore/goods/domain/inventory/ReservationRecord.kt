@@ -2,7 +2,7 @@ package com.jstore.goods.domain.inventory
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.errors.CommonBusinessError
-import com.jstore.common.framework.Entity
+import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.properties.Id
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -17,7 +17,7 @@ data class ReservationRecord(
     val amount: BigDecimal,
     var status: ReservationStatus,
     val expiryTime: LocalDateTime,
-) : Entity<ReservationId> {
+) : AggregateRoot<ReservationId> {
 
     /** 确认扣减：RESERVED → CONFIRMED */
     fun confirm(): Result<Unit, BusinessError> {

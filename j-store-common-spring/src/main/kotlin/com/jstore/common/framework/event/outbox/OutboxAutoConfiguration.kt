@@ -1,13 +1,11 @@
 package com.jstore.common.framework.event.outbox
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.common.framework.event.SpringDomainEventMulticasterGuard
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryPOJpaRepository
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryRepositoryImpl
-import com.jstore.common.framework.event.persistence.DomainEventConsumptionRepositoryImpl
 import com.jstore.common.framework.messaging.BrokerIntegrationMessageDeliveryChannel
 import com.jstore.common.framework.messaging.BrokerIntegrationMessageTransport
 import com.jstore.common.framework.messaging.BrokerTransportModeGuard
@@ -16,11 +14,13 @@ import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.common.framework.messaging.IntegrationPublicationPlanner
 import com.jstore.common.framework.messaging.JacksonIntegrationMessageSerializer
 import com.jstore.common.framework.messaging.LocalIntegrationMessageBus
+import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import com.jstore.common.framework.messaging.LocalIntegrationMessageDeliveryChannel
 import com.jstore.common.framework.messaging.MessagingProperties
 import com.jstore.common.framework.messaging.OutboxIntegrationMessagePublisher
 import com.jstore.common.framework.messaging.SpringIntegrationMessageTypeRegistryRegistrar
 import com.jstore.common.framework.messaging.SpringLocalIntegrationMessageBus
+import com.jstore.common.framework.messaging.persistence.MessageConsumptionRepositoryImpl
 import com.jstore.common.persistent.SnowFlakSequence
 import io.micrometer.core.instrument.MeterRegistry
 import jakarta.persistence.EntityManager
@@ -97,10 +97,8 @@ class OutboxAutoConfiguration {
     }
 
     @Bean
-    fun domainEventConsumptionRepository(
-        entityManager: EntityManager
-    ): DomainEventConsumptionRepository {
-        return DomainEventConsumptionRepositoryImpl(entityManager)
+    fun messageConsumptionRepository(entityManager: EntityManager): MessageConsumptionRepository {
+        return MessageConsumptionRepositoryImpl(entityManager)
     }
 
     @Bean
@@ -142,9 +140,9 @@ class OutboxAutoConfiguration {
     @Bean
     fun localIntegrationMessageBus(
         handlers: List<IntegrationMessageHandler<*>>,
-        domainEventConsumptionRepository: DomainEventConsumptionRepository,
+        messageConsumptionRepository: MessageConsumptionRepository,
     ): LocalIntegrationMessageBus =
-        SpringLocalIntegrationMessageBus(handlers, domainEventConsumptionRepository)
+        SpringLocalIntegrationMessageBus(handlers, messageConsumptionRepository)
 
     @Bean
     fun localIntegrationMessageDeliveryChannel(

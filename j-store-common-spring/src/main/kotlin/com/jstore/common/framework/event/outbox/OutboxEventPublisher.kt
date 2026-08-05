@@ -2,6 +2,7 @@ package com.jstore.common.framework.event.outbox
 
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.framework.event.DomainEventType
 import com.jstore.common.persistent.SnowFlakSequence
 import java.time.Instant
 import org.springframework.transaction.annotation.Propagation
@@ -20,7 +21,7 @@ open class OutboxEventPublisher(
 ) : DomainEventPublisher {
 
     @Transactional(propagation = Propagation.MANDATORY)
-    override fun <T : DomainEvent> publishEvent(event: T) {
+    override fun publishEvent(event: DomainEvent) {
         val now = Instant.now()
         val metadata = event.metadata
         val eventType =

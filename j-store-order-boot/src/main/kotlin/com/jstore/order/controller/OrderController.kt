@@ -152,9 +152,9 @@ class OrderController(private val orderService: OrderUseCase) {
         val result = orderService.pageListByUserId(userId.value, page, size)
         return ResponseEntity.ok(
             PageResponse(
-                current = result.current(),
-                size = result.size(),
-                records = result.record().map { it.toOrderResponse() },
+                current = result.currentPage,
+                size = result.totalElements,
+                records = result.records.map { it.toOrderResponse() },
             )
         )
     }

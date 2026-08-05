@@ -3,13 +3,6 @@ package com.jstore.common.framework.event.outbox
 import com.jstore.common.framework.event.DomainEvent
 import java.util.concurrent.ConcurrentHashMap
 
-@Target(AnnotationTarget.CLASS)
-@Retention(AnnotationRetention.RUNTIME)
-annotation class DomainEventType(
-    val name: String,
-    val version: Int = 1,
-)
-
 data class EventTypeKey(
     val eventName: String,
     val eventVersion: Int,

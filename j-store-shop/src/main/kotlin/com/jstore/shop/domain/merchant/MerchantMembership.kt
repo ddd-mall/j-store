@@ -1,7 +1,7 @@
 package com.jstore.shop.domain.merchant
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.Entity
+import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
@@ -15,7 +15,7 @@ class MerchantMembership(
     status: MerchantMembershipStatus = MerchantMembershipStatus.ACTIVE,
     val createTime: LocalDateTime = LocalDateTime.now(),
     updateTime: LocalDateTime = LocalDateTime.now(),
-) : Entity<MerchantMembershipId> {
+) : AggregateRoot<MerchantMembershipId> {
     var roles: Set<MerchantRole> = roles.toSet()
         private set
 

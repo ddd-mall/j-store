@@ -1,7 +1,7 @@
 package com.jstore.common.framework.event.outbox
 
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.framework.event.ExplicitDomainEvent
+import com.jstore.common.framework.event.DomainEventType
 import java.lang.reflect.Modifier
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.SmartInitializingSingleton
@@ -70,9 +70,6 @@ class SpringEventTypeRegistryRegistrar(
                 }
         require(DomainEvent::class.java.isAssignableFrom(clazz)) {
             "@DomainEventType class must implement DomainEvent: $className"
-        }
-        require(ExplicitDomainEvent::class.java.isAssignableFrom(clazz)) {
-            "@DomainEventType class must implement ExplicitDomainEvent: $className"
         }
         require(!clazz.isInterface && !Modifier.isAbstract(clazz.modifiers)) {
             "@DomainEventType class must be a concrete event class: $className"

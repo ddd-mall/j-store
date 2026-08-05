@@ -27,14 +27,13 @@ class DomainEventListenerUtilsTest :
     })
 
 private data class TestEvent(
-    override val source: Any = "source",
     override val eventId: String = "event-1",
     override val eventName: String = "test.event",
     override val eventVersion: Int = 1,
     override val occurredAt: Instant = Instant.parse("2026-01-01T00:00:00Z"),
     override val aggregateType: String = "Test",
     override val aggregateId: String = "1",
-) : ExplicitDomainEvent
+) : DomainEvent
 
 private class DirectTestEventListener : DomainEventListener<TestEvent> {
     override fun listenerId(): String = "test.direct"

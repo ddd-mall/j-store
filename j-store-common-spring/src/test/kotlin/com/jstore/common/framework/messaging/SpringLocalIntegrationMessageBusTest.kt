@@ -1,6 +1,5 @@
 package com.jstore.common.framework.messaging
 
-import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -20,7 +19,7 @@ class SpringLocalIntegrationMessageBusTest :
                         handled += message.orderId
                     }
                 }
-            val consumption = mock<DomainEventConsumptionRepository>()
+            val consumption = mock<MessageConsumptionRepository>()
             whenever(
                     consumption.tryStart(
                         handler.handlerId(),
@@ -49,7 +48,7 @@ class SpringLocalIntegrationMessageBusTest :
             val bus =
                 SpringLocalIntegrationMessageBus(
                     emptyList(),
-                    mock<DomainEventConsumptionRepository>(),
+                    mock<MessageConsumptionRepository>(),
                 )
 
             shouldThrow<IllegalStateException> { bus.publish(message) }

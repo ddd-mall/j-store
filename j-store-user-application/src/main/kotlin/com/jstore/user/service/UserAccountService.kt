@@ -71,7 +71,6 @@ class UserAccountService(
 
         domainEventPublisher.publishEvent(
             UserAccountLoggedInEvent(
-                source = account,
                 userId = account.id,
                 loginTime = LocalDateTime.now(),
             )
@@ -179,7 +178,6 @@ class UserAccountService(
 
         domainEventPublisher.publishEvent(
             UserAccountForcedOfflineEvent(
-                source = account,
                 userId = userId,
                 operationTime = LocalDateTime.now(),
             )
@@ -207,7 +205,6 @@ class UserAccountService(
 
         domainEventPublisher.publishEvent(
             UserAccountForcedOfflineEvent(
-                source = this,
                 userId = userId,
                 operationTime = LocalDateTime.now(),
             )

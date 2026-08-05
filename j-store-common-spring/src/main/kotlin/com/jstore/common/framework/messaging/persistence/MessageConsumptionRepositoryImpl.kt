@@ -1,13 +1,13 @@
-package com.jstore.common.framework.event.persistence
+package com.jstore.common.framework.messaging.persistence
 
-import com.jstore.common.framework.event.DomainEventConsumptionRepository
+import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import jakarta.persistence.EntityManager
 import java.time.Instant
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-open class DomainEventConsumptionRepositoryImpl(private val entityManager: EntityManager) :
-    DomainEventConsumptionRepository {
+open class MessageConsumptionRepositoryImpl(private val entityManager: EntityManager) :
+    MessageConsumptionRepository {
 
     @Transactional(propagation = Propagation.MANDATORY)
     open override fun tryStart(

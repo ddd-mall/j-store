@@ -1,7 +1,8 @@
 package com.jstore.user.domain.useraccount
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Result
 import java.time.LocalDateTime
@@ -11,7 +12,7 @@ import java.time.LocalDateTime
  *
  * TODO: 补充最后登陆时间,最后登陆地点,最后登陆设备等信息
  */
-interface UserAccount : AgreeGate<UserId> {
+interface UserAccount : AggregateRoot<UserId>, RecordsDomainEvents {
     override val id: UserId
     val phoneNumber: PhoneNumber
     val nickname: Nickname

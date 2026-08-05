@@ -3,6 +3,7 @@ package com.jstore.common.framework.event.outbox
 import com.jstore.common.framework.event.DomainEvent
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import java.time.Instant
 
 class EventRegistryFailFastTest :
     FunSpec({
@@ -27,9 +28,26 @@ class EventRegistryFailFastTest :
         }
     })
 
-private data class FirstDuplicateEvent(override val source: Any = "source") : DomainEvent
+private data class FirstDuplicateEvent(
+    override val eventId: String = "first",
+) : StubDomainEvent
 
-private data class SecondDuplicateEvent(override val source: Any = "source") : DomainEvent
+private data class SecondDuplicateEvent(
+    override val eventId: String = "second",
+) : StubDomainEvent
+
+private interface StubDomainEvent : DomainEvent {
+    override val eventName: String
+        get() = "test.duplicate"
+    override val eventVersion: Int
+        get() = 1
+    override val occurredAt: Instant
+        get() = Instant.EPOCH
+    override val aggregateType: String
+        get() = "Test"
+    override val aggregateId: String
+        get() = "1"
+}
 
 private class TestUpcaster(
     override val eventName: String,

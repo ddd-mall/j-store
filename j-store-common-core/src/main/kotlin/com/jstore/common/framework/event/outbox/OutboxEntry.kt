@@ -31,7 +31,46 @@ data class OutboxEntry(
     val correlationId: String = eventId,
     val causationId: String? = null,
     val tenantId: String? = null,
-)
+) {
+    init {
+        require(id.isNotBlank()) { "Outbox entry ID must not be blank" }
+        require(eventId.isNotBlank()) { "Outbox event/message ID must not be blank" }
+        require(eventType.isNotBlank()) { "Outbox event/message type must not be blank" }
+        require(eventClassName.isNotBlank()) { "Outbox class name must not be blank" }
+        require(eventVersion > 0) { "Outbox event/message version must be positive" }
+        require(aggregateType.isNotBlank()) { "Outbox aggregate type must not be blank" }
+        require(aggregateId.isNotBlank()) { "Outbox aggregate ID must not be blank" }
+        require(destination.isNotBlank()) { "Outbox destination must not be blank" }
+        require(partitionKey.isNotBlank()) { "Outbox partition key must not be blank" }
+        require(correlationId.isNotBlank()) { "Outbox correlation ID must not be blank" }
+        require(retryCount >= 0) { "Outbox retry count must not be negative" }
+        require(lockToken >= 0) { "Outbox lock token must not be negative" }
+
+        val hasCompleteLease = lockedBy != null && lockedAt != null && lockedUntil != null
+        if (status == OutboxEntryStatus.IN_PROGRESS) {
+            require(hasCompleteLease) { "IN_PROGRESS outbox entry requires a complete lease" }
+            require(lockedUntil.isAfter(lockedAt)) {
+                "Outbox lease expiry must be after its acquisition time"
+            }
+        } else {
+            require(lockedBy == null && lockedAt == null && lockedUntil == null) {
+                "Only IN_PROGRESS outbox entries may hold a lease"
+            }
+        }
+
+        when (messageKind) {
+            OutboxMessageKind.DOMAIN_EVENT ->
+                require(deliveryTarget == OutboxDeliveryTarget.LOCAL_DOMAIN) {
+                    "Domain events can only target LOCAL_DOMAIN"
+                }
+            OutboxMessageKind.INTEGRATION_EVENT,
+            OutboxMessageKind.INTEGRATION_COMMAND ->
+                require(deliveryTarget != OutboxDeliveryTarget.LOCAL_DOMAIN) {
+                    "Integration messages cannot target LOCAL_DOMAIN"
+                }
+        }
+    }
+}
 
 enum class OutboxMessageKind {
     DOMAIN_EVENT,

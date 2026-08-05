@@ -31,7 +31,10 @@ object DomainEventListenerUtils {
      * 3. 提取其泛型参数（即事件类型）
      */
     fun getListeningEventType(listener: DomainEventListener<*>): Class<*>? {
-        val listenerClass = resolveUserClass(listener)
+        return getListeningEventType(listener::class.java)
+    }
+
+    fun getListeningEventType(listenerClass: Class<*>): Class<*>? {
         listeningTypeCache[listenerClass]?.let {
             return it
         }
@@ -41,10 +44,14 @@ object DomainEventListenerUtils {
     }
 
     fun requireListeningEventType(listener: DomainEventListener<*>): Class<out DomainEvent> {
+        return requireListeningEventType(listener::class.java)
+    }
+
+    fun requireListeningEventType(listenerClass: Class<*>): Class<out DomainEvent> {
         @Suppress("UNCHECKED_CAST")
-        return getListeningEventType(listener) as? Class<out DomainEvent>
+        return getListeningEventType(listenerClass) as? Class<out DomainEvent>
             ?: throw IllegalArgumentException(
-                "Unable to resolve DomainEventListener event type: listenerClass=${resolveUserClass(listener).name}. " +
+                "Unable to resolve DomainEventListener event type: listenerClass=${listenerClass.name}. " +
                     "Declare the listener with a concrete DomainEvent generic type, e.g. DomainEventListener<OrderPaidEvent>."
             )
     }
@@ -113,15 +120,6 @@ object DomainEventListenerUtils {
             is TypeVariable<*> -> null
             else -> null
         }
-    }
-
-    private fun resolveUserClass(listener: DomainEventListener<*>): Class<*> {
-        return runCatching {
-                val aopUtils = Class.forName("org.springframework.aop.support.AopUtils")
-                val method = aopUtils.getMethod("getTargetClass", Any::class.java)
-                method.invoke(null, listener) as? Class<*>
-            }
-            .getOrNull() ?: listener::class.java
     }
 
     /**

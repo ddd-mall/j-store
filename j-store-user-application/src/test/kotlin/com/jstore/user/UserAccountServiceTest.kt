@@ -70,10 +70,12 @@ class UserAccountServiceTest :
 
         test("register - success") {
             val cmd = UserRegisterCMD(phone, "nick", "Pass1234")
-            val account = activeAccount()
-            account.publishEvent(
-                UserAccountRegisteredEvent(source = account, userId = userId, phoneNumber = phone)
-            )
+            val registeredEvent = UserAccountRegisteredEvent(userId = userId, phoneNumber = phone)
+            val account =
+                mock<UserAccount> {
+                    on { id } doReturn userId
+                    on { pendingDomainEvents() } doReturn listOf(registeredEvent)
+                }
 
             whenever(repository.existsByPhoneNumber(phone)).thenReturn(false)
             whenever(factory.create(eq(cmd), eq(passwordHasher))).thenReturn(Success(account))

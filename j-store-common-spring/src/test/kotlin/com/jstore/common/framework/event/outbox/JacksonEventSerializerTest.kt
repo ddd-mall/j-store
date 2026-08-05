@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.jstore.common.framework.event.ExplicitDomainEvent
-import com.jstore.common.framework.event.stableDomainEventId
+import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventType
 import com.jstore.order.domain.order.event.OrderCompletedEvent
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -125,13 +125,11 @@ class JacksonEventSerializerTest :
 @DomainEventType(name = "test.versioned-event", version = 2)
 data class VersionedTestEvent(
     val newValue: String,
-    override val source: Any = "source",
     override val occurredAt: Instant = Instant.parse("2025-01-01T00:00:00Z"),
-) : ExplicitDomainEvent {
+    override val eventId: String = "versioned-event",
+) : DomainEvent {
     override val eventName: String = "test.versioned-event"
     override val eventVersion: Int = 2
     override val aggregateType: String = "Test"
     override val aggregateId: String = newValue
-    override val eventId: String =
-        stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }

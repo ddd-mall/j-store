@@ -1,13 +1,14 @@
 package com.jstore.order.domain.aftersale
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.utils.Result
 import com.jstore.order.domain.order.OrderId
 import java.time.Instant
 import java.time.LocalDateTime
 
-interface AfterSale : AgreeGate<AfterSaleId> {
+interface AfterSale : AggregateRoot<AfterSaleId>, RecordsDomainEvents {
     override val id: AfterSaleId
     val orderId: OrderId
     val applicantId: ApplicantActorId

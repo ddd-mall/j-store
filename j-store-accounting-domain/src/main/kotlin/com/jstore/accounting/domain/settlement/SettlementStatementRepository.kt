@@ -1,8 +1,8 @@
 package com.jstore.accounting.domain.settlement
 
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 
-interface SettlementStatementRepository : Repository<SettlementStatementId, SettlementStatement> {
+interface SettlementStatementRepository : AggregateRepository<SettlementStatementId, SettlementStatement> {
     fun findByMerchantAndPeriod(merchantId: String, period: SettlementPeriod): SettlementStatement?
 
     fun nextId(): SettlementStatementId

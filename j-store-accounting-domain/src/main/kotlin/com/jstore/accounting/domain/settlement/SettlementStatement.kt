@@ -1,7 +1,8 @@
 package com.jstore.accounting.domain.settlement
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
@@ -41,7 +42,7 @@ data class SettlementLine(
     }
 }
 
-interface SettlementStatement : AgreeGate<SettlementStatementId> {
+interface SettlementStatement : AggregateRoot<SettlementStatementId>, RecordsDomainEvents {
     override val id: SettlementStatementId
     val statementNo: String
     val merchantId: String

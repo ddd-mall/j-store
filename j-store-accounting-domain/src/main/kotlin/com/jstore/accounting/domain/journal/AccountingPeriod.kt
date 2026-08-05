@@ -1,7 +1,8 @@
 package com.jstore.accounting.domain.journal
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Id
 import com.jstore.common.utils.Result
 import java.time.Instant
@@ -14,7 +15,7 @@ enum class PeriodStatus {
     CLOSED,
 }
 
-interface AccountingPeriod : AgreeGate<AccountingPeriodId> {
+interface AccountingPeriod : AggregateRoot<AccountingPeriodId>, RecordsDomainEvents {
     override val id: AccountingPeriodId
     val periodCode: String
     val startDate: LocalDate

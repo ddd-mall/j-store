@@ -64,7 +64,7 @@ boot/interface -> application -> domain -> common-core
 
 ## 领域实现习惯
 
-- 聚合根实现 `AgreeGate<I>`，实体实现 `Entity<I>`，ID 类型实现 `Identify`。
+- 聚合根实现 `AggregateRoot<I>`，实体实现 `Entity<I>`，ID 类型实现 `Identifier`；需要产生事件的聚合同时实现 `RecordsDomainEvents`，通常继承 `EventRecordingAggregateRoot<I>`。
 - 预期业务失败使用 `Result<T, BusinessError>` 返回，不用异常表达。
 - 仓储接口放领域模块，仓储实现和 PO 放 infrastructure 模块。
 - 应用服务只编排用例，业务规则落在聚合、实体、值对象或领域服务中。

@@ -1,7 +1,7 @@
 package com.jstore.goods.domain.inventory
 
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 
-interface ReservationRecordRepository : Repository<ReservationId, ReservationRecord> {
+interface ReservationRecordRepository : AggregateRepository<ReservationId, ReservationRecord> {
     fun findByBizCode(bizCode: String): ReservationRecord?
 }

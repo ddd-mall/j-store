@@ -6,7 +6,6 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.*
 import com.jstore.order.domain.aftersale.persistence.*
 import com.jstore.order.domain.order.*
-import java.util.LinkedList
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -270,6 +269,5 @@ class AfterSaleRepositoryImpl(
             createTime = p.createTime,
             _updateTime = p.updateTime,
             version = p.version,
-            domainEventQueue = LinkedList(),
         )
 }

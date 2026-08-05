@@ -1,7 +1,7 @@
 package com.jstore.order.domain.order
 
-import com.jstore.common.framework.Page
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
+import com.jstore.common.query.Page
 
 /**
  * 订单仓储接口 ✅ 改进：
@@ -9,7 +9,7 @@ import com.jstore.common.framework.Repository
  * - 清晰的方法语义（add vs save）
  * - 只定义业务相关方法
  */
-interface OrderRepository : Repository<OrderId, Order> {
+interface OrderRepository : AggregateRepository<OrderId, Order> {
 
     /** 添加新订单 */
     fun add(order: Order)

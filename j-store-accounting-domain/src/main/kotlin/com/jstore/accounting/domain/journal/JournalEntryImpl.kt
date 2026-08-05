@@ -1,15 +1,13 @@
 package com.jstore.accounting.domain.journal
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import java.time.Instant
 import java.time.LocalDate
-import java.util.LinkedList
-import java.util.Queue
 
 class JournalEntryImpl(
     override val id: JournalEntryId,
@@ -23,8 +21,7 @@ class JournalEntryImpl(
     private var _postedAt: Instant? = null,
     private var _reversedBy: JournalEntryId? = null,
     private var _reversalOf: JournalEntryId? = null,
-) : JournalEntry {
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+) : EventRecordingAggregateRoot<JournalEntryId>(), JournalEntry {
 
     init {
         require(entryNo.isNotBlank()) { "账务凭证号不能为空" }

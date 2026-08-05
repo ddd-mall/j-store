@@ -1,7 +1,7 @@
 package com.jstore.goods.domain.inventory
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.Entity
+import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.properties.Id
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -17,7 +17,7 @@ data class CommodityCode(override val value: Long) : Id<Long>(value)
  *
  * 并发安全：通过storageLock保证并发安全，StorageLock在不同的应用形式中可以有不同的实现，在分布式系统中可以通过分布式锁等
  */
-interface Inventory : Entity<CommodityCode> {
+interface Inventory : AggregateRoot<CommodityCode> {
     /** 预扣减 */
     fun reserve(amount: BigDecimal): Result<Boolean, BusinessError>
 

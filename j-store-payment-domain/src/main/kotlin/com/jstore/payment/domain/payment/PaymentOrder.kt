@@ -1,7 +1,8 @@
 package com.jstore.payment.domain.payment
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
@@ -58,7 +59,7 @@ data class PaymentRefund(
     }
 }
 
-interface PaymentOrder : AgreeGate<PaymentOrderId> {
+interface PaymentOrder : AggregateRoot<PaymentOrderId>, RecordsDomainEvents {
     val orderId: Long
     val merchantId: Long
     val payableAmount: Price

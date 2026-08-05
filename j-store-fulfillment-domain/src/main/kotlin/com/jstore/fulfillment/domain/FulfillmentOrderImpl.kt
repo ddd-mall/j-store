@@ -1,7 +1,7 @@
 package com.jstore.fulfillment.domain
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
@@ -9,8 +9,6 @@ import com.jstore.fulfillment.domain.event.FulfillmentPreparedEvent
 import com.jstore.fulfillment.domain.event.ShipmentDeliveredEvent
 import com.jstore.fulfillment.domain.event.ShipmentDispatchedEvent
 import java.time.Instant
-import java.util.LinkedList
-import java.util.Queue
 
 class FulfillmentOrderImpl(
     override val id: FulfillmentOrderId,
@@ -21,8 +19,7 @@ class FulfillmentOrderImpl(
     private var _status: FulfillmentOrderStatus = FulfillmentOrderStatus.PENDING,
     private var _carrierCode: String? = null,
     private var _trackingNumber: String? = null,
-) : FulfillmentOrder {
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+) : EventRecordingAggregateRoot<FulfillmentOrderId>(), FulfillmentOrder {
     private val _items = items.toList()
     override val status: FulfillmentOrderStatus
         get() = _status
@@ -46,7 +43,7 @@ class FulfillmentOrderImpl(
         if (_status != FulfillmentOrderStatus.PENDING)
             return Failure(FulfillmentErrors.INVALID_STATE)
         _status = FulfillmentOrderStatus.READY
-        publishEvent(FulfillmentPreparedEvent(id, orderId, occurredAt))
+        raise(FulfillmentPreparedEvent(id, orderId, occurredAt))
         return Success(true)
     }
 
@@ -71,7 +68,7 @@ class FulfillmentOrderImpl(
         _carrierCode = normalizedCarrier
         _trackingNumber = normalizedTracking
         _status = FulfillmentOrderStatus.SHIPPED
-        publishEvent(
+        raise(
             ShipmentDispatchedEvent(id, orderId, normalizedCarrier, normalizedTracking, occurredAt)
         )
         return Success(true)
@@ -82,7 +79,7 @@ class FulfillmentOrderImpl(
         if (_status != FulfillmentOrderStatus.SHIPPED)
             return Failure(FulfillmentErrors.INVALID_STATE)
         _status = FulfillmentOrderStatus.DELIVERED
-        publishEvent(ShipmentDeliveredEvent(id, orderId, occurredAt))
+        raise(ShipmentDeliveredEvent(id, orderId, occurredAt))
         return Success(true)
     }
 }

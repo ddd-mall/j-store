@@ -1,7 +1,7 @@
 package com.jstore.payment.domain.payment
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -11,8 +11,6 @@ import com.jstore.payment.domain.payment.event.PaymentRefundFailedEvent
 import com.jstore.payment.domain.payment.event.PaymentRefundRequestedEvent
 import com.jstore.payment.domain.payment.event.PaymentRefundSucceededEvent
 import java.time.Instant
-import java.util.LinkedList
-import java.util.Queue
 
 class PaymentOrderImpl(
     override val id: PaymentOrderId,
@@ -23,8 +21,7 @@ class PaymentOrderImpl(
     private var _status: PaymentOrderStatus = PaymentOrderStatus.PENDING,
     private var _capture: PaymentCapture? = null,
     private val _refunds: MutableList<PaymentRefund> = mutableListOf(),
-) : PaymentOrder {
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+) : EventRecordingAggregateRoot<PaymentOrderId>(), PaymentOrder {
     override val status: PaymentOrderStatus
         get() = _status
 
@@ -61,7 +58,7 @@ class PaymentOrderImpl(
 
         _capture = PaymentCapture(providerTransactionId, amount, occurredAt)
         _status = PaymentOrderStatus.CAPTURED
-        publishEvent(
+        raise(
             PaymentCapturedEvent(
                 id,
                 orderId,
@@ -140,7 +137,7 @@ class PaymentOrderImpl(
         _status =
             if (refunded == payableAmount) PaymentOrderStatus.REFUNDED
             else PaymentOrderStatus.PARTIALLY_REFUNDED
-        publishEvent(
+        raise(
             PaymentRefundSucceededEvent(
                 id,
                 refund.id,
@@ -172,14 +169,14 @@ class PaymentOrderImpl(
         refund.status = PaymentRefundStatus.FAILED
         refund.failureReason = reason
         refund.completedAt = occurredAt
-        publishEvent(
+        raise(
             PaymentRefundFailedEvent(id, refund.id, orderId, refund.afterSaleId, reason, occurredAt)
         )
         return Success(true)
     }
 
     private fun publishRefundRequested(refund: PaymentRefund, occurredAt: Instant) {
-        publishEvent(
+        raise(
             PaymentRefundRequestedEvent(
                 id,
                 refund.id,

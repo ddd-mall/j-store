@@ -1,6 +1,7 @@
 package com.jstore.order.config
 
 import com.jstore.common.framework.event.*
+import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.goods.api.GoodsSnapshotQueryService
@@ -138,11 +139,11 @@ class OrderBootConfiguration {
     @Bean
     fun springDomainEventListenerRegistry(
         applicationContext: ConfigurableApplicationContext,
-        consumptionRepositoryProvider: ObjectProvider<DomainEventConsumptionRepository>,
+        messageConsumptionRepository: MessageConsumptionRepository,
     ): SpringDomainEventListenerRegistry {
         return SpringDomainEventListenerRegistry(
             applicationContext,
-            consumptionRepositoryProvider.getIfAvailable() ?: NoopDomainEventConsumptionRepository,
+            messageConsumptionRepository,
         )
     }
 

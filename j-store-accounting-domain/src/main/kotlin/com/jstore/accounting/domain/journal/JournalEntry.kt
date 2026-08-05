@@ -2,7 +2,8 @@ package com.jstore.accounting.domain.journal
 
 import com.jstore.accounting.domain.account.LedgerAccountId
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
@@ -50,7 +51,7 @@ enum class EntrySide {
     CREDIT,
 }
 
-interface JournalEntry : AgreeGate<JournalEntryId> {
+interface JournalEntry : AggregateRoot<JournalEntryId>, RecordsDomainEvents {
     override val id: JournalEntryId
     val entryNo: String
     val type: JournalEntryType

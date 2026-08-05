@@ -1,7 +1,7 @@
 package com.jstore.common.framework.event.outbox
 
-import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.LocalDomainEventBus
+import com.jstore.common.framework.event.StubDomainEvent
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.time.Instant
@@ -36,5 +36,3 @@ class LocalDomainEventDeliveryChannelTest :
             verify(bus).publishEvent(event)
         }
     })
-
-private data class StubDomainEvent(override val source: Any = "stub") : DomainEvent

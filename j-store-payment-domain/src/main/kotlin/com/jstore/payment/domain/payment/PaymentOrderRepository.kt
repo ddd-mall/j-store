@@ -1,8 +1,8 @@
 package com.jstore.payment.domain.payment
 
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 
-interface PaymentOrderRepository : Repository<PaymentOrderId, PaymentOrder> {
+interface PaymentOrderRepository : AggregateRepository<PaymentOrderId, PaymentOrder> {
     fun findByOrderId(orderId: Long): PaymentOrder?
 
     fun findByRefundId(refundId: PaymentRefundId): PaymentOrder?

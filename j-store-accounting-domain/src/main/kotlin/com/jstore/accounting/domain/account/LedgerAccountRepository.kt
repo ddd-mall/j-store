@@ -1,12 +1,12 @@
 package com.jstore.accounting.domain.account
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 
-interface LedgerAccountRepository : Repository<LedgerAccountId, LedgerAccount> {
+interface LedgerAccountRepository : AggregateRepository<LedgerAccountId, LedgerAccount> {
     fun findByCodeAndSubject(code: LedgerAccountCode, subject: AccountingSubject): LedgerAccount?
 
     fun requireActive(id: LedgerAccountId): Result<LedgerAccount, BusinessError> {

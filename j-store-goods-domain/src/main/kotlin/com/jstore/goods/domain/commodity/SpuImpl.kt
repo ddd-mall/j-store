@@ -1,14 +1,13 @@
 package com.jstore.goods.domain.commodity
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.goods.domain.commodity.event.CommodityOffSaleEvent
 import com.jstore.goods.domain.commodity.event.CommodityOnSaleEvent
 import com.jstore.goods.domain.commodity.event.CommodityPublishedEvent
-import java.util.*
 
 class SpuImpl(
     override val id: SpuId,
@@ -19,12 +18,10 @@ class SpuImpl(
     private val _skus: MutableList<Sku>,
     private var _version: Long = 1L,
     override val sourceSpuId: SpuId? = null,
-) : Spu {
+) : EventRecordingAggregateRoot<SpuId>(), Spu {
 
     private var _name: String = name
     private var _description: String = description
-
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
 
     override val name: String
         get() = _name
@@ -64,7 +61,7 @@ class SpuImpl(
             return Failure(CommodityErrors.NO_SKU_FOR_PUBLISH)
         }
         _status = CommodityStatus.OFF_SALE
-        publishEvent(CommodityPublishedEvent(source = this, spuId = id))
+        raise(CommodityPublishedEvent(spuId = id))
         return Success(Unit)
     }
 
@@ -77,7 +74,7 @@ class SpuImpl(
         }
         _version++
         _status = CommodityStatus.ON_SALE
-        publishEvent(CommodityOnSaleEvent(source = this, spuId = id, snapshotVersion = _version))
+        raise(CommodityOnSaleEvent(spuId = id, snapshotVersion = _version))
         return Success(Unit)
     }
 
@@ -86,7 +83,7 @@ class SpuImpl(
             return Failure(CommodityErrors.ALREADY_OFF_SALE.msg("只有在售商品可以下架，当前状态: $_status"))
         }
         _status = CommodityStatus.OFF_SALE
-        publishEvent(CommodityOffSaleEvent(source = this, spuId = id))
+        raise(CommodityOffSaleEvent(spuId = id))
         return Success(Unit)
     }
 

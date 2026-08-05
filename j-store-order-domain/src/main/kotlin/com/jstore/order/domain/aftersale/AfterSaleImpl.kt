@@ -1,7 +1,7 @@
 package com.jstore.order.domain.aftersale
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -13,13 +13,12 @@ import com.jstore.order.domain.aftersale.event.AfterSaleRefundFailedEvent
 import com.jstore.order.domain.aftersale.event.AfterSaleRefundRequestedEvent
 import com.jstore.order.domain.aftersale.event.AfterSaleRefundSucceededEvent
 import com.jstore.order.domain.aftersale.event.AfterSaleRejectedEvent
+import com.jstore.order.domain.aftersale.event.AfterSaleRequestedEvent
 import com.jstore.order.domain.aftersale.event.AfterSaleReturnReceivedEvent
 import com.jstore.order.domain.order.OrderId
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.LinkedList
-import java.util.Queue
 
 class AfterSaleImpl(
     override val id: AfterSaleId,
@@ -38,8 +37,7 @@ class AfterSaleImpl(
     override val createTime: LocalDateTime,
     private var _updateTime: LocalDateTime,
     override val version: Long = 0,
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList(),
-) : AfterSale {
+) : EventRecordingAggregateRoot<AfterSaleId>(), AfterSale {
     private val _items = items.toList()
     override val items: List<AfterSaleItem>
         get() = _items.toList()
@@ -72,6 +70,28 @@ class AfterSaleImpl(
         validateState()
     }
 
+    internal fun recordRequested(occurredAt: Instant) {
+        raise(
+            AfterSaleRequestedEvent(
+                id,
+                orderId,
+                applicantId,
+                _items.map {
+                    AfterSaleEventItem(
+                        it.orderItemId,
+                        it.eligibilitySnapshot.goods.skuId,
+                        it.requestedQuantity,
+                        it.requestedAmount,
+                        it.currency,
+                    )
+                },
+                reason,
+                fulfillmentSnapshot.requireReturn,
+                occurredAt,
+            )
+        )
+    }
+
     override fun approve(
         reviewerId: MerchantActorId,
         occurredAt: Instant,
@@ -84,7 +104,7 @@ class AfterSaleImpl(
             if (fulfillmentSnapshot.requireReturn) AfterSaleStatus.RETURN_REQUIRED
             else AfterSaleStatus.REFUND_PENDING
         _updateTime = at
-        publishEvent(
+        raise(
             AfterSaleApprovedEvent(
                 id,
                 orderId,
@@ -111,7 +131,7 @@ class AfterSaleImpl(
         _reviewDecision = ReviewDecision(reviewerId, at, normalized)
         _status = AfterSaleStatus.REJECTED
         _updateTime = at
-        publishEvent(AfterSaleRejectedEvent(id, orderId, reviewerId, normalized, occurredAt))
+        raise(AfterSaleRejectedEvent(id, orderId, reviewerId, normalized, occurredAt))
         return Success(Unit)
     }
 
@@ -125,7 +145,7 @@ class AfterSaleImpl(
         _cancelledAt = at
         _status = AfterSaleStatus.CANCELLED
         _updateTime = at
-        publishEvent(AfterSaleCancelledEvent(id, orderId, applicantId, occurredAt))
+        raise(AfterSaleCancelledEvent(id, orderId, applicantId, occurredAt))
         return Success(Unit)
     }
 
@@ -142,7 +162,7 @@ class AfterSaleImpl(
         _returnReceivedAt = at
         _status = AfterSaleStatus.REFUND_PENDING
         _updateTime = at
-        publishEvent(
+        raise(
             AfterSaleReturnReceivedEvent(id, orderId, reviewerId, eventItems(), occurredAt)
         )
         publishRefundRequested(occurredAt)
@@ -177,7 +197,7 @@ class AfterSaleImpl(
         _refundFailureReason = null
         _status = AfterSaleStatus.COMPLETED
         _updateTime = occurredAt.toUtcLocalDateTime()
-        publishEvent(
+        raise(
             AfterSaleRefundSucceededEvent(
                 id,
                 orderId,
@@ -215,14 +235,14 @@ class AfterSaleImpl(
         _refundFailureReason = normalizedReason
         _status = AfterSaleStatus.REFUND_FAILED
         _updateTime = occurredAt.toUtcLocalDateTime()
-        publishEvent(
+        raise(
             AfterSaleRefundFailedEvent(id, orderId, refundId, normalizedReason, occurredAt)
         )
         return Success(true)
     }
 
     private fun publishRefundRequested(occurredAt: Instant) {
-        publishEvent(
+        raise(
             AfterSaleRefundRequestedEvent(
                 id,
                 orderId,

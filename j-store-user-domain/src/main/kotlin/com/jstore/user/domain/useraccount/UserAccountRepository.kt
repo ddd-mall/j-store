@@ -1,10 +1,10 @@
 package com.jstore.user.domain.useraccount
 
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 import com.jstore.common.properties.PhoneNumber
 
 /** 用户账号仓储接口 接口定义在领域层，实现在基础设施层 */
-interface UserAccountRepository : Repository<UserId, UserAccount> {
+interface UserAccountRepository : AggregateRepository<UserId, UserAccount> {
 
     /** 添加新用户账号 */
     fun add(userAccount: UserAccount)

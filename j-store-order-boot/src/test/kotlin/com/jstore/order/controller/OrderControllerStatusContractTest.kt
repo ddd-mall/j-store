@@ -1,7 +1,7 @@
 package com.jstore.order.controller
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.jstore.common.framework.SortedPage
+import com.jstore.common.query.SortedPage
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.order.FulfillmentStatus

@@ -33,7 +33,7 @@ Controller / IntegrationMessageHandler
 
 ## 事件队列
 
-应用层通过 `domainEventQueue` 复制稳定的待发布事件快照，逐条写入 Outbox；全部成功后清除相同数量。异常时不清除，外层 Spring 事务回滚领域数据与 Outbox。此变更不扩展 `AgreeGate` 的公共 API。
+应用层通过 `RecordsDomainEvents.pendingDomainEvents()` 获取稳定快照，逐条写入 Outbox；全部成功后按事件 ID 确认。异常时不确认，外层 Spring 事务回滚领域数据与 Outbox。公共契约以 `ddd-foundation-refactor` 变更规格为准。
 
 ## Spring Modulith 评估
 

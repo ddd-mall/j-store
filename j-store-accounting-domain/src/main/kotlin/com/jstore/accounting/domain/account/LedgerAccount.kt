@@ -1,7 +1,8 @@
 package com.jstore.accounting.domain.account
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Id
 import com.jstore.common.utils.Result
 
@@ -47,7 +48,7 @@ enum class SubjectType {
     CHANNEL,
 }
 
-interface LedgerAccount : AgreeGate<LedgerAccountId> {
+interface LedgerAccount : AggregateRoot<LedgerAccountId>, RecordsDomainEvents {
     override val id: LedgerAccountId
     val code: LedgerAccountCode
     val name: String

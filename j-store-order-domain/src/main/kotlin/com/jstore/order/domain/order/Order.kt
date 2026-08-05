@@ -1,7 +1,8 @@
 package com.jstore.order.domain.order
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 import com.jstore.order.domain.aftersale.AfterSaleId
@@ -9,7 +10,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 
 /** 订单聚合根接口。交易、支付、履约和售后状态分别表达并行的业务事实。 */
-interface Order : AgreeGate<OrderId> {
+interface Order : AggregateRoot<OrderId>, RecordsDomainEvents {
     override val id: OrderId
 
     /** 结算和履约主体。订单内所有行项必须属于该商户。 */

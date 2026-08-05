@@ -1,14 +1,11 @@
 package com.jstore.shop.domain.merchant
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import java.time.LocalDateTime
-import java.util.LinkedList
-import java.util.Queue
 
 class Merchant(
     override val id: MerchantId,
@@ -16,8 +13,7 @@ class Merchant(
     status: MerchantStatus = MerchantStatus.ACTIVE,
     val createTime: LocalDateTime = LocalDateTime.now(),
     updateTime: LocalDateTime = LocalDateTime.now(),
-) : AgreeGate<MerchantId> {
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+) : AggregateRoot<MerchantId> {
 
     var name: String = name.trim()
         private set

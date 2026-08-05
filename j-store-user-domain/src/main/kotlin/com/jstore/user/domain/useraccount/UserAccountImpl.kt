@@ -1,13 +1,13 @@
 package com.jstore.user.domain.useraccount
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
+import com.jstore.user.domain.useraccount.event.UserAccountRegisteredEvent
 import java.time.LocalDateTime
-import java.util.*
 
 /** UserAccount 聚合根实现 */
 class UserAccountImpl(
@@ -18,9 +18,11 @@ class UserAccountImpl(
     override var status: UserAccountStatus,
     override val createTime: LocalDateTime = LocalDateTime.now(),
     override var updateTime: LocalDateTime = LocalDateTime.now(),
-) : UserAccount {
+) : EventRecordingAggregateRoot<UserId>(), UserAccount {
 
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+    internal fun recordRegistered() {
+        raise(UserAccountRegisteredEvent(userId = id, phoneNumber = phoneNumber))
+    }
 
     override fun changeNickname(newNickname: Nickname): Result<Unit, BusinessError> {
         nickname = newNickname

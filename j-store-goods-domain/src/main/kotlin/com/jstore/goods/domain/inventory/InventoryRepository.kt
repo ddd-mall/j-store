@@ -1,5 +1,5 @@
 package com.jstore.goods.domain.inventory
 
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 
-interface InventoryRepository : Repository<CommodityCode, Inventory>
+interface InventoryRepository : AggregateRepository<CommodityCode, Inventory>

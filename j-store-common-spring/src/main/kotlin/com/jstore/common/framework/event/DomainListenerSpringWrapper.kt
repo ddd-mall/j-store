@@ -1,5 +1,7 @@
 package com.jstore.common.framework.event
 
+import com.jstore.common.framework.messaging.MessageConsumptionRepository
+import com.jstore.common.framework.messaging.tryStart
 import org.springframework.context.ApplicationEvent
 import org.springframework.context.PayloadApplicationEvent
 import org.springframework.context.event.GenericApplicationListener
@@ -7,13 +9,14 @@ import org.springframework.core.ResolvableType
 
 class DomainListenerSpringWrapper(
     private val domainEventListener: DomainEventListener<*>,
-    private val consumptionRepository: DomainEventConsumptionRepository =
-        NoopDomainEventConsumptionRepository,
+    private val consumptionRepository: MessageConsumptionRepository,
 ) : GenericApplicationListener {
+    private val listenerEventType = SpringDomainEventListenerTypeResolver.require(domainEventListener)
+
     override fun onApplicationEvent(event: ApplicationEvent) {
         (event as? PayloadApplicationEvent<*>)?.let {
             (it.payload as? DomainEvent)?.let { domainEvent ->
-                if (DomainEventListenerUtils.supportsEvent(domainEventListener, domainEvent)) {
+                if (listenerEventType.isInstance(domainEvent)) {
                     val listenerId = domainEventListener.listenerId()
                     if (consumptionRepository.tryStart(listenerId, domainEvent)) {
                         @Suppress("UNCHECKED_CAST")
@@ -37,8 +40,6 @@ class DomainListenerSpringWrapper(
         }
 
         val payloadType = eventType.generics.firstOrNull()?.resolve() ?: return false
-        val listenerEventType =
-            DomainEventListenerUtils.getListeningEventType(domainEventListener) ?: return false
         return listenerEventType.isAssignableFrom(payloadType)
     }
 

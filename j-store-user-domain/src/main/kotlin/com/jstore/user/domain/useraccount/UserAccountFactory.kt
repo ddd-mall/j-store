@@ -6,7 +6,6 @@ import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.user.domain.useraccount.command.UserRegisterCMD
-import com.jstore.user.domain.useraccount.event.UserAccountRegisteredEvent
 
 /** 用户账号工厂接口 负责创建初始状态的 UserAccount 聚合 */
 interface UserAccountFactory {
@@ -64,14 +63,8 @@ class UserAccountFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : U
                 status = UserAccountStatus.ACTIVE,
             )
 
-        // 6. 发布领域事件
-        userAccount.publishEvent(
-            UserAccountRegisteredEvent(
-                source = userAccount,
-                userId = userId,
-                phoneNumber = cmd.phoneNumber,
-            )
-        )
+        // 6. 记录领域事件
+        userAccount.recordRegistered()
 
         return Success(userAccount)
     }

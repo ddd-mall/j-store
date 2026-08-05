@@ -1,7 +1,7 @@
 package com.jstore.common.framework.event.outbox
 
-import com.jstore.common.framework.event.ExplicitDomainEvent
-import com.jstore.common.framework.event.stableDomainEventId
+import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventType
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -9,15 +9,13 @@ import java.time.Instant
 
 @DomainEventType(name = "test.scanned-event", version = 7)
 data class ScannedEvent(
-    override val source: Any = "source",
     override val occurredAt: Instant = Instant.parse("2026-01-01T00:00:00Z"),
-) : ExplicitDomainEvent {
+    override val eventId: String = "scanned-event",
+) : DomainEvent {
     override val eventName: String = "test.scanned-event"
     override val eventVersion: Int = 7
     override val aggregateType: String = "Test"
     override val aggregateId: String = "scanned"
-    override val eventId: String =
-        stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }
 
 class SpringEventTypeRegistryRegistrarTest :
