@@ -1,5 +1,6 @@
 package com.jstore.payment.service
 
+import com.jstore.common.errors.BusinessErrorException
 import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.getOrThrow
@@ -21,7 +22,7 @@ class CreatePaymentForOrderCommandHandler(private val payments: PaymentUseCase) 
                     message.currency,
                 )
             )
-            .getOrThrow()
+            .getOrThrow(::BusinessErrorException)
     }
 }
 
@@ -47,6 +48,6 @@ class RequestPaymentRefundCommandHandler(private val payments: PaymentUseCase) :
                 ),
                 message.occurredAt,
             )
-            .getOrThrow()
+            .getOrThrow(::BusinessErrorException)
     }
 }

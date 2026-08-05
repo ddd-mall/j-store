@@ -70,7 +70,7 @@ When creating domain objects, use these existing base types:
 - `Identifier` — marker interface for typed identities
 - `AggregateRepository<I : Identifier, A : AggregateRoot<I>>` — aggregate-only repository with `save(aggregate)` and `findById(id)`
 - `Page<T>` / `SortedPage<T>` — query pagination wrappers under `com.jstore.common.query`
-- `Result<T, E>` — custom sealed result type with `Success<T>` / `Failure<E>`, supports `map`, `onSuccess`, `onFailure`, `fold`, `getOrThrow`
+- `Result<T, E>` — custom sealed result type with `Success<T>` / `Failure<E>`, supports `map`, `onSuccess`, `onFailure`, `fold`, and explicit `getOrThrow(errorMapper)` at exception boundaries
 - `BusinessError` — error type with `message`, `errorCode`, `httpCode`; use `CommonBusinessError` constants or define context-specific error objects
 - `DomainEvent` — immutable event contract with stable ID, name, version, time and scalar aggregate reference metadata
 
@@ -148,6 +148,7 @@ When creating domain objects, use these existing base types:
 - Use `Result<T, BusinessError>` (from `com.jstore.common.utils`) — not exceptions — for expected business failures
 - Define context-specific error objects (e.g., `OrderErrors`, `InventoryErrors`) following the `CommonBusinessError` pattern
 - Use `onFailure { return Failure(it) }` for early-return error propagation
+- Do not unwrap `BusinessError` inside domain or application use cases. At an infrastructure boundary that must throw (for example, message redelivery), use `getOrThrow(::BusinessErrorException)` so the structured error remains available.
 
 ## Prohibited Patterns
 

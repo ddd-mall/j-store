@@ -8,8 +8,8 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.common.utils.getOrThrow
 import com.jstore.common.utils.onFailure
+import com.jstore.common.utils.onSuccess
 import com.jstore.payment.domain.payment.PaymentErrors
 import com.jstore.payment.domain.payment.PaymentOrder
 import com.jstore.payment.domain.payment.PaymentOrderId
@@ -90,11 +90,9 @@ class PaymentApplicationService(
                 command.currency,
                 occurredAt,
             )
-        changed.onFailure {
-            return Failure(it)
+        return changed.onSuccess { didChange ->
+            if (didChange) persistAndPublish(payment)
         }
-        if (changed.getOrThrow()) persistAndPublish(payment)
-        return changed
     }
 
     override fun requestRefund(
@@ -155,11 +153,9 @@ class PaymentApplicationService(
         val payment =
             repository.findByRefundId(refundId) ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
         val changed = mutation(payment)
-        changed.onFailure {
-            return Failure(it)
+        return changed.onSuccess { didChange ->
+            if (didChange) persistAndPublish(payment)
         }
-        if (changed.getOrThrow()) persistAndPublish(payment)
-        return changed
     }
 
     private fun persistAndPublish(payment: PaymentOrder) {

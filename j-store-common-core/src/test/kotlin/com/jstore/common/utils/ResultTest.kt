@@ -1,5 +1,7 @@
 package com.jstore.common.utils
 
+import com.jstore.common.errors.BusinessError
+import com.jstore.common.errors.BusinessErrorException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -25,45 +27,35 @@ class ResultTest :
 
         // ========== getOrThrow ==========
 
-        test("getOrThrow returns value on Success") {
-            Success(42).getOrThrow() shouldBe 42
+        test("getOrThrow returns value without invoking error mapper on Success") {
+            var mapped = false
+
+            Success(42).getOrThrow {
+                mapped = true
+                IllegalStateException(it.toString())
+            } shouldBe 42
+            mapped shouldBe false
         }
 
-        test("getOrThrow throws ResultUnwrapException with error context on Failure") {
-            val ex =
-                shouldThrow<ResultUnwrapException> {
-                    Failure("something broke").getOrThrow()
+        test("getOrThrow throws the exact exception produced from Failure") {
+            val expected = IllegalArgumentException("something broke")
+
+            val actual =
+                shouldThrow<IllegalArgumentException> {
+                    Failure("something broke").getOrThrow { expected }
                 }
-            ex.message shouldContain "something broke"
+
+            actual shouldBe expected
         }
 
-        // ========== expect ==========
+        test("BusinessErrorException preserves structured business error context") {
+            val error = BusinessError("offer expired", "Offer.Expired", 409)
 
-        test("expect returns value on Success") {
-            Success("ok").expect("should not fail") shouldBe "ok"
-        }
+            val exception = BusinessErrorException(error)
 
-        test("expect throws with custom message on Failure") {
-            val ex =
-                shouldThrow<ResultUnwrapException> {
-                    Failure(404).expect("resource not found")
-                }
-            ex.message shouldContain "resource not found"
-            ex.message shouldContain "404"
-        }
-
-        // ========== getErrorOrThrow ==========
-
-        test("getErrorOrThrow returns error on Failure") {
-            Failure("oops").getErrorOrThrow() shouldBe "oops"
-        }
-
-        test("getErrorOrThrow throws ResultUnwrapException on Success") {
-            val ex =
-                shouldThrow<ResultUnwrapException> {
-                    Success(42).getErrorOrThrow()
-                }
-            ex.message shouldContain "42"
+            exception.error shouldBe error
+            exception.message shouldContain "Offer.Expired"
+            exception.message shouldContain "offer expired"
         }
 
         // ========== getOrDefault ==========
@@ -322,6 +314,29 @@ class ResultTest :
             result.error.cause shouldBe cause
         }
 
+        test("resultOf never converts cancellation into Failure") {
+            val cancellation = java.util.concurrent.CancellationException("cancelled")
+
+            val actual =
+                shouldThrow<java.util.concurrent.CancellationException> {
+                    resultOf { throw cancellation }
+                }
+
+            actual shouldBe cancellation
+        }
+
+        test("resultOf restores the interrupt flag and rethrows interruption") {
+            val interruption = InterruptedException("stop")
+            try {
+                val actual = shouldThrow<InterruptedException> { resultOf { throw interruption } }
+
+                actual shouldBe interruption
+                Thread.currentThread().isInterrupted shouldBe true
+            } finally {
+                Thread.interrupted()
+            }
+        }
+
         test("resultOf result is composable with map and flatMap") {
             val result =
                 resultOf { "42".toInt() }
@@ -356,6 +371,17 @@ class ResultTest :
             val result = "not a number".runResultOf { toInt() }
             result.shouldBeInstanceOf<Failure<Exception>>()
             result.error.shouldBeInstanceOf<NumberFormatException>()
+        }
+
+        test("runResultOf never converts cancellation into Failure") {
+            val cancellation = java.util.concurrent.CancellationException("cancelled")
+
+            val actual =
+                shouldThrow<java.util.concurrent.CancellationException> {
+                    "receiver".runResultOf { throw cancellation }
+                }
+
+            actual shouldBe cancellation
         }
 
         // ========== transpose ==========

@@ -1,5 +1,6 @@
 package com.jstore.order.service
 
+import com.jstore.common.errors.BusinessErrorException
 import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.getOrThrow
@@ -21,7 +22,7 @@ class PaymentCapturedOrderHandler(private val orders: OrderUseCase) :
                 message.currency,
                 message.occurredAt,
             )
-            .getOrThrow()
+            .getOrThrow(::BusinessErrorException)
     }
 }
 
@@ -32,7 +33,7 @@ class FulfillmentPreparedOrderHandler(private val orders: OrderUseCase) :
     override fun handle(message: FulfillmentPreparedIntegrationEvent) {
         orders
             .recordFulfillmentPrepared(OrderId(message.orderId), message.fulfillmentId.toString())
-            .getOrThrow()
+            .getOrThrow(::BusinessErrorException)
     }
 }
 
@@ -43,7 +44,7 @@ class FulfillmentDispatchedOrderHandler(private val orders: OrderUseCase) :
     override fun handle(message: FulfillmentDispatchedIntegrationEvent) {
         orders
             .recordShipmentDispatched(OrderId(message.orderId), message.fulfillmentId.toString())
-            .getOrThrow()
+            .getOrThrow(::BusinessErrorException)
     }
 }
 
@@ -54,8 +55,8 @@ class FulfillmentDeliveredOrderHandler(private val orders: OrderUseCase) :
     override fun handle(message: FulfillmentDeliveredIntegrationEvent) {
         orders
             .recordShipmentDelivered(OrderId(message.orderId), message.fulfillmentId.toString())
-            .getOrThrow()
-        orders.completeOrder(OrderId(message.orderId)).getOrThrow()
+            .getOrThrow(::BusinessErrorException)
+        orders.completeOrder(OrderId(message.orderId)).getOrThrow(::BusinessErrorException)
     }
 }
 
@@ -72,7 +73,7 @@ class PaymentRefundSucceededOrderHandler(
                 message.refundId.toString(),
                 message.occurredAt,
             )
-            .getOrThrow()
+            .getOrThrow(::BusinessErrorException)
         orders
             .recordRefundSucceeded(
                 orderId = OrderId(message.orderId),
@@ -88,7 +89,7 @@ class PaymentRefundSucceededOrderHandler(
                     },
                 occurredAt = message.occurredAt,
             )
-            .getOrThrow()
+            .getOrThrow(::BusinessErrorException)
     }
 }
 
@@ -104,6 +105,6 @@ class PaymentRefundFailedOrderHandler(private val afterSales: AfterSaleUseCase) 
                 message.reason,
                 message.occurredAt,
             )
-            .getOrThrow()
+            .getOrThrow(::BusinessErrorException)
     }
 }

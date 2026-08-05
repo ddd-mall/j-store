@@ -1,6 +1,7 @@
 package com.jstore.order.service
 
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.order.FulfillmentStatus
@@ -12,6 +13,7 @@ import com.jstore.order.domain.order.OrderItemStatus
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
+import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.testOrder
 import io.kotest.core.spec.style.FunSpec
@@ -20,6 +22,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 
 class OrderServiceStatusDimensionsTest :
@@ -37,6 +40,44 @@ class OrderServiceStatusDimensionsTest :
                 .confirmStock(id)
                 .shouldBeInstanceOf<Failure<*>>()
             verify(repository, never()).save(order)
+        }
+
+        test("order factory business failure is returned without persisting") {
+            val factory = mock(OrderFactory::class.java)
+            val repository = mock(OrderRepository::class.java)
+            val publisher = mock(DomainEventPublisher::class.java)
+            val command =
+                OrderCreateCMD(
+                    buyerUid = 1,
+                    merchantId = 2,
+                    buyerPhone = null,
+                    buyerName = null,
+                    recipientInfo =
+                        OrderCreateCMD.RecipientInfoCMD(
+                            consigneeName = "buyer",
+                            consigneeContractInfo =
+                                OrderCreateCMD.ContractInfoCMD(
+                                    phoneNumber = PhoneNumber("13800138000")
+                                ),
+                            shippingDistrictCode = "110101",
+                            shippingDetailAddress = "detail",
+                        ),
+                    items =
+                        listOf(
+                            OrderCreateCMD.OrderItemCMD(
+                                spuId = 10,
+                                skuId = 11,
+                                quantity = 1,
+                                snapshotVersion = 1,
+                            )
+                        ),
+                )
+            `when`(factory.create(command)).thenReturn(Failure(OrderErrors.MERCHANT_MISMATCH))
+
+            OrderService(factory, repository, publisher).createOrder(command) shouldBe
+                Failure(OrderErrors.MERCHANT_MISMATCH)
+
+            verifyNoInteractions(repository)
         }
 
         test("completing an order persists and publishes OrderCompletedEvent") {

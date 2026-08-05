@@ -6,8 +6,8 @@ import com.jstore.common.framework.event.publishPendingEvents
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.common.utils.getOrThrow
 import com.jstore.common.utils.onFailure
+import com.jstore.common.utils.onSuccess
 import com.jstore.order.domain.aftersale.AfterSale
 import com.jstore.order.domain.aftersale.AfterSaleCommandReceipt
 import com.jstore.order.domain.aftersale.AfterSaleCommandType
@@ -198,14 +198,12 @@ class AfterSaleApplicationService(
         val aggregate =
             afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
         val changed = operation(aggregate)
-        changed.onFailure {
-            return Failure(it)
+        return changed.onSuccess { didChange ->
+            if (didChange) {
+                afterSaleRepository.save(aggregate)
+                aggregate.publishPendingEvents(domainEventPublisher)
+            }
         }
-        if (changed.getOrThrow()) {
-            afterSaleRepository.save(aggregate)
-            aggregate.publishPendingEvents(domainEventPublisher)
-        }
-        return changed
     }
 
     private fun decide(

@@ -93,37 +93,17 @@ class ResultJavaUsageTest {
         @Test
         void getOrThrow_onSuccess() {
             Result<Integer, String> result = Results.ok(42);
-            assertEquals(42, ResultKt.getOrThrow(result));
+            assertEquals(42, ResultKt.getOrThrow(result, IllegalStateException::new));
         }
 
         @Test
-        void getOrThrow_onFailure_throws() {
+        void getOrThrow_onFailure_usesExplicitMapper() {
             Result<Integer, String> result = Results.err("boom");
-            var ex = assertThrows(ResultUnwrapException.class, () -> ResultKt.getOrThrow(result));
-            assertTrue(ex.getMessage().contains("boom"));
-        }
-
-        @Test
-        void getErrorOrThrow_onFailure() {
-            Result<Integer, String> result = Results.err("oops");
-            assertEquals("oops", ResultKt.getErrorOrThrow(result));
-        }
-
-        @Test
-        void expect_onSuccess() {
-            Result<String, String> result = Results.ok("data");
-            assertEquals("data", ResultKt.expect(result, "should have data"));
-        }
-
-        @Test
-        void expect_onFailure_throwsWithCustomMessage() {
-            Result<String, Integer> result = Results.err(404);
             var ex =
                     assertThrows(
-                            ResultUnwrapException.class,
-                            () -> ResultKt.expect(result, "resource not found"));
-            assertTrue(ex.getMessage().contains("resource not found"));
-            assertTrue(ex.getMessage().contains("404"));
+                            IllegalStateException.class,
+                            () -> ResultKt.getOrThrow(result, IllegalStateException::new));
+            assertTrue(ex.getMessage().contains("boom"));
         }
 
         @Test
