@@ -8,7 +8,7 @@
 - [ddd-guidelines.md](file://docs/steering/ddd-guidelines.md)
 - [tdd-guidelines.md](file://docs/steering/tdd-guidelines.md)
 - [agent-memory-guidelines.md](file://docs/steering/agent-memory-guidelines.md)
-- [AGENT.md](file://AGENT.md)
+- [AGENTS.md](file://AGENTS.md)
 - [Order.kt](file://j-store-order/src/main/kotlin/com/jstore/order/domain/order/Order.kt)
 - [OrderImpl.kt](file://j-store-order/src/main/kotlin/com/jstore/order/domain/order/OrderImpl.kt)
 - [Entity.kt](file://j-store-common-core/src/main/kotlin/com/jstore/common/framework/Entity.kt)
@@ -306,16 +306,16 @@ Contribution steps:
 - Fork and create a feature branch named after the feature slug.
 - Follow TDD: write failing tests first, then minimal implementation, then refactor.
 - Ensure all relevant tests pass; run module-specific tests and full suite.
-- Update docs/spec artifacts if behavior changes; keep AGENT.md index updated.
+- Update docs/spec artifacts if behavior changes; keep AGENTS.md index updated.
 - Submit PR with clear description linking to spec artifacts and test results.
 
 **Section sources**
 - [claude-workflow.md](file://claude-workflow.md)
-- [AGENT.md](file://AGENT.md)
+- [AGENTS.md](file://AGENTS.md)
 
 ### AI Agent Integration and Memory Management
 Agent memory organization:
-- AGENT.md serves as a long-term memory index with links and brief descriptions.
+- AGENTS.md serves as a long-term memory index with links and brief descriptions.
 - Detailed rules, constraints, and decisions live in docs/steering/*.
 - New long-term memory entries should be categorized and linked; avoid duplicating content across files.
 - Keep memory files short, stable, and executable; do not log transient states or one-off processes.
@@ -326,7 +326,7 @@ Maintenance principles:
 
 **Section sources**
 - [agent-memory-guidelines.md](file://docs/steering/agent-memory-guidelines.md)
-- [AGENT.md](file://AGENT.md)
+- [AGENTS.md](file://AGENTS.md)
 
 ### Code Review Practices and Documentation Standards
 Code review checklist:
@@ -334,7 +334,7 @@ Code review checklist:
 - Repository pattern: interfaces in domain, implementations in infrastructure; no PO/framework leakage.
 - Error handling: Result-based; context-specific errors; no exceptions for expected failures.
 - Testing: TDD followed; property tests cover invariants; integration tests cover PO↔domain and Outbox.
-- Documentation: specs updated; steering docs current; AGENT.md index accurate.
+- Documentation: specs updated; steering docs current; AGENTS.md index accurate.
 
 Documentation standards:
 - Specs under docs/spec/<feature>/ with requirement.md, design.md, tasks.md.
