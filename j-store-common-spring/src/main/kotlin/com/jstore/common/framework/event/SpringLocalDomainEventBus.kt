@@ -2,10 +2,10 @@ package com.jstore.common.framework.event
 
 import org.springframework.context.ApplicationEventPublisher
 
-class SpringDomainEventBus(
+class SpringLocalDomainEventBus(
     private val registry: SpringDomainEventListenerRegistry,
     private val applicationEventPublisher: ApplicationEventPublisher,
-) : DomainEventBus {
+) : LocalDomainEventBus {
 
     override fun publishEvent(domainEvent: DomainEvent) {
         applicationEventPublisher.publishEvent(domainEvent)

@@ -24,4 +24,23 @@ data class OutboxEntry(
     val eventClassName: String = eventType,
     val eventVersion: Int = 1,
     val occurredAt: Instant = createdAt,
+    val messageKind: OutboxMessageKind = OutboxMessageKind.DOMAIN_EVENT,
+    val deliveryTarget: OutboxDeliveryTarget = OutboxDeliveryTarget.LOCAL_DOMAIN,
+    val destination: String = eventType,
+    val partitionKey: String = aggregateId,
+    val correlationId: String = eventId,
+    val causationId: String? = null,
+    val tenantId: String? = null,
 )
+
+enum class OutboxMessageKind {
+    DOMAIN_EVENT,
+    INTEGRATION_EVENT,
+    INTEGRATION_COMMAND,
+}
+
+enum class OutboxDeliveryTarget {
+    LOCAL_DOMAIN,
+    LOCAL_INTEGRATION,
+    BROKER,
+}

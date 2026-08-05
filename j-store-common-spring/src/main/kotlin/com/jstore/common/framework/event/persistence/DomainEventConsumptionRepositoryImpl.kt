@@ -1,6 +1,5 @@
 package com.jstore.common.framework.event.persistence
 
-import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import jakarta.persistence.EntityManager
 import java.time.Instant
@@ -11,8 +10,12 @@ open class DomainEventConsumptionRepositoryImpl(private val entityManager: Entit
     DomainEventConsumptionRepository {
 
     @Transactional(propagation = Propagation.MANDATORY)
-    open override fun tryStart(listenerId: String, event: DomainEvent): Boolean {
-        val metadata = event.metadata
+    open override fun tryStart(
+        consumerId: String,
+        messageId: String,
+        messageName: String,
+        messageVersion: Int,
+    ): Boolean {
         val inserted =
             entityManager
                 .createNativeQuery(
@@ -23,10 +26,10 @@ open class DomainEventConsumptionRepositoryImpl(private val entityManager: Entit
                     """
                         .trimIndent()
                 )
-                .setParameter("listenerId", listenerId)
-                .setParameter("eventId", metadata.eventId)
-                .setParameter("eventName", metadata.eventName)
-                .setParameter("eventVersion", metadata.eventVersion)
+                .setParameter("listenerId", consumerId)
+                .setParameter("eventId", messageId)
+                .setParameter("eventName", messageName)
+                .setParameter("eventVersion", messageVersion)
                 .setParameter("consumedAt", Instant.now())
                 .executeUpdate()
         return inserted == 1

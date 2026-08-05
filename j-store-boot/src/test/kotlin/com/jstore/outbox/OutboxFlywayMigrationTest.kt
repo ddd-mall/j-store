@@ -40,6 +40,14 @@ class OutboxFlywayMigrationTest {
                             assertTrue(rows.next())
                             assertEquals("develop.outbox_dead_letter_audit", rows.getString(1))
                         }
+                    statement
+                        .executeQuery(
+                            "SELECT message_kind, delivery_target, destination, partition_key, correlation_id " +
+                                "FROM develop.outbox_entry LIMIT 0"
+                        )
+                        .use { rows ->
+                            assertEquals(5, rows.metaData.columnCount)
+                        }
                 }
             }
         }

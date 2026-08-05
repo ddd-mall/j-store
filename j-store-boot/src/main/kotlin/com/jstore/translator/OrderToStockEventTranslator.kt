@@ -1,15 +1,8 @@
 package com.jstore.translator
 
 import com.jstore.common.framework.event.DomainEventListener
-import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.goods.acl.event.AfterSaleStockRestoreRequestedEvent
-import com.jstore.goods.acl.event.ConfirmItem
-import com.jstore.goods.acl.event.ReleaseItem
-import com.jstore.goods.acl.event.ReservationItem
-import com.jstore.goods.acl.event.StockConfirmRequestedEvent
-import com.jstore.goods.acl.event.StockReleaseRequestedEvent
-import com.jstore.goods.acl.event.StockReservationRequestedEvent
-import com.jstore.goods.acl.event.StockRestoreItem
+import com.jstore.common.framework.messaging.IntegrationMessagePublisher
+import com.jstore.contracts.commerce.*
 import com.jstore.order.domain.aftersale.event.AfterSaleRefundSucceededEvent
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
@@ -25,31 +18,36 @@ import org.springframework.stereotype.Component
  */
 @Component
 class OrderCreatedToStockReservationTranslator(
-    private val domainEventPublisher: DomainEventPublisher
+    private val integrationMessagePublisher: IntegrationMessagePublisher
 ) : DomainEventListener<OrderCreatedEvent> {
     override fun listenerId(): String = "translator.order-created.to-stock-reservation-requested"
 
     override fun onDomainEvent(event: OrderCreatedEvent) {
-        domainEventPublisher.publishEvent(
-            StockReservationRequestedEvent(
+        integrationMessagePublisher.publish(
+            ReserveInventoryCommand(
                 orderId = event.orderId.value,
-                items =
-                    event.items.map { ReservationItem(skuId = it.skuId, quantity = it.quantity) },
+                items = event.items.map { ContractItem(skuId = it.skuId, quantity = it.quantity) },
+                sourceMessageId = event.eventId,
+                merchantId = event.merchantId.value,
+                occurredAtValue = event.occurredAt,
             )
         )
     }
 }
 
 @Component
-class OrderPaidToStockConfirmTranslator(private val domainEventPublisher: DomainEventPublisher) :
-    DomainEventListener<OrderPaidEvent> {
+class OrderPaidToStockConfirmTranslator(
+    private val integrationMessagePublisher: IntegrationMessagePublisher
+) : DomainEventListener<OrderPaidEvent> {
     override fun listenerId(): String = "translator.order-paid.to-stock-confirm-requested"
 
     override fun onDomainEvent(event: OrderPaidEvent) {
-        domainEventPublisher.publishEvent(
-            StockConfirmRequestedEvent(
+        integrationMessagePublisher.publish(
+            ConfirmInventoryCommand(
                 orderId = event.orderId.value,
-                items = event.items.map { ConfirmItem(skuId = it.skuId) },
+                items = event.items.map { ContractItem(skuId = it.skuId, quantity = it.quantity) },
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
             )
         )
     }
@@ -57,17 +55,19 @@ class OrderPaidToStockConfirmTranslator(private val domainEventPublisher: Domain
 
 @Component
 class OrderCancelledToStockReleaseTranslator(
-    private val domainEventPublisher: DomainEventPublisher,
+    private val integrationMessagePublisher: IntegrationMessagePublisher,
     private val orderRepository: OrderRepository,
 ) : DomainEventListener<OrderCancelledEvent> {
     override fun listenerId(): String = "translator.order-cancelled.to-stock-release-requested"
 
     override fun onDomainEvent(event: OrderCancelledEvent) {
         val order = orderRepository.findById(OrderId(event.orderId.value)) ?: return
-        domainEventPublisher.publishEvent(
-            StockReleaseRequestedEvent(
+        integrationMessagePublisher.publish(
+            ReleaseInventoryCommand(
                 orderId = event.orderId.value,
-                items = order.items.map { ReleaseItem(skuId = it.skuId) },
+                items = order.items.map { ContractItem(skuId = it.skuId, quantity = it.quantity) },
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
             )
         )
     }
@@ -75,19 +75,20 @@ class OrderCancelledToStockReleaseTranslator(
 
 @Component
 class AfterSaleRefundSucceededToStockRestoreTranslator(
-    private val domainEventPublisher: DomainEventPublisher
+    private val integrationMessagePublisher: IntegrationMessagePublisher
 ) : DomainEventListener<AfterSaleRefundSucceededEvent> {
     override fun listenerId(): String =
         "translator.after-sale-refund-succeeded.to-stock-restore-requested.v1"
 
     override fun onDomainEvent(event: AfterSaleRefundSucceededEvent) {
-        val restoreItems =
-            event.items.map { StockRestoreItem(skuId = it.skuId, quantity = it.quantity) }
-        domainEventPublisher.publishEvent(
-            AfterSaleStockRestoreRequestedEvent(
+        val restoreItems = event.items.map { ContractItem(it.skuId, it.quantity) }
+        integrationMessagePublisher.publish(
+            RestoreInventoryAfterRefundCommand(
                 afterSaleId = event.afterSaleId.value,
                 orderId = event.orderId.value,
                 items = restoreItems,
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
             )
         )
     }

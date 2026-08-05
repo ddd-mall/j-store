@@ -1,6 +1,5 @@
 package com.jstore.common.framework.event.outbox
 
-import com.jstore.common.framework.event.DomainEventBus
 import java.time.Instant
 import java.util.UUID
 import kotlin.math.max
@@ -10,13 +9,11 @@ import org.slf4j.LoggerFactory
 /**
  * Outbox 轮询投递器。
  *
- * 后台调度任务，轮询 Outbox 表中待投递的事件并分发到 DomainEventBus。 投递成功更新状态为 PUBLISHED；失败时 retryCount+1，达到上限标记为
- * DEAD_LETTER。
+ * 后台调度任务，轮询 Outbox 表中待投递的消息并交给目标通道路由器。 投递成功更新状态为 PUBLISHED；失败时 retryCount+1，达到上限标记为 DEAD_LETTER。
  */
 class OutboxPublisher(
     private val outboxEntryRepository: OutboxEntryRepository,
-    private val eventSerializer: EventSerializer,
-    private val domainEventBus: DomainEventBus,
+    private val deliveryRouter: OutboxDeliveryRouter,
     private val properties: OutboxProperties,
     private val outboxMonitor: OutboxMonitor = NoopOutboxMonitor,
     private val transactionOperations: OutboxRelayTransactionOperations =
@@ -57,13 +54,7 @@ class OutboxPublisher(
                         throw OutboxLockOwnershipChangedException(entry.id, workerId)
                     }
                     val updated = transactionOperations.executeDelivery {
-                        val event =
-                            eventSerializer.deserialize(
-                                entry.payload,
-                                entry.eventType,
-                                entry.eventVersion,
-                            )
-                        domainEventBus.publishEvent(event)
+                        deliveryRouter.deliver(entry)
                         outboxEntryRepository
                             .markPublished(
                                 entry.copy(

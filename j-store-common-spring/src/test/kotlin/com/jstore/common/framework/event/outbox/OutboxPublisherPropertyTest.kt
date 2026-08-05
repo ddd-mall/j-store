@@ -1,7 +1,7 @@
 package com.jstore.common.framework.event.outbox
 
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.framework.event.DomainEventBus
+import com.jstore.common.framework.event.LocalDomainEventBus
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -80,10 +80,11 @@ class OutboxPublisherPropertyTest :
                     mock<EventSerializer> {
                         on { deserialize(any(), any(), any()) } doReturn StubEvent()
                     }
-                val mockBus = mock<DomainEventBus>()
+                val mockBus = mock<LocalDomainEventBus>()
                 val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-                val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+                val publisher =
+                    OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
                 publisher.pollAndPublish()
 
                 savedEntries.size shouldBe 1
@@ -115,7 +116,7 @@ class OutboxPublisherPropertyTest :
                         on { deserialize(any(), any(), any()) } doReturn StubEvent()
                     }
                 val mockBus =
-                    mock<DomainEventBus> {
+                    mock<LocalDomainEventBus> {
                         on { publishEvent(any()) } doAnswer
                             {
                                 // We track order via the save calls instead
@@ -137,7 +138,8 @@ class OutboxPublisherPropertyTest :
                     true
                 }
 
-                val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+                val publisher =
+                    OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
                 publisher.pollAndPublish()
 
                 // Verify delivery order matches createdAt ascending
@@ -188,10 +190,11 @@ class OutboxPublisherPropertyTest :
                     mock<EventSerializer> {
                         on { deserialize(any(), any(), any()) } doReturn StubEvent()
                     }
-                val mockBus = mock<DomainEventBus>()
+                val mockBus = mock<LocalDomainEventBus>()
                 val properties = OutboxProperties(maxRetryCount = 5, batchSize = batchSize)
 
-                val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+                val publisher =
+                    OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
                 publisher.pollAndPublish()
 
                 // Verify OutboxPublisher passes batchSize to repository
@@ -245,12 +248,13 @@ class OutboxPublisherPropertyTest :
                     }
                 // Mock bus to throw exception on delivery
                 val mockBus =
-                    mock<DomainEventBus> {
+                    mock<LocalDomainEventBus> {
                         on { publishEvent(any()) } doThrow RuntimeException("delivery failed")
                     }
                 val properties = OutboxProperties(maxRetryCount = maxRetryCount, batchSize = 100)
 
-                val publisher = OutboxPublisher(mockRepo, mockSerializer, mockBus, properties)
+                val publisher =
+                    OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
                 publisher.pollAndPublish()
 
                 savedEntries.size shouldBe 1
@@ -264,3 +268,9 @@ class OutboxPublisherPropertyTest :
             }
         }
     })
+
+private fun deliveryRouter(
+    serializer: EventSerializer,
+    bus: LocalDomainEventBus,
+): OutboxDeliveryRouter =
+    OutboxDeliveryRouter(listOf(LocalDomainEventDeliveryChannel(serializer, bus)))

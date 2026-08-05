@@ -11,6 +11,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":j-store-integration-contracts"))
     api(libs.kotlin.stdlib)
     api(libs.kotlin.reflect)
     api(project(":j-store-common-core"))

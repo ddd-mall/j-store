@@ -2,12 +2,15 @@ package com.jstore.common.framework.event.outbox
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.framework.event.DomainEventBus
 import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryPOJpaRepository
+import com.jstore.common.framework.messaging.BrokerIntegrationMessageTransport
+import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import jakarta.persistence.EntityManager
@@ -47,7 +50,35 @@ class OutboxAutoConfigurationTest :
                 context.containsBean("domainEventConsumptionRepository") shouldBe true
                 context.containsBean("outboxRelayTransactionOperations") shouldBe true
                 context.containsBean("springDomainEventMulticasterGuard") shouldBe true
+                context.getBean(IntegrationMessagePublisher::class.java).shouldNotBeNull()
+                context.getBeansOfType(OutboxDeliveryChannel::class.java).keys shouldBe
+                    setOf(
+                        "localDomainEventDeliveryChannel",
+                        "localIntegrationMessageDeliveryChannel",
+                    )
             }
+        }
+
+        test("broker mode fails fast when no broker transport is configured") {
+            contextRunner
+                .withPropertyValues(
+                    "jstore.outbox.enabled=true",
+                    "jstore.messaging.mode=broker",
+                )
+                .run { context -> context.startupFailure.shouldNotBeNull() }
+        }
+
+        test("broker mode registers broker delivery channel when transport is provided") {
+            contextRunner
+                .withUserConfiguration(BrokerTransportConfig::class.java)
+                .withPropertyValues(
+                    "jstore.outbox.enabled=true",
+                    "jstore.messaging.mode=broker",
+                )
+                .run { context ->
+                    context.startupFailure shouldBe null
+                    context.containsBean("brokerIntegrationMessageDeliveryChannel") shouldBe true
+                }
         }
 
         test("enabled=false does not register OutboxAutoConfiguration beans") {
@@ -80,13 +111,18 @@ class OutboxAutoConfigurationTest :
         @Bean fun transactionManager(): PlatformTransactionManager = mock()
 
         @Bean
-        fun domainEventBus(): DomainEventBus =
-            object : DomainEventBus {
+        fun domainEventBus(): LocalDomainEventBus =
+            object : LocalDomainEventBus {
                 override fun publishEvent(domainEvent: DomainEvent) {}
 
                 override fun register(domainEventListener: DomainEventListener<*>) {}
 
                 override fun unregister(domainEventListener: DomainEventListener<*>) {}
             }
+    }
+
+    @Configuration
+    class BrokerTransportConfig {
+        @Bean fun brokerIntegrationMessageTransport(): BrokerIntegrationMessageTransport = mock()
     }
 }

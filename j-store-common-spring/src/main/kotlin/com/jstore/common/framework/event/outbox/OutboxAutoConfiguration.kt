@@ -1,17 +1,31 @@
 package com.jstore.common.framework.event.outbox
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.jstore.common.framework.event.DomainEventBus
 import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.common.framework.event.SpringDomainEventMulticasterGuard
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryPOJpaRepository
 import com.jstore.common.framework.event.outbox.persistence.OutboxEntryRepositoryImpl
 import com.jstore.common.framework.event.persistence.DomainEventConsumptionRepositoryImpl
+import com.jstore.common.framework.messaging.BrokerIntegrationMessageDeliveryChannel
+import com.jstore.common.framework.messaging.BrokerIntegrationMessageTransport
+import com.jstore.common.framework.messaging.BrokerTransportModeGuard
+import com.jstore.common.framework.messaging.IntegrationMessageHandler
+import com.jstore.common.framework.messaging.IntegrationMessagePublisher
+import com.jstore.common.framework.messaging.IntegrationPublicationPlanner
+import com.jstore.common.framework.messaging.JacksonIntegrationMessageSerializer
+import com.jstore.common.framework.messaging.LocalIntegrationMessageBus
+import com.jstore.common.framework.messaging.LocalIntegrationMessageDeliveryChannel
+import com.jstore.common.framework.messaging.MessagingProperties
+import com.jstore.common.framework.messaging.OutboxIntegrationMessagePublisher
+import com.jstore.common.framework.messaging.SpringIntegrationMessageTypeRegistryRegistrar
+import com.jstore.common.framework.messaging.SpringLocalIntegrationMessageBus
 import com.jstore.common.persistent.SnowFlakSequence
 import io.micrometer.core.instrument.MeterRegistry
 import jakarta.persistence.EntityManager
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
@@ -21,7 +35,11 @@ import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
-@EnableConfigurationProperties(OutboxProperties::class, OutboxObservabilityProperties::class)
+@EnableConfigurationProperties(
+    OutboxProperties::class,
+    OutboxObservabilityProperties::class,
+    MessagingProperties::class,
+)
 @ConditionalOnProperty(prefix = "jstore.outbox", name = ["enabled"], havingValue = "true")
 @EnableScheduling
 class OutboxAutoConfiguration {
@@ -43,6 +61,23 @@ class OutboxAutoConfiguration {
     fun eventUpcasterRegistry(upcasters: ObjectProvider<EventUpcaster>): EventUpcasterRegistry {
         return InMemoryEventUpcasterRegistry(upcasters)
     }
+
+    @Bean
+    fun integrationMessageTypeRegistry(): IntegrationMessageTypeRegistry =
+        InMemoryIntegrationMessageTypeRegistry()
+
+    @Bean
+    fun springIntegrationMessageTypeRegistryRegistrar(
+        registry: IntegrationMessageTypeRegistry,
+        properties: OutboxProperties,
+    ): SpringIntegrationMessageTypeRegistryRegistrar =
+        SpringIntegrationMessageTypeRegistryRegistrar(registry, properties.eventTypeScanPackages)
+
+    @Bean
+    fun integrationMessageSerializer(
+        objectMapper: ObjectMapper,
+        registry: IntegrationMessageTypeRegistry,
+    ): IntegrationMessageSerializer = JacksonIntegrationMessageSerializer(objectMapper, registry)
 
     @Bean
     fun eventSerializer(
@@ -84,18 +119,76 @@ class OutboxAutoConfiguration {
     }
 
     @Bean
+    fun integrationPublicationPlanner(
+        properties: MessagingProperties
+    ): IntegrationPublicationPlanner = IntegrationPublicationPlanner(properties.mode)
+
+    @Bean
+    fun integrationMessagePublisher(
+        outboxEntryRepository: OutboxEntryRepository,
+        integrationMessageSerializer: IntegrationMessageSerializer,
+        snowFlakSequence: SnowFlakSequence,
+        integrationMessageTypeRegistry: IntegrationMessageTypeRegistry,
+        integrationPublicationPlanner: IntegrationPublicationPlanner,
+    ): IntegrationMessagePublisher =
+        OutboxIntegrationMessagePublisher(
+            outboxEntryRepository,
+            integrationMessageSerializer,
+            snowFlakSequence,
+            integrationMessageTypeRegistry,
+            integrationPublicationPlanner,
+        )
+
+    @Bean
+    fun localIntegrationMessageBus(
+        handlers: List<IntegrationMessageHandler<*>>,
+        domainEventConsumptionRepository: DomainEventConsumptionRepository,
+    ): LocalIntegrationMessageBus =
+        SpringLocalIntegrationMessageBus(handlers, domainEventConsumptionRepository)
+
+    @Bean
+    fun localIntegrationMessageDeliveryChannel(
+        integrationMessageSerializer: IntegrationMessageSerializer,
+        localIntegrationMessageBus: LocalIntegrationMessageBus,
+    ): OutboxDeliveryChannel =
+        LocalIntegrationMessageDeliveryChannel(
+            integrationMessageSerializer,
+            localIntegrationMessageBus,
+        )
+
+    @Bean
+    @ConditionalOnBean(BrokerIntegrationMessageTransport::class)
+    fun brokerIntegrationMessageDeliveryChannel(
+        transport: BrokerIntegrationMessageTransport
+    ): OutboxDeliveryChannel = BrokerIntegrationMessageDeliveryChannel(transport)
+
+    @Bean
+    fun brokerTransportModeGuard(
+        properties: MessagingProperties,
+        transports: ObjectProvider<BrokerIntegrationMessageTransport>,
+    ): BrokerTransportModeGuard = BrokerTransportModeGuard(properties, transports)
+
+    @Bean
+    fun localDomainEventDeliveryChannel(
+        eventSerializer: EventSerializer,
+        localDomainEventBus: LocalDomainEventBus,
+    ): OutboxDeliveryChannel = LocalDomainEventDeliveryChannel(eventSerializer, localDomainEventBus)
+
+    @Bean
+    fun outboxDeliveryRouter(channels: List<OutboxDeliveryChannel>): OutboxDeliveryRouter =
+        OutboxDeliveryRouter(channels)
+
+    @Bean
     fun outboxPublisher(
         outboxEntryRepository: OutboxEntryRepository,
-        eventSerializer: EventSerializer,
-        domainEventBus: DomainEventBus,
+        deliveryRouter: OutboxDeliveryRouter,
         properties: OutboxProperties,
         outboxMonitor: OutboxMonitor,
         transactionOperations: OutboxRelayTransactionOperations,
     ): OutboxPublisher {
         return OutboxPublisher(
             outboxEntryRepository,
-            eventSerializer,
-            domainEventBus,
+            deliveryRouter,
             properties,
             outboxMonitor,
             transactionOperations,
