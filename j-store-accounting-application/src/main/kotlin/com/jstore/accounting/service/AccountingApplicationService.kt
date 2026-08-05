@@ -95,7 +95,9 @@ class AccountingApplicationService(
         return Success(journalEntryRepository.save(entry))
     }
 
-    override fun recordOrderCompleted(cmd: RecordOrderCompletedCMD): Result<JournalEntry, BusinessError> {
+    override fun recordOrderCompleted(
+        cmd: RecordOrderCompletedCMD
+    ): Result<JournalEntry, BusinessError> {
         journalEntryRepository.findBySourceDocument(cmd.sourceDocument)?.let {
             return Success(it)
         }
@@ -244,7 +246,9 @@ class AccountingApplicationService(
         return Success(journalEntryRepository.save(entry))
     }
 
-    override fun recordSettlementPaid(cmd: RecordSettlementPaidCMD): Result<JournalEntry, BusinessError> {
+    override fun recordSettlementPaid(
+        cmd: RecordSettlementPaidCMD
+    ): Result<JournalEntry, BusinessError> {
         journalEntryRepository.findBySourceDocument(cmd.sourceDocument)?.let {
             return Success(it)
         }

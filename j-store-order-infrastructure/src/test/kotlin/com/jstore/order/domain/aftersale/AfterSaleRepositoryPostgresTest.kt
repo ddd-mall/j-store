@@ -175,11 +175,12 @@ class AfterSaleRepositoryPostgresTest {
             afterSale: AfterSale,
             ceilings: List<RefundCapacityCeiling>,
             receipt: AfterSaleCommandReceipt,
-        ) = requireNotNull(
-            transactions.execute {
-                repository.createWithAllocation(afterSale, ceilings, receipt)
-            }
-        )
+        ) =
+            requireNotNull(
+                transactions.execute {
+                    repository.createWithAllocation(afterSale, ceilings, receipt)
+                }
+            )
     }
 
     private fun requested(id: Long, itemIds: List<Long>): AfterSaleImpl {

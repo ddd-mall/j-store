@@ -45,7 +45,9 @@ class AfterSaleApplicationService(
     override fun findById(id: AfterSaleId): Result<AfterSale, BusinessError> =
         afterSaleRepository.findById(id)?.let(::Success) ?: Failure(AfterSaleErrors.NOT_FOUND)
 
-    override fun listByOrderForAccess(orderId: OrderId): Result<AfterSaleOrderAccess, BusinessError> {
+    override fun listByOrderForAccess(
+        orderId: OrderId
+    ): Result<AfterSaleOrderAccess, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(AfterSaleErrors.NOT_FOUND)
         return Success(
             AfterSaleOrderAccess(

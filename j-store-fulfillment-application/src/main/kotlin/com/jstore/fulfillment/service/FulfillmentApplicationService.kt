@@ -30,7 +30,9 @@ class FulfillmentApplicationService(
     private val sequence: SnowFlakSequence,
     private val publisher: DomainEventPublisher,
 ) : FulfillmentUseCase {
-    override fun createForOrder(request: FulfillmentRequest): Result<FulfillmentOrder, BusinessError> {
+    override fun createForOrder(
+        request: FulfillmentRequest
+    ): Result<FulfillmentOrder, BusinessError> {
         repository.findByOrderId(request.orderId)?.let { existing ->
             return if (
                 existing.merchantId == request.merchantId &&

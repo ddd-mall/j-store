@@ -19,17 +19,26 @@ class TransactionalAccountingUseCase(
     private val write = TransactionTemplate(transactionManager)
     private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun findBySourceDocument(sourceDocument: SourceDocument) =
-        query { delegate.findBySourceDocument(sourceDocument) }
+    override fun findBySourceDocument(sourceDocument: SourceDocument) = query {
+        delegate.findBySourceDocument(sourceDocument)
+    }
+
     override fun recordOrderPaid(cmd: RecordOrderPaidCMD) = tx { delegate.recordOrderPaid(cmd) }
-    override fun recordOrderCompleted(cmd: RecordOrderCompletedCMD) =
-        tx { delegate.recordOrderCompleted(cmd) }
-    override fun recordOrderRefundApproved(cmd: RecordOrderRefundApprovedCMD) =
-        tx { delegate.recordOrderRefundApproved(cmd) }
-    override fun recordSettlementPaid(cmd: RecordSettlementPaidCMD) =
-        tx { delegate.recordSettlementPaid(cmd) }
+
+    override fun recordOrderCompleted(cmd: RecordOrderCompletedCMD) = tx {
+        delegate.recordOrderCompleted(cmd)
+    }
+
+    override fun recordOrderRefundApproved(cmd: RecordOrderRefundApprovedCMD) = tx {
+        delegate.recordOrderRefundApproved(cmd)
+    }
+
+    override fun recordSettlementPaid(cmd: RecordSettlementPaidCMD) = tx {
+        delegate.recordSettlementPaid(cmd)
+    }
 
     private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
+
     private fun <T> query(block: () -> T): T? = read.execute { block() }
 }
 
@@ -39,10 +48,13 @@ class TransactionalSettlementUseCase(
 ) : SettlementUseCase {
     private val write = TransactionTemplate(transactionManager)
 
-    override fun confirmStatement(statementId: SettlementStatementId) =
-        tx { delegate.confirmStatement(statementId) }
-    override fun markPaid(statementId: SettlementStatementId, paidAt: Instant) =
-        tx { delegate.markPaid(statementId, paidAt) }
+    override fun confirmStatement(statementId: SettlementStatementId) = tx {
+        delegate.confirmStatement(statementId)
+    }
+
+    override fun markPaid(statementId: SettlementStatementId, paidAt: Instant) = tx {
+        delegate.markPaid(statementId, paidAt)
+    }
 
     private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 }

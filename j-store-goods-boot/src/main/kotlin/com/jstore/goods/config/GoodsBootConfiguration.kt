@@ -7,7 +7,6 @@ import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactory
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactoryImpl
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotRepository
 import com.jstore.goods.service.CommodityService
-import com.jstore.goods.service.CommodityUseCase
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary

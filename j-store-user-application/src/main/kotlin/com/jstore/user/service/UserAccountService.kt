@@ -43,7 +43,10 @@ class UserAccountService(
     }
 
     /** 用户登录 */
-    override fun login(phoneNumber: PhoneNumber, rawPassword: String): Result<AuthTokenPair, BusinessError> {
+    override fun login(
+        phoneNumber: PhoneNumber,
+        rawPassword: String,
+    ): Result<AuthTokenPair, BusinessError> {
         val account =
             userAccountRepository.findByPhoneNumber(phoneNumber)
                 ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
@@ -121,7 +124,10 @@ class UserAccountService(
     }
 
     /** 修改昵称 */
-    override fun changeNickname(userId: UserId, newNickname: Nickname): Result<Unit, BusinessError> {
+    override fun changeNickname(
+        userId: UserId,
+        newNickname: Nickname,
+    ): Result<Unit, BusinessError> {
         val account =
             userAccountRepository.findById(userId)
                 ?: return Failure(UserAccountErrors.USER_NOT_FOUND)

@@ -18,16 +18,28 @@ class TransactionalCommodityUseCase(
     private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
     override fun createOrUpdate(cmd: CommodityCreateCmd) = tx { delegate.createOrUpdate(cmd) }
+
     override fun addSku(cmd: SkuCreateCmd) = tx { delegate.addSku(cmd) }
+
     override fun publish(spuId: SpuId) = tx { delegate.publish(spuId) }
+
     override fun putOnSale(spuId: SpuId) = tx { delegate.putOnSale(spuId) }
+
     override fun takeOffSale(spuId: SpuId) = tx { delegate.takeOffSale(spuId) }
+
     override fun getDraft(spuId: SpuId) = tx { delegate.getDraft(spuId) }
+
     override fun publishDraft(draftSpuId: SpuId) = tx { delegate.publishDraft(draftSpuId) }
+
     override fun discardDraft(draftSpuId: SpuId) = tx { delegate.discardDraft(draftSpuId) }
+
     override fun saveGoodsStyle(cmd: GoodsStyleSaveCmd) = tx { delegate.saveGoodsStyle(cmd) }
-    override fun queryLatestSnapshots(spuIds: List<Long>) = query { snapshotQueries.queryLatestSnapshots(spuIds) }
+
+    override fun queryLatestSnapshots(spuIds: List<Long>) = query {
+        snapshotQueries.queryLatestSnapshots(spuIds)
+    }
 
     private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
+
     private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
 }

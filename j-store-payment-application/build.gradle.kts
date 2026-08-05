@@ -1,5 +1,7 @@
 plugins { alias(libs.plugins.kotlin.jvm) }
+
 repositories { mavenCentral() }
+
 dependencies {
     api(libs.kotlin.stdlib)
     api(project(":j-store-payment-domain"))
@@ -9,5 +11,7 @@ dependencies {
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
 }
+
 tasks.test { useJUnitPlatform() }
+
 kotlin { jvmToolchain(25) }
