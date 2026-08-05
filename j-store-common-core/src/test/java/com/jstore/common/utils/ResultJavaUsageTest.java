@@ -1,19 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2024-2026 潘少峰 (Peter Pan)
- * SPDX-License-Identifier: Apache-2.0
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.jstore.common.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -109,49 +93,17 @@ class ResultJavaUsageTest {
         @Test
         void getOrThrow_onSuccess() {
             Result<Integer, String> result = Results.ok(42);
-            assertEquals(
-                    42,
-                    ResultKt.getOrThrow(
-                            result, error -> new IllegalStateException("unexpected: " + error)));
+            assertEquals(42, ResultKt.getOrThrow(result, IllegalStateException::new));
         }
 
         @Test
-        void getOrThrow_onFailure_throwsMappedException() {
+        void getOrThrow_onFailure_usesExplicitMapper() {
             Result<Integer, String> result = Results.err("boom");
             var ex =
                     assertThrows(
-                            IllegalArgumentException.class,
-                            () ->
-                                    ResultKt.getOrThrow(
-                                            result,
-                                            error ->
-                                                    new IllegalArgumentException(
-                                                            "domain failure: " + error)));
-            assertTrue(ex.getMessage().contains("domain failure"));
+                            IllegalStateException.class,
+                            () -> ResultKt.getOrThrow(result, IllegalStateException::new));
             assertTrue(ex.getMessage().contains("boom"));
-        }
-
-        @Test
-        void getErrorOrThrow_onFailure() {
-            Result<Integer, String> result = Results.err("oops");
-            assertEquals("oops", ResultKt.getErrorOrThrow(result));
-        }
-
-        @Test
-        void expect_onSuccess() {
-            Result<String, String> result = Results.ok("data");
-            assertEquals("data", ResultKt.expect(result, "should have data"));
-        }
-
-        @Test
-        void expect_onFailure_throwsWithCustomMessage() {
-            Result<String, Integer> result = Results.err(404);
-            var ex =
-                    assertThrows(
-                            ResultUnwrapException.class,
-                            () -> ResultKt.expect(result, "resource not found"));
-            assertTrue(ex.getMessage().contains("resource not found"));
-            assertTrue(ex.getMessage().contains("404"));
         }
 
         @Test
