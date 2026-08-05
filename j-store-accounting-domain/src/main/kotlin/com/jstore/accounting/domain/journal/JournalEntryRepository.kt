@@ -16,9 +16,9 @@
  */
 package com.jstore.accounting.domain.journal
 
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 
-interface JournalEntryRepository : Repository<JournalEntryId, JournalEntry> {
+interface JournalEntryRepository : AggregateRepository<JournalEntryId, JournalEntry> {
     fun findBySourceDocument(sourceDocument: SourceDocument): JournalEntry?
 
     fun nextId(): JournalEntryId

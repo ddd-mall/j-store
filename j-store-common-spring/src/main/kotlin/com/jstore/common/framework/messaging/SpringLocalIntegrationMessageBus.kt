@@ -1,13 +1,12 @@
 package com.jstore.common.framework.messaging
 
-import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import java.util.concurrent.CopyOnWriteArrayList
 import org.springframework.aop.support.AopUtils
 import org.springframework.core.ResolvableType
 
 class SpringLocalIntegrationMessageBus(
     handlers: List<IntegrationMessageHandler<*>>,
-    private val consumptionRepository: DomainEventConsumptionRepository,
+    private val consumptionRepository: MessageConsumptionRepository,
 ) : LocalIntegrationMessageBus {
     private data class Registration(
         val messageType: Class<out IntegrationMessage>,

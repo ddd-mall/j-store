@@ -16,9 +16,7 @@
  */
 package com.jstore.common.properties
 
-import com.jstore.common.framework.Properties
-
-data class PhoneNumber(val value: String) : Properties {
+data class PhoneNumber(val value: String) {
     companion object {
         val PATTERN =
             Regex(

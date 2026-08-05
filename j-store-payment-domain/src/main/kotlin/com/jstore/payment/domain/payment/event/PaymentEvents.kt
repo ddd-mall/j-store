@@ -16,9 +16,9 @@
  */
 package com.jstore.payment.domain.payment.event
 
-import com.jstore.common.framework.event.ExplicitDomainEvent
-import com.jstore.common.framework.event.outbox.DomainEventType
-import com.jstore.common.framework.event.stableDomainEventId
+import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventType
+import com.jstore.common.framework.event.newDomainEventId
 import com.jstore.common.properties.Price
 import com.jstore.payment.domain.payment.PaymentOrderId
 import com.jstore.payment.domain.payment.PaymentRefundId
@@ -28,22 +28,15 @@ import java.time.Instant
 sealed class PaymentDomainEvent(
     open val paymentId: PaymentOrderId,
     override val occurredAt: Instant,
-) : ExplicitDomainEvent {
-    override val source: Any
-        get() = paymentId
-
-    override val eventName: String
-        get() = this::class.java.getAnnotation(DomainEventType::class.java).name
-
-    override val eventVersion: Int
-        get() = this::class.java.getAnnotation(DomainEventType::class.java).version
+    override val eventId: String,
+    override val eventName: String,
+    override val eventVersion: Int,
+) : DomainEvent {
 
     override val aggregateType: String = "PaymentOrder"
     override val aggregateId: String
         get() = paymentId.value.toString()
 
-    override val eventId: String
-        get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }
 
 @DomainEventType(name = "payment.captured")
@@ -55,7 +48,8 @@ data class PaymentCapturedEvent(
     val amount: Price,
     val currency: String,
     override val occurredAt: Instant,
-) : PaymentDomainEvent(paymentId, occurredAt)
+    override val eventId: String = newDomainEventId(),
+) : PaymentDomainEvent(paymentId, occurredAt, eventId, "payment.captured", 1)
 
 @DomainEventType(name = "payment.refund-requested")
 data class PaymentRefundRequestedEvent(
@@ -66,7 +60,8 @@ data class PaymentRefundRequestedEvent(
     val amount: Price,
     val currency: String,
     override val occurredAt: Instant,
-) : PaymentDomainEvent(paymentId, occurredAt)
+    override val eventId: String = newDomainEventId(),
+) : PaymentDomainEvent(paymentId, occurredAt, eventId, "payment.refund-requested", 1)
 
 @DomainEventType(name = "payment.refund-succeeded")
 data class PaymentRefundSucceededEvent(
@@ -80,7 +75,8 @@ data class PaymentRefundSucceededEvent(
     val amount: Price,
     val currency: String,
     override val occurredAt: Instant,
-) : PaymentDomainEvent(paymentId, occurredAt)
+    override val eventId: String = newDomainEventId(),
+) : PaymentDomainEvent(paymentId, occurredAt, eventId, "payment.refund-succeeded", 1)
 
 @DomainEventType(name = "payment.refund-failed")
 data class PaymentRefundFailedEvent(
@@ -90,4 +86,5 @@ data class PaymentRefundFailedEvent(
     val afterSaleId: Long,
     val reason: String,
     override val occurredAt: Instant,
-) : PaymentDomainEvent(paymentId, occurredAt)
+    override val eventId: String = newDomainEventId(),
+) : PaymentDomainEvent(paymentId, occurredAt, eventId, "payment.refund-failed", 1)

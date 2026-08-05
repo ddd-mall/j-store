@@ -134,7 +134,7 @@ class AfterSaleApplicationServiceTest {
                     uid: Long,
                     currentPage: Int,
                     pageSize: Int,
-                ): com.jstore.common.framework.Page<Order> = throw UnsupportedOperationException()
+                ): com.jstore.common.query.Page<Order> = throw UnsupportedOperationException()
             }
         val actual =
             AfterSaleApplicationService(

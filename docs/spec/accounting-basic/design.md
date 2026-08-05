@@ -1,5 +1,7 @@
 # 设计文档：财务模块基础功能
 
+> DDD 基座 API 已由 `docs/spec/changes/ddd-foundation-refactor/` 破坏性替换；下文代码示例中的聚合根、仓储与领域事件类型应以该规格和当前代码为准。
+
 ## 概述
 
 基础财务模块采用 j-store 现有 DDD 约定：`j-store-accounting` 放置领域与应用服务，`j-store-accounting-infrastructure` 放置仓储实现与 JPA PO。第一阶段以 `JournalEntry` 作为账务事实源，支付成功只记录平台代收和商户待结算负债，订单完成后再确认平台佣金，退款通过反向凭证冲正。

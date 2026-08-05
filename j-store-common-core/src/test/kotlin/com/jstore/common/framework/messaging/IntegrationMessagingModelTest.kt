@@ -5,6 +5,7 @@ import com.jstore.common.framework.event.outbox.OutboxDeliveryRouter
 import com.jstore.common.framework.event.outbox.OutboxDeliveryTarget
 import com.jstore.common.framework.event.outbox.OutboxEntry
 import com.jstore.common.framework.event.outbox.OutboxEntryStatus
+import com.jstore.common.framework.event.outbox.OutboxMessageKind
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
@@ -130,5 +131,6 @@ private fun entry(target: OutboxDeliveryTarget) =
         status = OutboxEntryStatus.PENDING,
         createdAt = Instant.parse("2026-08-05T00:00:00Z"),
         updatedAt = Instant.parse("2026-08-05T00:00:00Z"),
+        messageKind = OutboxMessageKind.INTEGRATION_EVENT,
         deliveryTarget = target,
     )

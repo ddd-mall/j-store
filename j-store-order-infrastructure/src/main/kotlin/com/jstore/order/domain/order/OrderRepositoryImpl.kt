@@ -16,8 +16,8 @@
  */
 package com.jstore.order.domain.order
 
-import com.jstore.common.framework.Page
-import com.jstore.common.framework.SortedPage
+import com.jstore.common.query.Page
+import com.jstore.common.query.SortedPage
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.persistence.OrderItemPO
@@ -59,9 +59,9 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
             PageRequest.of(currentPage - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime"))
         val page = jpaRepository.findByBuyerUid(uid, pageable)
         return SortedPage(
-            current = currentPage,
-            size = page.totalElements.toInt(),
-            record = page.content.map { Converter.toDomain(it) },
+            currentPage = currentPage,
+            totalElements = page.totalElements.toInt(),
+            records = page.content.map { Converter.toDomain(it) },
         )
     }
 

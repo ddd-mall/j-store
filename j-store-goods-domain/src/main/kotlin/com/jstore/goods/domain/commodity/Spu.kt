@@ -17,7 +17,8 @@
 package com.jstore.goods.domain.commodity
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Id
 import com.jstore.common.utils.Result
 
@@ -28,7 +29,7 @@ data class MerchantId(override val value: Long) : Id<Long>(value) {
 }
 
 /** TODO: 商品的 Copy-on-Write 流程应该适用于所有状态 */
-interface Spu : AgreeGate<SpuId> {
+interface Spu : AggregateRoot<SpuId>, RecordsDomainEvents {
     /** 商品所属商户。一个商品的全部 SKU 共享同一商户归属。 */
     val merchantId: MerchantId
 

@@ -61,20 +61,23 @@ domain/
 
 When creating domain objects, use these existing base types:
 
-- `Entity<I : Identify>` — base entity interface, requires `val id: I`
-- `AgreeGate<I : Identify>` — aggregate root interface, extends `Entity`, provides `domainEventQueue`, `publishEvent()`, `getDomainEvent()`
-- `Identify` — marker interface for identity types (extends `Properties`)
-- `Repository<I : Identify, E : Entity<I>>` — base repository with `save(entity)` and `findById(id)`
-- `Page<T>` / `SortedPage<T>` — pagination wrappers
+- `Entity<I : Identifier>` — base entity interface, requires `val id: I`
+- `AggregateRoot<I : Identifier>` — aggregate consistency-boundary marker
+- `RecordsDomainEvents` — pending-event snapshot and acknowledgement contract
+- `EventRecordingAggregateRoot<I>` — aggregate base class with a private event collection and protected `raise()`
+- `Identifier` — marker interface for typed identities
+- `AggregateRepository<I : Identifier, A : AggregateRoot<I>>` — aggregate-only repository with `save(aggregate)` and `findById(id)`
+- `Page<T>` / `SortedPage<T>` — query pagination wrappers under `com.jstore.common.query`
 - `Result<T, E>` — custom sealed result type with `Success<T>` / `Failure<E>`, supports `map`, `onSuccess`, `onFailure`, `fold`, `getOrThrow`
 - `BusinessError` — error type with `message`, `errorCode`, `httpCode`; use `CommonBusinessError` constants or define context-specific error objects
-- `DomainEvent` — marker interface with `val source: Any`
+- `DomainEvent` — immutable event contract with stable ID, name, version, time and scalar aggregate reference metadata
 
 ## Coding Rules
 
 ### Entities & Aggregates
-- Entities are identified by a typed ID implementing `Identify` (e.g., `data class OrderId(val value: Long) : Identify`)
-- Aggregate roots implement `AgreeGate<{Id}>` and carry a `domainEventQueue`
+- Entities are identified by a typed ID implementing `Identifier` (e.g., `data class OrderId(val value: Long) : Identifier`)
+- Aggregate roots implement `AggregateRoot<{Id}>`; event-producing roots also implement `RecordsDomainEvents`, normally through `EventRecordingAggregateRoot`
+- Pending event collections must remain private. Aggregate behavior records events through protected `raise()`; callers may only read snapshots and acknowledge stable event IDs after successful publication
 - Entities must encapsulate business behavior — no anemic models (data-only classes with external service logic)
 - Aggregates reference other aggregates by ID only, never by direct object reference
 - Aggregates are consistency boundaries. Prefer one aggregate per write use case; when a local invariant requires multiple aggregates, declare and test the wider application transaction explicitly. Cross-context coordination uses integration messages rather than a distributed database transaction.
@@ -92,15 +95,15 @@ When creating domain objects, use these existing base types:
 ### Domain Events
 - Name with past-tense verb + `Event` suffix (e.g., `OrderCreatedEvent`, `CommodityOnSaleEvent`)
 - Place in `domain/{aggregate}/event/` package
-- Implement `DomainEvent` interface
-- Publish inside the aggregate via `aggregateRoot.publishEvent(event)`
+- Implement `DomainEvent` directly and provide all stable envelope metadata at compile time
+- Record inside the aggregate via protected `raise(event)`
 - Application services persist the aggregate and then write a stable snapshot of pending events to the Outbox
 - Clear the aggregate event queue only after every pending event was accepted by the publisher
 - Events should carry necessary data, not entire aggregate objects
 
 ### Repositories
 - Interface in domain module, implementation in infrastructure module
-- Extend `Repository<{Id}, {Entity}>` from common-core
+- Extend `AggregateRepository<{Id}, {AggregateRoot}>` from common-core
 - Method signatures use domain objects only — no PO types, no SQL, no Spring-specific types
 - Each aggregate root gets exactly one repository
 

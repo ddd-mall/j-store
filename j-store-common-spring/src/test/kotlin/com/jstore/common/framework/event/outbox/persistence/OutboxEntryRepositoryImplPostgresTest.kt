@@ -17,9 +17,7 @@
 package com.jstore.common.framework.event.outbox.persistence
 
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.framework.event.DomainEventConsumptionRepository
 import com.jstore.common.framework.event.DomainEventListener
-import com.jstore.common.framework.event.ExplicitDomainEvent
 import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.common.framework.event.outbox.EventSerializer
 import com.jstore.common.framework.event.outbox.LocalDomainEventDeliveryChannel
@@ -33,7 +31,9 @@ import com.jstore.common.framework.event.outbox.OutboxMessageKind
 import com.jstore.common.framework.event.outbox.OutboxProperties
 import com.jstore.common.framework.event.outbox.OutboxPublisher
 import com.jstore.common.framework.event.outbox.SpringOutboxRelayTransactionOperations
-import com.jstore.common.framework.event.persistence.DomainEventConsumptionRepositoryImpl
+import com.jstore.common.framework.messaging.MessageConsumptionRepository
+import com.jstore.common.framework.messaging.persistence.MessageConsumptionRepositoryImpl
+import com.jstore.common.framework.messaging.tryStart
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import jakarta.persistence.EntityManager
 import java.time.Instant
@@ -73,7 +73,7 @@ class OutboxEntryRepositoryImplPostgresTest {
 
     @Autowired private lateinit var dataSource: DataSource
 
-    @Autowired private lateinit var consumptionRepository: DomainEventConsumptionRepository
+    @Autowired private lateinit var consumptionRepository: MessageConsumptionRepository
 
     @BeforeEach
     fun cleanDatabase() {
@@ -236,13 +236,12 @@ class OutboxEntryRepositoryImplPostgresTest {
 
     private data class RelayProbeEvent(
         override val eventId: String,
-        override val source: Any = "relay-e2e",
         override val eventName: String = "relay.probe",
         override val eventVersion: Int = 1,
         override val occurredAt: Instant = Instant.now(),
         override val aggregateType: String = "RelayProbe",
         override val aggregateId: String = eventId,
-    ) : ExplicitDomainEvent
+    ) : DomainEvent
 
     @Test
     fun `claim locks rows and increments attempt count without duplicate sequential claims`() {
@@ -518,6 +517,7 @@ class OutboxEntryRepositoryImplPostgresTest {
                 retryCount = 1,
                 createdAt = now.minusSeconds(20),
                 lockedBy = "dead",
+                lockedAt = now.minusSeconds(20),
                 lockedUntil = now.minusSeconds(1),
             )
         )
@@ -595,7 +595,7 @@ class OutboxEntryRepositoryImplPostgresTest {
                 maxRetryCount = 5,
                 batchSize = 1,
                 lockedBy = "recovery-worker",
-                lockedUntil = nextAttemptAt.plusSeconds(60),
+                lockedUntil = Instant.now().plusSeconds(60),
             )
         assertEquals(listOf("dead-1"), claimed.map { it.id })
         assertEquals(1, claimed.single().retryCount)
@@ -646,9 +646,9 @@ class OutboxEntryRepositoryImplPostgresTest {
         ): OutboxEntryRepository = OutboxEntryRepositoryImpl(jpaRepository, entityManager)
 
         @Bean
-        fun domainEventConsumptionRepository(
+        fun messageConsumptionRepository(
             entityManager: EntityManager
-        ): DomainEventConsumptionRepository = DomainEventConsumptionRepositoryImpl(entityManager)
+        ): MessageConsumptionRepository = MessageConsumptionRepositoryImpl(entityManager)
     }
 
     companion object {

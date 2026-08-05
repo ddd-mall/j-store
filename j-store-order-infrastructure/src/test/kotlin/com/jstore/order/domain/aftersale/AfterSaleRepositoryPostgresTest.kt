@@ -16,20 +16,16 @@
  */
 package com.jstore.order.domain.aftersale
 
-import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
-import com.jstore.order.domain.aftersale.event.AfterSaleRequestedEvent
 import com.jstore.order.domain.aftersale.persistence.*
 import com.jstore.order.domain.order.FulfillmentStatus
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderItemId
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
-import java.time.Instant
 import java.time.LocalDateTime
-import java.util.LinkedList
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -56,7 +52,6 @@ class AfterSaleRepositoryPostgresTest {
             assertIs<Success<AfterSale>>(result)
             assertEquals(aggregate.items, fixture.repository.findById(aggregate.id)?.items)
             assertEquals(1, fixture.capacities.findById(11).orElseThrow().requestedQuantity)
-            assertEquals(1, aggregate.domainEventQueue.size)
         }
 
     @Test
@@ -229,20 +224,6 @@ class AfterSaleRepositoryPostgresTest {
             items,
             createTime = now,
             _updateTime = now,
-            domainEventQueue =
-                LinkedList<DomainEvent>().apply {
-                    add(
-                        AfterSaleRequestedEvent(
-                            AfterSaleId(id),
-                            OrderId(9),
-                            ApplicantActorId(1),
-                            emptyList(),
-                            RefundReason(RefundCategory.OTHER, "reason"),
-                            false,
-                            Instant.parse("2026-08-03T02:00:00Z"),
-                        )
-                    )
-                },
         )
     }
 

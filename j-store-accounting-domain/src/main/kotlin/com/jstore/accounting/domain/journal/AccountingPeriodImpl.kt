@@ -17,14 +17,12 @@
 package com.jstore.accounting.domain.journal
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import java.time.Instant
 import java.time.LocalDate
-import java.util.LinkedList
-import java.util.Queue
 
 class AccountingPeriodImpl(
     override val id: AccountingPeriodId,
@@ -34,8 +32,7 @@ class AccountingPeriodImpl(
     private var _status: PeriodStatus,
     private var _closedAt: Instant? = null,
     private var _closedBy: String? = null,
-) : AccountingPeriod {
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+) : EventRecordingAggregateRoot<AccountingPeriodId>(), AccountingPeriod {
 
     init {
         require(periodCode.isNotBlank()) { "会计期间编码不能为空" }

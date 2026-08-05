@@ -38,7 +38,7 @@ class PaymentOrderTest :
             (payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH) as Success)
                 .value shouldBe true
             payment.status shouldBe PaymentOrderStatus.CAPTURED
-            payment.domainEventQueue.single()::class shouldBe PaymentCapturedEvent::class
+            payment.pendingDomainEvents().single()::class shouldBe PaymentCapturedEvent::class
             (payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH) as Success)
                 .value shouldBe false
         }
@@ -46,7 +46,7 @@ class PaymentOrderTest :
         test("refund success is separate from refund request and updates payment status") {
             val payment = payment()
             payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH)
-            payment.getDomainEvent()
+            payment.acknowledgeDomainEvents(payment.pendingDomainEvents().mapTo(linkedSetOf()) { it.eventId })
             val refund =
                 PaymentRefund(
                     PaymentRefundId(2),
@@ -62,6 +62,6 @@ class PaymentOrderTest :
 
             payment.status shouldBe PaymentOrderStatus.PARTIALLY_REFUNDED
             payment.refunds.single().status shouldBe PaymentRefundStatus.SUCCEEDED
-            payment.domainEventQueue.last()::class shouldBe PaymentRefundSucceededEvent::class
+            payment.pendingDomainEvents().last()::class shouldBe PaymentRefundSucceededEvent::class
         }
     })

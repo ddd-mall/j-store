@@ -17,12 +17,12 @@
 package com.jstore.goods.domain.commodity
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.Entity
+import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 
-interface GoodsStyle : Entity<GoodsStyleId> {
+interface GoodsStyle : AggregateRoot<GoodsStyleId> {
     val spuId: SpuId
     val mainImages: List<String>
     val detailHtml: String

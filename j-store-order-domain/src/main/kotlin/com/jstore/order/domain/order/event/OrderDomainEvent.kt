@@ -16,9 +16,9 @@
  */
 package com.jstore.order.domain.order.event
 
-import com.jstore.common.framework.event.ExplicitDomainEvent
-import com.jstore.common.framework.event.outbox.DomainEventType
-import com.jstore.common.framework.event.stableDomainEventId
+import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventType
+import com.jstore.common.framework.event.newDomainEventId
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.OrderId
@@ -27,22 +27,15 @@ import java.time.Instant
 sealed class OrderDomainEvent(
     open val orderId: OrderId,
     override val occurredAt: Instant = Instant.now(),
-) : ExplicitDomainEvent {
-    override val source: Any
-        get() = orderId
-
-    override val eventName: String
-        get() = this::class.java.getAnnotation(DomainEventType::class.java).name
-
-    override val eventVersion: Int
-        get() = this::class.java.getAnnotation(DomainEventType::class.java).version
+    override val eventId: String,
+    override val eventName: String,
+    override val eventVersion: Int,
+) : DomainEvent {
 
     override val aggregateType: String = "Order"
     override val aggregateId: String
         get() = orderId.value.toString()
 
-    override val eventId: String
-        get() = stableDomainEventId(eventName, eventVersion, aggregateType, aggregateId, occurredAt)
 }
 
 data class OrderItemSnapshot(val skuId: Long, val quantity: Int)
@@ -55,7 +48,8 @@ data class OrderCreatedEvent(
     val currency: String,
     val items: List<OrderItemSnapshot>,
     override val occurredAt: Instant = Instant.now(),
-) : OrderDomainEvent(orderId, occurredAt)
+    override val eventId: String = newDomainEventId(),
+) : OrderDomainEvent(orderId, occurredAt, eventId, "order.created", 2)
 
 @DomainEventType(name = "order.paid", version = 2)
 data class OrderPaidEvent(
@@ -66,17 +60,20 @@ data class OrderPaidEvent(
     val currency: String,
     val items: List<OrderItemSnapshot>,
     override val occurredAt: Instant = Instant.now(),
-) : OrderDomainEvent(orderId, occurredAt)
+    override val eventId: String = newDomainEventId(),
+) : OrderDomainEvent(orderId, occurredAt, eventId, "order.paid", 2)
 
 @DomainEventType(name = "order.completed")
 data class OrderCompletedEvent(
     override val orderId: OrderId,
     override val occurredAt: Instant = Instant.now(),
-) : OrderDomainEvent(orderId, occurredAt)
+    override val eventId: String = newDomainEventId(),
+) : OrderDomainEvent(orderId, occurredAt, eventId, "order.completed", 1)
 
 @DomainEventType(name = "order.cancelled")
 data class OrderCancelledEvent(
     override val orderId: OrderId,
     val reason: String = "",
     override val occurredAt: Instant = Instant.now(),
-) : OrderDomainEvent(orderId, occurredAt)
+    override val eventId: String = newDomainEventId(),
+) : OrderDomainEvent(orderId, occurredAt, eventId, "order.cancelled", 1)
