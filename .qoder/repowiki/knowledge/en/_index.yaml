@@ -10,7 +10,7 @@ modules:
         title: j-store Multi-Module DDD Platform
         scope:
             - README.md
-            - AGENT.md
+            - AGENTS.md
             - claude-workflow.md
             - .gitignore
             - .gitattributes
