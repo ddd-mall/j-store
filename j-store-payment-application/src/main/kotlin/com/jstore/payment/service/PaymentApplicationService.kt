@@ -1,19 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2024-2026 潘少峰 (Peter Pan)
- * SPDX-License-Identifier: Apache-2.0
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.jstore.payment.service
 
 import com.jstore.common.errors.BusinessError
@@ -24,7 +8,7 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.common.utils.map
+import com.jstore.common.utils.onFailure
 import com.jstore.common.utils.onSuccess
 import com.jstore.payment.domain.payment.PaymentErrors
 import com.jstore.payment.domain.payment.PaymentOrder
@@ -99,16 +83,16 @@ class PaymentApplicationService(
         val payment =
             repository.findByOrderId(command.orderId)
                 ?: return Failure(PaymentErrors.ORDER_NOT_FOUND)
-        return payment
-            .capture(
+        val changed =
+            payment.capture(
                 command.providerTransactionId,
                 command.amount,
                 command.currency,
                 occurredAt,
             )
-            .onSuccess { changed ->
-                if (changed) persistAndPublish(payment)
-            }
+        return changed.onSuccess { didChange ->
+            if (didChange) persistAndPublish(payment)
+        }
     }
 
     override fun requestRefund(
@@ -131,10 +115,11 @@ class PaymentApplicationService(
                 amount = request.amount,
                 requestedAt = occurredAt,
             )
-        return payment.requestRefund(refund, occurredAt).map {
-            persistAndPublish(payment)
-            refund.id
+        payment.requestRefund(refund, occurredAt).onFailure {
+            return Failure(it)
         }
+        persistAndPublish(payment)
+        return Success(refund.id)
     }
 
     override fun retryRefund(
@@ -167,8 +152,9 @@ class PaymentApplicationService(
     ): Result<Boolean, BusinessError> {
         val payment =
             repository.findByRefundId(refundId) ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
-        return mutation(payment).onSuccess { changed ->
-            if (changed) persistAndPublish(payment)
+        val changed = mutation(payment)
+        return changed.onSuccess { didChange ->
+            if (didChange) persistAndPublish(payment)
         }
     }
 
