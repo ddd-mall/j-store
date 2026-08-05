@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "runId": "release-forward-public-contract-2026-08-04",
+  "runId": "release-forward-public-contract-2026-08-05",
   "caseId": "public-contract-ambiguity",
   "caseDigest": "fa48f762b3464173c4ab884d386a961d80e25a99505be59f57844b7df7528b8b",
   "mode": "release",
-  "agent": "Codex subagent /root/forward_bugfix",
+  "agent": "Codex /root semantic re-evaluation",
   "candidate": {
     "skillPath": ".codex/skills/spec-dev",
     "digestAlgorithm": "sha256-tree-v1",
-    "digest": "e0fe4ccdff44fc4a7be48c96652ea12b736df8409affbb1f18d57595a708dacd",
+    "digest": "ac478649816387b43baee6de9c53f903a25474a1c79ab2f0557bb738f799c165",
     "fileCount": 31
   },
   "trace": "evals/traces/release-forward-public-contract.md",

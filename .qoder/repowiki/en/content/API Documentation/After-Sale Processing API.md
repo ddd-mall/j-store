@@ -463,7 +463,7 @@ Body:
 ```json
 POST /api/after-sales/123/approve
 Headers:
-  Idempotency-Key: "approve-key-456"
+  Idempotency-Key: "<merchant-approval-request-id>"
   Authorization: "Bearer <merchant-token>"
 ```
 
