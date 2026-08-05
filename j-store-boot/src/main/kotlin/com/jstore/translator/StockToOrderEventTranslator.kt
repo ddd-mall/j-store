@@ -20,8 +20,8 @@ import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.contracts.commerce.InventoryReservationFailedIntegrationEvent
 import com.jstore.contracts.commerce.InventoryReservedIntegrationEvent
-import com.jstore.goods.domain.inventory.event.StockReservationFailedEvent
-import com.jstore.goods.domain.inventory.event.StockReservedEvent
+import com.jstore.inventory.domain.event.StockReservationFailedEvent
+import com.jstore.inventory.domain.event.StockReservedEvent
 import org.springframework.stereotype.Component
 
 /**
@@ -39,6 +39,8 @@ class StockReservedToOrderConfirmedTranslator(
         integrationMessagePublisher.publish(
             InventoryReservedIntegrationEvent(
                 event.orderId,
+                event.authorizationIds,
+                event.reservationIds,
                 event.eventId,
                 event.occurredAt,
             )
@@ -57,6 +59,7 @@ class StockReservationFailedToOrderInsufficientTranslator(
         integrationMessagePublisher.publish(
             InventoryReservationFailedIntegrationEvent(
                 event.orderId,
+                event.authorizationIds,
                 event.reason,
                 event.eventId,
                 event.occurredAt,

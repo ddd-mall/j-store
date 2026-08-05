@@ -34,6 +34,7 @@ import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.SuccessfulRefundItem
+import com.jstore.order.domain.order.SaleAuthorizationRef
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import java.time.Instant
@@ -62,6 +63,28 @@ class OrderService(
             orderRepository.add(order)
             order.publishPendingEvents(domainEventPublisher)
         }
+
+    override fun recordSaleAuthorized(
+        orderId: OrderId,
+        authorizations: List<SaleAuthorizationRef>,
+    ): Result<Unit, BusinessError> {
+        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        order.recordSaleAuthorized(authorizations).onFailure { return Failure(it) }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
+    }
+
+    override fun markSaleAuthorizationFailed(
+        orderId: OrderId,
+        reason: String,
+    ): Result<Unit, BusinessError> {
+        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        order.markSaleAuthorizationFailed(reason).onFailure { return Failure(it) }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
+    }
 
     /** 库存预扣成功回调 */
     override fun confirmStock(orderId: OrderId): Result<Unit, BusinessError> {

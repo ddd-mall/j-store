@@ -17,7 +17,6 @@
 package com.jstore.goods.domain.commodity.snapshot
 
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.common.properties.Price
 import com.jstore.goods.domain.commodity.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -60,7 +59,6 @@ class SpuSnapshotFactorySkuCodePropertyTest :
                     id = SkuId(skuIdVal),
                     skuName = skuName,
                     attributes = listOf(Attribute("color", "red")),
-                    price = Price.ofFen(priceFen),
                     merchantCode = merchantCode,
                     barcode = barcode,
                 )
@@ -81,7 +79,6 @@ class SpuSnapshotFactorySkuCodePropertyTest :
                         id = SkuId(skuIdVal),
                         skuName = skuName,
                         attributes = listOf(Attribute("variant", attrValue)),
-                        price = Price.ofFen(priceFen),
                         merchantCode = merchantCode,
                         barcode = barcode,
                     )

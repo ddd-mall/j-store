@@ -62,7 +62,7 @@ class OutboxEventPublisherPropertyTest :
                 Arb.long(1L..100_000L),
                 Arb.int(1..999),
             ) { skuId, qty ->
-                OrderItemSnapshot(skuId, qty)
+                OrderItemSnapshot(1, skuId, qty, 1, Price.ofFen(100))
             }
         val arbItemList = Arb.list(arbItemSnapshot, 1..5)
 

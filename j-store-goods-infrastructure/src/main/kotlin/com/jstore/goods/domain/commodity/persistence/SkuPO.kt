@@ -17,7 +17,6 @@
 package com.jstore.goods.domain.commodity.persistence
 
 import jakarta.persistence.*
-import java.math.BigDecimal
 
 @Entity
 @Table(name = "sku")
@@ -29,8 +28,6 @@ class SkuPO(
 
     /** 销售属性 JSON，如 [{"key":"颜色","value":"红色"},{"key":"尺码","value":"XL"}] */
     @Column(name = "attributes", columnDefinition = "jsonb") var attributes: String = "[]",
-    @Column(name = "price", nullable = false, precision = 19, scale = 0)
-    var price: BigDecimal = BigDecimal.ZERO,
     @Column(name = "merchant_code", length = 128) var merchantCode: String? = null,
     @Column(name = "barcode", length = 64) var barcode: String? = null,
 )

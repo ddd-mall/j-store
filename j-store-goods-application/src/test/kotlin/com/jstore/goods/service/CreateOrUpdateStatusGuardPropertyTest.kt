@@ -18,7 +18,6 @@ package com.jstore.goods.service
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.goods.domain.commodity.*
@@ -38,8 +37,8 @@ import org.mockito.kotlin.*
 /**
  * Property 3: createOrUpdate 状态守卫
  *
- * For any SPU 和任意有效的 CommodityCreateCmd，当 SPU 状态为 ON_SALE 时， CommodityService.createOrUpdate 应返回
- * Failure（ON_SALE_DIRECT_EDIT_REJECTED）； 当 SPU 状态为 DRAFT 或 OFF_SALE 时，应正常执行更新。
+ * For any SPU 和任意有效的 CommodityCreateCmd，当 SPU 状态为 PUBLISHED 时， CommodityService.createOrUpdate 应返回
+ * Failure（PUBLISHED_DIRECT_EDIT_REJECTED）； 当 SPU 状态为 DRAFT 或 ARCHIVED 时，应正常执行更新。
  *
  * **Validates: Requirements 5.1, 5.2**
  */
@@ -105,13 +104,12 @@ class CreateOrUpdateStatusGuardPropertyTest :
                         id = SkuId(skuIdVal),
                         skuName = skuName,
                         attributes = listOf(Attribute("variant", attrValue)),
-                        price = Price.ofFen(priceFen),
                     )
                 },
                 1..5,
             )
 
-        test("createOrUpdate should return Failure for ON_SALE SPU") {
+        test("createOrUpdate should return Failure for PUBLISHED SPU") {
             checkAll(100, cmdArb, skuListArb) { cmd, skus ->
                 val spuId = cmd.spuId!!
                 val onSaleSpu: Spu =
@@ -119,7 +117,7 @@ class CreateOrUpdateStatusGuardPropertyTest :
                         id = spuId,
                         name = "existing",
                         description = "desc",
-                        _status = CommodityStatus.ON_SALE,
+                        _status = CommodityStatus.PUBLISHED,
                         _skus = skus.toMutableList(),
                     )
                 whenever(spuRepository.findById(spuId)).thenReturn(onSaleSpu)
@@ -127,18 +125,18 @@ class CreateOrUpdateStatusGuardPropertyTest :
                 val result = service.createOrUpdate(cmd)
 
                 result.shouldBeInstanceOf<Failure<BusinessError>>()
-                result.error shouldBe CommodityErrors.ON_SALE_DIRECT_EDIT_REJECTED
+                result.error shouldBe CommodityErrors.PUBLISHED_DIRECT_EDIT_REJECTED
             }
         }
 
-        // Editable statuses: DRAFT and OFF_SALE
+        // Editable statuses: DRAFT and ARCHIVED
         val editableStatusArb: Arb<CommodityStatus> =
             Arb.of(
                 CommodityStatus.DRAFT,
-                CommodityStatus.OFF_SALE,
+                CommodityStatus.ARCHIVED,
             )
 
-        test("createOrUpdate should succeed for DRAFT or OFF_SALE SPU") {
+        test("createOrUpdate should succeed for DRAFT or ARCHIVED SPU") {
             checkAll(100, cmdArb, skuListArb, editableStatusArb) { cmd, skus, status ->
                 val spuId = cmd.spuId!!
                 val existingSpu: Spu =

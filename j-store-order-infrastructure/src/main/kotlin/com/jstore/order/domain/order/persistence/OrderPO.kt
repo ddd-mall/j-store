@@ -17,6 +17,7 @@
 package com.jstore.order.domain.order.persistence
 
 import com.jstore.order.domain.order.FulfillmentStatus
+import com.jstore.order.domain.order.CommitmentStatus
 import com.jstore.order.domain.order.OrderItemStatus
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
@@ -58,6 +59,11 @@ class OrderPO(
     @Enumerated(EnumType.STRING)
     @Column(name = "fulfillment_status", nullable = false, length = 32)
     var fulfillmentStatus: FulfillmentStatus = FulfillmentStatus.UNFULFILLED,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "commitment_status", nullable = false, length = 32)
+    var commitmentStatus: CommitmentStatus = CommitmentStatus.PENDING_OFFER,
+    @Column(name = "sale_authorization_ids", nullable = false, columnDefinition = "text")
+    var saleAuthorizationIds: String = "",
     @Column(name = "currency", nullable = false, length = 3) var currency: String = "CNY",
     @Column(name = "items_subtotal", nullable = false, precision = 19, scale = 0)
     var itemsSubtotal: BigDecimal = BigDecimal.ZERO,
@@ -114,6 +120,12 @@ class OrderItemPO(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id") var id: Long = 0,
     @Column(name = "order_id", nullable = false, insertable = false, updatable = false)
     var orderId: Long = 0,
+    @Column(name = "offer_id", nullable = false) var offerId: Long = 0,
+    @Column(name = "store_id", nullable = false) var storeId: Long = 0,
+    @Column(name = "offer_version", nullable = false) var offerVersion: Long = 1,
+    @Column(name = "fulfillment_node_id", nullable = false, length = 128)
+    var fulfillmentNodeId: String = "DEFAULT",
+    @Column(name = "channel_id", nullable = false, length = 64) var channelId: String = "ONLINE",
     @Column(name = "sku_id", nullable = false) var skuId: Long = 0,
     @Column(name = "spu_id", nullable = false) var spuId: Long = 0,
     @Column(name = "goods_name", nullable = false, length = 256) var goodsName: String = "",

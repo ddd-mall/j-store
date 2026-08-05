@@ -2,7 +2,9 @@
 
 ## 项目定位
 
-j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下文拆分为 Gradle 多模块。当前代码重点在订单、商品、用户、会计、认证 SDK、领域事件/Outbox 基础设施；店铺、仓储、admin boot 目前仍接近骨架状态。
+j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下文拆分为 Gradle 多模块。核心交易链路已拆分为 Catalog、Store/Offer、Inventory/ATP、WMS 与 Order，并通过版本化集成消息和 Outbox 协作。
+
+完整的权威事实、上下文关系、聚合边界和跨服务一致性协议见 [领域建模说明](domain-modeling.md)。
 
 ## 技术栈
 
@@ -22,10 +24,14 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-integration-contracts`: 跨有界上下文的版本化集成命令/事件契约；只依赖 `common-core`，不承载领域对象或基础设施实现。
 - `j-store-order-domain`: 纯订单/售后领域模型、仓储与 ACL 端口；只依赖 `common-core`。
 - `j-store-order-application`: 无框架的订单/售后用例编排、用例端口和集成消息 handler。
-- `j-store-order-infrastructure`: 订单/售后 JPA、PostgreSQL 并发控制及商品查询 ACL 适配器。
+- `j-store-order-infrastructure`: 订单/售后 JPA、PostgreSQL 并发控制及 Catalog、Offer 查询 ACL 适配器。
 - `j-store-order-boot`: 订单 HTTP Controller、Spring 事务用例装饰器与上下文 Bean 装配。
-- `j-store-goods-api`: 商品上下文对外查询契约，目前用于订单侧获取商品快照。
-- `j-store-goods-domain/application/infrastructure/boot`: 商品、款式、SKU、快照与库存上下文的四层模块；boot 持有 Spring 事务和装配。
+- `j-store-goods-api`: Catalog 对外的无价格商品资料快照查询契约。
+- `j-store-goods-domain/application/infrastructure/boot`: Catalog 的 SPU、SKU、款式、资料快照和 `DRAFT/PUBLISHED/ARCHIVED` 生命周期；不拥有销售状态或库存。
+- `j-store-shop-api`: Store/Offer 对外的销售要约快照查询契约。
+- `j-store-shop-domain/application/infrastructure/boot`: 店铺、商户成员和 `SalesOffer`；销售状态、成交价、渠道、有效期、限购与履约策略由此上下文权威管理，并签发持久化 `SaleAuthorization`。
+- `j-store-inventory-domain/application/infrastructure/boot`: ATP 库存镜像、安全库存、渠道隔离量与订单 `StockReservation`；只有预留成功才构成库存承诺。
+- `j-store-warehouse-domain/application/infrastructure/boot`: WMS 实物库存权威及单调版本库存事件；Inventory 消费其事件维护销售库存镜像。
 - `j-store-payment-domain/application/infrastructure/boot`: 支付单与退款用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-fulfillment-domain/application/infrastructure/boot`: 履约单用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-user-domain/application/infrastructure/boot`: 用户账户领域、注册登录用例、JPA/JWT/Redis 适配以及 Spring Web/事务装配。
@@ -33,14 +39,16 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-accounting-domain/application/infrastructure/boot`: 会计账户、期间、凭证、结算领域与用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-boot`: 当前主启动模块，组合各上下文 boot、公共 Spring 基础设施和认证 SDK，并承载数据库迁移、跨上下文事件翻译器、订单过期定时任务。
 - `j-store-admin-boot`: 管理端启动模块骨架，目前只有基础 Kotlin/JVM 配置和 `Main.kt`。
-- `j-store-shop` / `j-store-shop-infrastructure`: 店铺模块骨架，当前只有少量占位代码。
-- `j-store-warehouse` / `j-store-warehouse-infrastructure`: 仓储模块骨架，当前只有占位入口。
 
 ## 当前实现重点
 
-- 订单：订单聚合、创建/支付/取消/退款相关命令、订单状态规则、商品快照版本校验、库存确认/不足事件处理。
-- 商品：SPU、SKU、商品款式、草稿/发布流程、商品快照、库存预占/确认/释放事件。
+- 订单：订单行冻结 Catalog 与 Offer 快照，持久化 `PENDING_OFFER → OFFER_AUTHORIZED → CONFIRMED/FAILED` Saga 状态；先取得销售授权，再请求 ATP 库存预留。
+- Catalog：SPU、SKU、商品款式、草稿/发布/归档和资料快照；商品价格不通过 Catalog API 进入交易决策。
+- Store/Offer：一个 SKU 可按店铺、渠道、市场分别定价和启停；授权时用数据库悲观锁校验店铺、Offer 版本、价格、有效期和限购，并签发有时效、可幂等、可释放的业务凭证。
+- Inventory/ATP：按 `onHand - reserved - safetyStock - isolatedQuantity` 计算可承诺量；授权过期或 ATP 不足时拒绝预留。
+- WMS：维护实物在库数量和来源版本；订单不直接锁 WMS 数据库，旧库存事件不会覆盖新镜像。
 - 用户：用户注册、登录、强制下线、昵称和密码值对象、JWT 与 Redis token 基础设施。
+- 店铺：商户、商户成员、角色权限、成员管理用例和其它上下文复用的商户授权服务。
 - 支付与履约：支付单、退款、履约单的领域模型、集成消息处理、JPA/Outbox 与事务装配。
 - 会计：账户、会计期间、分录、结算单等领域模型、JPA 仓储实现与事务装配。
 - 公共事件基础设施：进程内领域事件监听、版本化集成消息、按 `local`/`broker`/`hybrid` 部署模式规划的 Outbox 投递目标、事件消费幂等记录及监控。
@@ -61,6 +69,8 @@ boot/interface -> application -> domain -> common-core
 - 基础设施模块依赖对应领域模块，并引入 Spring Data JPA、Redis、WebClient 等框架细节。
 - 每个上下文的 `*-boot` 组合该上下文并提供用例级事务边界，根 `j-store-boot` 只组合整站运行时。
 - 聚合内部和同一上下文协作使用 `LocalDomainEventBus`；跨上下文协作使用 `j-store-integration-contracts` 中的集成命令/事件，查询仍可使用 ACL 接口。
+- `canSell` 仅可作为 Catalog、Offer 与 ATP 的组合查询/决策结果，不得持久化为权威布尔字段。
+- 跨服务一致性依赖两个持久化承诺：Store 的 `SaleAuthorization` 和 Inventory 的 `StockReservation`；不依赖 JVM 线程锁或跨库事务。
 
 ## 领域实现习惯
 
@@ -97,6 +107,9 @@ boot/interface -> application -> domain -> common-core
 ./gradlew :j-store-payment-domain:test :j-store-payment-application:test :j-store-payment-boot:test
 ./gradlew :j-store-fulfillment-domain:test :j-store-fulfillment-application:test :j-store-fulfillment-boot:test
 ./gradlew :j-store-user-domain:test :j-store-user-application:test :j-store-user-boot:test
+./gradlew :j-store-shop-domain:test :j-store-shop-application:test :j-store-shop-infrastructure:test :j-store-shop-boot:test
+./gradlew :j-store-inventory-domain:test :j-store-inventory-application:test :j-store-inventory-infrastructure:test
+./gradlew :j-store-warehouse-domain:test :j-store-warehouse-application:test :j-store-warehouse-infrastructure:test
 ./gradlew :j-store-accounting-domain:test :j-store-accounting-application:test :j-store-accounting-boot:test
 ./gradlew :j-store-common-spring:test
 ./gradlew :j-store-authentication-spring-sdk:test

@@ -15,6 +15,7 @@ import com.jstore.order.domain.aftersale.command.AfterSaleRetryRefundCMD
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.SuccessfulRefundItem
+import com.jstore.order.domain.order.SaleAuthorizationRef
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import java.time.Instant
@@ -28,6 +29,13 @@ interface OrderUseCase {
     fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order>
 
     fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError>
+
+    fun recordSaleAuthorized(
+        orderId: OrderId,
+        authorizations: List<SaleAuthorizationRef>,
+    ): Result<Unit, BusinessError>
+
+    fun markSaleAuthorizationFailed(orderId: OrderId, reason: String): Result<Unit, BusinessError>
 
     fun confirmStock(orderId: OrderId): Result<Unit, BusinessError>
 
