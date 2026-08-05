@@ -17,11 +17,11 @@
 package com.jstore.order.domain.aftersale
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 import com.jstore.common.utils.Result
 import com.jstore.order.domain.order.OrderId
 
-interface AfterSaleRepository : Repository<AfterSaleId, AfterSale> {
+interface AfterSaleRepository : AggregateRepository<AfterSaleId, AfterSale> {
     fun createWithAllocation(
         afterSale: AfterSale,
         ceilings: List<RefundCapacityCeiling>,

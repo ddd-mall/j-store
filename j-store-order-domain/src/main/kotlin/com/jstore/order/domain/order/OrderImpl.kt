@@ -17,7 +17,7 @@
 package com.jstore.order.domain.order
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -25,12 +25,11 @@ import com.jstore.common.utils.Success
 import com.jstore.order.domain.aftersale.AfterSaleId
 import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCompletedEvent
+import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
 import com.jstore.order.domain.order.event.OrderPaidEvent
 import java.time.Instant
 import java.time.LocalDateTime
-import java.util.LinkedList
-import java.util.Queue
 
 class OrderImpl(
     override val id: OrderId,
@@ -49,8 +48,7 @@ class OrderImpl(
     private val refundFacts: MutableList<RefundFact> = mutableListOf(),
     override val createTime: LocalDateTime = LocalDateTime.now(),
     private var _updateTime: LocalDateTime = LocalDateTime.now(),
-) : Order {
-    override val domainEventQueue: Queue<DomainEvent> = LinkedList()
+) : EventRecordingAggregateRoot<OrderId>(), Order {
     override val items: List<OrderItem>
         get() = _items.toList()
 
@@ -90,6 +88,18 @@ class OrderImpl(
         require((_paymentReference == null) == (_paidAmount == Price.ZERO))
     }
 
+    internal fun recordCreated() {
+        raise(
+            OrderCreatedEvent(
+                orderId = id,
+                merchantId = merchantId,
+                payableAmount = amountSnapshot.payableAmount,
+                currency = amountSnapshot.currency,
+                items = _items.map { OrderItemSnapshot(skuId = it.skuId, quantity = it.quantity) },
+            )
+        )
+    }
+
     override fun confirmStock(): Result<Unit, BusinessError> =
         transition(
             _tradeStatus == TradeStatus.CREATED && unpaid(),
@@ -105,7 +115,7 @@ class OrderImpl(
         ) {
             _tradeStatus = TradeStatus.CLOSED
             mutableItems().forEach { it.markCanceled() }
-            publishEvent(OrderCancelledEvent(id, reason))
+            raise(OrderCancelledEvent(id, reason))
         }
 
     override fun recordPaymentCaptured(
@@ -131,7 +141,7 @@ class OrderImpl(
         _paidAmount = capturedAmount
         _paymentStatus = PaymentStatus.PAID
         touch()
-        publishEvent(
+        raise(
             OrderPaidEvent(
                 orderId = id,
                 merchantId = merchantId,
@@ -221,7 +231,7 @@ class OrderImpl(
             "完成订单",
         ) {
             _tradeStatus = TradeStatus.COMPLETED
-            publishEvent(OrderCompletedEvent(id))
+            raise(OrderCompletedEvent(id))
         }
 
     override fun cancel(reason: CancellationReason): Result<Unit, BusinessError> =
@@ -231,7 +241,7 @@ class OrderImpl(
         ) {
             _tradeStatus = TradeStatus.CLOSED
             mutableItems().forEach { it.markCanceled() }
-            publishEvent(OrderCancelledEvent(id, reason.description))
+            raise(OrderCancelledEvent(id, reason.description))
         }
 
     override fun refundEligibility(): Result<RefundEligibility, BusinessError> {

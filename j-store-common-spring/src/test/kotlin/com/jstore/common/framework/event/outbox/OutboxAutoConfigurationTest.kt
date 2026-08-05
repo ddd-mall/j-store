@@ -63,7 +63,7 @@ class OutboxAutoConfigurationTest :
                 context.containsBean("eventTypeRegistry") shouldBe true
                 context.containsBean("springEventTypeRegistryRegistrar") shouldBe true
                 context.containsBean("outboxEntryRepository") shouldBe true
-                context.containsBean("domainEventConsumptionRepository") shouldBe true
+                context.containsBean("messageConsumptionRepository") shouldBe true
                 context.containsBean("outboxRelayTransactionOperations") shouldBe true
                 context.containsBean("springDomainEventMulticasterGuard") shouldBe true
                 context.getBean(IntegrationMessagePublisher::class.java).shouldNotBeNull()

@@ -33,7 +33,7 @@ import io.kotest.property.checkAll
  * Feature: user-account, Property 1: 注册创建不变量
  *
  * For any 合法的注册参数（有效 PhoneNumber、有效 Nickname、满足强度要求的密码）， UserAccountFactory 创建的 UserAccount 状态应为
- * ACTIVE， 且其 domainEventQueue 中应包含一个 UserAccountRegisteredEvent， 事件携带的 userId 和 phoneNumber 与聚合根一致。
+ * ACTIVE，且待发布事件中应包含一个 UserAccountRegisteredEvent，事件携带的 userId 和 phoneNumber 与聚合根一致。
  *
  * **Validates: Requirements 1.1, 1.3, 11.1**
  */
@@ -99,8 +99,8 @@ class UserAccountFactoryPropertyTest :
                 // Nickname should match
                 account.nickname shouldBe Nickname(nickname)
 
-                // domainEventQueue should contain UserAccountRegisteredEvent
-                val events = account.domainEventQueue.toList()
+                // Pending events should contain UserAccountRegisteredEvent
+                val events = account.pendingDomainEvents()
                 events.size shouldBe 1
                 val event = events[0]
                 event.shouldBeInstanceOf<UserAccountRegisteredEvent>()

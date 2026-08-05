@@ -45,7 +45,7 @@ class FulfillmentOrderTest :
 
             fulfillment.status shouldBe FulfillmentOrderStatus.DELIVERED
             fulfillment.carrierCode shouldBe "SF"
-            fulfillment.domainEventQueue.map { it::class } shouldBe
+            fulfillment.pendingDomainEvents().map { it::class } shouldBe
                 listOf(
                     FulfillmentPreparedEvent::class,
                     ShipmentDispatchedEvent::class,

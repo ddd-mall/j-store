@@ -22,12 +22,9 @@ import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.aftersale.command.AfterSaleCreateCMD
-import com.jstore.order.domain.aftersale.event.AfterSaleEventItem
-import com.jstore.order.domain.aftersale.event.AfterSaleRequestedEvent
 import com.jstore.order.domain.order.Order
 import java.time.Instant
 import java.time.LocalDateTime
-import java.util.LinkedList
 
 interface AfterSaleFactory {
     fun create(
@@ -106,27 +103,8 @@ class AfterSaleFactoryImpl(private val sequence: SnowFlakSequence) : AfterSaleFa
                 items,
                 createTime = now,
                 _updateTime = now,
-                domainEventQueue = LinkedList(),
             )
-        afterSale.publishEvent(
-            AfterSaleRequestedEvent(
-                afterSale.id,
-                cmd.orderId,
-                cmd.applicantId,
-                items.map {
-                    AfterSaleEventItem(
-                        it.orderItemId,
-                        it.eligibilitySnapshot.goods.skuId,
-                        it.requestedQuantity,
-                        it.requestedAmount,
-                        it.currency,
-                    )
-                },
-                cmd.reason,
-                requireReturn,
-                occurredAt,
-            )
-        )
+        afterSale.recordRequested(occurredAt)
         return Success(afterSale)
     }
 }

@@ -1,10 +1,12 @@
 # 设计文档：订单售后聚合拆分
 
+> DDD 基座 API 已由 `docs/spec/changes/ddd-foundation-refactor/` 破坏性替换；下文历史代码片段若仍出现旧类型名，以该规格和当前代码为准。
+
 ## 概述
 
 本设计将售后申请、审核、拒绝和撤销从 `Order` 聚合拆成同一订单有界上下文内的独立 `AfterSale` 聚合；订单只保留购买事实、履约事实和经批准的累计退款事实。实现遵循 `docs/steering/ddd-guidelines.md` 的单事务单聚合、领域对象无框架依赖和事件协作约束，以及 `docs/steering/tdd-guidelines.md` 的分层 TDD 约束。
 
-现有项目已提供 `ExplicitDomainEvent`、Transactional Outbox、`DomainEventConsumptionRepository` 和同步注册的 `DomainEventListener`。因此售后保存与事件入 Outbox 同事务完成，订单退款投影在后续 Outbox 投递事务中独立修改订单，不引入分布式事务。本特性不迁移旧数据、不保留旧 API/事件兼容层，直接替换开发库结构。
+现有项目已提供完整元数据的 `DomainEvent`、Transactional Outbox、`MessageConsumptionRepository` 和同步注册的 `DomainEventListener`。因此售后保存与事件入 Outbox 同事务完成，订单退款投影在后续 Outbox 投递事务中独立修改订单，不引入分布式事务。本特性不迁移旧数据、不保留旧 API/事件兼容层，直接替换开发库结构。DDD 基座名称与事件确认协议以 `docs/spec/changes/ddd-foundation-refactor/` 为准。
 
 ### 设计决策
 

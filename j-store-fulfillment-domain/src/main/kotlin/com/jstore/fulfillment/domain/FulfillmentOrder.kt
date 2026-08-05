@@ -17,7 +17,8 @@
 package com.jstore.fulfillment.domain
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.AgreeGate
+import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Id
 import com.jstore.common.utils.Result
 import java.time.Instant
@@ -50,7 +51,7 @@ data class FulfillmentItem(
     }
 }
 
-interface FulfillmentOrder : AgreeGate<FulfillmentOrderId> {
+interface FulfillmentOrder : AggregateRoot<FulfillmentOrderId>, RecordsDomainEvents {
     val orderId: Long
     val merchantId: Long
     val status: FulfillmentOrderStatus

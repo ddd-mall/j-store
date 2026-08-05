@@ -28,8 +28,6 @@ import com.jstore.common.utils.fold
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.GoodsService
 import com.jstore.order.domain.order.command.OrderCreateCMD
-import com.jstore.order.domain.order.event.OrderCreatedEvent
-import com.jstore.order.domain.order.event.OrderItemSnapshot
 
 /** 订单工厂 负责组装一个合法的初始状态的 Order 聚合根 创建过程需要跨上下文查询（商品价格、地址信息），这些依赖不应注入到聚合根 */
 interface OrderFactory {
@@ -135,16 +133,7 @@ class OrderFactoryImpl(
                 amountSnapshot = amountSnapshot,
             )
 
-        order.publishEvent(
-            OrderCreatedEvent(
-                orderId = order.id,
-                merchantId = requestedMerchantId,
-                payableAmount = amountSnapshot.payableAmount,
-                currency = amountSnapshot.currency,
-                items =
-                    orderItems.map { OrderItemSnapshot(skuId = it.skuId, quantity = it.quantity) },
-            )
-        )
+        order.recordCreated()
         return Success(order)
     }
 

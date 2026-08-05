@@ -16,8 +16,8 @@
  */
 package com.jstore.common.framework.event.outbox
 
-import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.LocalDomainEventBus
+import com.jstore.common.framework.event.StubDomainEvent
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -70,9 +70,6 @@ class OutboxPublisherPropertyTest :
                 )
             }
 
-        // Stub DomainEvent for testing
-        data class StubEvent(override val source: Any = "stub") : DomainEvent
-
         /**
          * Feature: transactional-outbox, Property 3: 成功投递后状态变更为 PUBLISHED
          *
@@ -94,7 +91,7 @@ class OutboxPublisherPropertyTest :
                     }
                 val mockSerializer =
                     mock<EventSerializer> {
-                        on { deserialize(any(), any(), any()) } doReturn StubEvent()
+                        on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
                     }
                 val mockBus = mock<LocalDomainEventBus>()
                 val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
@@ -129,7 +126,7 @@ class OutboxPublisherPropertyTest :
                     }
                 val mockSerializer =
                     mock<EventSerializer> {
-                        on { deserialize(any(), any(), any()) } doReturn StubEvent()
+                        on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
                     }
                 val mockBus =
                     mock<LocalDomainEventBus> {
@@ -204,7 +201,7 @@ class OutboxPublisherPropertyTest :
                     }
                 val mockSerializer =
                     mock<EventSerializer> {
-                        on { deserialize(any(), any(), any()) } doReturn StubEvent()
+                        on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
                     }
                 val mockBus = mock<LocalDomainEventBus>()
                 val properties = OutboxProperties(maxRetryCount = 5, batchSize = batchSize)
@@ -260,7 +257,7 @@ class OutboxPublisherPropertyTest :
                     }
                 val mockSerializer =
                     mock<EventSerializer> {
-                        on { deserialize(any(), any(), any()) } doReturn StubEvent()
+                        on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
                     }
                 // Mock bus to throw exception on delivery
                 val mockBus =

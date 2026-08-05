@@ -83,11 +83,11 @@ class AfterSaleAggregateTest :
         test("approval moves an unshipped after-sale to refund pending") {
             val a = aggregate()
             (a.approve(MerchantActorId(99), Instant.EPOCH) is Failure) shouldBe true
-            a.domainEventQueue.size shouldBe 0
+            a.pendingDomainEvents().size shouldBe 0
             (a.approve(MerchantActorId(4), Instant.EPOCH) is Success) shouldBe true
             a.status shouldBe AfterSaleStatus.REFUND_PENDING
-            a.domainEventQueue.size shouldBe 2
+            a.pendingDomainEvents().size shouldBe 2
             (a.cancel(ApplicantActorId(3), Instant.EPOCH) is Failure) shouldBe true
-            a.domainEventQueue.size shouldBe 2
+            a.pendingDomainEvents().size shouldBe 2
         }
     })

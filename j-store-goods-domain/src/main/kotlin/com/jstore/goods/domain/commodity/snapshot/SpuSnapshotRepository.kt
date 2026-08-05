@@ -16,10 +16,13 @@
  */
 package com.jstore.goods.domain.commodity.snapshot
 
-import com.jstore.common.framework.Repository
 import com.jstore.goods.domain.commodity.SpuId
 
-interface SpuSnapshotRepository : Repository<SpuSnapshotId, SpuSnapshot> {
+/** Immutable historical snapshot store; deliberately not an aggregate repository. */
+interface SpuSnapshotRepository {
+    fun save(snapshot: SpuSnapshot): SpuSnapshot
+
+    fun findById(id: SpuSnapshotId): SpuSnapshot?
 
     /** 根据 SPU ID 和版本号查询快照 */
     fun findBySpuIdAndVersion(spuId: SpuId, version: Long): SpuSnapshot?

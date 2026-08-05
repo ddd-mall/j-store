@@ -73,7 +73,7 @@ class SettlementStatementUnitTest :
             statement.markPaid(Instant.now()).shouldBe(Success(Unit))
             statement.status shouldBe SettlementStatementStatus.PAID
             statement
-                .getDomainEvent()
+                .pendingDomainEvents()
                 .single()
                 .shouldBeInstanceOf<
                     com.jstore.accounting.domain.settlement.event.SettlementPaidEvent

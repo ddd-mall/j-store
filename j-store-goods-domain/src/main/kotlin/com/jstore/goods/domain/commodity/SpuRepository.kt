@@ -16,9 +16,9 @@
  */
 package com.jstore.goods.domain.commodity
 
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 
-interface SpuRepository : Repository<SpuId, Spu> {
+interface SpuRepository : AggregateRepository<SpuId, Spu> {
 
     /** 根据源商品 ID 查询其草稿副本 */
     fun findDraftBySourceSpuId(sourceSpuId: SpuId): Spu?

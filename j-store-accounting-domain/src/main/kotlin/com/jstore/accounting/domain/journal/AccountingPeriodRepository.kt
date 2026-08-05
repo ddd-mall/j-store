@@ -17,13 +17,13 @@
 package com.jstore.accounting.domain.journal
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.Repository
+import com.jstore.common.framework.AggregateRepository
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import java.time.LocalDate
 
-interface AccountingPeriodRepository : Repository<AccountingPeriodId, AccountingPeriod> {
+interface AccountingPeriodRepository : AggregateRepository<AccountingPeriodId, AccountingPeriod> {
     fun findByDate(date: LocalDate): AccountingPeriod?
 
     fun requireOpenPeriod(date: LocalDate): Result<AccountingPeriod, BusinessError> {

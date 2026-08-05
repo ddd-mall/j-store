@@ -23,7 +23,6 @@ import com.jstore.order.domain.order.FulfillmentStatus
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderItemId
 import java.time.LocalDateTime
-import java.util.LinkedList
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
@@ -71,7 +70,6 @@ class AfterSalePORoundTripTest {
                 createTime = now.minusDays(1),
                 _updateTime = now,
                 version = 7,
-                domainEventQueue = LinkedList(),
             )
 
         val restored = repository.toDomain(repository.toPO(source))
