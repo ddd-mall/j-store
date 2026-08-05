@@ -27,7 +27,8 @@ class DomainListenerSpringWrapper(
     private val domainEventListener: DomainEventListener<*>,
     private val consumptionRepository: MessageConsumptionRepository,
 ) : GenericApplicationListener {
-    private val listenerEventType = SpringDomainEventListenerTypeResolver.require(domainEventListener)
+    private val listenerEventType =
+        SpringDomainEventListenerTypeResolver.require(domainEventListener)
 
     override fun onApplicationEvent(event: ApplicationEvent) {
         (event as? PayloadApplicationEvent<*>)?.let {

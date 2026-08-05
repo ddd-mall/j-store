@@ -30,8 +30,8 @@ import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.common.framework.messaging.IntegrationPublicationPlanner
 import com.jstore.common.framework.messaging.JacksonIntegrationMessageSerializer
 import com.jstore.common.framework.messaging.LocalIntegrationMessageBus
-import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import com.jstore.common.framework.messaging.LocalIntegrationMessageDeliveryChannel
+import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import com.jstore.common.framework.messaging.MessagingProperties
 import com.jstore.common.framework.messaging.OutboxIntegrationMessagePublisher
 import com.jstore.common.framework.messaging.SpringIntegrationMessageTypeRegistryRegistrar

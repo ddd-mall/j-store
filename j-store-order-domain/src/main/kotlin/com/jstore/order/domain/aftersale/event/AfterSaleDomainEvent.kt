@@ -45,7 +45,6 @@ sealed class AfterSaleDomainEvent(
     override val aggregateType = "AfterSale"
     override val aggregateId
         get() = afterSaleId.value.toString()
-
 }
 
 @DomainEventType(name = "after-sale.requested", version = 1)
@@ -91,7 +90,15 @@ data class AfterSaleRefundRequestedEvent(
     val currency: String,
     override val occurredAt: Instant,
     override val eventId: String = newDomainEventId(),
-) : AfterSaleDomainEvent(afterSaleId, orderId, occurredAt, eventId, "after-sale.refund-requested", 1)
+) :
+    AfterSaleDomainEvent(
+        afterSaleId,
+        orderId,
+        occurredAt,
+        eventId,
+        "after-sale.refund-requested",
+        1,
+    )
 
 @DomainEventType(name = "after-sale.refund-succeeded", version = 1)
 data class AfterSaleRefundSucceededEvent(
@@ -103,7 +110,15 @@ data class AfterSaleRefundSucceededEvent(
     val currency: String,
     override val occurredAt: Instant,
     override val eventId: String = newDomainEventId(),
-) : AfterSaleDomainEvent(afterSaleId, orderId, occurredAt, eventId, "after-sale.refund-succeeded", 1)
+) :
+    AfterSaleDomainEvent(
+        afterSaleId,
+        orderId,
+        occurredAt,
+        eventId,
+        "after-sale.refund-succeeded",
+        1,
+    )
 
 @DomainEventType(name = "after-sale.refund-failed", version = 1)
 data class AfterSaleRefundFailedEvent(
