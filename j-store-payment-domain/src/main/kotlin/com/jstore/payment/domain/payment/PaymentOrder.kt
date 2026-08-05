@@ -42,20 +42,56 @@ data class PaymentRefundItem(
     }
 }
 
-data class PaymentRefund(
+class PaymentRefund(
     val id: PaymentRefundId,
     val afterSaleId: Long,
     val items: List<PaymentRefundItem>,
     val amount: Price,
-    var status: PaymentRefundStatus = PaymentRefundStatus.PENDING,
-    var providerRefundId: String? = null,
-    var failureReason: String? = null,
+    status: PaymentRefundStatus = PaymentRefundStatus.PENDING,
+    providerRefundId: String? = null,
+    failureReason: String? = null,
     val requestedAt: Instant,
-    var completedAt: Instant? = null,
+    completedAt: Instant? = null,
 ) {
+    private var _status: PaymentRefundStatus = status
+    private var _providerRefundId: String? = providerRefundId
+    private var _failureReason: String? = failureReason
+    private var _completedAt: Instant? = completedAt
+
+    val status: PaymentRefundStatus
+        get() = _status
+
+    val providerRefundId: String?
+        get() = _providerRefundId
+
+    val failureReason: String?
+        get() = _failureReason
+
+    val completedAt: Instant?
+        get() = _completedAt
+
     init {
         require(afterSaleId > 0 && items.isNotEmpty())
         require(amount == Price.sumOf(items.map { it.amount }))
+    }
+
+    internal fun markPending() {
+        _status = PaymentRefundStatus.PENDING
+        _failureReason = null
+        _completedAt = null
+    }
+
+    internal fun markSucceeded(providerRefundId: String, completedAt: Instant) {
+        _status = PaymentRefundStatus.SUCCEEDED
+        _providerRefundId = providerRefundId
+        _failureReason = null
+        _completedAt = completedAt
+    }
+
+    internal fun markFailed(reason: String, completedAt: Instant) {
+        _status = PaymentRefundStatus.FAILED
+        _failureReason = reason
+        _completedAt = completedAt
     }
 }
 

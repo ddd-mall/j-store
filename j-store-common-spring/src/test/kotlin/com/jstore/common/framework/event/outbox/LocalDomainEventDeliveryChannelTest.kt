@@ -15,7 +15,7 @@ class LocalDomainEventDeliveryChannelTest :
             val event = StubDomainEvent()
             val serializer = mock<EventSerializer>()
             val bus = mock<LocalDomainEventBus>()
-            whenever(serializer.deserialize("{}", "order.created", 2)).thenReturn(event)
+            whenever(serializer.deserialize("{}", "order.created", 3)).thenReturn(event)
             val channel = LocalDomainEventDeliveryChannel(serializer, bus)
             val entry =
                 OutboxEntry(
@@ -27,7 +27,7 @@ class LocalDomainEventDeliveryChannelTest :
                     status = OutboxEntryStatus.PENDING,
                     createdAt = Instant.parse("2026-08-05T00:00:00Z"),
                     updatedAt = Instant.parse("2026-08-05T00:00:00Z"),
-                    eventVersion = 2,
+                    eventVersion = 3,
                 )
 
             channel.deliver(entry)

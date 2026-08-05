@@ -1,7 +1,6 @@
 package com.jstore.goods.domain.commodity
 
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -9,12 +8,12 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
 
-// Feature: commodity-draft-copy-on-write, Property 2: createDraftCopy 拒绝非 ON_SALE 源商品
+// Feature: commodity-draft-copy-on-write, Property 2: createDraftCopy 拒绝非 PUBLISHED 源商品
 
 /**
- * Property 2: createDraftCopy 拒绝非 ON_SALE 源商品
+ * Property 2: createDraftCopy 拒绝非 PUBLISHED 源商品
  *
- * For any 状态不是 ON_SALE 的 SPU（即 DRAFT 或 OFF_SALE）， 调用 SpuFactory.createDraftCopy 应返回 Failure。
+ * For any 状态不是 PUBLISHED 的 SPU（即 DRAFT 或 ARCHIVED）， 调用 SpuFactory.createDraftCopy 应返回 Failure。
  *
  * **Validates: Requirements 2.4**
  */
@@ -23,11 +22,11 @@ class CreateDraftCopyStatusGuardPropertyTest :
         val snowFlakSequence = SnowFlakSequence()
         val factory = SpuFactoryImpl(snowFlakSequence)
 
-        // Non-ON_SALE statuses
+        // Non-PUBLISHED statuses
         val nonOnSaleStatusArb: Arb<CommodityStatus> =
             Arb.of(
                 CommodityStatus.DRAFT,
-                CommodityStatus.OFF_SALE,
+                CommodityStatus.ARCHIVED,
             )
 
         // Generator for a non-empty list of SKUs (1..5)
@@ -43,13 +42,12 @@ class CreateDraftCopyStatusGuardPropertyTest :
                         id = SkuId(skuIdVal),
                         skuName = skuName,
                         attributes = listOf(Attribute("variant", attrValue)),
-                        price = Price.ofFen(priceFen),
                     )
                 },
                 1..5,
             )
 
-        // Generator for a non-ON_SALE SPU
+        // Generator for a non-PUBLISHED SPU
         val nonOnSaleSpuArb: Arb<SpuImpl> =
             Arb.bind(
                 Arb.long(1L..Long.MAX_VALUE),
@@ -69,7 +67,7 @@ class CreateDraftCopyStatusGuardPropertyTest :
                 )
             }
 
-        test("createDraftCopy should return Failure for non-ON_SALE SPU") {
+        test("createDraftCopy should return Failure for non-PUBLISHED SPU") {
             checkAll(100, nonOnSaleSpuArb) { source ->
                 val result = factory.createDraftCopy(source)
 

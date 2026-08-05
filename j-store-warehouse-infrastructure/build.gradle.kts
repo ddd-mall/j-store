@@ -1,5 +1,7 @@
 plugins {
-    kotlin("jvm")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.plugin.jpa)
+    alias(libs.plugins.kotlin.plugin.spring)
 }
 
 group = "com.jstore"
@@ -11,7 +13,11 @@ repositories {
 }
 
 dependencies {
-    testImplementation(kotlin("test"))
+    api(project(":j-store-warehouse-domain"))
+    implementation(platform(libs.spring.boot.dependencies))
+    implementation(libs.spring.boot.starter.data.jpa)
+    runtimeOnly(libs.postgresql)
+    testImplementation(libs.spring.boot.starter.test)
 }
 
 kotlin {

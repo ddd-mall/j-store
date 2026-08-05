@@ -11,6 +11,7 @@ import com.jstore.common.utils.Success
 import com.jstore.common.utils.fold
 import com.jstore.order.acl.GoodsId
 import com.jstore.order.acl.GoodsService
+import com.jstore.order.acl.OfferService
 import com.jstore.order.domain.order.command.OrderCreateCMD
 
 /** 订单工厂 负责组装一个合法的初始状态的 Order 聚合根 创建过程需要跨上下文查询（商品价格、地址信息），这些依赖不应注入到聚合根 */
@@ -22,12 +23,17 @@ class OrderFactoryImpl(
     private val snowFlakSequence: SnowFlakSequence,
     private val goodsService: GoodsService,
     private val geoAddressService: GeoAddressService,
+    private val offerService: OfferService,
 ) : OrderFactory {
 
     override fun create(cmd: OrderCreateCMD): Result<Order, BusinessError> {
         // 1. 通过 ACL 查询商品信息
         val goodsIds = cmd.items.map { GoodsId(it.spuId, it.skuId) }
         val goodsInfoMap = goodsService.queryGoods(goodsIds).associateBy { it.id }
+        val offerInfoMap =
+            offerService.queryOffers(cmd.items.map { it.offerId }.distinct()).associateBy {
+                it.offerId
+            }
 
         val requestedMerchantId = MerchantId(cmd.merchantId)
 
@@ -46,7 +52,7 @@ class OrderFactoryImpl(
                     return Failure(OrderErrors.MERCHANT_MISMATCH)
                 }
 
-                // 快照版本校验（SPU 粒度）
+                // Catalog 快照版本校验（SPU 粒度）
                 if (itemCmd.snapshotVersion != goods.snapshotVersion) {
                     return Failure(
                         OrderErrors.SNAPSHOT_VERSION_MISMATCH.msg(
@@ -55,14 +61,34 @@ class OrderFactoryImpl(
                     )
                 }
 
+                val offer =
+                    offerInfoMap[itemCmd.offerId]
+                        ?: return Failure(
+                            OrderErrors.CORRESPONDING_GOODS_NOT_FOUND.msg(
+                                "销售要约 ID=${itemCmd.offerId} 不存在"
+                            )
+                        )
+                if (
+                    offer.skuId != itemCmd.skuId ||
+                        offer.merchantId != requestedMerchantId.value ||
+                        offer.version != itemCmd.offerVersion
+                ) {
+                    return Failure(OrderErrors.SNAPSHOT_VERSION_MISMATCH.msg("销售要约已变化，请刷新页面"))
+                }
+
                 OrderItemImpl(
                     id = OrderItemId(snowFlakSequence.nextId()),
                     spuId = itemCmd.spuId,
                     skuId = itemCmd.skuId,
+                    offerId = offer.offerId,
+                    storeId = offer.storeId,
+                    offerVersion = offer.version,
+                    fulfillmentNodeId = offer.fulfillmentNodeId,
+                    channelId = offer.channelId,
                     goodsName = goods.spuName,
                     skuDescription = buildSkuDescription(goods.skuName, goods.attributes),
                     quantity = itemCmd.quantity,
-                    unitPrice = goods.price,
+                    unitPrice = offer.price,
                     snapshotVersion = goods.snapshotVersion,
                 )
             }

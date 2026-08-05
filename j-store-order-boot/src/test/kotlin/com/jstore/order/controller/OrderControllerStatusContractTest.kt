@@ -5,6 +5,7 @@ import com.jstore.common.properties.Price
 import com.jstore.common.query.SortedPage
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.order.FulfillmentStatus
+import com.jstore.order.domain.order.CommitmentStatus
 import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderAmountSnapshot
@@ -37,6 +38,7 @@ class OrderControllerStatusContractTest {
         `when`(order.tradeStatus).thenReturn(TradeStatus.ACTIVE)
         `when`(order.paymentStatus).thenReturn(PaymentStatus.PARTIALLY_REFUNDED)
         `when`(order.fulfillmentStatus).thenReturn(FulfillmentStatus.DELIVERED)
+        `when`(order.commitmentStatus).thenReturn(CommitmentStatus.CONFIRMED)
         `when`(order.amountSnapshot).thenReturn(OrderAmountSnapshot.cny(Price.ofFen(100)))
         `when`(order.paidAmount).thenReturn(Price.ofFen(100))
         `when`(order.refundedAmount).thenReturn(Price.ofFen(50))
@@ -44,6 +46,11 @@ class OrderControllerStatusContractTest {
         `when`(item.id).thenReturn(OrderItemId(10))
         `when`(item.skuId).thenReturn(11)
         `when`(item.spuId).thenReturn(12)
+        `when`(item.offerId).thenReturn(13)
+        `when`(item.storeId).thenReturn(14)
+        `when`(item.offerVersion).thenReturn(2)
+        `when`(item.fulfillmentNodeId).thenReturn("CN-NORTH-1")
+        `when`(item.channelId).thenReturn("ONLINE")
         `when`(item.goodsName).thenReturn("商品")
         `when`(item.skuDescription).thenReturn("规格")
         `when`(item.quantity).thenReturn(1)
@@ -64,6 +71,7 @@ class OrderControllerStatusContractTest {
         assertEquals("ACTIVE", json["tradeStatus"].asText())
         assertEquals("PARTIALLY_REFUNDED", json["paymentStatus"].asText())
         assertEquals("DELIVERED", json["fulfillmentStatus"].asText())
+        assertEquals("CONFIRMED", json["commitmentStatus"].asText())
         assertFalse(json.has("afterSaleStatus"))
         assertEquals(50, json["refundedAmount"].asLong())
         assertEquals(100, json["payableAmount"].asLong())

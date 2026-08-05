@@ -1,6 +1,5 @@
 package com.jstore.goods.domain.commodity
 
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -9,23 +8,23 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
 
-// Feature: commodity-draft-copy-on-write, Property 5: mergeFromDraft 拒绝非 ON_SALE 目标
+// Feature: commodity-draft-copy-on-write, Property 5: mergeFromDraft 拒绝非 PUBLISHED 目标
 
 /**
- * Property 5: mergeFromDraft 拒绝非 ON_SALE 目标
+ * Property 5: mergeFromDraft 拒绝非 PUBLISHED 目标
  *
- * For any 状态不是 ON_SALE 的 SPU（即 DRAFT 或 OFF_SALE）， 调用 mergeFromDraft 应返回 Failure，且 SPU 的所有字段保持不变。
+ * For any 状态不是 PUBLISHED 的 SPU（即 DRAFT 或 ARCHIVED）， 调用 mergeFromDraft 应返回 Failure，且 SPU 的所有字段保持不变。
  *
  * **Validates: Requirements 9.5**
  */
 class MergeFromDraftStatusGuardPropertyTest :
     FunSpec({
 
-        // Non-ON_SALE statuses
+        // Non-PUBLISHED statuses
         val nonOnSaleStatusArb: Arb<CommodityStatus> =
             Arb.of(
                 CommodityStatus.DRAFT,
-                CommodityStatus.OFF_SALE,
+                CommodityStatus.ARCHIVED,
             )
 
         // Generator for a non-empty list of SKUs (1..5)
@@ -41,13 +40,12 @@ class MergeFromDraftStatusGuardPropertyTest :
                         id = SkuId(skuIdVal),
                         skuName = skuName,
                         attributes = listOf(Attribute("variant", attrValue)),
-                        price = Price.ofFen(priceFen),
                     )
                 },
                 1..5,
             )
 
-        // Generator for a non-ON_SALE SPU (target)
+        // Generator for a non-PUBLISHED SPU (target)
         val nonOnSaleSpuArb: Arb<SpuImpl> =
             Arb.bind(
                 Arb.long(1L..Long.MAX_VALUE),
@@ -86,7 +84,7 @@ class MergeFromDraftStatusGuardPropertyTest :
             }
 
         test(
-            "mergeFromDraft should return Failure for non-ON_SALE SPU and leave all fields unchanged"
+            "mergeFromDraft should return Failure for non-PUBLISHED SPU and leave all fields unchanged"
         ) {
             checkAll(100, nonOnSaleSpuArb, draftSpuArb) { target, draft ->
                 // Capture original field values before the call

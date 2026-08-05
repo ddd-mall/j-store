@@ -9,19 +9,19 @@ import com.jstore.fulfillment.domain.event.ShipmentDispatchedEvent
 import com.jstore.order.domain.aftersale.event.AfterSaleRefundRequestedEvent
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.event.OrderCompletedEvent
-import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
+import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
 import com.jstore.payment.domain.payment.event.PaymentCapturedEvent
 import com.jstore.payment.domain.payment.event.PaymentRefundFailedEvent
 import com.jstore.payment.domain.payment.event.PaymentRefundSucceededEvent
 import org.springframework.stereotype.Component
 
 @Component
-class OrderCreatedToPaymentTranslator(private val publisher: IntegrationMessagePublisher) :
-    DomainEventListener<OrderCreatedEvent> {
-    override fun listenerId() = "translator.order-created.to-payment-order.v2"
+class OrderStockConfirmedToPaymentTranslator(private val publisher: IntegrationMessagePublisher) :
+    DomainEventListener<OrderStockConfirmedEvent> {
+    override fun listenerId() = "translator.order-stock-confirmed.to-payment-order.v3"
 
-    override fun onDomainEvent(event: OrderCreatedEvent) {
+    override fun onDomainEvent(event: OrderStockConfirmedEvent) {
         publisher.publish(
             CreatePaymentForOrderCommand(
                 orderId = event.orderId.value,

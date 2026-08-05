@@ -38,15 +38,13 @@ interface Spu : AggregateRoot<SpuId>, RecordsDomainEvents {
     /** 添加 SKU */
     fun addSku(sku: Sku): Result<Unit, BusinessError>
 
-    /** 发布：DRAFT → OFF_SALE */
+    /** 发布商品资料：DRAFT → PUBLISHED。 */
     fun publish(): Result<Unit, BusinessError>
 
-    /** 上架：OFF_SALE → ON_SALE */
-    fun putOnSale(): Result<Unit, BusinessError>
-
-    /** 下架：ON_SALE → OFF_SALE */
-    fun takeOffSale(): Result<Unit, BusinessError>
+    /** 归档商品资料：PUBLISHED → ARCHIVED。 */
+    fun archive(): Result<Unit, BusinessError>
 
     /** 将草稿副本的内容合并到当前 SPU（领域方法） */
     fun mergeFromDraft(draft: Spu): Result<Unit, BusinessError>
+
 }

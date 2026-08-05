@@ -1,6 +1,5 @@
 package com.jstore.goods.domain.commodity
 
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.json.JsonUtils
 import com.jstore.goods.domain.commodity.persistence.SkuPO
 import com.jstore.goods.domain.commodity.persistence.SpuPO
@@ -60,7 +59,6 @@ class SpuRepositoryImpl(private val jpaRepository: SpuPOJpaRepository) : SpuRepo
                 spuId = spuId,
                 skuName = sku.skuName,
                 attributes = JsonUtils.toJsonString(sku.attributes),
-                price = sku.price.toBigDecimal(),
                 merchantCode = sku.merchantCode,
                 barcode = sku.barcode,
             )
@@ -85,7 +83,6 @@ class SpuRepositoryImpl(private val jpaRepository: SpuPOJpaRepository) : SpuRepo
                 id = SkuId(po.id),
                 skuName = po.skuName,
                 attributes = attrs,
-                price = Price.fromBigDecimal(po.price),
                 merchantCode = po.merchantCode,
                 barcode = po.barcode,
             )

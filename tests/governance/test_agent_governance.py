@@ -10,6 +10,21 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class AgentGovernanceContractTest(unittest.TestCase):
+    def test_domain_model_is_indexed_and_scheduled_for_long_term_maintenance(self) -> None:
+        domain_model = REPO_ROOT / "docs" / "domain-modeling.md"
+        self.assertTrue(domain_model.is_file())
+
+        agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        overview = (REPO_ROOT / "docs" / "project-overview.md").read_text(encoding="utf-8")
+        runbook = (
+            REPO_ROOT / "docs" / "operations" / "agent-automation-runbook.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("docs/domain-modeling.md", agents)
+        self.assertIn("domain-modeling.md", overview)
+        self.assertIn("docs/domain-modeling.md", runbook)
+        self.assertIn("每月", runbook)
+
     def test_repository_governance_contract(self) -> None:
         result = subprocess.run(
             ["bash", "scripts/check-agent-governance.sh"],

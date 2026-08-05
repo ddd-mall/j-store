@@ -137,7 +137,6 @@ class OrderFactoryShippingInfoPropertyTest :
                                     spuName = "测试商品",
                                     skuName = "默认规格",
                                     attributes = emptyList(),
-                                    price = Price.ofFen(100),
                                 )
                             }
                         }
@@ -145,7 +144,13 @@ class OrderFactoryShippingInfoPropertyTest :
 
                 val snowFlakSequence = SnowFlakSequence(1, 1)
 
-                val factory = OrderFactoryImpl(snowFlakSequence, goodsService, geoAddressService)
+                val factory =
+                    OrderFactoryImpl(
+                        snowFlakSequence,
+                        goodsService,
+                        geoAddressService,
+                        testOfferService(),
+                    )
 
                 val cmd =
                     OrderCreateCMD(

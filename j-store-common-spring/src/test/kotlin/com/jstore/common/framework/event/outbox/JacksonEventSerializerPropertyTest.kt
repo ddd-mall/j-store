@@ -33,7 +33,7 @@ class JacksonEventSerializerPropertyTest :
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         val eventTypeRegistry =
             InMemoryEventTypeRegistry().also { registry ->
-                registry.register("order.created", 2, OrderCreatedEvent::class.java)
+                registry.register("order.created", 4, OrderCreatedEvent::class.java)
                 registry.register("order.paid", 2, OrderPaidEvent::class.java)
                 registry.register("order.completed", 1, OrderCompletedEvent::class.java)
                 registry.register("order.cancelled", 1, OrderCancelledEvent::class.java)
@@ -50,7 +50,7 @@ class JacksonEventSerializerPropertyTest :
                 Arb.long(1L..100_000L),
                 Arb.int(1..999),
             ) { skuId, qty ->
-                OrderItemSnapshot(skuId, qty)
+                OrderItemSnapshot(1, skuId, qty, 1, Price.ofFen(100))
             }
         val arbItemList = Arb.list(arbItemSnapshot, 1..5)
 

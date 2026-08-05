@@ -16,11 +16,9 @@ interface CommodityUseCase {
 
     fun addSku(cmd: SkuCreateCmd): Result<Spu, BusinessError>
 
-    fun publish(spuId: SpuId): Result<Unit, BusinessError>
+    fun publish(spuId: SpuId): Result<SpuSnapshot, BusinessError>
 
-    fun putOnSale(spuId: SpuId): Result<SpuSnapshot, BusinessError>
-
-    fun takeOffSale(spuId: SpuId): Result<Unit, BusinessError>
+    fun archive(spuId: SpuId): Result<Unit, BusinessError>
 
     fun getDraft(spuId: SpuId): Result<Spu, BusinessError>
 

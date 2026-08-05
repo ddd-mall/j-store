@@ -3,13 +3,14 @@ package com.jstore.shop.domain.merchant
 import com.jstore.shop.domain.merchant.persistence.MerchantMembershipPO
 import com.jstore.shop.domain.merchant.persistence.MerchantMembershipPOJpaRepository
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class MerchantMembershipRepositoryImpl(
     private val jpaRepository: MerchantMembershipPOJpaRepository
 ) : MerchantMembershipRepository {
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: MerchantMembership): MerchantMembership =
         Converter.toDomain(jpaRepository.save(Converter.toPO(entity)))
 

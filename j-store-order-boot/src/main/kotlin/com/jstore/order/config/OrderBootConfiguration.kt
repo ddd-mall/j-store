@@ -5,10 +5,10 @@ import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.goods.api.GoodsSnapshotQueryService
-import com.jstore.goods.service.AfterSaleStockRestoreEventHandler
-import com.jstore.goods.service.InventoryUseCase
 import com.jstore.order.acl.GoodsService
 import com.jstore.order.acl.GoodsServiceImpl
+import com.jstore.order.acl.OfferService
+import com.jstore.order.acl.OfferServiceImpl
 import com.jstore.order.domain.aftersale.*
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderFactoryImpl
@@ -25,7 +25,9 @@ import com.jstore.order.service.OrderUseCase
 import com.jstore.order.service.PaymentCapturedOrderHandler
 import com.jstore.order.service.PaymentRefundFailedOrderHandler
 import com.jstore.order.service.PaymentRefundSucceededOrderHandler
-import org.springframework.beans.factory.ObjectProvider
+import com.jstore.order.service.SaleAuthorizationFailedOrderHandler
+import com.jstore.order.service.SaleAuthorizedOrderHandler
+import com.jstore.shop.api.OfferSnapshotQueryService
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
@@ -46,15 +48,21 @@ class OrderBootConfiguration {
     }
 
     @Bean
+    fun offerService(offerSnapshotQueryService: OfferSnapshotQueryService): OfferService =
+        OfferServiceImpl(offerSnapshotQueryService)
+
+    @Bean
     fun orderFactory(
         snowFlakSequence: SnowFlakSequence,
         goodsService: GoodsService,
         geoAddressService: GeoAddressService,
+        offerService: OfferService,
     ): OrderFactory {
         return OrderFactoryImpl(
             snowFlakSequence,
             goodsService,
             geoAddressService,
+            offerService,
         )
     }
 
@@ -110,6 +118,12 @@ class OrderBootConfiguration {
     fun orderStockInsufficientHandler(service: OrderUseCase) =
         OrderStockInsufficientEventHandler(service)
 
+    @Bean fun saleAuthorizedOrderHandler(service: OrderUseCase) = SaleAuthorizedOrderHandler(service)
+
+    @Bean
+    fun saleAuthorizationFailedOrderHandler(service: OrderUseCase) =
+        SaleAuthorizationFailedOrderHandler(service)
+
     @Bean
     fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory =
         AfterSaleFactoryImpl(snowFlakSequence)
@@ -129,12 +143,6 @@ class OrderBootConfiguration {
         transactionManager: PlatformTransactionManager,
     ): AfterSaleUseCase =
         TransactionalAfterSaleUseCase(afterSaleApplicationService, transactionManager)
-
-    @Bean
-    fun afterSaleStockRestoreEventHandler(inventoryServices: ObjectProvider<InventoryUseCase>) =
-        AfterSaleStockRestoreEventHandler {
-            inventoryServices.getIfAvailable()
-        }
 
     @Bean
     fun springDomainEventListenerRegistry(

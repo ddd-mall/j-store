@@ -39,7 +39,7 @@ class OutboxEventPublisherTest :
                 }
             val eventTypeRegistry =
                 InMemoryEventTypeRegistry().apply {
-                    register("order.created", 2, OrderCreatedEvent::class.java)
+                    register("order.created", 4, OrderCreatedEvent::class.java)
                 }
             val serializer = JacksonEventSerializer(objectMapper)
             val publisher =
@@ -56,7 +56,7 @@ class OutboxEventPublisherTest :
                     merchantId = MerchantId(7),
                     payableAmount = Price.ofFen(9999),
                     currency = "CNY",
-                    items = listOf(OrderItemSnapshot(1L, 2)),
+                    items = listOf(OrderItemSnapshot(1L, 1L, 2, 1L, Price.ofFen(9999))),
                     occurredAt = Instant.parse("2025-01-01T00:00:00Z"),
                 )
 
@@ -70,7 +70,7 @@ class OutboxEventPublisherTest :
             saved.eventId shouldNotBe ""
             saved.eventType shouldBe "order.created"
             saved.eventClassName shouldBe "com.jstore.order.domain.order.event.OrderCreatedEvent"
-            saved.eventVersion shouldBe 2
+            saved.eventVersion shouldBe 4
             saved.occurredAt shouldBe event.occurredAt
             saved.status shouldBe OutboxEntryStatus.PENDING
             saved.retryCount shouldBe 0
@@ -85,7 +85,7 @@ class OutboxEventPublisherTest :
                 }
             val eventTypeRegistry =
                 InMemoryEventTypeRegistry().apply {
-                    register("order.created", 2, OrderCreatedEvent::class.java)
+                    register("order.created", 4, OrderCreatedEvent::class.java)
                 }
 
             val publisher =
@@ -102,7 +102,7 @@ class OutboxEventPublisherTest :
                     merchantId = MerchantId(7),
                     payableAmount = Price.ofFen(100),
                     currency = "CNY",
-                    items = listOf(OrderItemSnapshot(1L, 1)),
+                    items = listOf(OrderItemSnapshot(1L, 1L, 1, 1L, Price.ofFen(9999))),
                     occurredAt = Instant.now(),
                 )
 
@@ -130,7 +130,7 @@ class OutboxEventPublisherTest :
                     merchantId = MerchantId(7),
                     payableAmount = Price.ofFen(100),
                     currency = "CNY",
-                    items = listOf(OrderItemSnapshot(1L, 1)),
+                    items = listOf(OrderItemSnapshot(1L, 1L, 1, 1L, Price.ofFen(9999))),
                     occurredAt = Instant.now(),
                 )
 

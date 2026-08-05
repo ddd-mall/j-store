@@ -1,0 +1,19 @@
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.plugin.jpa)
+    alias(libs.plugins.kotlin.plugin.spring)
+}
+
+repositories { mavenCentral() }
+
+dependencies {
+    api(project(":j-store-inventory-domain"))
+    implementation(platform(libs.spring.boot.dependencies))
+    implementation(libs.spring.boot.starter.data.jpa)
+    runtimeOnly(libs.postgresql)
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+}
+
+tasks.test { useJUnitPlatform() }
+kotlin { jvmToolchain(25) }

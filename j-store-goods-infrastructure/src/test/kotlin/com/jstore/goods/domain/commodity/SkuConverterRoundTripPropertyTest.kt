@@ -1,6 +1,5 @@
 package com.jstore.goods.domain.commodity
 
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.json.JsonUtils
 import com.jstore.goods.domain.commodity.persistence.SkuPO
 import io.kotest.core.spec.style.FunSpec
@@ -53,7 +52,6 @@ class SkuConverterRoundTripPropertyTest :
                     id = SkuId(skuIdVal),
                     skuName = skuName,
                     attributes = attrs,
-                    price = Price.ofFen(priceFen),
                     merchantCode = merchantCode,
                     barcode = barcode,
                 )
@@ -66,7 +64,6 @@ class SkuConverterRoundTripPropertyTest :
                 spuId = spuId,
                 skuName = sku.skuName,
                 attributes = JsonUtils.toJsonString(sku.attributes),
-                price = sku.price.toBigDecimal(),
                 merchantCode = sku.merchantCode,
                 barcode = sku.barcode,
             )
@@ -78,7 +75,6 @@ class SkuConverterRoundTripPropertyTest :
                 id = SkuId(po.id),
                 skuName = po.skuName,
                 attributes = attrs,
-                price = Price.fromBigDecimal(po.price),
                 merchantCode = po.merchantCode,
                 barcode = po.barcode,
             )
@@ -94,7 +90,6 @@ class SkuConverterRoundTripPropertyTest :
                 roundTripped.id.value shouldBe sku.id.value
                 roundTripped.skuName shouldBe sku.skuName
                 roundTripped.attributes shouldBe sku.attributes
-                roundTripped.price shouldBe sku.price
                 roundTripped.merchantCode shouldBe sku.merchantCode
                 roundTripped.barcode shouldBe sku.barcode
             }

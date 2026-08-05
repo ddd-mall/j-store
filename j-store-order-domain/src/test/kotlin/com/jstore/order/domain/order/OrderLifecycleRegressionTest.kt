@@ -3,11 +3,50 @@ package com.jstore.order.domain.order
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
+import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import org.junit.jupiter.api.Test
 
 class OrderLifecycleRegressionTest {
+    @Test
+    fun `order must persist offer authorization before stock can confirm the trade`() {
+        val order = testOrder(commitment = CommitmentStatus.PENDING_OFFER)
+
+        assertIs<Failure<*>>(order.confirmStock())
+        assertIs<Success<Unit>>(
+            order.recordSaleAuthorized(
+                listOf(SaleAuthorizationRef("sale-auth-1", 10, java.time.Instant.MAX))
+            )
+        )
+        assertEquals(CommitmentStatus.OFFER_AUTHORIZED, order.commitmentStatus)
+        assertIs<Success<Unit>>(order.confirmStock())
+        assertEquals(CommitmentStatus.CONFIRMED, order.commitmentStatus)
+        assertEquals(TradeStatus.ACTIVE, order.tradeStatus)
+    }
+    @Test
+    fun `stock confirmation activates order and records payment eligibility fact once`() {
+        val order = testOrder(trade = TradeStatus.CREATED)
+
+        assertIs<Success<Unit>>(
+            order.recordSaleAuthorized(
+                listOf(SaleAuthorizationRef("sale-auth-1", 10, java.time.Instant.MAX))
+            )
+        )
+        assertIs<Success<Unit>>(order.confirmStock())
+
+        assertEquals(TradeStatus.ACTIVE, order.tradeStatus)
+        assertEquals(
+            1,
+            order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().size,
+        )
+        assertIs<Failure<*>>(order.confirmStock())
+        assertEquals(
+            1,
+            order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().size,
+        )
+    }
+
     @Test
     fun `paid order preserves fulfillment sequence through delivery and completion`() {
         val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.PAID)

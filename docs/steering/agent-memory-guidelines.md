@@ -20,6 +20,7 @@ inclusion: always
 ## 推荐分类
 
 - 项目整体理解：`docs/project-overview.md`
+- 当前领域模型与上下文关系：`docs/domain-modeling.md`
 - 架构与 DDD 约束：`docs/steering/ddd-guidelines.md`
 - 测试与 TDD 约束：`docs/steering/tdd-guidelines.md`
 - Agent 记忆组织：`docs/steering/agent-memory-guidelines.md`

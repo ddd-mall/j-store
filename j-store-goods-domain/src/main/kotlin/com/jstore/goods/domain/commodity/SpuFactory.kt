@@ -50,16 +50,15 @@ class SpuFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : SpuFactor
             id = SkuId(snowFlakSequence.nextId()),
             skuName = cmd.skuName,
             attributes = cmd.attributes,
-            price = cmd.price,
             merchantCode = cmd.merchantCode,
             barcode = cmd.barcode,
         )
     }
 
-    /** 从在售商品创建草稿副本 前置条件：源商品必须是 ON_SALE 状态 */
+    /** 从已发布商品创建草稿副本。 */
     override fun createDraftCopy(source: Spu): Result<Spu, BusinessError> {
-        if (source.status != CommodityStatus.ON_SALE) {
-            return Failure(CommodityErrors.ONLY_ON_SALE_NEEDS_DRAFT)
+        if (source.status != CommodityStatus.PUBLISHED) {
+            return Failure(CommodityErrors.ONLY_PUBLISHED_NEEDS_DRAFT)
         }
         val draft =
             SpuImpl(

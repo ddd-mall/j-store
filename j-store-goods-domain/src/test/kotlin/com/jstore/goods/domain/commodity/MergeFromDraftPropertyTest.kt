@@ -1,6 +1,5 @@
 package com.jstore.goods.domain.commodity
 
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Success
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -14,9 +13,9 @@ import io.kotest.property.checkAll
 /**
  * Property 4: mergeFromDraft 正确合并数据并递增版本
  *
- * For any ON_SALE 状态的源 SPU 和任意包含至少一个 SKU 的草稿 SPU， 调用 source.mergeFromDraft(draft) 后，源 SPU 应满足： name
+ * For any PUBLISHED 状态的源 SPU 和任意包含至少一个 SKU 的草稿 SPU， 调用 source.mergeFromDraft(draft) 后，源 SPU 应满足： name
  * 等于草稿的 name，description 等于草稿的 description， SKU 列表与草稿的 SKU 列表内容一致，version 等于合并前的 version + 1，
- * status 保持 ON_SALE 不变。
+ * status 保持 PUBLISHED 不变。
  *
  * **Validates: Requirements 6.2, 6.3, 6.4, 9.2, 9.3, 9.4**
  */
@@ -34,7 +33,6 @@ class MergeFromDraftPropertyTest :
                     id = SkuId(skuIdVal),
                     skuName = skuName,
                     attributes = listOf(Attribute("variant", attrValue)),
-                    price = Price.ofFen(priceFen),
                 )
             }
 
@@ -51,13 +49,12 @@ class MergeFromDraftPropertyTest :
                         id = SkuId(skuIdVal),
                         skuName = skuName,
                         attributes = listOf(Attribute("variant", attrValue)),
-                        price = Price.ofFen(priceFen),
                     )
                 },
                 1..5,
             )
 
-        // Generator for an ON_SALE source SPU
+        // Generator for an PUBLISHED source SPU
         val onSaleSpuArb: Arb<SpuImpl> =
             Arb.bind(
                 Arb.long(1L..Long.MAX_VALUE),
@@ -70,7 +67,7 @@ class MergeFromDraftPropertyTest :
                     id = SpuId(spuIdVal),
                     name = name,
                     description = description,
-                    _status = CommodityStatus.ON_SALE,
+                    _status = CommodityStatus.PUBLISHED,
                     _skus = skus.toMutableList(),
                     _version = version,
                 )
@@ -94,7 +91,7 @@ class MergeFromDraftPropertyTest :
                 )
             }
 
-        test("mergeFromDraft should merge draft data into ON_SALE source and increment version") {
+        test("mergeFromDraft should merge draft data into PUBLISHED source and increment version") {
             checkAll(100, onSaleSpuArb, draftSpuArb) { source, draft ->
                 val versionBefore = source.version
 
@@ -105,7 +102,7 @@ class MergeFromDraftPropertyTest :
                 source.description shouldBe draft.description
                 source.skus shouldBe draft.skus
                 source.version shouldBe versionBefore + 1
-                source.status shouldBe CommodityStatus.ON_SALE
+                source.status shouldBe CommodityStatus.PUBLISHED
             }
         }
     })

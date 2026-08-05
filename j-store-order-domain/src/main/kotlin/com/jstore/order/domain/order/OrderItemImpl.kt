@@ -7,6 +7,11 @@ class OrderItemImpl(
     override val id: OrderItemId,
     override val skuId: Long,
     override val spuId: Long,
+    override val offerId: Long = skuId,
+    override val storeId: Long = 1,
+    override val offerVersion: Long = 1,
+    override val fulfillmentNodeId: String = "DEFAULT",
+    override val channelId: String = "ONLINE",
     override val goodsName: String,
     override val skuDescription: String,
     override val quantity: Int,
@@ -32,7 +37,16 @@ class OrderItemImpl(
         get() = purchasedAmount - _refundedAmount
 
     init {
-        require(quantity > 0 && _refundedQuantity in 0..quantity && _refundedAmount <= subtotal())
+        require(
+            offerId > 0 &&
+                storeId > 0 &&
+                offerVersion > 0 &&
+                fulfillmentNodeId.isNotBlank() &&
+                channelId.isNotBlank() &&
+                quantity > 0 &&
+                _refundedQuantity in 0..quantity &&
+                _refundedAmount <= subtotal()
+        )
     }
 
     override fun subtotal(): Price = unitPrice * quantity
