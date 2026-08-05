@@ -41,8 +41,14 @@ class TransactionalOrderUseCaseTest {
                 useCase.createOrder(mock<OrderCreateCMD>())
             }
 
-            assertEquals(0, jdbc.queryForObject("select count(*) from business_write", Int::class.java))
-            assertEquals(0, jdbc.queryForObject("select count(*) from outbox_write", Int::class.java))
+            assertEquals(
+                0,
+                jdbc.queryForObject("select count(*) from business_write", Int::class.java),
+            )
+            assertEquals(
+                0,
+                jdbc.queryForObject("select count(*) from outbox_write", Int::class.java),
+            )
         }
     }
 }

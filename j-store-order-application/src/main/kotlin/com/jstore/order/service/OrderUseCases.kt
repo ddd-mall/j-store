@@ -19,7 +19,9 @@ import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import java.time.Instant
 
-/** Stable inbound port for order use cases. Framework transaction concerns belong to boot adapters. */
+/**
+ * Stable inbound port for order use cases. Framework transaction concerns belong to boot adapters.
+ */
 interface OrderUseCase {
     fun getOrderById(orderId: OrderId): Result<Order, BusinessError>
 

@@ -34,15 +34,17 @@ class TransactionalOrderUseCase(
 
     override fun getOrderById(orderId: OrderId) = read { delegate.getOrderById(orderId) }
 
-    override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> =
-        read { delegate.pageListByUserId(uid, currentPage, pageSize) }
+    override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> = read {
+        delegate.pageListByUserId(uid, currentPage, pageSize)
+    }
 
     override fun createOrder(cmd: OrderCreateCMD) = write { delegate.createOrder(cmd) }
 
     override fun confirmStock(orderId: OrderId) = write { delegate.confirmStock(orderId) }
 
-    override fun markStockInsufficient(orderId: OrderId, reason: String) =
-        write { delegate.markStockInsufficient(orderId, reason) }
+    override fun markStockInsufficient(orderId: OrderId, reason: String) = write {
+        delegate.markStockInsufficient(orderId, reason)
+    }
 
     override fun recordPaymentCaptured(
         orderId: OrderId,
@@ -54,14 +56,17 @@ class TransactionalOrderUseCase(
         delegate.recordPaymentCaptured(orderId, paymentReference, amount, currency, occurredAt)
     }
 
-    override fun recordFulfillmentPrepared(orderId: OrderId, fulfillmentReference: String) =
-        write { delegate.recordFulfillmentPrepared(orderId, fulfillmentReference) }
+    override fun recordFulfillmentPrepared(orderId: OrderId, fulfillmentReference: String) = write {
+        delegate.recordFulfillmentPrepared(orderId, fulfillmentReference)
+    }
 
-    override fun recordShipmentDispatched(orderId: OrderId, fulfillmentReference: String) =
-        write { delegate.recordShipmentDispatched(orderId, fulfillmentReference) }
+    override fun recordShipmentDispatched(orderId: OrderId, fulfillmentReference: String) = write {
+        delegate.recordShipmentDispatched(orderId, fulfillmentReference)
+    }
 
-    override fun recordShipmentDelivered(orderId: OrderId, fulfillmentReference: String) =
-        write { delegate.recordShipmentDelivered(orderId, fulfillmentReference) }
+    override fun recordShipmentDelivered(orderId: OrderId, fulfillmentReference: String) = write {
+        delegate.recordShipmentDelivered(orderId, fulfillmentReference)
+    }
 
     override fun recordRefundSucceeded(
         orderId: OrderId,
@@ -88,11 +93,13 @@ class TransactionalAfterSaleUseCase(
     private val write = TransactionTemplate(transactionManager)
     private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun findById(id: AfterSaleId): Result<AfterSale, BusinessError> =
-        read { delegate.findById(id) }
+    override fun findById(id: AfterSaleId): Result<AfterSale, BusinessError> = read {
+        delegate.findById(id)
+    }
 
-    override fun listByOrderForAccess(orderId: OrderId): Result<AfterSaleOrderAccess, BusinessError> =
-        read { delegate.listByOrderForAccess(orderId) }
+    override fun listByOrderForAccess(
+        orderId: OrderId
+    ): Result<AfterSaleOrderAccess, BusinessError> = read { delegate.listByOrderForAccess(orderId) }
 
     override fun create(cmd: AfterSaleCreateCMD) = write { delegate.create(cmd) }
 
@@ -102,8 +109,9 @@ class TransactionalAfterSaleUseCase(
 
     override fun cancel(cmd: AfterSaleCancelCMD) = write { delegate.cancel(cmd) }
 
-    override fun receiveReturn(cmd: AfterSaleReceiveReturnCMD) =
-        write { delegate.receiveReturn(cmd) }
+    override fun receiveReturn(cmd: AfterSaleReceiveReturnCMD) = write {
+        delegate.receiveReturn(cmd)
+    }
 
     override fun retryRefund(cmd: AfterSaleRetryRefundCMD) = write { delegate.retryRefund(cmd) }
 

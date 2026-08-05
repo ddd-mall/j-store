@@ -144,7 +144,10 @@ class InventoryService(
         )
     }
 
-    override fun add(commodityCode: CommodityCode, quantity: BigDecimal): Result<Boolean, BusinessError> {
+    override fun add(
+        commodityCode: CommodityCode,
+        quantity: BigDecimal,
+    ): Result<Boolean, BusinessError> {
         val result =
             inventoryLock
                 .lock(

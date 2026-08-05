@@ -6,9 +6,8 @@ import com.jstore.contracts.commerce.CreateFulfillmentForOrderCommand
 import com.jstore.fulfillment.domain.FulfillmentItem
 import com.jstore.fulfillment.domain.ShippingRecipient
 
-class CreateFulfillmentForOrderCommandHandler(
-    private val fulfillments: FulfillmentUseCase
-) : IntegrationMessageHandler<CreateFulfillmentForOrderCommand> {
+class CreateFulfillmentForOrderCommandHandler(private val fulfillments: FulfillmentUseCase) :
+    IntegrationMessageHandler<CreateFulfillmentForOrderCommand> {
     override fun handlerId() = "fulfillment.create-for-order.v1"
 
     override fun handle(message: CreateFulfillmentForOrderCommand) {

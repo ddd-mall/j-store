@@ -40,12 +40,13 @@ class PendingDomainEventsTest {
     }
 
     private data object TestId : Identify
+
     private class TestEvent : DomainEvent {
         override val source: Any = this
     }
-    private class TestAggregate(
-        override val domainEventQueue: LinkedList<DomainEvent>,
-    ) : AgreeGate<TestId> {
+
+    private class TestAggregate(override val domainEventQueue: LinkedList<DomainEvent>) :
+        AgreeGate<TestId> {
         override val id = TestId
     }
 }

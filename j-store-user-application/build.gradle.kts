@@ -1,5 +1,7 @@
 plugins { alias(libs.plugins.kotlin.jvm) }
+
 repositories { mavenCentral() }
+
 dependencies {
     api(libs.kotlin.stdlib)
     api(project(":j-store-user-domain"))
@@ -11,5 +13,7 @@ dependencies {
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
 }
+
 tasks.test { useJUnitPlatform() }
+
 kotlin { jvmToolchain(25) }

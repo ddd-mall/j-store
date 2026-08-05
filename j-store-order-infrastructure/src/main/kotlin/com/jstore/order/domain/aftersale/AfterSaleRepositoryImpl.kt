@@ -69,18 +69,23 @@ class AfterSaleRepositoryImpl(
         }
         val expectedByItem = ceilings.associateBy { it.orderItemId.value }
         capacities.findAllById(itemIds).forEach { actual ->
-            val expected = expectedByItem[actual.orderItemId]
-                ?: return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
-            verifyCeiling(expected, actual)?.let { return Failure(it) }
+            val expected =
+                expectedByItem[actual.orderItemId]
+                    ?: return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+            verifyCeiling(expected, actual)?.let {
+                return Failure(it)
+            }
         }
-        ceilings.sortedBy { it.orderItemId.value }.forEach { ceiling ->
-            capacities.initialize(
-                ceiling.orderItemId.value,
-                ceiling.orderId.value,
-                ceiling.quantity,
-                ceiling.amount.toBigDecimal(),
-            )
-        }
+        ceilings
+            .sortedBy { it.orderItemId.value }
+            .forEach { ceiling ->
+                capacities.initialize(
+                    ceiling.orderItemId.value,
+                    ceiling.orderId.value,
+                    ceiling.quantity,
+                    ceiling.amount.toBigDecimal(),
+                )
+            }
         val locked = capacities.lockAll(itemIds).associateBy { it.orderItemId }
         ceilings.forEach { expected ->
             verifyCeiling(expected, locked[expected.orderItemId.value])?.let {
@@ -101,13 +106,17 @@ class AfterSaleRepositoryImpl(
                 return Failure(AfterSaleErrors.CAPACITY_EXCEEDED)
             }
         }
-        claimReceipt(receipt)?.let { return it }
-        afterSale.items.sortedBy { it.orderItemId.value }.forEach { item ->
-            val capacity = requireNotNull(locked[item.orderItemId.value])
-            capacity.requestedQuantity += item.requestedQuantity
-            capacity.requestedAmount += item.requestedAmount.toBigDecimal()
-            capacities.save(capacity)
+        claimReceipt(receipt)?.let {
+            return it
         }
+        afterSale.items
+            .sortedBy { it.orderItemId.value }
+            .forEach { item ->
+                val capacity = requireNotNull(locked[item.orderItemId.value])
+                capacity.requestedQuantity += item.requestedQuantity
+                capacity.requestedAmount += item.requestedAmount.toBigDecimal()
+                capacities.save(capacity)
+            }
         roots.save(toPO(afterSale))
         return Success(afterSale)
     }
@@ -123,9 +132,9 @@ class AfterSaleRepositoryImpl(
         if (persisted.version != afterSale.version)
             return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
         val locked =
-            capacities
-                .lockAll(afterSale.items.map { it.orderItemId.value }.sorted())
-                .associateBy { it.orderItemId }
+            capacities.lockAll(afterSale.items.map { it.orderItemId.value }.sorted()).associateBy {
+                it.orderItemId
+            }
         afterSale.items.forEach { item ->
             val capacity =
                 locked[item.orderItemId.value]
@@ -137,17 +146,21 @@ class AfterSaleRepositoryImpl(
                 return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
             }
         }
-        claimReceipt(receipt)?.let { return it }
-        afterSale.items.sortedBy { it.orderItemId.value }.forEach { item ->
-            val capacity = requireNotNull(locked[item.orderItemId.value])
-            capacity.requestedQuantity -= item.requestedQuantity
-            capacity.requestedAmount -= item.requestedAmount.toBigDecimal()
-            if (allocationAction == AllocationAction.APPROVE) {
-                capacity.approvedQuantity += item.requestedQuantity
-                capacity.approvedAmount += item.requestedAmount.toBigDecimal()
-            }
-            capacities.save(capacity)
+        claimReceipt(receipt)?.let {
+            return it
         }
+        afterSale.items
+            .sortedBy { it.orderItemId.value }
+            .forEach { item ->
+                val capacity = requireNotNull(locked[item.orderItemId.value])
+                capacity.requestedQuantity -= item.requestedQuantity
+                capacity.requestedAmount -= item.requestedAmount.toBigDecimal()
+                if (allocationAction == AllocationAction.APPROVE) {
+                    capacity.approvedQuantity += item.requestedQuantity
+                    capacity.approvedAmount += item.requestedAmount.toBigDecimal()
+                }
+                capacities.save(capacity)
+            }
         roots.save(toPO(afterSale))
         return Success(afterSale)
     }
@@ -161,12 +174,12 @@ class AfterSaleRepositoryImpl(
             actual.orderId != expected.orderId.value ||
                 actual.quantityCeiling != expected.quantity ||
                 actual.amountCeiling.compareTo(expected.amount.toBigDecimal()) != 0
-        ) AfterSaleErrors.CAPACITY_EXCEEDED else null
+        )
+            AfterSaleErrors.CAPACITY_EXCEEDED
+        else null
     }
 
-    private fun claimReceipt(
-        expected: AfterSaleCommandReceipt
-    ): Result<AfterSale, BusinessError>? {
+    private fun claimReceipt(expected: AfterSaleCommandReceipt): Result<AfterSale, BusinessError>? {
         val inserted =
             receipts.tryInsert(
                 sequence.nextId(),

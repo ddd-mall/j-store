@@ -54,7 +54,12 @@ class AfterSaleApplicationServiceTest {
         `when`(orders.findById(OrderId(1))).thenReturn(order)
         val sequence = mock(com.jstore.common.persistent.SnowFlakSequence::class.java)
         val concreteService =
-            AfterSaleApplicationService(AfterSaleFactoryImpl(sequence), afterSales, orders, publisher)
+            AfterSaleApplicationService(
+                AfterSaleFactoryImpl(sequence),
+                afterSales,
+                orders,
+                publisher,
+            )
 
         val result = concreteService.create(command())
 
