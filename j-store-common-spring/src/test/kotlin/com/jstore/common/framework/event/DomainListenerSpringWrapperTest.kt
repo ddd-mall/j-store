@@ -16,9 +16,9 @@
  */
 package com.jstore.common.framework.event
 
+import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import org.springframework.context.PayloadApplicationEvent
 
 class DomainListenerSpringWrapperTest :
@@ -71,7 +71,11 @@ class DomainListenerSpringWrapperTest :
         }
 
         test("domain listener wrapper opts out of async Spring multicaster execution") {
-            val wrapper = DomainListenerSpringWrapper(CountingListener(), MessageConsumptionRepository { _, _, _, _ -> true })
+            val wrapper =
+                DomainListenerSpringWrapper(
+                    CountingListener(),
+                    MessageConsumptionRepository { _, _, _, _ -> true },
+                )
 
             wrapper.supportsAsyncExecution() shouldBe false
         }

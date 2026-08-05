@@ -34,7 +34,6 @@ sealed class FulfillmentEvent(
     override val aggregateType: String = "FulfillmentOrder"
     override val aggregateId: String
         get() = fulfillmentId.value.toString()
-
 }
 
 @DomainEventType(name = "fulfillment.prepared", version = 1)

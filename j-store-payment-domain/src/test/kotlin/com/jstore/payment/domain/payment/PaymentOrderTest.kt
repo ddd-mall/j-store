@@ -46,7 +46,9 @@ class PaymentOrderTest :
         test("refund success is separate from refund request and updates payment status") {
             val payment = payment()
             payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH)
-            payment.acknowledgeDomainEvents(payment.pendingDomainEvents().mapTo(linkedSetOf()) { it.eventId })
+            payment.acknowledgeDomainEvents(
+                payment.pendingDomainEvents().mapTo(linkedSetOf()) { it.eventId }
+            )
             val refund =
                 PaymentRefund(
                     PaymentRefundId(2),

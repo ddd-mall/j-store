@@ -45,5 +45,4 @@ data class JournalEntryPostedEvent(
 
     override val aggregateId: String
         get() = entryId.toString()
-
 }

@@ -59,8 +59,7 @@ class PendingDomainEventsTest {
     private class TestEvent(
         override val eventId: String = newDomainEventId(),
         override val occurredAt: Instant = Instant.parse("2026-01-01T00:00:00Z"),
-    ) :
-        DomainEvent {
+    ) : DomainEvent {
         override val eventName = "test.event"
         override val eventVersion = 1
         override val aggregateType = "test"
