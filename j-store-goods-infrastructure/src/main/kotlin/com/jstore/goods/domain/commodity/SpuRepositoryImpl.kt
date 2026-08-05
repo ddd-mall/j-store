@@ -7,10 +7,13 @@ import com.jstore.goods.domain.commodity.persistence.SpuPO
 import com.jstore.goods.domain.commodity.persistence.SpuPOJpaRepository
 import java.time.LocalDateTime
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class SpuRepositoryImpl(private val jpaRepository: SpuPOJpaRepository) : SpuRepository {
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: Spu): Spu {
         val po = Converter.toPO(entity)
         po.updateTime = LocalDateTime.now()
@@ -31,6 +34,7 @@ class SpuRepositoryImpl(private val jpaRepository: SpuPOJpaRepository) : SpuRepo
             ?.let { Converter.toDomain(it) }
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun delete(spu: Spu) {
         jpaRepository.deleteById(spu.id.value)
     }

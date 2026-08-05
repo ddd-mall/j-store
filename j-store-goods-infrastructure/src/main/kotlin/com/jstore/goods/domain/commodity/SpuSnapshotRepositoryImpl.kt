@@ -6,11 +6,14 @@ import com.jstore.goods.domain.commodity.persistence.SpuSnapshotPO
 import com.jstore.goods.domain.commodity.persistence.SpuSnapshotPOJpaRepository
 import com.jstore.goods.domain.commodity.snapshot.*
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepository) :
     SpuSnapshotRepository {
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: SpuSnapshot): SpuSnapshot {
         val po = Converter.toPO(entity)
         jpaRepository.save(po)

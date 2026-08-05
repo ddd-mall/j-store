@@ -13,7 +13,7 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
-    api(project(":j-store-order"))
+    api(project(":j-store-order-domain"))
     implementation(project(":j-store-goods-api"))
 
     implementation(platform(libs.spring.boot.dependencies))

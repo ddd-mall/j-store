@@ -11,15 +11,19 @@ import com.jstore.order.domain.order.persistence.RecipientInfoPO
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : OrderRepository {
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun add(order: Order) {
         val po = Converter.toPO(order)
         jpaRepository.save(po)
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: Order): Order {
         val po = Converter.toPO(entity)
         val saved = jpaRepository.save(po)

@@ -1,7 +1,6 @@
 package com.jstore.order.domain.aftersale
 
 import com.jstore.common.framework.event.DomainEvent
-import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
@@ -25,6 +24,7 @@ import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
 import org.springframework.orm.jpa.SharedEntityManagerCreator
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter
+import org.springframework.transaction.support.TransactionTemplate
 
 class AfterSaleRepositoryPostgresTest {
     @Test
@@ -32,7 +32,7 @@ class AfterSaleRepositoryPostgresTest {
         database { fixture ->
             val aggregate = requested(1, listOf(11L))
             val result =
-                fixture.repository.createWithAllocation(
+                fixture.createWithAllocation(
                     aggregate,
                     listOf(ceiling(11)),
                     receipt(aggregate, "one-line"),
@@ -40,8 +40,7 @@ class AfterSaleRepositoryPostgresTest {
             assertIs<Success<AfterSale>>(result)
             assertEquals(aggregate.items, fixture.repository.findById(aggregate.id)?.items)
             assertEquals(1, fixture.capacities.findById(11).orElseThrow().requestedQuantity)
-            assertEquals(1, fixture.publisher.events.size)
-            assertTrue(aggregate.domainEventQueue.isEmpty())
+            assertEquals(1, aggregate.domainEventQueue.size)
         }
 
     @Test
@@ -49,7 +48,7 @@ class AfterSaleRepositoryPostgresTest {
         database { fixture ->
             val aggregate = requested(2, listOf(21L, 22L))
             assertIs<Failure<*>>(
-                fixture.repository.createWithAllocation(
+                fixture.createWithAllocation(
                     aggregate,
                     listOf(ceiling(21)),
                     receipt(aggregate, "missing"),
@@ -57,7 +56,7 @@ class AfterSaleRepositoryPostgresTest {
             )
             val first = requested(3, listOf(31L))
             assertIs<Success<*>>(
-                fixture.repository.createWithAllocation(
+                fixture.createWithAllocation(
                     first,
                     listOf(ceiling(31, quantity = 2)),
                     receipt(first, "first"),
@@ -65,7 +64,7 @@ class AfterSaleRepositoryPostgresTest {
             )
             val changedSnapshot = requested(4, listOf(31L))
             assertIs<Failure<*>>(
-                fixture.repository.createWithAllocation(
+                fixture.createWithAllocation(
                     changedSnapshot,
                     listOf(ceiling(31, quantity = 1)),
                     receipt(changedSnapshot, "changed"),
@@ -80,30 +79,6 @@ class AfterSaleRepositoryPostgresTest {
         }
 
     @Test
-    fun `publisher failure rolls back aggregate allocation and receipt and retains event queue`() =
-        database { fixture ->
-            fixture.publisher.failure = IllegalStateException("outbox unavailable")
-            val aggregate = requested(5, listOf(51L))
-            assertFailsWith<IllegalStateException> {
-                fixture.repository.createWithAllocation(
-                    aggregate,
-                    listOf(ceiling(51)),
-                    receipt(aggregate, "rollback"),
-                )
-            }
-            assertTrue(fixture.roots.findById(5).isEmpty)
-            assertTrue(fixture.capacities.findById(51).isEmpty)
-            assertNull(
-                fixture.receipts.findByActorIdAndCommandTypeAndIdempotencyKey(
-                    1,
-                    "CREATE",
-                    "rollback",
-                )
-            )
-            assertEquals(1, aggregate.domainEventQueue.size)
-        }
-
-    @Test
     fun `same row concurrent creation has one winner while different rows both succeed`() =
         database { fixture ->
             val pool = Executors.newFixedThreadPool(2)
@@ -114,7 +89,7 @@ class AfterSaleRepositoryPostgresTest {
                             pool.submit(
                                 Callable {
                                     val a = requested(id, listOf(61L))
-                                    fixture.repository.createWithAllocation(
+                                    fixture.createWithAllocation(
                                         a,
                                         listOf(ceiling(61)),
                                         receipt(a, "same-$id"),
@@ -130,7 +105,7 @@ class AfterSaleRepositoryPostgresTest {
                             pool.submit(
                                 Callable {
                                     val a = requested(item, listOf(item))
-                                    fixture.repository.createWithAllocation(
+                                    fixture.createWithAllocation(
                                         a,
                                         listOf(ceiling(item)),
                                         receipt(a, "different-$item"),
@@ -168,21 +143,19 @@ class AfterSaleRepositoryPostgresTest {
                 val capacities = factory.getRepository(AfterSaleCapacityPOJpaRepository::class.java)
                 val receipts =
                     factory.getRepository(AfterSaleCommandReceiptPOJpaRepository::class.java)
-                val publisher = RecordingPublisher()
+                val transactions = TransactionTemplate(JpaTransactionManager(emf))
                 test(
                     Fixture(
                         AfterSaleRepositoryImpl(
                             roots,
                             capacities,
                             receipts,
-                            publisher,
                             SnowFlakSequence(1, 1),
-                            JpaTransactionManager(emf),
                         ),
                         roots,
                         capacities,
                         receipts,
-                        publisher,
+                        transactions,
                     )
                 )
             } finally {
@@ -196,17 +169,17 @@ class AfterSaleRepositoryPostgresTest {
         val roots: AfterSalePOJpaRepository,
         val capacities: AfterSaleCapacityPOJpaRepository,
         val receipts: AfterSaleCommandReceiptPOJpaRepository,
-        val publisher: RecordingPublisher,
-    )
-
-    private class RecordingPublisher : DomainEventPublisher {
-        val events = mutableListOf<DomainEvent>()
-        var failure: RuntimeException? = null
-
-        override fun <T : DomainEvent> publishEvent(event: T) {
-            failure?.let { throw it }
-            synchronized(events) { events += event }
-        }
+        val transactions: TransactionTemplate,
+    ) {
+        fun createWithAllocation(
+            afterSale: AfterSale,
+            ceilings: List<RefundCapacityCeiling>,
+            receipt: AfterSaleCommandReceipt,
+        ) = requireNotNull(
+            transactions.execute {
+                repository.createWithAllocation(afterSale, ceilings, receipt)
+            }
+        )
     }
 
     private fun requested(id: Long, itemIds: List<Long>): AfterSaleImpl {

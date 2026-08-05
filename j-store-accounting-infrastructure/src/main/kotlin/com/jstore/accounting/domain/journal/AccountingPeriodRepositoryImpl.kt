@@ -4,10 +4,13 @@ import com.jstore.accounting.domain.journal.persistence.AccountingPeriodPO
 import com.jstore.accounting.domain.journal.persistence.AccountingPeriodPOJpaRepository
 import java.time.LocalDate
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class AccountingPeriodRepositoryImpl(private val jpaRepository: AccountingPeriodPOJpaRepository) :
     AccountingPeriodRepository {
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: AccountingPeriod): AccountingPeriod {
         val saved = jpaRepository.save(Converter.toPO(entity))
         return Converter.toDomain(saved)

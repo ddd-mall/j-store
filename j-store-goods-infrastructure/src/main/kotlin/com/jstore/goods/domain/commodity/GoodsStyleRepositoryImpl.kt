@@ -5,11 +5,14 @@ import com.jstore.goods.domain.commodity.persistence.GoodsStylePO
 import com.jstore.goods.domain.commodity.persistence.GoodsStylePOJpaRepository
 import java.time.LocalDateTime
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class GoodsStyleRepositoryImpl(private val jpaRepository: GoodsStylePOJpaRepository) :
     GoodsStyleRepository {
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: GoodsStyle): GoodsStyle {
         val po = Converter.toPO(entity)
         po.updateTime = LocalDateTime.now()

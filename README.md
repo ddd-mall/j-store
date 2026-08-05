@@ -62,7 +62,7 @@ docker compose --env-file .env -f docker-compose.postgres.yml down -v
 
 ```bash
 ./gradlew :j-store-order:test
-./gradlew :j-store-goods:test
+./gradlew :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
 ```
 
 ## 安全提示

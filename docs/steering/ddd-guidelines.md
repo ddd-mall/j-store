@@ -19,17 +19,18 @@ Each bounded context is split across Gradle modules:
 
 | Module pattern | Layer | Example |
 |---|---|---|
-| `j-store-{context}` | Domain + Application | `j-store-order`, `j-store-goods` |
+| `j-store-{context}-domain` | Pure Domain | `j-store-order-domain` |
+| `j-store-{context}-application` | Framework-free Application | `j-store-order-application` |
 | `j-store-{context}-infrastructure` | Infrastructure | `j-store-order-infrastructure` |
-| `j-store-{context}-boot` | Interface/API (controllers) | `j-store-order-boot` |
+| `j-store-{context}-boot` | Deployment/composition (controllers, transactions, wiring) | `j-store-order-boot` |
 | `j-store-common-core` | Shared domain framework | Framework base types (no Spring) |
 | `j-store-common-spring` | Shared Spring integration | Spring-specific utilities |
 
-Dependency direction: `boot → infrastructure → domain module → common-core`. Domain modules must NOT depend on infrastructure or boot modules.
+Dependency direction: `boot → application → domain → common-core` and `boot → infrastructure → domain`. Domain/application modules must NOT depend on infrastructure or boot modules. 每个有业务实现的有界上下文统一使用四模块形态；公共发布语言可保留独立的 `-api` 模块。
 
 ## Package Structure Within Modules
 
-Domain module (`j-store-{context}/src/main/kotlin/com/jstore/{context}/`):
+Domain module (`j-store-{context}-domain/src/main/kotlin/com/jstore/{context}/`):
 
 ```
 domain/
@@ -41,9 +42,9 @@ domain/
     command/                # Command objects (CMDs)
     event/                  # Domain events
 acl/                        # Anti-corruption layer interfaces
-service/                    # Application services
-config/                     # Bean configuration
 ```
+
+Application module (`j-store-{context}-application`) contains use-case ports, orchestration services and integration-message handlers. It must remain free of Spring/Jakarta/Hibernate imports. Spring transactions and bean configuration belong to `j-store-{context}-boot`.
 
 Infrastructure module (`j-store-{context}-infrastructure/src/main/kotlin/com/jstore/{context}/`):
 
@@ -76,7 +77,7 @@ When creating domain objects, use these existing base types:
 - Aggregate roots implement `AgreeGate<{Id}>` and carry a `domainEventQueue`
 - Entities must encapsulate business behavior — no anemic models (data-only classes with external service logic)
 - Aggregates reference other aggregates by ID only, never by direct object reference
-- One transaction modifies one aggregate; cross-aggregate coordination uses domain events
+- Aggregates are consistency boundaries. Prefer one aggregate per write use case; when a local invariant requires multiple aggregates, declare and test the wider application transaction explicitly. Cross-context coordination uses integration messages rather than a distributed database transaction.
 
 ### Value Objects
 - Must be immutable — use `data class` or `val`-only properties
@@ -92,7 +93,9 @@ When creating domain objects, use these existing base types:
 - Name with past-tense verb + `Event` suffix (e.g., `OrderCreatedEvent`, `CommodityOnSaleEvent`)
 - Place in `domain/{aggregate}/event/` package
 - Implement `DomainEvent` interface
-- Publish via `aggregateRoot.publishEvent(event)` — events are dispatched during repository `save()`
+- Publish inside the aggregate via `aggregateRoot.publishEvent(event)`
+- Application services persist the aggregate and then write a stable snapshot of pending events to the Outbox
+- Clear the aggregate event queue only after every pending event was accepted by the publisher
 - Events should carry necessary data, not entire aggregate objects
 
 ### Repositories
@@ -103,13 +106,14 @@ When creating domain objects, use these existing base types:
 
 ### Factories
 - Use when aggregate creation is complex (multiple dependencies, external service calls)
-- Annotate with `@Service` when using Spring DI
+- Keep factories framework-free; construct and inject them from the boot module
 - Responsible for producing a valid initial aggregate state
 - Do NOT perform business orchestration — that belongs in application services
 
 ### Application Services
-- Located in `service/` package within the domain module
-- Annotate with `@Service`
+- Located in `service/` package within `j-store-{context}-application`
+- Must remain framework-free and must not use Spring stereotypes or transaction annotations
+- Expose inbound use-case interfaces; controllers and message handlers depend on those interfaces
 - Orchestrate use cases: load aggregate → execute domain logic → save
 - Return `Result<T, BusinessError>` for operations that can fail
 - Do NOT contain business rules — delegate to domain objects
@@ -125,7 +129,15 @@ When creating domain objects, use these existing base types:
 - PO class names end with `PO` suffix (e.g., `OrderPO`, `OrderItemPO`)
 - JPA repositories end with `POJpaRepository` suffix
 - Repository implementations contain a `Converter` object for PO ↔ domain entity mapping
-- Domain events are persisted and published within the repository `save()` method inside a `@Transactional` boundary
+- Repository implementations persist aggregates only; they must not publish domain events or open a narrower independent transaction
+- Mutating repository adapters should require an existing transaction (`MANDATORY`) where Spring is used
+
+### Transactions And External Side Effects
+
+- `j-store-{context}-boot` owns Spring transaction decorators around inbound use-case interfaces
+- A write transaction spans aggregate persistence and Outbox writes; query use cases use read-only transactions
+- Database rollback must preserve the aggregate's pending event queue for retry
+- Redis, brokers, payment providers and other non-transactional resources are not part of the database atomic boundary; coordinate them through post-commit work, Outbox/inbox messages, or an explicitly designed compensation protocol
 
 ### Error Handling
 - Use `Result<T, BusinessError>` (from `com.jstore.common.utils`) — not exceptions — for expected business failures
@@ -136,7 +148,7 @@ When creating domain objects, use these existing base types:
 
 1. Domain layer must NOT import Spring, JPA, Hibernate, or any infrastructure framework
 2. No anemic models — entities must have behavior methods, not just data
-3. No cross-aggregate mutation in a single transaction
+3. No unbounded cross-aggregate mutation; when one use case must update multiple local aggregates, the application transaction and invariants must be explicit
 4. No PO types in domain layer — POs exist only in infrastructure
 5. No business logic in application services or controllers
 6. No direct object references between aggregates — ID references only

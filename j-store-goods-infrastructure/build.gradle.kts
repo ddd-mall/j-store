@@ -12,7 +12,7 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
-    api(project(":j-store-goods"))
+    api(project(":j-store-goods-domain"))
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)

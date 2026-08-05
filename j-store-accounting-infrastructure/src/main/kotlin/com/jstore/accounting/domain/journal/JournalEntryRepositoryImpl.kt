@@ -7,10 +7,13 @@ import com.jstore.accounting.domain.journal.persistence.JournalLinePO
 import com.jstore.common.properties.Price
 import java.util.concurrent.atomic.AtomicLong
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class JournalEntryRepositoryImpl(private val jpaRepository: JournalEntryPOJpaRepository) :
     JournalEntryRepository {
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: JournalEntry): JournalEntry {
         val saved = jpaRepository.save(Converter.toPO(entity))
         return Converter.toDomain(saved)
