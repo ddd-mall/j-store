@@ -14,8 +14,8 @@ import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
 import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.testOrder
-import io.kotest.matchers.shouldBe
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
@@ -61,7 +61,8 @@ class OrderServiceStatusDimensionsTest :
             `when`(repository.findById(order.id)).thenReturn(order)
             `when`(repository.save(order)).thenReturn(order)
 
-            OrderService(factory, repository, publisher).completeOrder(order.id) shouldBe Success(Unit)
+            OrderService(factory, repository, publisher).completeOrder(order.id) shouldBe
+                Success(Unit)
 
             published.single().shouldBeInstanceOf<OrderCompletedEvent>()
             order.domainEventQueue.size shouldBe 0

@@ -1,5 +1,10 @@
-plugins { alias(libs.plugins.kotlin.jvm); alias(libs.plugins.kotlin.plugin.spring) }
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.plugin.spring)
+}
+
 repositories { mavenCentral() }
+
 dependencies {
     implementation(project(":j-store-goods-domain"))
     implementation(project(":j-store-goods-application"))
@@ -15,5 +20,7 @@ dependencies {
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.kotlin.test)
 }
+
 tasks.test { useJUnitPlatform() }
+
 kotlin { jvmToolchain(25) }

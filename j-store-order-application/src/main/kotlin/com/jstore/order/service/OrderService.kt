@@ -78,7 +78,10 @@ class OrderService(
     }
 
     /** 库存不足，取消订单 */
-    override fun markStockInsufficient(orderId: OrderId, reason: String): Result<Unit, BusinessError> {
+    override fun markStockInsufficient(
+        orderId: OrderId,
+        reason: String,
+    ): Result<Unit, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
         order.markStockInsufficient(reason).onFailure {
             return Failure(it)

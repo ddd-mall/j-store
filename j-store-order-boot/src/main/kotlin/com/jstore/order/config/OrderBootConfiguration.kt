@@ -34,9 +34,9 @@ import com.jstore.order.service.FulfillmentDeliveredOrderHandler
 import com.jstore.order.service.FulfillmentDispatchedOrderHandler
 import com.jstore.order.service.FulfillmentPreparedOrderHandler
 import com.jstore.order.service.OrderService
-import com.jstore.order.service.OrderUseCase
 import com.jstore.order.service.OrderStockConfirmedEventHandler
 import com.jstore.order.service.OrderStockInsufficientEventHandler
+import com.jstore.order.service.OrderUseCase
 import com.jstore.order.service.PaymentCapturedOrderHandler
 import com.jstore.order.service.PaymentRefundFailedOrderHandler
 import com.jstore.order.service.PaymentRefundSucceededOrderHandler

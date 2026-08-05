@@ -15,12 +15,18 @@ class TransactionalInventoryUseCase(
     private val write = TransactionTemplate(transactionManager)
 
     override fun create(cmd: StorageCreateCMD) = tx { delegate.create(cmd) }
-    override fun reserve(bizCode: String, commodityCode: CommodityCode, amount: BigDecimal) =
-        tx { delegate.reserve(bizCode, commodityCode, amount) }
+
+    override fun reserve(bizCode: String, commodityCode: CommodityCode, amount: BigDecimal) = tx {
+        delegate.reserve(bizCode, commodityCode, amount)
+    }
+
     override fun confirm(bizCode: String) = tx { delegate.confirm(bizCode) }
+
     override fun release(bizCode: String) = tx { delegate.release(bizCode) }
-    override fun add(commodityCode: CommodityCode, quantity: BigDecimal) =
-        tx { delegate.add(commodityCode, quantity) }
+
+    override fun add(commodityCode: CommodityCode, quantity: BigDecimal) = tx {
+        delegate.add(commodityCode, quantity)
+    }
 
     private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 }

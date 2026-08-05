@@ -7,6 +7,12 @@ import com.jstore.common.utils.Result
 import java.time.Instant
 
 interface SettlementUseCase {
-    fun confirmStatement(statementId: SettlementStatementId): Result<SettlementStatement, BusinessError>
-    fun markPaid(statementId: SettlementStatementId, paidAt: Instant): Result<SettlementStatement, BusinessError>
+    fun confirmStatement(
+        statementId: SettlementStatementId
+    ): Result<SettlementStatement, BusinessError>
+
+    fun markPaid(
+        statementId: SettlementStatementId,
+        paidAt: Instant,
+    ): Result<SettlementStatement, BusinessError>
 }
