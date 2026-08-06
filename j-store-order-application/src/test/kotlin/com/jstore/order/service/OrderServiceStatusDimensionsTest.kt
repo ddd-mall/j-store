@@ -13,6 +13,7 @@ import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
 import com.jstore.order.domain.order.event.OrderCompletedEvent
+import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
 import com.jstore.order.domain.order.testOrder
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -37,6 +38,30 @@ class OrderServiceStatusDimensionsTest :
                 .confirmStock(id)
                 .shouldBeInstanceOf<Failure<*>>()
             verify(repository, never()).save(order)
+        }
+
+        test("stock confirmation persists order and publishes payment creation gate event") {
+            val factory = mock(OrderFactory::class.java)
+            val repository = mock(OrderRepository::class.java)
+            val order = testOrder(trade = TradeStatus.CREATED)
+            val published = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
+            val publisher =
+                object : DomainEventPublisher {
+                    override fun publishEvent(
+                        event: com.jstore.common.framework.event.DomainEvent
+                    ) {
+                        published += event
+                    }
+                }
+            `when`(repository.findById(order.id)).thenReturn(order)
+            `when`(repository.save(order)).thenReturn(order)
+
+            OrderService(factory, repository, publisher).confirmStock(order.id) shouldBe
+                Success(Unit)
+
+            verify(repository).save(order)
+            published.single().shouldBeInstanceOf<OrderStockConfirmedEvent>()
+            order.pendingDomainEvents().size shouldBe 0
         }
 
         test("completing an order persists and publishes OrderCompletedEvent") {
