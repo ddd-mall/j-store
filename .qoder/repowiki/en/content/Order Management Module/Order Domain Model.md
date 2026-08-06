@@ -8,12 +8,23 @@
 - [OrderAmountSnapshot.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderAmountSnapshot.kt)
 - [UserInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/UserInfo.kt)
 - [RecipientInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/RecipientInfo.kt)
+- [OrderErrors.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderErrors.kt)
+- [OrderCreateCMD.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/command/OrderCreateCMD.kt)
+- [OrderFactory.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderFactory.kt)
+- [CommerceIntegrationMessages.kt](file://j-store-integration-contracts/src/main/kotlin/com/jstore/contracts/commerce/CommerceIntegrationMessages.kt)
 - [TradeStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/TradeStatus.kt)
 - [PaymentStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/PaymentStatus.kt)
 - [FulfillmentStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/FulfillmentStatus.kt)
 - [V20260731__order_status_dimensions.sql](file://j-store-boot/src/main/resources/db/migration/V20260731__order_status_dimensions.sql)
 - [V20260803__order_after_sale_aggregate.sql](file://j-store-boot/src/main/resources/db/migration/V20260803__order_after_sale_aggregate.sql)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Enhanced RecipientInfo with international shipping support including postalCode field for postal codes and customsFields Map structure for country-specific customs declaration data
+- Strengthened country code validation with mandatory requirements and COUNTRY_CODE_BLANK validation error
+- Updated integration contracts to support international shipping requirements (CPF for Brazil, IOSS for EU, PCCC for China)
+- Added comprehensive validation for recipient information in order creation process
 
 ## Table of Contents
 1. Introduction
@@ -27,10 +38,10 @@
 9. Conclusion
 
 ## Introduction
-This document explains the Order domain model with a focus on the Order aggregate root and its multi-dimensional status tracking: tradeStatus, paymentStatus, fulfillmentStatus, and refund tracking. It documents the OrderItem structure, amount snapshots, and value objects such as UserInfo and RecipientInfo. The guide covers business invariants enforced by the domain model, examples of order creation, item management, and amount calculations, and clarifies how the snapshot mechanism preserves historical pricing data.
+This document explains the Order domain model with a focus on the Order aggregate root and its multi-dimensional status tracking: tradeStatus, paymentStatus, fulfillmentStatus, and refund tracking. It documents the OrderItem structure, amount snapshots, and value objects such as UserInfo and RecipientInfo. The guide covers business invariants enforced by the domain model, examples of order creation, item management, and amount calculations, and clarifies how the snapshot mechanism preserves historical pricing data. **Updated** Enhanced recipient information now supports international shipping requirements with postal codes and country-specific customs declaration fields.
 
 ## Project Structure
-The Order domain resides in the order module’s domain layer. Key files include the Order aggregate interface and implementation, OrderItem entity, amount snapshot, and value objects for user and recipient information. Status enums define the three orthogonal dimensions of order state. Database migrations enforce schema constraints aligned with these statuses and add refund-related fields.
+The Order domain resides in the order module's domain layer. Key files include the Order aggregate interface and implementation, OrderItem entity, amount snapshot, and value objects for user and recipient information. Status enums define the three orthogonal dimensions of order state. Database migrations enforce schema constraints aligned with these statuses and add refund-related fields. **Updated** RecipientInfo now includes international shipping capabilities with postal codes and customs fields for cross-border transactions.
 
 ```mermaid
 graph TB
@@ -44,6 +55,12 @@ PS["PaymentStatus.kt"]
 FS["FulfillmentStatus.kt"]
 OIF["Order.kt"]
 OIMPL["OrderImpl.kt"]
+OE["OrderErrors.kt"]
+OCMD["OrderCreateCMD.kt"]
+OF["OrderFactory.kt"]
+end
+subgraph "Integration Contracts"
+CIM["CommerceIntegrationMessages.kt"]
 end
 subgraph "Database Migrations"
 MS["V20260731__order_status_dimensions.sql"]
@@ -59,6 +76,10 @@ OIMPL --> PS
 OIMPL --> FS
 OIF --> MS
 OIF --> MR
+OCMD --> OE
+OF --> OCMD
+OF --> RI
+CIM --> RI
 ```
 
 **Diagram sources**
@@ -68,6 +89,10 @@ OIF --> MR
 - [OrderAmountSnapshot.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderAmountSnapshot.kt)
 - [UserInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/UserInfo.kt)
 - [RecipientInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/RecipientInfo.kt)
+- [OrderErrors.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderErrors.kt)
+- [OrderCreateCMD.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/command/OrderCreateCMD.kt)
+- [OrderFactory.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderFactory.kt)
+- [CommerceIntegrationMessages.kt](file://j-store-integration-contracts/src/main/kotlin/com/jstore/contracts/commerce/CommerceIntegrationMessages.kt)
 - [TradeStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/TradeStatus.kt)
 - [PaymentStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/PaymentStatus.kt)
 - [FulfillmentStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/FulfillmentStatus.kt)
@@ -81,6 +106,10 @@ OIF --> MR
 - [OrderAmountSnapshot.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderAmountSnapshot.kt)
 - [UserInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/UserInfo.kt)
 - [RecipientInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/RecipientInfo.kt)
+- [OrderErrors.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderErrors.kt)
+- [OrderCreateCMD.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/command/OrderCreateCMD.kt)
+- [OrderFactory.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderFactory.kt)
+- [CommerceIntegrationMessages.kt](file://j-store-integration-contracts/src/main/kotlin/com/jstore/contracts/commerce/CommerceIntegrationMessages.kt)
 - [TradeStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/TradeStatus.kt)
 - [PaymentStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/PaymentStatus.kt)
 - [FulfillmentStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/FulfillmentStatus.kt)
@@ -91,13 +120,14 @@ OIF --> MR
 - Order aggregate root: Defines the lifecycle methods and read-only views for multi-dimensional statuses (trade, payment, fulfillment), amount snapshots, paid/refunded amounts, and references to payment and fulfillment aggregates.
 - OrderItem: Represents line items with product identifiers, quantities, unit price, snapshot version, status, and computed amounts for purchased, refunded, and refundable values.
 - OrderAmountSnapshot: Immutable snapshot capturing currency and components (itemsSubtotal, discountAmount, shippingAmount, taxAmount, payableAmount) at order creation time.
-- Value objects: UserInfo captures buyer identity; RecipientInfo captures delivery details including contract info and address.
+- Value objects: UserInfo captures buyer identity; **Updated** RecipientInfo now includes international shipping support with postalCode for postal codes and customsFields Map structure for country-specific customs declaration data (CPF for Brazil, IOSS for EU, PCCC for China).
 - Status enums: TradeStatus, PaymentStatus, FulfillmentStatus define orthogonal states that evolve independently but are coordinated by the aggregate.
 
 Key responsibilities:
 - Enforce invariants during transitions (e.g., payment reference uniqueness, amount consistency).
 - Maintain historical pricing via snapshots.
 - Track partial refunds and ensure totals never exceed paid amounts.
+- **Updated** Validate international shipping requirements including mandatory country codes and optional postal codes.
 
 **Section sources**
 - [Order.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/Order.kt)
@@ -106,12 +136,14 @@ Key responsibilities:
 - [OrderAmountSnapshot.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderAmountSnapshot.kt)
 - [UserInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/UserInfo.kt)
 - [RecipientInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/RecipientInfo.kt)
+- [OrderErrors.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderErrors.kt)
+- [OrderCreateCMD.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/command/OrderCreateCMD.kt)
 - [TradeStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/TradeStatus.kt)
 - [PaymentStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/PaymentStatus.kt)
 - [FulfillmentStatus.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/FulfillmentStatus.kt)
 
 ## Architecture Overview
-The Order aggregate coordinates three independent status dimensions and integrates with external contexts through events and references. Amounts are frozen at creation via snapshots, while paid and refunded amounts evolve over time. Refund facts record successful refunds per item, enabling accurate projections.
+The Order aggregate coordinates three independent status dimensions and integrates with external contexts through events and references. Amounts are frozen at creation via snapshots, while paid and refunded amounts evolve over time. Refund facts record successful refunds per item, enabling accurate projections. **Updated** International shipping support is integrated through enhanced recipient information with postal codes and customs declaration fields that flow through the entire order lifecycle from creation to fulfillment.
 
 ```mermaid
 classDiagram
@@ -177,6 +209,8 @@ class RecipientInfo {
 +contractInfo
 +shippingAddress
 +shippingDetailAddress
++postalCode
++customsFields
 }
 class TradeStatus
 class PaymentStatus
@@ -284,13 +318,18 @@ UserInfo:
 - Immutable representation of buyer identity with uid validation.
 - Optional phone number and username.
 
-RecipientInfo:
+**Updated** RecipientInfo:
 - Contains name, contract info, shipping address, and optional detail address.
 - Uses standardized geo address type for internationalization support.
+- **New**: postalCode field for international shipping requirements (optional, may be null for some countries).
+- **New**: customsFields Map structure for country-specific customs declaration data (e.g., CPF for Brazil, IOSS for EU, PCCC for China).
+- Enhanced validation ensures mandatory country code requirements with COUNTRY_CODE_BLANK error handling.
 
 **Section sources**
 - [UserInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/UserInfo.kt)
 - [RecipientInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/RecipientInfo.kt)
+- [OrderErrors.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderErrors.kt)
+- [OrderCreateCMD.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/command/OrderCreateCMD.kt)
 
 ### Multi-Dimensional Status Tracking
 TradeStatus:
@@ -353,6 +392,47 @@ Order-->>Client : Success with projection result
 - [OrderImpl.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderImpl.kt)
 - [V20260803__order_after_sale_aggregate.sql](file://j-store-boot/src/main/resources/db/migration/V20260803__order_after_sale_aggregate.sql)
 
+### International Shipping Support
+**New Section** The Order domain now supports international shipping requirements through enhanced recipient information:
+
+Postal Code Support:
+- Optional postalCode field allows for country-specific postal code requirements
+- Some countries may not require postal codes, making this field nullable
+- Integrated throughout the order lifecycle from creation to fulfillment
+
+Customs Declaration Fields:
+- customsFields Map structure supports country-specific customs declaration requirements
+- Examples include CPF (Brazil), IOSS (European Union), PCCC (China)
+- Flexible key-value structure allows for future country-specific requirements
+- Passed through integration contracts to fulfillment systems
+
+Validation Requirements:
+- Country code validation strengthened with mandatory requirements
+- COUNTRY_CODE_BLANK error provides clear feedback for missing country information
+- Integration with GeoAddressService ensures valid geographic codes
+
+```mermaid
+flowchart LR
+A["Order Creation"] --> B["RecipientInfo Validation"]
+B --> C["Country Code Required"]
+C --> D["Optional Postal Code"]
+D --> E["Customs Fields Map"]
+E --> F["Integration Contract"]
+F --> G["Fulfillment System"]
+G --> H["International Shipping"]
+```
+
+**Diagram sources**
+- [RecipientInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/RecipientInfo.kt)
+- [OrderCreateCMD.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/command/OrderCreateCMD.kt)
+- [CommerceIntegrationMessages.kt](file://j-store-integration-contracts/src/main/kotlin/com/jstore/contracts/commerce/CommerceIntegrationMessages.kt)
+
+**Section sources**
+- [RecipientInfo.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/RecipientInfo.kt)
+- [OrderCreateCMD.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/command/OrderCreateCMD.kt)
+- [CommerceIntegrationMessages.kt](file://j-store-integration-contracts/src/main/kotlin/com/jstore/contracts/commerce/CommerceIntegrationMessages.kt)
+- [OrderErrors.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderErrors.kt)
+
 ## Dependency Analysis
 Coupling and cohesion:
 - Order aggregate encapsulates item management and status transitions, maintaining high cohesion around order lifecycle.
@@ -362,6 +442,7 @@ Coupling and cohesion:
 External dependencies:
 - Price and PhoneNumber types from common modules provide consistent numeric and contact representations.
 - I18nGeoAddress standardizes address handling across locales.
+- **Updated** Integration contracts now support international shipping data structures.
 
 Potential circular dependencies:
 - None observed within the order domain; references to other aggregates are via IDs and event-driven integration.
@@ -369,6 +450,7 @@ Potential circular dependencies:
 Integration points:
 - Events raised by Order aggregate are consumed by application services and translators to coordinate with inventory and payment contexts.
 - Database schema enforces constraints aligned with domain invariants.
+- **Updated** Commerce integration messages now include postal codes and customs fields for international shipping.
 
 ```mermaid
 graph LR
@@ -380,6 +462,9 @@ OrderAgg --> Trade["TradeStatus"]
 OrderAgg --> Pay["PaymentStatus"]
 OrderAgg --> Ful["FulfillmentStatus"]
 OrderAgg --> DB["DB Constraints"]
+OrderAgg --> Intl["International Shipping"]
+Intl --> Postal["Postal Code"]
+Intl --> Customs["Customs Fields"]
 ```
 
 **Diagram sources**
@@ -411,6 +496,7 @@ OrderAgg --> DB["DB Constraints"]
 - Minimal object churn: Amount snapshot is immutable; updates adjust counters rather than reconstructing large structures.
 - Efficient queries: Indexed status columns enable fast filtering by trade, payment, fulfillment, and after-sale statuses.
 - Batch-friendly design: Per-item refund facts allow granular updates without scanning entire order history.
+- **Updated** International shipping data structures are optimized with nullable fields and empty map defaults to minimize memory overhead.
 
 [No sources needed since this section provides general guidance]
 
@@ -421,17 +507,20 @@ Common issues and resolutions:
 - Currency mismatch: Confirm captured currency matches snapshot currency.
 - Amount inconsistencies: Validate that captured amount equals payable amount and that refund totals do not exceed paid amount.
 - Refund eligibility errors: Check order and item statuses; ensure requested quantities and amounts are within refundable limits.
+- **Updated** International shipping validation errors: Ensure country codes are provided and valid; verify postal codes where required by destination country.
 
 Operational checks:
 - Inspect database constraints for status enums and refund-related columns.
 - Review update timestamps to detect unexpected mutations.
+- **Updated** Validate international shipping data in logs and error messages for proper country code and customs field handling.
 
 **Section sources**
 - [OrderImpl.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderImpl.kt)
+- [OrderErrors.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderErrors.kt)
 - [V20260731__order_status_dimensions.sql](file://j-store-boot/src/main/resources/db/migration/V20260731__order_status_dimensions.sql)
 - [V20260803__order_after_sale_aggregate.sql](file://j-store-boot/src/main/resources/db/migration/V20260803__order_after_sale_aggregate.sql)
 
 ## Conclusion
-The Order domain model cleanly separates concerns across three orthogonal status dimensions and enforces strong invariants through both code and schema. The snapshot mechanism ensures historical pricing fidelity, while refund facts provide precise accounting for partial and full refunds. Together, these elements form a robust foundation for order lifecycle management, supporting reliable integrations with payment, fulfillment, and after-sale processes.
+The Order domain model cleanly separates concerns across three orthogonal status dimensions and enforces strong invariants through both code and schema. The snapshot mechanism ensures historical pricing fidelity, while refund facts provide precise accounting for partial and full refunds. **Updated** Enhanced international shipping support with postal codes and customs declaration fields enables global commerce capabilities while maintaining data integrity and validation. Together, these elements form a robust foundation for order lifecycle management, supporting reliable integrations with payment, fulfillment, and after-sale processes across international markets.
 
 [No sources needed since this section summarizes without analyzing specific files]

@@ -1,0 +1,4 @@
+- All use-case methods return `Result<T, BusinessError>` and surface failures through the common `Failure`/`Success` types rather than throwing exceptions.
+- State-mutating operations follow the `mutate(orderId) { operation }` helper pattern that loads the aggregate, applies the change, persists it, and publishes pending events before returning.
+- Integration handlers implement `IntegrationMessageHandler<T>` and translate inbound command DTOs from `j-store-integration-contracts` into domain request objects before delegating to the use case.
+- Domain entities are loaded by identifier from the repository, mutated in-memory, then saved and event-published as a single transactional step.

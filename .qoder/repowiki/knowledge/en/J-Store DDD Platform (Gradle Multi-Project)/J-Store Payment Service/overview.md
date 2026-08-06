@@ -1,0 +1,1 @@
+Spring Boot payment service implementing DDD across four Gradle modules: a domain-only core, application orchestration, JPA persistence, and a boot layer exposing REST endpoints.

@@ -1,1 +1,0 @@
-Kotlin JVM (JDK 25 toolchain), Gradle Kotlin DSL, JUnit 5 + Kotest for testing, Mockito/Mockito-Kotlin for mocking, and a shared `DomainEventPublisher` / `IntegrationMessageHandler` abstraction from `j-store-common-core`.

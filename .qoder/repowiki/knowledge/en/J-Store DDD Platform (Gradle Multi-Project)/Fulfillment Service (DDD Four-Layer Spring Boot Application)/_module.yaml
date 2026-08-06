@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: fulfillment_service
+title: Fulfillment Service (DDD Four-Layer Spring Boot Application)
+scope:
+    - j-store-fulfillment-application/
+    - j-store-fulfillment-domain/
+    - j-store-fulfillment-infrastructure/
+    - j-store-fulfillment-boot/
+source_files: []
+depends_on: []
+related_to:
+    - path: accounting_service
+    - path: order_service

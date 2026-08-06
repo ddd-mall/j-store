@@ -1,1 +1,0 @@
-Kotlin JVM targeting Java 25 toolchain (`kotlin.jvm` plugin). Dependencies exposed via `api`: Guava, SLF4J API, Jackson (core/databind/annotations/Kotlin module), Netty BOM, and Money API. Tests use Kotest (runner, assertions, property) and JUnit Jupiter 5.11.4.

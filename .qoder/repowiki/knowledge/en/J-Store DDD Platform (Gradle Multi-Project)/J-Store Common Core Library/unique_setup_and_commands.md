@@ -1,0 +1,1 @@
+Built with Gradle Kotlin DSL (`build.gradle.kts`). Tests run via `./gradlew test` using the JUnit Platform; no special bootstrap is required beyond standard Gradle invocation. Requires JDK 25 toolchain declared via `kotlin.jvmToolchain(25)`.
