@@ -108,5 +108,4 @@ class UserBootConfiguration {
             tokenStore = tokenStore,
             transactionManager = transactionManager,
         )
-
 }

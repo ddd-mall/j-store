@@ -34,8 +34,8 @@ import org.mockito.kotlin.*
 /**
  * Property 8: discardDraft 不影响源商品
  *
- * For any PUBLISHED 状态的源 SPU 及其草稿副本，执行 discardDraft 后， 源 SPU 的 name、description、SKU 列表、version、status
- * 均保持不变。
+ * For any PUBLISHED 状态的源 SPU 及其草稿副本，执行 discardDraft 后， 源 SPU 的 name、description、SKU
+ * 列表、version、status 均保持不变。
  *
  * **Validates: Requirements 7.2, 7.4**
  */

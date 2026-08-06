@@ -31,10 +31,10 @@ import io.kotest.property.checkAll
 /**
  * Property 1: createDraftCopy 保持源商品数据完整性
  *
- * For any 有效的 PUBLISHED 状态 SPU（包含任意 name、description、SKU 列表和 version）， 通过 SpuFactory.createDraftCopy
- * 创建的草稿副本应满足： 草稿的 name 等于源商品的 name，草稿的 description 等于源商品的 description， 草稿的 SKU 列表与源商品的 SKU
- * 列表内容一致，草稿的 version 等于源商品的 version， 草稿的 status 为 DRAFT，草稿的 sourceSpuId 等于源商品的 id， 草稿的 id 不等于源商品的
- * id。
+ * For any 有效的 PUBLISHED 状态 SPU（包含任意 name、description、SKU 列表和 version）， 通过
+ * SpuFactory.createDraftCopy 创建的草稿副本应满足： 草稿的 name 等于源商品的 name，草稿的 description 等于源商品的 description，
+ * 草稿的 SKU 列表与源商品的 SKU 列表内容一致，草稿的 version 等于源商品的 version， 草稿的 status 为 DRAFT，草稿的 sourceSpuId 等于源商品的
+ * id， 草稿的 id 不等于源商品的 id。
  *
  * **Validates: Requirements 2.2, 2.3**
  */

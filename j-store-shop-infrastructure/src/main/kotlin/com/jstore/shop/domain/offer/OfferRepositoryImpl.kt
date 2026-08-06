@@ -16,14 +16,21 @@ class StoreRepositoryImpl(private val jpa: StorePOJpaRepository) : StoreReposito
     @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: Store): Store = toDomain(jpa.save(toPO(entity)))
 
-    override fun findById(id: StoreId): Store? = jpa.findById(id.value).orElse(null)?.let(::toDomain)
+    override fun findById(id: StoreId): Store? =
+        jpa.findById(id.value).orElse(null)?.let(::toDomain)
 
     @Transactional(propagation = Propagation.MANDATORY)
     override fun lock(ids: List<StoreId>): List<Store> =
         jpa.findAllByIdForUpdate(ids.map { it.value }.sorted()).map(::toDomain)
 
     private fun toPO(store: Store) =
-        StorePO(store.id.value, store.merchantId.value, store.name, store.status, store.persistenceVersion)
+        StorePO(
+            store.id.value,
+            store.merchantId.value,
+            store.name,
+            store.status,
+            store.persistenceVersion,
+        )
 
     private fun toDomain(po: StorePO) =
         Store(StoreId(po.id), MerchantId(po.merchantId), po.name, po.status, po.persistenceVersion)
@@ -85,7 +92,8 @@ class SalesOfferRepositoryImpl(private val jpa: SalesOfferPOJpaRepository) :
 class SaleAuthorizationRepositoryImpl(private val jpa: SaleAuthorizationPOJpaRepository) :
     SaleAuthorizationRepository {
     @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(entity: SaleAuthorization): SaleAuthorization = toDomain(jpa.save(toPO(entity)))
+    override fun save(entity: SaleAuthorization): SaleAuthorization =
+        toDomain(jpa.save(toPO(entity)))
 
     override fun findById(id: SaleAuthorizationId): SaleAuthorization? =
         jpa.findById(id.value).orElse(null)?.let(::toDomain)

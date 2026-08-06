@@ -20,7 +20,6 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.geo.*
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.order.acl.GoodsId

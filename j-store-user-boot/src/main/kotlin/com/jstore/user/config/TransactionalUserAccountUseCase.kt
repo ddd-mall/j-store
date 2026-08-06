@@ -3,12 +3,12 @@ package com.jstore.user.config
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Success
 import com.jstore.user.domain.useraccount.Nickname
+import com.jstore.user.domain.useraccount.PhoneVerificationProof
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
 import com.jstore.user.domain.useraccount.command.UserRegisterCMD
 import com.jstore.user.service.RefreshTokenDigest
-import com.jstore.user.domain.useraccount.PhoneVerificationProof
 import com.jstore.user.service.UserAccountUseCase
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -30,8 +30,9 @@ class TransactionalUserAccountUseCase(
     override fun requestPhoneVerification(phoneNumber: PhoneNumber) =
         delegate.requestPhoneVerification(phoneNumber)
 
-    override fun register(cmd: UserRegisterCMD, verificationProof: PhoneVerificationProof) =
-        tx { delegate.register(cmd, verificationProof) }
+    override fun register(cmd: UserRegisterCMD, verificationProof: PhoneVerificationProof) = tx {
+        delegate.register(cmd, verificationProof)
+    }
 
     override fun login(phoneNumber: PhoneNumber, rawPassword: String) =
         tx { delegate.login(phoneNumber, rawPassword) }
@@ -41,7 +42,8 @@ class TransactionalUserAccountUseCase(
                         tokenStore.storeRefreshSession(
                             userId = claims.userId,
                             sessionId = claims.sessionId,
-                            refreshTokenDigest = RefreshTokenDigest.sha256(result.value.refreshToken),
+                            refreshTokenDigest =
+                                RefreshTokenDigest.sha256(result.value.refreshToken),
                             sessionEpoch = claims.sessionEpoch,
                             ttlSeconds = REFRESH_TOKEN_TTL_SECONDS,
                         )

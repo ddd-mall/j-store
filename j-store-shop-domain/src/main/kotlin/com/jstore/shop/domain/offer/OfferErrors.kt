@@ -11,8 +11,6 @@ object OfferErrors {
     val PRICE_MISMATCH = BusinessError("销售价格已变化", "Store.Offer.PriceMismatch", 409)
     val PURCHASE_LIMIT_EXCEEDED = BusinessError("购买数量超过限购", "Store.Offer.PurchaseLimit", 409)
     val ILLEGAL_STATE = BusinessError("销售要约状态不允许该操作", "Store.Offer.IllegalState", 409)
-    val AUTHORIZATION_NOT_FOUND =
-        BusinessError("销售授权不存在", "Store.SaleAuthorization.NotFound", 404)
-    val AUTHORIZATION_EXPIRED =
-        BusinessError("销售授权已失效", "Store.SaleAuthorization.Expired", 409)
+    val AUTHORIZATION_NOT_FOUND = BusinessError("销售授权不存在", "Store.SaleAuthorization.NotFound", 404)
+    val AUTHORIZATION_EXPIRED = BusinessError("销售授权已失效", "Store.SaleAuthorization.Expired", 409)
 }
