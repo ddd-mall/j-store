@@ -78,6 +78,8 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                     districtCode = si.shippingAddress.getLeafCode(),
                     shippingAddress = si.shippingAddress,
                     detailAddress = si.shippingDetailAddress,
+                    postalCode = si.postalCode,
+                    customsFields = si.customsFields.ifEmpty { null },
                 )
             return OrderPO(
                 id = order.id.value,
@@ -156,6 +158,8 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                     contractInfo = contractInfo,
                     shippingAddress = address,
                     shippingDetailAddress = recipientInfoPo.detailAddress,
+                    postalCode = recipientInfoPo.postalCode,
+                    customsFields = recipientInfoPo.customsFields ?: emptyMap(),
                 )
 
             return OrderImpl(

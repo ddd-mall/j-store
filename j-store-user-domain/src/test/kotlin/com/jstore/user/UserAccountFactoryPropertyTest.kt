@@ -54,7 +54,7 @@ class UserAccountFactoryPropertyTest :
         // Generator for valid Chinese phone numbers (11 digits starting with 13x)
         val validPhoneArb: Arb<PhoneNumber> =
             Arb.int(0..99999999).map { num ->
-                PhoneNumber("13${num.toString().padStart(9, '0')}")
+                PhoneNumber("+8613${num.toString().padStart(9, '0')}")
             }
 
         // Generator for valid nicknames (non-blank, 1-20 chars)

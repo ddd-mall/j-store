@@ -45,11 +45,13 @@ class OrderController(private val orderService: OrderUseCase) {
 
     data class RecipientInfoRequest(
         val consigneeName: String,
-        val countryCode: String? = null,
+        val countryCode: String,
         val contactPhone: String? = null,
         val contactEmail: String? = null,
         val shippingDistrictCode: String,
         val shippingDetailAddress: String,
+        val postalCode: String? = null,
+        val customsFields: Map<String, String> = emptyMap(),
     )
 
     data class OrderItemRequest(
@@ -137,6 +139,8 @@ class OrderController(private val orderService: OrderUseCase) {
                             ),
                         shippingDistrictCode = request.recipientInfo.shippingDistrictCode,
                         shippingDetailAddress = request.recipientInfo.shippingDetailAddress,
+                        postalCode = request.recipientInfo.postalCode,
+                        customsFields = request.recipientInfo.customsFields,
                     ),
                 items =
                     request.items.map {

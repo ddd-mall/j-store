@@ -94,6 +94,8 @@ class OrderPaidToFulfillmentTranslator(
                         recipient.shippingAddress.countryCode.value,
                         recipient.shippingAddress.getLeafCode(),
                         recipient.shippingDetailAddress,
+                        recipient.postalCode,
+                        recipient.customsFields,
                     ),
                 items =
                     order.items.map {

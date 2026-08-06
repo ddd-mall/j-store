@@ -115,13 +115,14 @@ private fun validCreateCommand() =
     OrderCreateCMD(
         buyerUid = 1L,
         merchantId = 7L,
-        buyerPhone = "13800138000",
+        buyerPhone = "+8613800138000",
         buyerName = "buyer",
         recipientInfo =
             OrderCreateCMD.RecipientInfoCMD(
                 consigneeName = "recipient",
                 consigneeContractInfo =
-                    OrderCreateCMD.ContractInfoCMD(phoneNumber = PhoneNumber("13900139000")),
+                    OrderCreateCMD.ContractInfoCMD(phoneNumber = PhoneNumber("+8613900139000")),
+                countryCode = "CN",
                 shippingDistrictCode = "110000",
                 shippingDetailAddress = "detail address",
             ),

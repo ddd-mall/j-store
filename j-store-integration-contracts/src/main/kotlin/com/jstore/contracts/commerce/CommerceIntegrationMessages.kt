@@ -44,6 +44,8 @@ data class ContractRecipient(
     val countryCode: String,
     val districtCode: String,
     val detailAddress: String?,
+    val postalCode: String? = null,
+    val customsFields: Map<String, String> = emptyMap(),
 )
 
 @IntegrationMessageType("inventory.reserve", 1)

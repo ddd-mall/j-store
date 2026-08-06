@@ -54,13 +54,16 @@ data class OrderCreateCMD(
 
     data class RecipientInfoCMD(
         val consigneeName: String,
-        val countryCode: String? = null,
+        val countryCode: String,
         val consigneeContractInfo: ContractInfoCMD,
         val shippingDistrictCode: String,
         val shippingDetailAddress: String,
+        val postalCode: String? = null,
+        val customsFields: Map<String, String> = emptyMap(),
     ) {
         fun validate(): Result<RecipientInfoCMD, BusinessError> {
             if (consigneeName.isBlank()) return Failure(OrderErrors.CONSIGNEE_NAME_BLANK)
+            if (countryCode.isBlank()) return Failure(OrderErrors.COUNTRY_CODE_BLANK)
             if (shippingDistrictCode.isBlank()) return Failure(OrderErrors.DISTRICT_CODE_BLANK)
             consigneeContractInfo.validate().onFailure {
                 return Failure(it)
