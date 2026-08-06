@@ -5,8 +5,6 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.LocalDateTime
@@ -14,8 +12,8 @@ import java.time.LocalDateTime
 @Entity
 @Table(name = "user_accounts")
 class UserAccountPO(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id") var id: Long = 0,
-    @Column(name = "phone_number", nullable = false, unique = true, length = 11)
+    @Id @Column(name = "id") var id: Long = 0,
+    @Column(name = "phone_number", nullable = false, unique = true, length = 16)
     var phoneNumber: String = "",
     @Column(name = "nickname", nullable = false, length = 20) var nickname: String = "",
     @Column(name = "password_hash", nullable = false, length = 255) var passwordHash: String = "",

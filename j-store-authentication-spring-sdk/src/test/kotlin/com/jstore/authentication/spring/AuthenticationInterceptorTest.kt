@@ -3,6 +3,7 @@ package com.jstore.authentication.spring
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.config.AuthenticationConfigurer
 import com.jstore.authentication.error.AuthenticationErrors
+import com.jstore.user.domain.useraccount.AuthTokenClaims
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
@@ -96,9 +97,9 @@ class AuthenticationInterceptorTest :
             whenever(request.requestURI).thenReturn("/api/orders")
 
             // Mock valid token flow
-            whenever(tokenProvider.parseAccessToken("validtoken")).thenReturn(UserId(42L))
-            whenever(tokenProvider.getAccessTokenJti("validtoken")).thenReturn("jti-123")
-            whenever(tokenStore.isAccessTokenBlacklisted("jti-123")).thenReturn(false)
+            val claims = AuthTokenClaims(UserId(42L), "session-1", 2L, "jti-123")
+            whenever(tokenProvider.parseAccessToken("validtoken")).thenReturn(claims)
+            whenever(tokenStore.isSessionActive(UserId(42L), "session-1", 2L)).thenReturn(true)
 
             val response = mock<HttpServletResponse>()
 

@@ -1,19 +1,36 @@
 package com.jstore.user.domain.useraccount
 
-/** Token 存储接口（RefreshToken 存储 + AccessToken 黑名单） 定义在领域层，实现在基础设施层（Redis） */
+enum class RefreshTokenRotationResult {
+    ROTATED,
+    REPLAY_DETECTED,
+    SESSION_NOT_FOUND,
+}
+
+/** 服务端认证会话存储端口。Refresh Token 参数必须是不可逆摘要。 */
 interface TokenStore {
-    /** 存储 RefreshToken */
-    fun storeRefreshToken(userId: UserId, refreshToken: String, ttlSeconds: Long)
+    fun currentSessionEpoch(userId: UserId): Long
 
-    /** 获取存储的 RefreshToken */
-    fun getRefreshToken(userId: UserId): String?
+    fun storeRefreshSession(
+        userId: UserId,
+        sessionId: String,
+        refreshTokenDigest: String,
+        sessionEpoch: Long,
+        ttlSeconds: Long,
+    )
 
-    /** 删除 RefreshToken */
-    fun removeRefreshToken(userId: UserId)
+    fun rotateRefreshSession(
+        userId: UserId,
+        sessionId: String,
+        expectedDigest: String,
+        replacementDigest: String,
+        sessionEpoch: Long,
+        ttlSeconds: Long,
+    ): RefreshTokenRotationResult
 
-    /** 将 AccessToken 加入黑名单 */
-    fun blacklistAccessToken(jti: String, ttlSeconds: Long)
+    fun revokeSession(userId: UserId, sessionId: String)
 
-    /** 检查 AccessToken 是否在黑名单中 */
-    fun isAccessTokenBlacklisted(jti: String): Boolean
+    /** 递增用户会话代次，使该用户所有既有 Access/Refresh Token 立即失效。 */
+    fun revokeAllSessions(userId: UserId): Long
+
+    fun isSessionActive(userId: UserId, sessionId: String, sessionEpoch: Long): Boolean
 }

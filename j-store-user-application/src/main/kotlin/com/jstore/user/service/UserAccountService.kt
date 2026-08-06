@@ -13,6 +13,7 @@ import com.jstore.user.domain.useraccount.command.UserRegisterCMD
 import com.jstore.user.domain.useraccount.event.UserAccountForcedOfflineEvent
 import com.jstore.user.domain.useraccount.event.UserAccountLoggedInEvent
 import java.time.LocalDateTime
+import java.util.UUID
 
 /** 用户账号应用服务 编排用例: 加载聚合 → 执行领域行为 → 保存 → 发布事件 不包含业务规则，全部委托给领域对象 */
 class UserAccountService(
@@ -21,6 +22,9 @@ class UserAccountService(
     private val passwordHasher: PasswordHasher,
     private val tokenProvider: TokenProvider,
     private val tokenStore: TokenStore,
+    private val phoneVerificationGateway: PhoneVerificationGateway,
+    private val phoneVerificationCodeSender: PhoneVerificationCodeSender,
+    private val loginAttemptGuard: LoginAttemptGuard,
     private val domainEventPublisher: DomainEventPublisher,
 ) : UserAccountUseCase {
 
@@ -28,8 +32,23 @@ class UserAccountService(
         private const val REFRESH_TOKEN_TTL_SECONDS = 604800L // 7 days
     }
 
+    override fun requestPhoneVerification(
+        phoneNumber: PhoneNumber
+    ): Result<PhoneVerificationChallenge, BusinessError> {
+        val issued = phoneVerificationGateway.createChallenge(phoneNumber)
+            ?: return Failure(UserAccountErrors.PHONE_VERIFICATION_RATE_LIMITED)
+        phoneVerificationCodeSender.send(phoneNumber, issued.code)
+        return Success(issued.challenge)
+    }
+
     /** 用户注册 */
-    override fun register(cmd: UserRegisterCMD): Result<UserAccount, BusinessError> {
+    override fun register(
+        cmd: UserRegisterCMD,
+        verificationProof: PhoneVerificationProof,
+    ): Result<UserAccount, BusinessError> {
+        if (!phoneVerificationGateway.consumeChallenge(cmd.phoneNumber, verificationProof)) {
+            return Failure(UserAccountErrors.PHONE_VERIFICATION_INVALID)
+        }
         if (userAccountRepository.existsByPhoneNumber(cmd.phoneNumber)) {
             return Failure(UserAccountErrors.PHONE_ALREADY_REGISTERED)
         }
@@ -47,20 +66,27 @@ class UserAccountService(
         phoneNumber: PhoneNumber,
         rawPassword: String,
     ): Result<AuthTokenPair, BusinessError> {
+        if (!loginAttemptGuard.isAllowed(phoneNumber)) {
+            return Failure(UserAccountErrors.LOGIN_RATE_LIMITED)
+        }
         val account =
             userAccountRepository.findByPhoneNumber(phoneNumber)
-                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+                ?: return invalidCredentials(phoneNumber)
 
         if (!passwordHasher.matches(rawPassword, account.passwordHash.hashedValue)) {
-            return Failure(UserAccountErrors.PASSWORD_MISMATCH)
+            return invalidCredentials(phoneNumber)
         }
 
         if (account.status != UserAccountStatus.ACTIVE) {
             return Failure(UserAccountErrors.ACCOUNT_DISABLED)
         }
 
-        val accessToken = tokenProvider.issueAccessToken(account.id)
-        val refreshToken = tokenProvider.issueRefreshToken(account.id)
+        loginAttemptGuard.reset(phoneNumber)
+
+        val sessionId = UUID.randomUUID().toString()
+        val sessionEpoch = tokenStore.currentSessionEpoch(account.id)
+        val accessToken = tokenProvider.issueAccessToken(account.id, sessionId, sessionEpoch)
+        val refreshToken = tokenProvider.issueRefreshToken(account.id, sessionId, sessionEpoch)
         val tokenPair =
             AuthTokenPair(
                 accessToken = accessToken,
@@ -79,30 +105,45 @@ class UserAccountService(
         return Success(tokenPair)
     }
 
+    private fun invalidCredentials(
+        phoneNumber: PhoneNumber
+    ): Result<AuthTokenPair, BusinessError> {
+        loginAttemptGuard.recordFailure(phoneNumber)
+        return Failure(UserAccountErrors.INVALID_CREDENTIALS)
+    }
+
     /** Token 刷新 */
     override fun refreshToken(refreshToken: String): Result<AuthTokenPair, BusinessError> {
-        val userId =
+        val claims =
             tokenProvider.parseRefreshToken(refreshToken)
                 ?: return Failure(UserAccountErrors.TOKEN_INVALID)
 
-        val storedToken = tokenStore.getRefreshToken(userId)
-        if (storedToken != refreshToken) {
-            tokenStore.removeRefreshToken(userId)
-            return Failure(UserAccountErrors.REFRESH_TOKEN_REVOKED)
-        }
-
         val account =
-            userAccountRepository.findById(userId)
+            userAccountRepository.findById(claims.userId)
                 ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
 
         if (account.status != UserAccountStatus.ACTIVE) {
-            tokenStore.removeRefreshToken(userId)
+            tokenStore.revokeSession(claims.userId, claims.sessionId)
             return Failure(UserAccountErrors.ACCOUNT_DISABLED)
         }
 
-        val newAccessToken = tokenProvider.issueAccessToken(userId)
-        val newRefreshToken = tokenProvider.issueRefreshToken(userId)
-        tokenStore.storeRefreshToken(userId, newRefreshToken, REFRESH_TOKEN_TTL_SECONDS)
+        val newAccessToken =
+            tokenProvider.issueAccessToken(claims.userId, claims.sessionId, claims.sessionEpoch)
+        val newRefreshToken =
+            tokenProvider.issueRefreshToken(claims.userId, claims.sessionId, claims.sessionEpoch)
+        val rotation =
+            tokenStore.rotateRefreshSession(
+                userId = claims.userId,
+                sessionId = claims.sessionId,
+                expectedDigest = RefreshTokenDigest.sha256(refreshToken),
+                replacementDigest = RefreshTokenDigest.sha256(newRefreshToken),
+                sessionEpoch = claims.sessionEpoch,
+                ttlSeconds = REFRESH_TOKEN_TTL_SECONDS,
+            )
+
+        if (rotation != RefreshTokenRotationResult.ROTATED) {
+            return Failure(UserAccountErrors.REFRESH_TOKEN_REVOKED)
+        }
 
         return Success(
             AuthTokenPair(
@@ -112,6 +153,14 @@ class UserAccountService(
                 refreshTokenExpiresAt = LocalDateTime.now().plusDays(7),
             )
         )
+    }
+
+    override fun logout(userId: UserId, accessToken: String): Result<Unit, BusinessError> {
+        val claims = tokenProvider.parseAccessToken(accessToken)
+            ?: return Failure(UserAccountErrors.TOKEN_INVALID)
+        if (claims.userId != userId) return Failure(UserAccountErrors.TOKEN_INVALID)
+        tokenStore.revokeSession(userId, claims.sessionId)
+        return Success(Unit)
     }
 
     /** 根据 ID 查询用户 */
@@ -200,7 +249,7 @@ class UserAccountService(
     }
 
     /** 强制下线 */
-    override fun forceOffline(userId: UserId, accessToken: String?): Result<Unit, BusinessError> {
+    override fun forceOffline(userId: UserId): Result<Unit, BusinessError> {
         userAccountRepository.findById(userId) ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
 
         domainEventPublisher.publishEvent(

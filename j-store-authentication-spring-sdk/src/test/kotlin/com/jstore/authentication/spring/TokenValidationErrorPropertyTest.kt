@@ -2,6 +2,7 @@ package com.jstore.authentication.spring
 
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.error.AuthenticationErrors
+import com.jstore.user.domain.useraccount.AuthTokenClaims
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
@@ -72,7 +73,7 @@ class TokenValidationErrorPropertyTest :
         }
 
         test(
-            "isAccessTokenBlacklisted returns true produces Auth.Token.Blacklisted with HTTP 401"
+            "inactive server session produces Auth.Token.Revoked with HTTP 401"
         ) {
             checkAll(
                 PropTestConfig(iterations = 100),
@@ -97,10 +98,10 @@ class TokenValidationErrorPropertyTest :
                 whenever(request.getHeader("Authorization")).thenReturn("Bearer $token")
                 whenever(request.requestURI).thenReturn("/api/test")
 
-                // Token parses successfully but is blacklisted
-                whenever(tokenProvider.parseAccessToken(token)).thenReturn(UserId(userIdValue))
-                whenever(tokenProvider.getAccessTokenJti(token)).thenReturn(jti)
-                whenever(tokenStore.isAccessTokenBlacklisted(jti)).thenReturn(true)
+                val userId = UserId(userIdValue)
+                val claims = AuthTokenClaims(userId, "session-1", 4L, jti)
+                whenever(tokenProvider.parseAccessToken(token)).thenReturn(claims)
+                whenever(tokenStore.isSessionActive(userId, "session-1", 4L)).thenReturn(false)
 
                 val stringWriter = StringWriter()
                 val response = mock<HttpServletResponse>()
@@ -109,14 +110,14 @@ class TokenValidationErrorPropertyTest :
                 val result = interceptor.preHandle(request, response, handlerMethod)
 
                 result shouldBe false
-                verify(response).status = AuthenticationErrors.TOKEN_BLACKLISTED.httpCode
-                AuthenticationErrors.TOKEN_BLACKLISTED.httpCode shouldBe 401
+                verify(response).status = AuthenticationErrors.TOKEN_REVOKED.httpCode
+                AuthenticationErrors.TOKEN_REVOKED.httpCode shouldBe 401
                 verify(response).contentType = "application/json"
 
                 val body = stringWriter.toString()
                 body.contains("\"message\"") shouldBe true
                 body.contains("\"errorCode\"") shouldBe true
-                body.contains("Auth.Token.Blacklisted") shouldBe true
+                body.contains("Auth.Token.Revoked") shouldBe true
             }
         }
 

@@ -2,6 +2,7 @@ package com.jstore.authentication.spring
 
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.error.AuthenticationErrors
+import com.jstore.user.domain.useraccount.AuthTokenClaims
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
@@ -54,8 +55,9 @@ class BearerTokenExtractionPropertyTest :
 
                 // parseAccessToken returns a UserId → token was successfully extracted
                 val userId = UserId(1L)
-                whenever(tokenProvider.parseAccessToken(token)).thenReturn(userId)
-                whenever(tokenProvider.getAccessTokenJti(token)).thenReturn(null)
+                val claims = AuthTokenClaims(userId, "session-1", 0L, "jti")
+                whenever(tokenProvider.parseAccessToken(token)).thenReturn(claims)
+                whenever(tokenStore.isSessionActive(userId, "session-1", 0L)).thenReturn(true)
 
                 val response = mock<HttpServletResponse>()
 

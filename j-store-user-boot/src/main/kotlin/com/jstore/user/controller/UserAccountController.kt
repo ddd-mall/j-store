@@ -1,5 +1,8 @@
 package com.jstore.user.controller
 
+import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.annotation.SkipLogin
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Result
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/users")
+@RequireLogin
 class UserAccountController(private val userAccountService: UserAccountUseCase) {
 
     // ---- Request DTOs ----
@@ -21,7 +25,11 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
         val phoneNumber: String,
         val nickname: String,
         val password: String,
+        val challengeId: String,
+        val verificationCode: String,
     )
+
+    data class PhoneVerificationRequest(val phoneNumber: String)
 
     data class LoginRequest(
         val phoneNumber: String,
@@ -62,6 +70,15 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
 
     // ---- Endpoints ----
 
+    @SkipLogin
+    @PostMapping("/phone-verifications")
+    fun requestPhoneVerification(
+        @RequestBody request: PhoneVerificationRequest
+    ): ResponseEntity<*> =
+        userAccountService.requestPhoneVerification(PhoneNumber(request.phoneNumber))
+            .toResponse { it }
+
+    @SkipLogin
     @PostMapping("/register")
     fun register(@RequestBody request: RegisterRequest): ResponseEntity<*> {
         val cmd =
@@ -70,7 +87,8 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
                 nickname = request.nickname,
                 rawPassword = request.password,
             )
-        return userAccountService.register(cmd).toResponse { account ->
+        val proof = PhoneVerificationProof(request.challengeId, request.verificationCode)
+        return userAccountService.register(cmd, proof).toResponse { account ->
             UserResponse(
                 id = account.id.value,
                 phoneNumber = account.phoneNumber.value,
@@ -82,6 +100,7 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
         }
     }
 
+    @SkipLogin
     @PostMapping("/login")
     fun login(@RequestBody request: LoginRequest): ResponseEntity<*> {
         return userAccountService
@@ -99,6 +118,7 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
             }
     }
 
+    @SkipLogin
     @PostMapping("/refresh-token")
     fun refreshToken(@RequestBody request: RefreshTokenRequest): ResponseEntity<*> {
         return userAccountService.refreshToken(request.refreshToken).toResponse { tokenPair ->
@@ -111,9 +131,9 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
         }
     }
 
-    @GetMapping("/{id}")
-    fun findById(@PathVariable id: Long): ResponseEntity<*> {
-        return userAccountService.findById(UserId(id)).toResponse { account ->
+    @GetMapping("/me")
+    fun findMe(@CurrentUserId userId: UserId): ResponseEntity<*> {
+        return userAccountService.findById(userId).toResponse { account ->
             UserResponse(
                 id = account.id.value,
                 phoneNumber = account.phoneNumber.value,
@@ -125,47 +145,39 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
         }
     }
 
-    @PutMapping("/{id}/nickname")
+    @PutMapping("/me/nickname")
     fun changeNickname(
-        @PathVariable id: Long,
+        @CurrentUserId userId: UserId,
         @RequestBody request: ChangeNicknameRequest,
     ): ResponseEntity<*> {
         return userAccountService
             .changeNickname(
-                userId = UserId(id),
+                userId = userId,
                 newNickname = Nickname(request.nickname),
             )
             .toResponse {}
     }
 
-    @PutMapping("/{id}/password")
+    @PutMapping("/me/password")
     fun changePassword(
-        @PathVariable id: Long,
+        @CurrentUserId userId: UserId,
         @RequestBody request: ChangePasswordRequest,
     ): ResponseEntity<*> {
         return userAccountService
             .changePassword(
-                userId = UserId(id),
+                userId = userId,
                 oldPassword = request.oldPassword,
                 newPassword = request.newPassword,
             )
             .toResponse {}
     }
 
-    @PostMapping("/{id}/disable")
-    fun disable(@PathVariable id: Long): ResponseEntity<*> {
-        return userAccountService.disable(UserId(id)).toResponse {}
-    }
-
-    @PostMapping("/{id}/enable")
-    fun enable(@PathVariable id: Long): ResponseEntity<*> {
-        return userAccountService.enable(UserId(id)).toResponse {}
-    }
-
-    @PostMapping("/{id}/force-offline")
-    fun forceOffline(@PathVariable id: Long): ResponseEntity<*> {
-        return userAccountService.forceOffline(UserId(id)).toResponse {}
-    }
+    @PostMapping("/me/logout")
+    fun logout(
+        @CurrentUserId userId: UserId,
+        @RequestHeader("Authorization") authorization: String,
+    ): ResponseEntity<*> =
+        userAccountService.logout(userId, authorization.removePrefix("Bearer ")).toResponse {}
 
     // ---- Helper ----
 

@@ -18,10 +18,10 @@ class AuthenticationErrorsTest :
             AuthenticationErrors.TOKEN_INVALID.httpCode shouldBe 401
         }
 
-        test("TOKEN_BLACKLISTED has correct message, errorCode, and httpCode") {
-            AuthenticationErrors.TOKEN_BLACKLISTED.message shouldBe "令牌已被吊销"
-            AuthenticationErrors.TOKEN_BLACKLISTED.errorCode shouldBe "Auth.Token.Blacklisted"
-            AuthenticationErrors.TOKEN_BLACKLISTED.httpCode shouldBe 401
+        test("TOKEN_REVOKED has correct message, errorCode, and httpCode") {
+            AuthenticationErrors.TOKEN_REVOKED.message shouldBe "令牌已被吊销"
+            AuthenticationErrors.TOKEN_REVOKED.errorCode shouldBe "Auth.Token.Revoked"
+            AuthenticationErrors.TOKEN_REVOKED.httpCode shouldBe 401
         }
 
         test("INTERNAL_ERROR has correct message, errorCode, and httpCode") {

@@ -10,81 +10,125 @@ import javax.crypto.SecretKey
  * JWT 实现的 TokenProvider AccessToken: 15 分钟有效期，claims 包含 userId, jti, exp, iat RefreshToken: 7 天有效期
  * 使用 HS256 算法签名
  */
-class JwtTokenProvider(secretKeyString: String) : TokenProvider {
+class JwtTokenProvider(
+    accessSecret: String,
+    refreshSecret: String,
+    private val issuer: String,
+    private val audience: String,
+    private val keyId: String,
+) : TokenProvider {
 
-    private val secretKey: SecretKey = Keys.hmacShaKeyFor(secretKeyString.toByteArray())
+    init {
+        require(accessSecret != refreshSecret) {
+            "access and refresh token secrets must be different"
+        }
+        require(accessSecret.toByteArray(Charsets.UTF_8).size >= 32) {
+            "access token secret must be at least 32 bytes"
+        }
+        require(refreshSecret.toByteArray(Charsets.UTF_8).size >= 32) {
+            "refresh token secret must be at least 32 bytes"
+        }
+        require(issuer.isNotBlank()) { "issuer must not be blank" }
+        require(audience.isNotBlank()) { "audience must not be blank" }
+        require(keyId.isNotBlank()) { "keyId must not be blank" }
+    }
+
+    private val accessKey: SecretKey = Keys.hmacShaKeyFor(accessSecret.toByteArray())
+    private val refreshKey: SecretKey = Keys.hmacShaKeyFor(refreshSecret.toByteArray())
 
     companion object {
         private const val ACCESS_TOKEN_EXPIRY_SECONDS = 15L * 60 // 15 minutes
         private const val REFRESH_TOKEN_EXPIRY_SECONDS = 7L * 24 * 60 * 60 // 7 days
         private const val CLAIM_USER_ID = "userId"
+        private const val CLAIM_SESSION_ID = "sid"
+        private const val CLAIM_SESSION_EPOCH = "sev"
         private const val CLAIM_TOKEN_TYPE = "type"
         private const val TOKEN_TYPE_ACCESS = "access"
         private const val TOKEN_TYPE_REFRESH = "refresh"
     }
 
-    override fun issueAccessToken(userId: UserId): String {
+    override fun issueAccessToken(userId: UserId, sessionId: String, sessionEpoch: Long): String =
+        issueToken(
+            userId,
+            sessionId,
+            sessionEpoch,
+            TOKEN_TYPE_ACCESS,
+            ACCESS_TOKEN_EXPIRY_SECONDS,
+            accessKey,
+        )
+
+    override fun issueRefreshToken(userId: UserId, sessionId: String, sessionEpoch: Long): String =
+        issueToken(
+            userId,
+            sessionId,
+            sessionEpoch,
+            TOKEN_TYPE_REFRESH,
+            REFRESH_TOKEN_EXPIRY_SECONDS,
+            refreshKey,
+        )
+
+    private fun issueToken(
+        userId: UserId,
+        sessionId: String,
+        sessionEpoch: Long,
+        tokenType: String,
+        expirySeconds: Long,
+        signingKey: SecretKey,
+    ): String {
+        require(sessionId.isNotBlank()) { "sessionId must not be blank" }
+        require(sessionEpoch >= 0) { "sessionEpoch must not be negative" }
         val now = Instant.now()
         return Jwts.builder()
+            .header()
+            .keyId(keyId)
+            .and()
             .id(UUID.randomUUID().toString())
+            .subject(userId.value.toString())
+            .issuer(issuer)
+            .audience()
+            .add(audience)
+            .and()
             .claim(CLAIM_USER_ID, userId.value)
-            .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS)
+            .claim(CLAIM_SESSION_ID, sessionId)
+            .claim(CLAIM_SESSION_EPOCH, sessionEpoch)
+            .claim(CLAIM_TOKEN_TYPE, tokenType)
             .issuedAt(Date.from(now))
-            .expiration(Date.from(now.plusSeconds(ACCESS_TOKEN_EXPIRY_SECONDS)))
-            .signWith(secretKey, Jwts.SIG.HS256)
+            .expiration(Date.from(now.plusSeconds(expirySeconds)))
+            .signWith(signingKey, Jwts.SIG.HS256)
             .compact()
     }
 
-    override fun issueRefreshToken(userId: UserId): String {
-        val now = Instant.now()
-        return Jwts.builder()
-            .id(UUID.randomUUID().toString())
-            .claim(CLAIM_USER_ID, userId.value)
-            .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)
-            .issuedAt(Date.from(now))
-            .expiration(Date.from(now.plusSeconds(REFRESH_TOKEN_EXPIRY_SECONDS)))
-            .signWith(secretKey, Jwts.SIG.HS256)
-            .compact()
-    }
+    override fun parseAccessToken(token: String): AuthTokenClaims? =
+        parseToken(token, TOKEN_TYPE_ACCESS, accessKey)
 
-    override fun parseAccessToken(token: String): UserId? {
-        return parseToken(token, TOKEN_TYPE_ACCESS)
-    }
+    override fun parseRefreshToken(token: String): AuthTokenClaims? =
+        parseToken(token, TOKEN_TYPE_REFRESH, refreshKey)
 
-    override fun parseRefreshToken(token: String): UserId? {
-        return parseToken(token, TOKEN_TYPE_REFRESH)
-    }
-
-    override fun getAccessTokenJti(token: String): String? {
+    private fun parseToken(
+        token: String,
+        expectedType: String,
+        verificationKey: SecretKey,
+    ): AuthTokenClaims? {
         return try {
-            val claims =
-                Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).payload
-            claims.id
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    override fun getAccessTokenRemainingSeconds(token: String): Long {
-        return try {
-            val claims =
-                Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).payload
-            val expiration = claims.expiration.toInstant()
-            val remaining = expiration.epochSecond - Instant.now().epochSecond
-            if (remaining > 0) remaining else 0
-        } catch (_: Exception) {
-            0
-        }
-    }
-
-    private fun parseToken(token: String, expectedType: String): UserId? {
-        return try {
-            val claims =
-                Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).payload
+            val signed =
+                Jwts.parser()
+                    .verifyWith(verificationKey)
+                    .requireIssuer(issuer)
+                    .requireAudience(audience)
+                    .build()
+                    .parseSignedClaims(token)
+            if (signed.header.keyId != keyId) return null
+            val claims = signed.payload
             val type = claims[CLAIM_TOKEN_TYPE] as? String
             if (type != expectedType) return null
             val userId = claims[CLAIM_USER_ID] as? Number ?: return null
-            UserId(userId.toLong())
+            val sessionId = claims[CLAIM_SESSION_ID] as? String ?: return null
+            val sessionEpoch = claims[CLAIM_SESSION_EPOCH] as? Number ?: return null
+            val jti = claims.id ?: return null
+            val parsedUserId = UserId(userId.toLong())
+            if (claims.subject != parsedUserId.value.toString()) return null
+            if (sessionId.isBlank() || sessionEpoch.toLong() < 0) return null
+            AuthTokenClaims(parsedUserId, sessionId, sessionEpoch.toLong(), jti)
         } catch (_: Exception) {
             null
         }
