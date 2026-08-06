@@ -1,6 +1,7 @@
 package com.jstore.order.service
 
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.order.FulfillmentStatus
@@ -12,6 +13,7 @@ import com.jstore.order.domain.order.OrderItemStatus
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
+import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
 import com.jstore.order.domain.order.testOrder
@@ -21,10 +23,25 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 
 class OrderServiceStatusDimensionsTest :
     FunSpec({
+        test("order factory failure is propagated without persistence or publication") {
+            val factory = mock(OrderFactory::class.java)
+            val repository = mock(OrderRepository::class.java)
+            val publisher = mock(DomainEventPublisher::class.java)
+            val command = validCreateCommand()
+            val error = OrderErrors.CORRESPONDING_GOODS_NOT_FOUND
+            `when`(factory.create(command)).thenReturn(Failure(error))
+
+            OrderService(factory, repository, publisher).createOrder(command) shouldBe
+                Failure(error)
+
+            verifyNoInteractions(repository, publisher)
+        }
+
         test("domain failure is propagated and aggregate is not saved") {
             val factory = mock(OrderFactory::class.java)
             val repository = mock(OrderRepository::class.java)
@@ -93,3 +110,28 @@ class OrderServiceStatusDimensionsTest :
             order.pendingDomainEvents().size shouldBe 0
         }
     })
+
+private fun validCreateCommand() =
+    OrderCreateCMD(
+        buyerUid = 1L,
+        merchantId = 7L,
+        buyerPhone = "13800138000",
+        buyerName = "buyer",
+        recipientInfo =
+            OrderCreateCMD.RecipientInfoCMD(
+                consigneeName = "recipient",
+                consigneeContractInfo =
+                    OrderCreateCMD.ContractInfoCMD(phoneNumber = PhoneNumber("13900139000")),
+                shippingDistrictCode = "110000",
+                shippingDetailAddress = "detail address",
+            ),
+        items =
+            listOf(
+                OrderCreateCMD.OrderItemCMD(
+                    spuId = 1L,
+                    skuId = 1L,
+                    quantity = 1,
+                    snapshotVersion = 1L,
+                )
+            ),
+    )
