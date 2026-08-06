@@ -2,7 +2,7 @@ package com.jstore.payment.service
 
 import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.properties.Price
-import com.jstore.common.utils.getOrThrow
+import com.jstore.common.utils.expect
 import com.jstore.contracts.commerce.CreatePaymentForOrderCommand
 import com.jstore.contracts.commerce.RequestPaymentRefundCommand
 import com.jstore.payment.domain.payment.PaymentRefundItem
@@ -21,7 +21,7 @@ class CreatePaymentForOrderCommandHandler(private val payments: PaymentUseCase) 
                     message.currency,
                 )
             )
-            .getOrThrow()
+            .expect("${handlerId()} failed to create payment")
     }
 }
 
@@ -47,6 +47,6 @@ class RequestPaymentRefundCommandHandler(private val payments: PaymentUseCase) :
                 ),
                 message.occurredAt,
             )
-            .getOrThrow()
+            .expect("${handlerId()} failed to request refund")
     }
 }

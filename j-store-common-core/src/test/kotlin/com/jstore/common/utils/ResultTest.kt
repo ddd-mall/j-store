@@ -5,6 +5,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
+import java.util.concurrent.CancellationException
 
 class ResultTest :
     FunSpec({
@@ -35,6 +36,14 @@ class ResultTest :
                     Failure("something broke").getOrThrow()
                 }
             ex.message shouldContain "something broke"
+        }
+
+        test("getOrThrow preserves a throwable error as the cause") {
+            val cause = IllegalArgumentException("something broke")
+
+            val ex = shouldThrow<ResultUnwrapException> { Failure(cause).getOrThrow() }
+
+            ex.cause shouldBe cause
         }
 
         // ========== expect ==========
@@ -312,6 +321,27 @@ class ResultTest :
         test("resultOf does not catch Error (e.g. OutOfMemoryError, StackOverflowError)") {
             shouldThrow<StackOverflowError> {
                 resultOf { throw StackOverflowError("boom") }
+            }
+        }
+
+        test("resultOf does not capture cancellation") {
+            val cancellation = CancellationException("cancelled")
+
+            val thrown = shouldThrow<CancellationException> { resultOf { throw cancellation } }
+
+            thrown shouldBe cancellation
+        }
+
+        test("resultOf does not capture thread interruption") {
+            val interruption = InterruptedException("interrupted")
+
+            try {
+                val thrown = shouldThrow<InterruptedException> { resultOf { throw interruption } }
+
+                thrown shouldBe interruption
+                Thread.currentThread().isInterrupted shouldBe true
+            } finally {
+                Thread.interrupted()
             }
         }
 

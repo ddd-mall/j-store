@@ -1,6 +1,7 @@
 package com.jstore.common.utils
 
 import java.io.Serializable
+import java.util.concurrent.CancellationException
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -36,14 +37,18 @@ object Results {
     fun <T, E> err(error: E): Result<T, E> = Failure(error) as Result<T, E>
 }
 
-class ResultUnwrapException(message: String) : IllegalStateException(message)
+class ResultUnwrapException(message: String, cause: Throwable? = null) :
+    IllegalStateException(message, cause)
 
 /** Rust: `unwrap()` — panics with error context on Failure. */
 fun <T, E> Result<T, E>.getOrThrow(): T =
     when (this) {
         is Success -> value
         is Failure ->
-            throw ResultUnwrapException("called Result::unwrap() on a Failure value: $error")
+            throw ResultUnwrapException(
+                "called Result::unwrap() on a Failure value: $error",
+                error as? Throwable,
+            )
     }
 
 /** Rust: `unwrap_err()` — panics with value context on Success. */
@@ -58,7 +63,7 @@ fun <T, E> Result<T, E>.getErrorOrThrow(): E =
 fun <T, E> Result<T, E>.expect(message: String): T =
     when (this) {
         is Success -> value
-        is Failure -> throw ResultUnwrapException("$message: $error")
+        is Failure -> throw ResultUnwrapException("$message: $error", error as? Throwable)
     }
 
 /** Rust: `unwrap_or(default)` — returns default on Failure, never throws. */
@@ -227,6 +232,11 @@ fun <T : Any, E> Result<T?, E>.transpose(): Result<T, E>? =
 inline fun <R> resultOf(block: () -> R): Result<R, Exception> {
     return try {
         Success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: InterruptedException) {
+        Thread.currentThread().interrupt()
+        throw e
     } catch (e: Exception) {
         Failure(e)
     }
@@ -236,6 +246,11 @@ inline fun <R> resultOf(block: () -> R): Result<R, Exception> {
 inline fun <T, R> T.runResultOf(block: T.() -> R): Result<R, Exception> {
     return try {
         Success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: InterruptedException) {
+        Thread.currentThread().interrupt()
+        throw e
     } catch (e: Exception) {
         Failure(e)
     }

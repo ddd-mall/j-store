@@ -6,8 +6,9 @@ import com.jstore.common.framework.event.publishPendingEvents
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.common.utils.getOrThrow
-import com.jstore.common.utils.onFailure
+import com.jstore.common.utils.flatMap
+import com.jstore.common.utils.map
+import com.jstore.common.utils.onSuccess
 import com.jstore.order.domain.aftersale.AfterSale
 import com.jstore.order.domain.aftersale.AfterSaleCommandReceipt
 import com.jstore.order.domain.aftersale.AfterSaleCommandType
@@ -183,12 +184,11 @@ class AfterSaleApplicationService(
     ): Result<AfterSale, BusinessError> {
         val aggregate =
             afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
-        operation(aggregate).onFailure {
-            return Failure(it)
+        return operation(aggregate).map {
+            val saved = afterSaleRepository.save(aggregate)
+            aggregate.publishPendingEvents(domainEventPublisher)
+            saved
         }
-        val saved = afterSaleRepository.save(aggregate)
-        aggregate.publishPendingEvents(domainEventPublisher)
-        return Success(saved)
     }
 
     private fun recordExternal(
@@ -197,15 +197,12 @@ class AfterSaleApplicationService(
     ): Result<Boolean, BusinessError> {
         val aggregate =
             afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
-        val changed = operation(aggregate)
-        changed.onFailure {
-            return Failure(it)
+        return operation(aggregate).onSuccess { changed ->
+            if (changed) {
+                afterSaleRepository.save(aggregate)
+                aggregate.publishPendingEvents(domainEventPublisher)
+            }
         }
-        if (changed.getOrThrow()) {
-            afterSaleRepository.save(aggregate)
-            aggregate.publishPendingEvents(domainEventPublisher)
-        }
-        return changed
     }
 
     private fun decide(
@@ -224,25 +221,23 @@ class AfterSaleApplicationService(
         }
         val aggregate =
             afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
-        operation(aggregate).onFailure {
-            return Failure(it)
-        }
-        val result =
-            afterSaleRepository.saveDecision(
-                aggregate,
-                action,
-                AfterSaleCommandReceipt(
-                    actor,
-                    type,
-                    key.trim(),
-                    digest,
-                    id,
-                    aggregate.status,
-                    LocalDateTime.now(),
-                ),
-            )
-        if (result is Success) aggregate.publishPendingEvents(domainEventPublisher)
-        return result
+        return operation(aggregate)
+            .flatMap {
+                afterSaleRepository.saveDecision(
+                    aggregate,
+                    action,
+                    AfterSaleCommandReceipt(
+                        actor,
+                        type,
+                        key.trim(),
+                        digest,
+                        id,
+                        aggregate.status,
+                        LocalDateTime.now(),
+                    ),
+                )
+            }
+            .onSuccess { aggregate.publishPendingEvents(domainEventPublisher) }
     }
 
     private fun receipt(

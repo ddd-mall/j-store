@@ -7,8 +7,7 @@ import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.common.utils.getOrThrow
-import com.jstore.common.utils.onFailure
+import com.jstore.common.utils.onSuccess
 import com.jstore.fulfillment.domain.FulfillmentErrors
 import com.jstore.fulfillment.domain.FulfillmentItem
 import com.jstore.fulfillment.domain.FulfillmentOrder
@@ -84,14 +83,11 @@ class FulfillmentApplicationService(
     ): Result<Boolean, BusinessError> {
         val fulfillment =
             repository.findByOrderId(orderId) ?: return Failure(FulfillmentErrors.NOT_FOUND)
-        val changed = operation(fulfillment)
-        changed.onFailure {
-            return Failure(it)
+        return operation(fulfillment).onSuccess { changed ->
+            if (changed) {
+                repository.save(fulfillment)
+                fulfillment.publishPendingEvents(publisher)
+            }
         }
-        if (changed.getOrThrow()) {
-            repository.save(fulfillment)
-            fulfillment.publishPendingEvents(publisher)
-        }
-        return changed
     }
 }
