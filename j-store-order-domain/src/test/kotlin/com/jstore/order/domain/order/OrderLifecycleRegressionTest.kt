@@ -3,11 +3,52 @@ package com.jstore.order.domain.order
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
+import com.jstore.order.domain.order.event.OrderCancelledEvent
+import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 
 class OrderLifecycleRegressionTest {
+    @Test
+    fun `stock confirmation opens order and records payment creation gate event`() {
+        val order = testOrder(trade = TradeStatus.CREATED)
+
+        assertIs<Success<Unit>>(order.confirmStock())
+
+        assertEquals(TradeStatus.ACTIVE, order.tradeStatus)
+        val event = assertIs<OrderStockConfirmedEvent>(order.pendingDomainEvents().single())
+        assertEquals(order.id, event.orderId)
+        assertEquals(order.merchantId, event.merchantId)
+        assertEquals(order.amountSnapshot.payableAmount, event.payableAmount)
+        assertEquals(order.amountSnapshot.currency, event.currency)
+    }
+
+    @Test
+    fun `stock failure closes order without recording payment creation gate event`() {
+        val order = testOrder(trade = TradeStatus.CREATED)
+
+        assertIs<Success<Unit>>(order.markStockInsufficient("out of stock"))
+
+        assertEquals(TradeStatus.CLOSED, order.tradeStatus)
+        assertIs<OrderCancelledEvent>(order.pendingDomainEvents().single())
+        assertTrue(order.pendingDomainEvents().none { it is OrderStockConfirmedEvent })
+    }
+
+    @Test
+    fun `duplicate stock confirmation cannot record another payment creation gate event`() {
+        val order = testOrder(trade = TradeStatus.CREATED)
+        assertIs<Success<Unit>>(order.confirmStock())
+
+        assertIs<Failure<*>>(order.confirmStock())
+
+        assertEquals(
+            1,
+            order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().size,
+        )
+    }
+
     @Test
     fun `paid order preserves fulfillment sequence through delivery and completion`() {
         val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.PAID)

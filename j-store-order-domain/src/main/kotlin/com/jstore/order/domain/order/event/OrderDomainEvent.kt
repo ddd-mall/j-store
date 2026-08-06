@@ -34,6 +34,16 @@ data class OrderCreatedEvent(
     override val eventId: String = newDomainEventId(),
 ) : OrderDomainEvent(orderId, occurredAt, eventId, "order.created", 2)
 
+@DomainEventType(name = "order.stock-confirmed", version = 1)
+data class OrderStockConfirmedEvent(
+    override val orderId: OrderId,
+    val merchantId: MerchantId,
+    val payableAmount: Price,
+    val currency: String,
+    override val occurredAt: Instant = Instant.now(),
+    override val eventId: String = newDomainEventId(),
+) : OrderDomainEvent(orderId, occurredAt, eventId, "order.stock-confirmed", 1)
+
 @DomainEventType(name = "order.paid", version = 2)
 data class OrderPaidEvent(
     override val orderId: OrderId,

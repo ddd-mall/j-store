@@ -12,6 +12,7 @@ import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
 import com.jstore.order.domain.order.event.OrderPaidEvent
+import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
 import java.time.Instant
 import java.time.LocalDateTime
 
@@ -90,6 +91,14 @@ class OrderImpl(
             "确认库存",
         ) {
             _tradeStatus = TradeStatus.ACTIVE
+            raise(
+                OrderStockConfirmedEvent(
+                    orderId = id,
+                    merchantId = merchantId,
+                    payableAmount = amountSnapshot.payableAmount,
+                    currency = amountSnapshot.currency,
+                )
+            )
         }
 
     override fun markStockInsufficient(reason: String): Result<Unit, BusinessError> =
