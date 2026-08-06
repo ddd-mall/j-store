@@ -36,10 +36,10 @@ import java.util.Locale
 class OrderFactoryShippingInfoPropertyTest :
     FunSpec({
 
-        // Generator for valid Chinese phone numbers (11 digits starting with 13x)
+        // Generator for valid Chinese phone numbers in E.164 (mobile numbers starting with 13x)
         val validPhoneArb: Arb<PhoneNumber> =
             Arb.int(0..99999999).map { num ->
-                PhoneNumber("13${num.toString().padStart(9, '0')}")
+                PhoneNumber("+8613${num.toString().padStart(9, '0')}")
             }
 
         // Generator for non-blank strings
@@ -93,6 +93,20 @@ class OrderFactoryShippingInfoPropertyTest :
                 )
             }
 
+        // Generator for optional postal codes
+        val optionalPostalCodeArb: Arb<String?> =
+            Arb.choice(
+                Arb.constant(null as String?),
+                Arb.int(100000..999999).map { it.toString() },
+            )
+
+        // Generator for customs fields (按国附加清关字段)
+        val customsFieldsArb: Arb<Map<String, String>> =
+            Arb.choice(
+                Arb.constant(emptyMap()),
+                nonBlankStringArb.map { mapOf("CPF" to it) },
+            )
+
         // Generator for valid RecipientInfoCMD
         val validRecipientInfoCMDArb: Arb<OrderCreateCMD.RecipientInfoCMD> =
             Arb.bind(
@@ -100,13 +114,18 @@ class OrderFactoryShippingInfoPropertyTest :
                 validContractInfoCMDArb,
                 digitCodeArb,
                 nonBlankStringArb,
-            ) { consigneeName, contractInfo, districtCode, detailAddress ->
+                optionalPostalCodeArb,
+                customsFieldsArb,
+            ) { consigneeName, contractInfo, districtCode, detailAddress, postalCode, customsFields
+                ->
                 OrderCreateCMD.RecipientInfoCMD(
                     consigneeName = consigneeName,
                     countryCode = "CN",
                     consigneeContractInfo = contractInfo,
                     shippingDistrictCode = districtCode,
                     shippingDetailAddress = detailAddress,
+                    postalCode = postalCode,
+                    customsFields = customsFields,
                 )
             }
 
@@ -151,7 +170,7 @@ class OrderFactoryShippingInfoPropertyTest :
                     OrderCreateCMD(
                         buyerUid = 1L,
                         merchantId = 7,
-                        buyerPhone = "13800138000",
+                        buyerPhone = "+8613800138000",
                         buyerName = "买家",
                         recipientInfo = recipientInfoCMD,
                         items =
@@ -179,6 +198,8 @@ class OrderFactoryShippingInfoPropertyTest :
                     recipientInfoCMD.consigneeContractInfo.emailAddress
                 shippingInfo.shippingAddress shouldBe expectedAddress
                 shippingInfo.shippingDetailAddress shouldBe recipientInfoCMD.shippingDetailAddress
+                shippingInfo.postalCode shouldBe recipientInfoCMD.postalCode
+                shippingInfo.customsFields shouldBe recipientInfoCMD.customsFields
             }
         }
     })

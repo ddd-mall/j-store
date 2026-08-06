@@ -14,4 +14,6 @@ data class RecipientInfoPO(
     val districtCode: String? = null,
     val shippingAddress: I18nGeoAddress? = null,
     val detailAddress: String? = null,
+    val postalCode: String? = null,
+    val customsFields: Map<String, String>? = null,
 )

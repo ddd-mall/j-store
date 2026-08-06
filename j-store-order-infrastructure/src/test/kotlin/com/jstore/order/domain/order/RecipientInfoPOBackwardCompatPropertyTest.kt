@@ -70,7 +70,7 @@ class RecipientInfoPOBackwardCompatPropertyTest :
                 val historicalPO =
                     RecipientInfoPO(
                         consigneeName = null,
-                        consigneePhone = "13800138000",
+                        consigneePhone = "+8613800138000",
                         consigneeEmail = "test@test.com",
                         countryCode = address.countryCode.value,
                         districtCode = districtCode,
@@ -93,6 +93,9 @@ class RecipientInfoPOBackwardCompatPropertyTest :
 
                 val order = converter.toDomain(orderPO)
                 order.recipientInfo.name shouldBe ""
+                // 历史数据无邮编与清关字段，重建后应为默认值
+                order.recipientInfo.postalCode shouldBe null
+                order.recipientInfo.customsFields shouldBe emptyMap()
             }
         }
 

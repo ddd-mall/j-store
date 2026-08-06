@@ -24,7 +24,7 @@ class UserAccountChangeNicknamePropertyTest :
             Arb.long(1L..999_999L).map { id ->
                 UserAccountImpl(
                     id = UserId(id),
-                    phoneNumber = PhoneNumber("13800138000"),
+                    phoneNumber = PhoneNumber("+8613800138000"),
                     nickname = Nickname("user$id"),
                     passwordHash = Password("hashed_password"),
                     status = UserAccountStatus.ACTIVE,

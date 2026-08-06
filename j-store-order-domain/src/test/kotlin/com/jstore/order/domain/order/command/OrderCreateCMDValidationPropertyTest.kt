@@ -20,7 +20,7 @@ import io.kotest.property.checkAll
  */
 class OrderCreateCMDValidationPropertyTest :
     FunSpec({
-        val validPhone = PhoneNumber("13800138000")
+        val validPhone = PhoneNumber("+8613800138000")
         /**
          * Generator for RecipientInfoCMD instances that will fail validation. Covers three failure
          * modes:
@@ -79,7 +79,7 @@ class OrderCreateCMDValidationPropertyTest :
                     OrderCreateCMD(
                         buyerUid = 1L,
                         merchantId = 7,
-                        buyerPhone = "13800138000",
+                        buyerPhone = "+8613800138000",
                         buyerName = "买家",
                         recipientInfo = failingRecipientInfo,
                         items =

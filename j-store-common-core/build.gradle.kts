@@ -18,6 +18,7 @@ dependencies {
 
     api(libs.guava)
     api(libs.slf4j.api)
+    api(libs.libphonenumber)
     api(platform(libs.jackson.bom))
     api(platform(libs.netty.bom))
     api(libs.jackson.core)

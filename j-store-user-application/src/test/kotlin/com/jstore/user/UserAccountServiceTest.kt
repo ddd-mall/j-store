@@ -48,7 +48,7 @@ class UserAccountServiceTest :
                 )
         }
 
-        val phone = PhoneNumber("13800000001")
+        val phone = PhoneNumber("+8613800000001")
         val userId = UserId(1L)
 
         fun activeAccount(

@@ -19,7 +19,7 @@ import java.util.Locale
 
 /**
  * OrderFactory 单元测试
- * - countryCode 为 null 时默认使用 "CN"
+ * - countryCode 显式透传给 GeoAddressService，不再有默认兜底
  * - GeoAddressService 查询失败时 Factory 返回 Failure
  *
  * **Validates: Requirements 2.2, 2.5**
@@ -60,7 +60,7 @@ class OrderFactoryUnitTest :
         val snowFlakSequence = SnowFlakSequence(1, 1)
 
         test(
-            "When RecipientInfoCMD.countryCode is null, OrderFactory should use default 'CN' when calling GeoAddressService"
+            "OrderFactory should pass RecipientInfoCMD.countryCode through to GeoAddressService as-is"
         ) {
             var capturedCountryCode: String? = null
 
@@ -81,15 +81,15 @@ class OrderFactoryUnitTest :
                 OrderCreateCMD(
                     buyerUid = 1L,
                     merchantId = 7,
-                    buyerPhone = "13800138000",
+                    buyerPhone = "+8613800138000",
                     buyerName = "买家",
                     recipientInfo =
                         OrderCreateCMD.RecipientInfoCMD(
                             consigneeName = "张三",
-                            countryCode = null,
+                            countryCode = "CN",
                             consigneeContractInfo =
                                 OrderCreateCMD.ContractInfoCMD(
-                                    phoneNumber = PhoneNumber("13900139000"),
+                                    phoneNumber = PhoneNumber("+8613900139000"),
                                     emailAddress = null,
                                 ),
                             shippingDistrictCode = "110000",
@@ -136,7 +136,7 @@ class OrderFactoryUnitTest :
                 OrderCreateCMD(
                     buyerUid = 1L,
                     merchantId = 7,
-                    buyerPhone = "13800138000",
+                    buyerPhone = "+8613800138000",
                     buyerName = "买家",
                     recipientInfo =
                         OrderCreateCMD.RecipientInfoCMD(
@@ -144,7 +144,7 @@ class OrderFactoryUnitTest :
                             countryCode = "CN",
                             consigneeContractInfo =
                                 OrderCreateCMD.ContractInfoCMD(
-                                    phoneNumber = PhoneNumber("13900139000"),
+                                    phoneNumber = PhoneNumber("+8613900139000"),
                                     emailAddress = null,
                                 ),
                             shippingDistrictCode = "110000",

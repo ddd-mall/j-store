@@ -31,7 +31,7 @@ class TransactionalUserAccountUseCaseTest {
 
     @Test
     fun `login stores refresh token only after database transaction commits`() {
-        val phone = PhoneNumber("13800138000")
+        val phone = PhoneNumber("+8613800138000")
         val tokens =
             AuthTokenPair(
                 "access",

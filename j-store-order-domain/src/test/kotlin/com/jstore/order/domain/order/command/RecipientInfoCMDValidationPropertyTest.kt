@@ -23,7 +23,7 @@ class RecipientInfoCMDValidationPropertyTest :
     FunSpec({
         val validContractInfo =
             OrderCreateCMD.ContractInfoCMD(
-                phoneNumber = PhoneNumber("13800138000"),
+                phoneNumber = PhoneNumber("+8613800138000"),
                 emailAddress = null,
             )
 
@@ -68,6 +68,25 @@ class RecipientInfoCMDValidationPropertyTest :
                 result.shouldBeInstanceOf<Failure<*>>()
                 (result as Failure).error.errorCode shouldBe
                     OrderErrors.DISTRICT_CODE_BLANK.errorCode
+            }
+        }
+
+        test("blank countryCode should cause validate() to return Failure with COUNTRY_CODE_BLANK") {
+            checkAll(100, whitespaceStrings) { blankCountryCode ->
+                val cmd =
+                    OrderCreateCMD.RecipientInfoCMD(
+                        consigneeName = "张三",
+                        countryCode = blankCountryCode,
+                        consigneeContractInfo = validContractInfo,
+                        shippingDistrictCode = "110105",
+                        shippingDetailAddress = "三里屯街道xx号",
+                    )
+
+                val result = cmd.validate()
+
+                result.shouldBeInstanceOf<Failure<*>>()
+                (result as Failure).error.errorCode shouldBe
+                    OrderErrors.COUNTRY_CODE_BLANK.errorCode
             }
         }
     })
