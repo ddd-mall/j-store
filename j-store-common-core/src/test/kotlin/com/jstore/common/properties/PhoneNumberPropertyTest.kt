@@ -20,7 +20,9 @@ class PhoneNumberPropertyTest :
         val cnMobileArb: Arb<String> =
             Arb.int(0..99999999).map { num -> "13${num.toString().padStart(9, '0')}" }
 
-        test("valid CN mobile numbers in E.164 are accepted and split into calling code + national number") {
+        test(
+            "valid CN mobile numbers in E.164 are accepted and split into calling code + national number"
+        ) {
             checkAll(100, cnMobileArb) { national ->
                 val phone = PhoneNumber("+86$national")
                 phone.countryCallingCode shouldBe 86

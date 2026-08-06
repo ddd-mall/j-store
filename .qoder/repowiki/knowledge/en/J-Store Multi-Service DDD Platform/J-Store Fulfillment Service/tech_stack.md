@@ -1,1 +1,0 @@
-Kotlin + Spring Boot + Spring Data JPA + PostgreSQL, with Gradle build scripts per module.

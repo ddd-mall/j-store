@@ -1,1 +1,0 @@
-Tests run under JUnit Platform via `./gradlew test` (configured with `useJUnitPlatform()`). The project uses version catalogs (`libs.plugins.kotlin.jvm`, `libs.mockito`, etc.) and requires JDK 25 per `kotlin.jvmToolchain(25)`.

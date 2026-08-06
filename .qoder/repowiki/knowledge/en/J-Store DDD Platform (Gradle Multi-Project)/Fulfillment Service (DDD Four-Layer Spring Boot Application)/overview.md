@@ -1,0 +1,1 @@
+Spring Boot fulfillment service implementing a strict four-layer DDD architecture across sibling Gradle modules, managing order state transitions and persisting them via JPA.

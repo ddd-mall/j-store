@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: user_service
+title: User Service DDD Application
+scope:
+    - j-store-user-application/
+    - j-store-user-domain/
+    - j-store-user-infrastructure/
+    - j-store-user-boot/
+source_files: []
+depends_on: []
+related_to:
+    - path: payment_service

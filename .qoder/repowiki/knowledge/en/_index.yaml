@@ -3,11 +3,11 @@ schema_version: 1
 locale: en-US
 branch: feature-initial
 nodes_managed: true
-exported_at: "2026-08-06T08:40:50Z"
+exported_at: "2026-08-06T10:11:59Z"
 modules:
     "":
-        dir_name: J-Store Multi-Service DDD Platform
-        title: J-Store Multi-Service DDD Platform
+        dir_name: J-Store DDD Platform (Gradle Multi-Project)
+        title: J-Store DDD Platform (Gradle Multi-Project)
         scope:
             - AGENTS.md
             - SECURITY.md
@@ -149,8 +149,8 @@ modules:
         depends_on: []
         related_to: []
     fulfillment_service:
-        dir_name: J-Store Fulfillment Service
-        title: J-Store Fulfillment Service
+        dir_name: Fulfillment Service (DDD Four-Layer Spring Boot Application)
+        title: Fulfillment Service (DDD Four-Layer Spring Boot Application)
         scope:
             - j-store-fulfillment-application/
             - j-store-fulfillment-domain/
@@ -167,8 +167,8 @@ modules:
             - path: accounting_service
             - path: order_service
     fulfillment_service/application_layer:
-        dir_name: Fulfillment Application Service Layer
-        title: Fulfillment Application Service Layer
+        dir_name: Fulfillment Application Layer & Use Cases
+        title: Fulfillment Application Layer & Use Cases
         scope:
             - j-store-fulfillment-application/
         source_files: []
@@ -269,8 +269,8 @@ modules:
         depends_on: []
         related_to: []
     order_service:
-        dir_name: Order Service — DDD Microservice
-        title: Order Service — DDD Microservice
+        dir_name: Order Service (DDD Bounded Context)
+        title: Order Service (DDD Bounded Context)
         scope:
             - j-store-order-application/
             - j-store-order-domain/
@@ -289,8 +289,8 @@ modules:
             - path: goods_service
             - path: payment_service
     order_service/application_layer:
-        dir_name: Order Application Service Layer
-        title: Order Application Service Layer
+        dir_name: Order & After-Sale Application Layer
+        title: Order & After-Sale Application Layer
         scope:
             - j-store-order-application/
         source_files: []
@@ -307,8 +307,8 @@ modules:
         depends_on: []
         related_to: []
     order_service/domain_layer:
-        dir_name: Order & After-Sale Domain Model
-        title: Order & After-Sale Domain Model
+        dir_name: Order & AfterSale Domain Layer
+        title: Order & AfterSale Domain Layer
         scope:
             - j-store-order-domain/
         source_files: []
@@ -316,8 +316,8 @@ modules:
         depends_on: []
         related_to: []
     order_service/infrastructure_layer:
-        dir_name: Order Infrastructure — Persistence & External Service Adapters
-        title: Order Infrastructure — Persistence & External Service Adapters
+        dir_name: Order Service Infrastructure Layer (Persistence & External Adapters)
+        title: Order Service Infrastructure Layer (Persistence & External Adapters)
         scope:
             - j-store-order-infrastructure/
         source_files: []
@@ -344,8 +344,8 @@ modules:
             - path: order_service
             - path: user_service
     payment_service/payment_application:
-        dir_name: Payment Application Service
-        title: Payment Application Service
+        dir_name: Payment Application Orchestration Layer
+        title: Payment Application Orchestration Layer
         scope:
             - j-store-payment-application/
         source_files: []
@@ -401,8 +401,8 @@ modules:
         depends_on: []
         related_to: []
     user_service:
-        dir_name: User Service (DDD Layered Application)
-        title: User Service (DDD Layered Application)
+        dir_name: User Service DDD Application
+        title: User Service DDD Application
         scope:
             - j-store-user-application/
             - j-store-user-domain/

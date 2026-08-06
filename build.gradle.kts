@@ -28,32 +28,73 @@ dependencies {
     implementation(kotlin("stdlib"))
 }
 
+val prePushTargetFile = providers.gradleProperty("spotlessFilesFile").orNull
+val prePushTargets = prePushTargetFile?.let { path ->
+    val targetList = rootProject.file(path)
+    require(targetList.isFile) { "Spotless target list does not exist: $targetList" }
+    targetList.readLines().filter(String::isNotBlank).map(rootProject::file).filter(File::isFile)
+}
+
+val javaSourceTrees = allprojects.map { candidate ->
+    candidate.fileTree("src") {
+        include("**/*.java")
+        exclude("**/build/**", "**/bin/**")
+    }
+}
+val kotlinSourceTrees = allprojects.map { candidate ->
+    candidate.fileTree("src") {
+        include("**/*.kt")
+        exclude("**/build/**", "**/bin/**")
+    }
+}
+val kotlinGradleFiles =
+    files(
+        allprojects.map(Project::getBuildFile).filter {
+            it.isFile && it.name.endsWith(".gradle.kts")
+        },
+        rootProject.file("settings.gradle.kts"),
+    )
+
 spotless {
-    ratchetFrom("origin/master")
+    if (prePushTargets == null) {
+        ratchetFrom("origin/master")
+    }
 
     java {
-        target("**/src/**/*.java")
-        targetExclude("**/build/**", "**/bin/**")
+        target(prePushTargets?.filter { it.extension == "java" } ?: javaSourceTrees)
         googleJavaFormat("1.35.0").aosp()
         trimTrailingWhitespace()
         endWithNewline()
     }
 
     kotlin {
-        target("**/src/**/*.kt")
-        targetExclude("**/build/**", "**/bin/**")
+        target(prePushTargets?.filter { it.extension == "kt" } ?: kotlinSourceTrees)
         ktfmt("0.63").kotlinlangStyle()
         trimTrailingWhitespace()
         endWithNewline()
     }
 
     kotlinGradle {
-        target("*.gradle.kts", "**/*.gradle.kts")
-        targetExclude("**/build/**", "**/bin/**")
+        target(prePushTargets?.filter { it.name.endsWith(".gradle.kts") } ?: kotlinGradleFiles)
         ktfmt("0.63").kotlinlangStyle()
         trimTrailingWhitespace()
         endWithNewline()
     }
+}
+
+val installIncrementalSpotlessPrePushHook by
+    tasks.registering(Copy::class) {
+        group = "Spotless"
+        description = "Installs the repository's incremental Spotless pre-push hook."
+        from(layout.projectDirectory.file("scripts/git-hooks/pre-push"))
+        into(layout.projectDirectory.dir(".git/hooks"))
+        doLast {
+            layout.projectDirectory.file(".git/hooks/pre-push").asFile.setExecutable(true)
+        }
+    }
+
+tasks.named("spotlessInstallGitPrePushHook") {
+    finalizedBy(installIncrementalSpotlessPrePushHook)
 }
 
 allprojects {

@@ -1,1 +1,0 @@
-Tests run on the JVM toolchain 25 via Gradle's `kotlin { jvmToolchain(25) }` and use `useJUnitPlatform()`. Integration tests spin up an embedded Postgres instance through `EmbeddedPostgres.builder().start()` and create tables manually in SQL within the `database {}` helper before exercising repositories.

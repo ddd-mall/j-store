@@ -1,0 +1,1 @@
+Spring Boot user account service organized as a four-layer DDD application where boot wires infrastructure adapters behind domain interfaces, application layer orchestrates use cases, and domain defines the UserAccount aggregate.

@@ -1,1 +1,0 @@
-Shared Kotlin library providing DDD primitives (aggregates, domain events with transactional outbox), cross-process messaging, geocoding utilities, a Result type, logging abstractions, and common value types for the J-Store platform.

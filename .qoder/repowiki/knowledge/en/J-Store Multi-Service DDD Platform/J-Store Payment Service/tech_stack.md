@@ -1,1 +1,0 @@
-Kotlin JVM toolchain 25 across all modules; Spring Boot + Spring Data JPA for the infrastructure and boot layers; PostgreSQL (with embedded Postgres for tests); Kotest + JUnit 5 for testing; Gradle Kotlin DSL with version catalogs (`libs.*`).

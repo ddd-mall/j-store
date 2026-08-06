@@ -71,7 +71,9 @@ class RecipientInfoCMDValidationPropertyTest :
             }
         }
 
-        test("blank countryCode should cause validate() to return Failure with COUNTRY_CODE_BLANK") {
+        test(
+            "blank countryCode should cause validate() to return Failure with COUNTRY_CODE_BLANK"
+        ) {
             checkAll(100, whitespaceStrings) { blankCountryCode ->
                 val cmd =
                     OrderCreateCMD.RecipientInfoCMD(
