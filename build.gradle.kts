@@ -82,19 +82,24 @@ spotless {
     }
 }
 
-val installIncrementalSpotlessPrePushHook by
+val installSpotlessGitHooks by
     tasks.registering(Copy::class) {
         group = "Spotless"
-        description = "Installs the repository's incremental Spotless pre-push hook."
-        from(layout.projectDirectory.file("scripts/git-hooks/pre-push"))
+        description = "Installs the repository's Spotless pre-commit and pre-push hooks."
+        from(layout.projectDirectory.dir("scripts/git-hooks")) {
+            include("pre-commit", "pre-push")
+        }
         into(layout.projectDirectory.dir(".git/hooks"))
+        outputs.upToDateWhen { false }
         doLast {
-            layout.projectDirectory.file(".git/hooks/pre-push").asFile.setExecutable(true)
+            listOf("pre-commit", "pre-push").forEach { hook ->
+                layout.projectDirectory.file(".git/hooks/$hook").asFile.setExecutable(true)
+            }
         }
     }
 
 tasks.named("spotlessInstallGitPrePushHook") {
-    finalizedBy(installIncrementalSpotlessPrePushHook)
+    finalizedBy(installSpotlessGitHooks)
 }
 
 allprojects {
