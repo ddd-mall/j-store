@@ -109,13 +109,25 @@ class ResultJavaUsageTest {
         @Test
         void getOrThrow_onSuccess() {
             Result<Integer, String> result = Results.ok(42);
-            assertEquals(42, ResultKt.getOrThrow(result));
+            assertEquals(
+                    42,
+                    ResultKt.getOrThrow(
+                            result, error -> new IllegalStateException("unexpected: " + error)));
         }
 
         @Test
-        void getOrThrow_onFailure_throws() {
+        void getOrThrow_onFailure_throwsMappedException() {
             Result<Integer, String> result = Results.err("boom");
-            var ex = assertThrows(ResultUnwrapException.class, () -> ResultKt.getOrThrow(result));
+            var ex =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () ->
+                                    ResultKt.getOrThrow(
+                                            result,
+                                            error ->
+                                                    new IllegalArgumentException(
+                                                            "domain failure: " + error)));
+            assertTrue(ex.getMessage().contains("domain failure"));
             assertTrue(ex.getMessage().contains("boom"));
         }
 

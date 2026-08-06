@@ -56,16 +56,17 @@ object Results {
 class ResultUnwrapException(message: String, cause: Throwable? = null) :
     IllegalStateException(message, cause)
 
-/** Rust: `unwrap()` — panics with error context on Failure. */
-fun <T, E> Result<T, E>.getOrThrow(): T =
-    when (this) {
-        is Success -> value
-        is Failure ->
-            throw ResultUnwrapException(
-                "called Result::unwrap() on a Failure value: $error",
-                error as? Throwable,
-            )
+/** Returns the successful value or throws the exception produced by [exceptionMapper]. */
+@OptIn(ExperimentalContracts::class)
+inline fun <T, E> Result<T, E>.getOrThrow(exceptionMapper: (E) -> Throwable): T {
+    contract {
+        callsInPlace(exceptionMapper, InvocationKind.AT_MOST_ONCE)
     }
+    return when (this) {
+        is Success -> value
+        is Failure -> throw exceptionMapper(error)
+    }
+}
 
 /** Rust: `unwrap_err()` — panics with value context on Success. */
 fun <T, E> Result<T, E>.getErrorOrThrow(): E =
