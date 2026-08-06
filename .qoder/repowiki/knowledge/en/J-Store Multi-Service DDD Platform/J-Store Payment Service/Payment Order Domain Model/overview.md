@@ -1,0 +1,1 @@
+Kotlin domain module defining the PaymentOrder aggregate root with capture and refund lifecycle, its value objects, business errors, repository interface, and emitted domain events.

@@ -1,0 +1,1 @@
+Spring Boot bootstrapping module that wires domain factories, application services, and transactional use-case adapters for the goods feature.

@@ -1,1 +1,0 @@
-Spring Boot application entry point that wires together the order, goods, user, and accounting domain modules with JPA, Redis, Flyway migrations, JWT authentication, and a distributed timer-job scheduler.

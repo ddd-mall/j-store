@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: user_service/domain_layer
+title: User Account Domain Layer
+scope:
+    - j-store-user-domain/
+source_files: []
+depends_on: []
+related_to: []

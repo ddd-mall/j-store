@@ -1,6 +1,0 @@
-- Domain models are expressed as immutable data classes or sealed classes (e.g., `Result<T,E>`, `OutboxEntry`, `I18nGeoAddress`) with validation in `init` blocks or constructor `require` calls.
-- Framework abstractions are defined as interfaces (`Entity`, `Repository`, `Logger`, `DomainEventBus`, `ListenableFuture`) with concrete implementations provided in separate files (e.g., `Slf4jImpl`, `SettableListenableFuture`).
-- Cross-language compatibility is ensured by annotating factory methods with `@JvmStatic` and exposing `Results.ok`/`Results.err` for Java callers of the `Result` type.
-- Inline extension functions use `@OptIn(ExperimentalContracts::class)` together with `contract { callsInPlace(...) }` to describe single-call semantics for combinators like `map`, `flatMap`, `onSuccess`, etc.
-- Jackson serialization customization is applied via annotations such as `@JsonIgnore` on computed properties (e.g., `getLeafCode()`, `getComponentAtLevel()`).
-- Tests mirror the source package structure and favor Kotest property tests (`*PropertyTest.kt`) alongside conventional JUnit 5 tests.

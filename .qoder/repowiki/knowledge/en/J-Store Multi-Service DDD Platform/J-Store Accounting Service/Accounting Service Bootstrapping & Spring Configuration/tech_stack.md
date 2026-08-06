@@ -1,0 +1,1 @@
+Kotlin + Spring Boot (via `kotlin-plugin-spring`), Spring `PlatformTransactionManager`/`TransactionTemplate` for programmatic transactions, JVM toolchain 25, JUnit Platform tests with Mockito-Kotlin.

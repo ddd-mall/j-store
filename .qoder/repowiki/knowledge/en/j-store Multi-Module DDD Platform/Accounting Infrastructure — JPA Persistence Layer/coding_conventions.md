@@ -1,6 +1,0 @@
-- Each domain aggregate has its own package under `com.jstore.accounting.domain/<aggregate>/` containing a `persistence/` subpackage for POs and repositories, plus a sibling `*RepositoryImpl` adapter.
-- Repository implementations are Spring `@Repository` beans that delegate all persistence calls to a single injected `*JpaRepository` and perform no domain logic themselves.
-- Conversion between domain entities and POs is encapsulated in a nested `object Converter` with paired `toPO` and `toDomain` functions, keeping mapping logic co-located with the repository.
-- ID generation for new aggregates uses a process-local `AtomicLong` sequence initialized with `System.currentTimeMillis()` to produce monotonically increasing IDs for `nextId()`, `nextLineId()`, and human-readable numbers like `nextEntryNo()`.
-- Monetary amounts are persisted as integer fen values (`amountFen`) and converted to/from `Price` domain objects through `Price.ofFen()` at the boundary.
-- Enum fields in POs are mapped with `@Enumerated(EnumType.STRING)` and column lengths are explicitly declared on every `@Column` annotation.

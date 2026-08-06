@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: goods_service/goods_boot
+title: Goods Boot & Transactional Use-Case Wiring
+scope:
+    - j-store-goods-boot/
+source_files: []
+depends_on: []
+related_to: []

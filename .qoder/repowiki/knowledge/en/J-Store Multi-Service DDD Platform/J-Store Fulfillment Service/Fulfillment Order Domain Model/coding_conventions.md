@@ -1,0 +1,5 @@
+- Aggregate behavior methods return `Result<Boolean, BusinessError>` from `com.jstore.common.utils`, using `Success(value)` for success and `Failure(BusinessError)` for validation/state errors.
+- State transitions are guarded by explicit `if (_status != X) return Failure(FulfillmentErrors.INVALID_STATE)` checks before mutating internal fields.
+- Domain events are defined as data classes extending a sealed base (`FulfillmentEvent`) and annotated with `@DomainEventType(name = ..., version = ...)`, with `eventId` defaulted via `newDomainEventId()`.
+- Value objects and identifiers are Kotlin `data class`es with `require(...)` in `init` blocks enforcing invariants (e.g., positive IDs, non-empty items, unique `orderItemId`s).
+- Persistence interfaces extend `AggregateRepository<Id, Aggregate>` from the common framework and add read-only queries like `findByOrderId` returning nullable results.

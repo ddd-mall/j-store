@@ -1,1 +1,0 @@
-Single-package Kotlin module under `com.jstore.shop` exposing a `Shop` interface as the core domain abstraction. The module follows a flat layout: `Main.kt` provides a default `main()` entry point, while `Shop.kt` declares the domain interface. No additional layers (services, repositories, or controllers) are present yet — this is a pure domain placeholder module.

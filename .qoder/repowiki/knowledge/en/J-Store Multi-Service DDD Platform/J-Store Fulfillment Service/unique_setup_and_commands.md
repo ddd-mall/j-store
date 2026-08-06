@@ -1,0 +1,1 @@
+Each layer is an independent Gradle module (`build.gradle.kts`) under `j-store-fulfillment-*`, allowing them to be built and tested in isolation while being assembled by the boot module.

@@ -1,0 +1,1 @@
+Spring Boot configuration module that wires the accounting application's use cases, event handlers, and cross-cutting transactional behavior by assembling domain services from sibling modules.

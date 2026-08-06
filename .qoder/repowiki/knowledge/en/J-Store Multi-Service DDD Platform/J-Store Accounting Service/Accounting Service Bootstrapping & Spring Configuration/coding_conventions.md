@@ -1,0 +1,3 @@
+- Every Spring bean is declared as a `@Bean` function inside a single `@Configuration` class rather than using component-scanning annotations on the classes themselves.
+- Transactional use cases are implemented as decorator classes that delegate to an inner interface (`AccountingUseCase` / `SettlementUseCase`) and expose separate read/write `TransactionTemplate` instances marked read-only for queries.
+- Cross-module adapters (e.g. `AccountingOrderService`) are instantiated inline as anonymous objects within the configuration, keeping external dependencies isolated to this boot layer.

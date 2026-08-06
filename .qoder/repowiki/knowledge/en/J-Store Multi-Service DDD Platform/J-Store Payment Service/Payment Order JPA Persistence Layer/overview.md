@@ -1,0 +1,1 @@
+JPA-based persistence implementation for payment orders and refunds, mapping domain entities to PostgreSQL-backed entity objects through a Spring Data repository.

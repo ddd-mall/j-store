@@ -1,1 +1,0 @@
-Tests run via Gradle's `useJUnitPlatform()` and rely on Kotest property tests; the module requires `TokenProvider` and `TokenStore` beans from `:j-store-user` to be on the classpath for auto-configuration to activate.

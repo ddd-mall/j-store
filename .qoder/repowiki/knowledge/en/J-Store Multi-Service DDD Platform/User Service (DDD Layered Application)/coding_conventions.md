@@ -1,0 +1,5 @@
+- Domain interfaces live in `j-store-user-domain` and are implemented by classes in `j-store-user-infrastructure` under the same package path (e.g., `UserAccountRepository` interface vs `UserAccountRepositoryImpl`).
+- Application use cases return `Result<T, BusinessError>` from `com.jstore.common.utils.Result` instead of throwing exceptions.
+- Infrastructure adapters implement domain interfaces without exposing implementation details to upper layers — dependency injection is done exclusively through constructor parameters wired in `UserBootConfiguration`.
+- Domain value objects (`Nickname`, `Password`, `UserId`) and aggregates (`UserAccount`) are defined as Kotlin data/value classes with validation in constructors or properties.
+- Property-based tests in each layer target individual domain/infrastructure components using the same naming pattern `<Component>PropertyTest.kt`.

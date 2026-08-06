@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: goods_service/goods_application
+title: Goods Application Layer (Use Cases & Event Handlers)
+scope:
+    - j-store-goods-application/
+source_files: []
+depends_on: []
+related_to:
+    - path: goods_service/goods_infrastructure

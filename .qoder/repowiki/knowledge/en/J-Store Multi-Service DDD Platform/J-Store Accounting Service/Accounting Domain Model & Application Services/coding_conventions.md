@@ -1,0 +1,6 @@
+- Each aggregate root is modeled as an interface extending `AggregateRoot<IdType>` and `RecordsDomainEvents`, with a separate `*Impl.kt` file holding the concrete implementation.
+- Every domain method returns `Result<T, BusinessError>` instead of throwing exceptions, and errors are grouped in a dedicated `*Errors.kt` file per aggregate.
+- Value objects use data classes with `init { require(...) }` blocks to enforce invariants at construction time (e.g., non-blank IDs, positive amounts, date ordering).
+- ID types are declared as data classes extending a shared `Id<Long>` base class from `com.jstore.common.properties`, giving each entity a strongly-typed identifier.
+- Domain events are placed in an `event/` subpackage under the aggregate and follow a consistent naming pattern such as `*PostedEvent`, `*ReversedEvent`, `*ConfirmedEvent`, `*PaidEvent`.
+- ACL service interfaces return `Result<ReadModel, BusinessError>` and depend only on domain read models, keeping the application layer free of infrastructure concerns.

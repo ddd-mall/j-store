@@ -1,0 +1,1 @@
+Core accounting domain model implementing double-entry bookkeeping with ledger accounts, journal entries, accounting periods, and settlement statements, plus ACL services exposing cross-bounded queries for orders, payments, and shops.

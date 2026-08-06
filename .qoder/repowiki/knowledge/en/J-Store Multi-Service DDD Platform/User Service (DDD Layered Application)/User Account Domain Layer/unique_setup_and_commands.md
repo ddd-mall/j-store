@@ -1,0 +1,1 @@
+Build and test via standard Gradle commands (`./gradlew :j-store-user-domain:test`) using the project's alias-resolved plugins; tests run on JUnit 5 platform and exercise property-based generators for phone numbers, nicknames, and passwords.

@@ -1,0 +1,1 @@
+Spring Boot accounting service implementing double-entry bookkeeping across ledger accounts, journal entries, and settlement statements, wired through application use cases and JPA persistence.

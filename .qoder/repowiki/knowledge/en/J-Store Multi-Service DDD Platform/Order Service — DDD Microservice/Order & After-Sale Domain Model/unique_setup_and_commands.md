@@ -1,0 +1,1 @@
+Gradle module declares `java-test-fixtures` plugin and a `testFixtures` source set under `src/testFixtures`; tests run via `./gradlew test` using JUnit Platform. The module targets JVM 25 via `kotlin { jvmToolchain(25) }`.

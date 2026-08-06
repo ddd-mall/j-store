@@ -1,1 +1,0 @@
-Kotlin DDD module implementing the Order and AfterSale aggregates, their factories, repositories, application services, and ACL event adapters for cross-boundary communication with inventory and merchant services.

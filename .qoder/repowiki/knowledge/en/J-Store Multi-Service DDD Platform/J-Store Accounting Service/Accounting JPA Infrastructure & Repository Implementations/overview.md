@@ -1,0 +1,1 @@
+Spring Data JPA persistence layer for the accounting domain, providing repository implementations and JPA entity mappings for ledger accounts, journal entries, accounting periods, and settlement statements backed by PostgreSQL.

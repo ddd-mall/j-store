@@ -1,0 +1,5 @@
+- Cross-cutting concerns are exposed as Spring Boot configuration classes annotated with @EnableConfigurationProperties and backed by application-{profile}.properties files.
+- Database schema evolution follows Flyway conventions with version-prefixed SQL files under resources/db/migration, each targeting the develop schema and using idempotent CREATE TABLE IF NOT EXISTS patterns.
+- Domain events crossing module boundaries are implemented as translator classes under com.jstore.translator that map between different aggregate event shapes.
+- Long-running background work uses a database-backed timer job pattern with explicit status transitions, retry counters, dead-letter queues, and Lua scripts for atomic claim-and-process operations.
+- Test suites mirror production package structure and rely on embedded Postgres plus JUnit 5 platform for integration testing.

@@ -1,0 +1,1 @@
+Tests run on JUnit Platform via `tasks.test { useJUnitPlatform() }`; property-based tests use `kotest.property`. The module requires a running PostgreSQL instance and Redis for integration scenarios, and uses `mavenLocal()` plus Maven Central for dependency resolution.

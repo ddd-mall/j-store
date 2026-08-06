@@ -1,0 +1,1 @@
+Kotlin DDD domain module defining the commodity SPU/SKU/GoodsStyle aggregate and the TCC-based inventory aggregate, together with their repositories, factories, snapshots, events, and an OSS ACL interface.

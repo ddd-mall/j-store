@@ -1,0 +1,1 @@
+No build or setup required. The `ai/` templates (`design-template.md`, `requirement-template.md`) are consumed by agent workflows to generate new spec folders under `docs/spec/<name>/`. The `文档索引.md` is regenerated with a date stamp and should be updated when new specs are added.

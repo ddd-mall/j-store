@@ -1,0 +1,1 @@
+Tests run against an in-memory H2 database emulating PostgreSQL dialect (`MODE=PostgreSQL`) with DDL auto-create-drop; Flyway is disabled in test properties. Run tests with `./gradlew :j-store-accounting-infrastructure:test` which uses JUnit Platform via `useJUnitPlatform()`.

@@ -1,0 +1,1 @@
+Application-layer orchestration for order and after-sale use cases, wiring domain aggregates through repositories and publishing events while exposing stable inbound ports to HTTP controllers and external integration message handlers.

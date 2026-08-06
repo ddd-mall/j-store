@@ -1,0 +1,1 @@
+Kotlin JVM with Gradle Kotlin DSL (`build.gradle.kts`), JDK 25 via `kotlin.jvmToolchain(25)`, Maven Central repository, and JUnit Platform for tests.

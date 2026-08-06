@@ -1,1 +1,0 @@
-Kotlin JVM with Gradle Kotlin DSL (`build.gradle.kts`), compiled against JVM toolchain 25, using Maven Central for dependencies and JUnit Platform for tests.

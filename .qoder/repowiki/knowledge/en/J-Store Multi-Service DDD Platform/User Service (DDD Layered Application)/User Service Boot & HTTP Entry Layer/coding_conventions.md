@@ -1,0 +1,5 @@
+- Dependency wiring is done exclusively through `@Configuration` classes declaring `@Bean` functions rather than constructor injection or component scanning annotations.
+- HTTP controllers accept plain data classes as request/response DTOs and delegate business logic to a `UserAccountUseCase` interface, never calling domain or infrastructure code directly.
+- Every controller endpoint returns `ResponseEntity<*>` produced by chaining `.toResponse { ... }` on a `Result<T, BusinessError>`, centralizing success/failure mapping to HTTP status codes and an `ErrorResponse` body.
+- Cross-cutting concerns (transactions, token blacklisting) are applied by wrapping the core `UserAccountUseCase` with a decorator (`TransactionalUserAccountUseCase`) marked `@Primary` so callers always get the transactional variant.
+- External side effects such as Redis token storage are performed only after a successful database transaction via `TransactionTemplate` and `also` blocks, keeping DB and cache updates coordinated.

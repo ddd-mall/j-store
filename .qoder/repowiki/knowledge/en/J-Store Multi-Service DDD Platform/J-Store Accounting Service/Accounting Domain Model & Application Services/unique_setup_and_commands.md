@@ -1,0 +1,1 @@
+Build and test with standard Gradle commands; tests run via JUnit Platform configured in `build.gradle.kts` using Kotest's JUnit runner. No special bootstrap steps beyond resolving Maven Central dependencies.

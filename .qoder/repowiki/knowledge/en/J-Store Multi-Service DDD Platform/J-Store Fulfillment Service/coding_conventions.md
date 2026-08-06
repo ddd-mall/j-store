@@ -1,0 +1,4 @@
+- Domain interfaces are defined in the domain module and implemented in the infrastructure module (e.g., FulfillmentOrderRepository interface vs FulfillmentOrderRepositoryImpl).
+- State transitions on FulfillmentOrder follow a fixed PENDING → READY → SHIPPED → DELIVERED progression enforced by the domain model.
+- Application use cases are wrapped with transactional boundaries via TransactionalFulfillmentUseCase in the boot configuration.
+- REST endpoints in the boot layer delegate to application-layer use cases rather than calling domain or infrastructure directly.

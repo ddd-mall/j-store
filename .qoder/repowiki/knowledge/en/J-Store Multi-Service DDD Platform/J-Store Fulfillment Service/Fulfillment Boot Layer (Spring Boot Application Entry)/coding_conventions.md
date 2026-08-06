@@ -1,0 +1,5 @@
+- Use cases are exposed through the `FulfillmentUseCase` interface and always wrapped by `TransactionalFulfillmentUseCase`, which routes write operations through a write `TransactionTemplate` and read operations through a read-only `TransactionTemplate`.
+- Controller endpoints return `ResponseEntity<*>` built from `Result<T, BusinessError>` via a shared `response` extension that maps success to HTTP 200 and failure to the error's `httpCode` with an `ErrorResponse` body.
+- Authorization is performed per endpoint by calling `authorized(userId, orderId, MerchantPermission.*)` which fetches the order and checks `MerchantAuthorizationService.hasPermission`, returning `Failure(FulfillmentErrors.NOT_FOUND)` on denial.
+- Spring beans are declared as `@Bean` functions inside a single `@Configuration` class (`FulfillmentBootConfiguration`) with constructor injection for dependencies rather than field injection.
+- Request/response payloads are modeled as local `data class` types nested inside the controller method scope rather than separate DTO files.

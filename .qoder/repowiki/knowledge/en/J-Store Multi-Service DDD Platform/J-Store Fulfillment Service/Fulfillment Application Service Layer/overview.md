@@ -1,0 +1,1 @@
+Application-layer orchestration for fulfillment orders, exposing use-case operations and an integration message handler that translates incoming commands into domain mutations.

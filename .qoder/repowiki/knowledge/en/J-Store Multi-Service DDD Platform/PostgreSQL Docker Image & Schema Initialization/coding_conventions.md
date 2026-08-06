@@ -1,0 +1,4 @@
+- Each schema change lives in its own SQL file under `init/`, named with a two-digit numeric prefix to enforce execution order.
+- All DDL uses `IF NOT EXISTS` guards so re-running the image is idempotent and safe for local development.
+- New tables include standard audit fields (`created_at`, `updated_at`, `occurred_at`) and a status/retry lifecycle column for operational tracking.
+- Indexes are defined alongside their tables using `CREATE INDEX IF NOT EXISTS`, with partial indexes scoped to specific status values for query performance.

@@ -1,0 +1,1 @@
+Build and run each module independently with `./gradlew :j-store-warehouse:build` and `./gradlew :j-store-warehouse-infrastructure:build`; tests are executed via the built-in Gradle `test` task using JUnit Platform.

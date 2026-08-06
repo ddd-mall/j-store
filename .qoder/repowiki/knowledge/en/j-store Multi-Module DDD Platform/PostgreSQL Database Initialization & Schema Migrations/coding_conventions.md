@@ -1,4 +1,0 @@
-- Migration files are prefixed with a two-digit sequential number followed by a descriptive underscore-separated name (e.g. `06-outbox-entry.sql`) to guarantee deterministic execution order.
-- Each migration uses `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, and `CREATE INDEX IF NOT EXISTS` so scripts are idempotent and can be re-run safely.
-- Domain-specific tables include both functional indexes and partial indexes (e.g. filtering on `status IN (...)` or `WHERE column IS NOT NULL`) to optimize targeted query patterns.
-- Every table includes audit-style timestamps (`created_at`, `updated_at`) defaulting to `NOW()` and a `TIMESTAMPTZ` type for timezone-aware time tracking.

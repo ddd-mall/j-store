@@ -1,0 +1,1 @@
+Kotlin JVM 25 with Gradle Kotlin DSL; testing uses Kotest (`FunSpec`, `shouldBe`) and JUnit Platform. Domain framework primitives (`AggregateRoot`, `EventRecordingAggregateRoot`, `DomainEvent`, `AggregateRepository`) are provided by the shared `j-store-common-core` module.
