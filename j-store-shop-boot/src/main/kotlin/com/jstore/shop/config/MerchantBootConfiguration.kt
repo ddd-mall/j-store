@@ -24,8 +24,7 @@ import com.jstore.shop.service.MerchantIdGenerator
 import com.jstore.shop.service.MerchantService
 import com.jstore.shop.service.MerchantUseCase
 import com.jstore.shop.service.UserAccountLookup
-import com.jstore.user.domain.useraccount.UserAccountRepository
-import com.jstore.user.domain.useraccount.UserId
+import com.jstore.user.api.UserProfileQueryService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -37,9 +36,9 @@ class MerchantBootConfiguration {
     fun merchantIdGenerator(sequence: SnowFlakSequence) = MerchantIdGenerator(sequence::nextId)
 
     @Bean
-    fun merchantUserAccountLookup(userAccountRepository: UserAccountRepository) =
+    fun merchantUserAccountLookup(userProfiles: UserProfileQueryService) =
         UserAccountLookup { userId ->
-            userAccountRepository.existsById(UserId(userId))
+            userProfiles.findById(userId) != null
         }
 
     @Bean

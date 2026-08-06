@@ -5,6 +5,7 @@ repositories { mavenCentral() }
 dependencies {
     api(libs.kotlin.stdlib)
     api(project(":j-store-user-domain"))
+    implementation(project(":j-store-user-api"))
     implementation(project(":j-store-common-core"))
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotest.runner.junit5)

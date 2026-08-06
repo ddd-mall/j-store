@@ -32,6 +32,10 @@ include("j-store-goods-boot")
 
 include("j-store-user-domain")
 
+include("j-store-user-api")
+
+include("j-store-user-client-spring")
+
 include("j-store-user-application")
 
 include("j-store-user-infrastructure")

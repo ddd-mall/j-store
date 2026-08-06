@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":j-store-common-spring"))
     implementation(project(":j-store-integration-contracts"))
     implementation(project(":j-store-user-domain"))
+    implementation(project(":j-store-user-client-spring"))
     implementation(project(":j-store-authentication-spring-sdk"))
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.web)
@@ -21,6 +22,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.mockito.kotlin)
 }
 
 tasks.test { useJUnitPlatform() }

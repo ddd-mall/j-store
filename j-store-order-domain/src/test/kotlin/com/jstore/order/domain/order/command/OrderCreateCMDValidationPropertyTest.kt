@@ -95,8 +95,6 @@ class OrderCreateCMDValidationPropertyTest :
                     OrderCreateCMD(
                         buyerUid = 1L,
                         merchantId = 7,
-                        buyerPhone = "+8613800138000",
-                        buyerName = "买家",
                         recipientInfo = failingRecipientInfo,
                         items =
                             listOf(

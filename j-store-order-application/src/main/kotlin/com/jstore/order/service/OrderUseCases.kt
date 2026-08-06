@@ -24,7 +24,7 @@ import java.time.Instant
  * Stable inbound port for order use cases. Framework transaction concerns belong to boot adapters.
  */
 interface OrderUseCase {
-    fun getOrderById(orderId: OrderId): Result<Order, BusinessError>
+    fun getOrderById(buyerId: Long, orderId: OrderId): Result<Order, BusinessError>
 
     fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order>
 
@@ -74,7 +74,7 @@ interface OrderUseCase {
 
     fun completeOrder(orderId: OrderId): Result<Unit, BusinessError>
 
-    fun cancelOrder(cmd: OrderCancelCMD): Result<Unit, BusinessError>
+    fun cancelOrder(buyerId: Long, cmd: OrderCancelCMD): Result<Unit, BusinessError>
 }
 
 interface AfterSaleUseCase {

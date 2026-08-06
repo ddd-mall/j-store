@@ -77,7 +77,7 @@ class OrderControllerStatusContractTest {
         `when`(order.items).thenReturn(listOf(item))
         `when`(order.createTime).thenReturn(now)
         `when`(order.updateTime).thenReturn(now)
-        `when`(service.getOrderById(OrderId(1))).thenReturn(Success(order))
+        `when`(service.getOrderById(2, OrderId(1))).thenReturn(Success(order))
 
         val body = OrderController(service).getOrder(UserId(2), 1).body
         val json =
@@ -92,6 +92,8 @@ class OrderControllerStatusContractTest {
         assertEquals(50, json["refundedAmount"].asLong())
         assertEquals(100, json["payableAmount"].asLong())
         assertFalse(json.has("status"))
+        assertFalse(json.has("buyerPhone"))
+        assertFalse(json.has("buyerName"))
         assertEquals("CANCELED", json["items"][0]["status"].asText())
 
         `when`(service.pageListByUserId(2, 1, 10)).thenReturn(SortedPage(1, 1, listOf(order)))

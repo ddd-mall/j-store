@@ -19,6 +19,7 @@ dependencies {
     implementation(project(":j-store-goods-api"))
     implementation(project(":j-store-shop-api"))
     implementation(project(":j-store-user-domain"))
+    implementation(project(":j-store-user-client-spring"))
     implementation(project(":j-store-shop-application"))
     implementation(project(":j-store-authentication-spring-sdk"))
 
