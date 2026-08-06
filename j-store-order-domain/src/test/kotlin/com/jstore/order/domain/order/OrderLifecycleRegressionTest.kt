@@ -39,7 +39,8 @@ class OrderLifecycleRegressionTest {
         assertIs<Success<Unit>>(order.confirmStock())
 
         assertEquals(TradeStatus.ACTIVE, order.tradeStatus)
-        val event = order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().single()
+        val event =
+            order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().single()
         assertEquals(order.id, event.orderId)
         assertEquals(order.merchantId, event.merchantId)
         assertEquals(order.amountSnapshot.payableAmount, event.payableAmount)

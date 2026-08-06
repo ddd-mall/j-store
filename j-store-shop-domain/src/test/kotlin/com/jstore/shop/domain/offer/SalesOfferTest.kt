@@ -1,7 +1,7 @@
 package com.jstore.shop.domain.offer
 
-import com.jstore.common.properties.Price
 import com.jstore.common.errors.BusinessError
+import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import java.time.Instant

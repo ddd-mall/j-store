@@ -403,21 +403,20 @@ class OrderImpl(
 
     private fun mutableItems(): List<OrderItemImpl> = _items.map { it as OrderItemImpl }
 
-    private fun orderItemSnapshots(): List<OrderItemSnapshot> =
-        _items.map {
-            OrderItemSnapshot(
-                offerId = it.offerId,
-                storeId = it.storeId,
-                spuId = it.spuId,
-                skuId = it.skuId,
-                quantity = it.quantity,
-                catalogSnapshotVersion = it.snapshotVersion,
-                offerVersion = it.offerVersion,
-                fulfillmentNodeId = it.fulfillmentNodeId,
-                channelId = it.channelId,
-                unitPrice = it.unitPrice,
-            )
-        }
+    private fun orderItemSnapshots(): List<OrderItemSnapshot> = _items.map {
+        OrderItemSnapshot(
+            offerId = it.offerId,
+            storeId = it.storeId,
+            spuId = it.spuId,
+            skuId = it.skuId,
+            quantity = it.quantity,
+            catalogSnapshotVersion = it.snapshotVersion,
+            offerVersion = it.offerVersion,
+            fulfillmentNodeId = it.fulfillmentNodeId,
+            channelId = it.channelId,
+            unitPrice = it.unitPrice,
+        )
+    }
 
     private fun touch() {
         _updateTime = LocalDateTime.now()

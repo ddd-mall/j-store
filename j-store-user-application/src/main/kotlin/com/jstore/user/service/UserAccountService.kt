@@ -35,8 +35,9 @@ class UserAccountService(
     override fun requestPhoneVerification(
         phoneNumber: PhoneNumber
     ): Result<PhoneVerificationChallenge, BusinessError> {
-        val issued = phoneVerificationGateway.createChallenge(phoneNumber)
-            ?: return Failure(UserAccountErrors.PHONE_VERIFICATION_RATE_LIMITED)
+        val issued =
+            phoneVerificationGateway.createChallenge(phoneNumber)
+                ?: return Failure(UserAccountErrors.PHONE_VERIFICATION_RATE_LIMITED)
         phoneVerificationCodeSender.send(phoneNumber, issued.code)
         return Success(issued.challenge)
     }
@@ -105,9 +106,7 @@ class UserAccountService(
         return Success(tokenPair)
     }
 
-    private fun invalidCredentials(
-        phoneNumber: PhoneNumber
-    ): Result<AuthTokenPair, BusinessError> {
+    private fun invalidCredentials(phoneNumber: PhoneNumber): Result<AuthTokenPair, BusinessError> {
         loginAttemptGuard.recordFailure(phoneNumber)
         return Failure(UserAccountErrors.INVALID_CREDENTIALS)
     }
@@ -156,8 +155,9 @@ class UserAccountService(
     }
 
     override fun logout(userId: UserId, accessToken: String): Result<Unit, BusinessError> {
-        val claims = tokenProvider.parseAccessToken(accessToken)
-            ?: return Failure(UserAccountErrors.TOKEN_INVALID)
+        val claims =
+            tokenProvider.parseAccessToken(accessToken)
+                ?: return Failure(UserAccountErrors.TOKEN_INVALID)
         if (claims.userId != userId) return Failure(UserAccountErrors.TOKEN_INVALID)
         tokenStore.revokeSession(userId, claims.sessionId)
         return Success(Unit)

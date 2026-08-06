@@ -46,5 +46,4 @@ interface Spu : AggregateRoot<SpuId>, RecordsDomainEvents {
 
     /** 将草稿副本的内容合并到当前 SPU（领域方法） */
     fun mergeFromDraft(draft: Spu): Result<Unit, BusinessError>
-
 }

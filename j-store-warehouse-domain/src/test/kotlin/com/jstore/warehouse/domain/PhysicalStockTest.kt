@@ -2,10 +2,10 @@ package com.jstore.warehouse.domain
 
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
+import com.jstore.warehouse.domain.event.PhysicalStockChangedEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import com.jstore.warehouse.domain.event.PhysicalStockChangedEvent
 
 class PhysicalStockTest {
     @Test

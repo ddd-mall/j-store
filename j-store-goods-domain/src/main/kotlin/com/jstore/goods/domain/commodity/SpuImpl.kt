@@ -96,5 +96,4 @@ class SpuImpl(
         _version++
         return Success(Unit)
     }
-
 }

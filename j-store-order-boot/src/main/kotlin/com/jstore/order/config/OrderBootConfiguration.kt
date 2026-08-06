@@ -118,7 +118,8 @@ class OrderBootConfiguration {
     fun orderStockInsufficientHandler(service: OrderUseCase) =
         OrderStockInsufficientEventHandler(service)
 
-    @Bean fun saleAuthorizedOrderHandler(service: OrderUseCase) = SaleAuthorizedOrderHandler(service)
+    @Bean
+    fun saleAuthorizedOrderHandler(service: OrderUseCase) = SaleAuthorizedOrderHandler(service)
 
     @Bean
     fun saleAuthorizationFailedOrderHandler(service: OrderUseCase) =

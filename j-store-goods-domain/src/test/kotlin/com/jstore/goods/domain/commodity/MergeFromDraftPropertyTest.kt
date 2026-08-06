@@ -13,8 +13,8 @@ import io.kotest.property.checkAll
 /**
  * Property 4: mergeFromDraft 正确合并数据并递增版本
  *
- * For any PUBLISHED 状态的源 SPU 和任意包含至少一个 SKU 的草稿 SPU， 调用 source.mergeFromDraft(draft) 后，源 SPU 应满足： name
- * 等于草稿的 name，description 等于草稿的 description， SKU 列表与草稿的 SKU 列表内容一致，version 等于合并前的 version + 1，
+ * For any PUBLISHED 状态的源 SPU 和任意包含至少一个 SKU 的草稿 SPU， 调用 source.mergeFromDraft(draft) 后，源 SPU 应满足：
+ * name 等于草稿的 name，description 等于草稿的 description， SKU 列表与草稿的 SKU 列表内容一致，version 等于合并前的 version + 1，
  * status 保持 PUBLISHED 不变。
  *
  * **Validates: Requirements 6.2, 6.3, 6.4, 9.2, 9.3, 9.4**

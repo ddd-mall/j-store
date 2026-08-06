@@ -28,8 +28,8 @@ class SaleAuthorizationFailedOrderHandler(private val orders: OrderUseCase) :
     override fun handlerId() = "order.close-on-sale-authorization-failed.v1"
 
     override fun handle(message: SaleAuthorizationFailedIntegrationEvent) {
-        orders
-            .markSaleAuthorizationFailed(OrderId(message.orderId), message.reason)
-            .onFailure { throw IllegalStateException(it.message) }
+        orders.markSaleAuthorizationFailed(OrderId(message.orderId), message.reason).onFailure {
+            throw IllegalStateException(it.message)
+        }
     }
 }

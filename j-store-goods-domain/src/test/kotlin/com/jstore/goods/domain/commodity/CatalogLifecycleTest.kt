@@ -14,10 +14,7 @@ class CatalogLifecycleTest {
                 merchantId = MerchantId(7),
                 name = "咖啡",
                 _status = CommodityStatus.DRAFT,
-                _skus =
-                    mutableListOf(
-                        SkuImpl(SkuId(11), "250g", emptyList())
-                    ),
+                _skus = mutableListOf(SkuImpl(SkuId(11), "250g", emptyList())),
             )
 
         assertIs<Success<Unit>>(product.publish())

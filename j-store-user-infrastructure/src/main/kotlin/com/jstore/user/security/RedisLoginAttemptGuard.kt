@@ -5,9 +5,7 @@ import com.jstore.user.domain.useraccount.LoginAttemptGuard
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.data.redis.core.script.DefaultRedisScript
 
-class RedisLoginAttemptGuard(
-    private val redisTemplate: StringRedisTemplate,
-) : LoginAttemptGuard {
+class RedisLoginAttemptGuard(private val redisTemplate: StringRedisTemplate) : LoginAttemptGuard {
     override fun isAllowed(phoneNumber: PhoneNumber): Boolean {
         val stored = redisTemplate.opsForValue().get(key(phoneNumber)) ?: return true
         val failures = stored.toIntOrNull() ?: return false
@@ -39,7 +37,8 @@ class RedisLoginAttemptGuard(
                 local count = redis.call('INCR', KEYS[1])
                 if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
                 return count
-                """.trimIndent(),
+                """
+                    .trimIndent(),
                 Long::class.java,
             )
     }
