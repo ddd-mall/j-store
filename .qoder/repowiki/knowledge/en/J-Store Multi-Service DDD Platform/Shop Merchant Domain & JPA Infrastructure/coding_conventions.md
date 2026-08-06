@@ -1,0 +1,6 @@
+- Repository interfaces extend `AggregateRepository<Id, Entity>` from `com.jstore.common.framework` and are implemented by `*RepositoryImpl` classes annotated with `@Repository`.
+- Domain-to-Persistence mapping is centralized in an `internal object Converter` inside each repository implementation with paired `toPO` and `toDomain` functions.
+- Every repository method is annotated with `@Transactional` (read-write) or `@Transactional(readOnly = true)` (read-only).
+- External collaborators are injected as `fun interface` ports (e.g. `MerchantIdGenerator`, `UserAccountLookup`) rather than concrete classes, keeping the service layer framework-free.
+- Domain methods return `Result<T, BusinessError>` wrapping success/failure via `Success`/`Failure` from `com.jstore.common.utils` instead of throwing exceptions.
+- Aggregate state is exposed through private setters with public mutation methods (`rename`, `disable`, `enable`, `changeRoles`) that validate invariants and update `updateTime`.

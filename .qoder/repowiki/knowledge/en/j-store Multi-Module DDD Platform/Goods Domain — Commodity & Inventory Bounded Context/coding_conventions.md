@@ -1,6 +1,0 @@
-- Domain methods return `Result<T, BusinessError>` using `Success`/`Failure` from `common.utils`, never throwing checked exceptions.
-- Aggregates extend `AgreeGate<T>` or `Entity<T>` from `common.framework` and expose a `domainEventQueue: Queue<DomainEvent>` populated by `publishEvent` calls within state transitions.
-- Factories encapsulate object construction (`SpuFactory`, `GoodsStyleFactory`, `InventoryFactory`) while repositories abstract persistence behind interface boundaries (`SpuRepository`, `InventoryRepository`, etc.).
-- State transitions are enforced inside aggregate methods (e.g., `publish`, `putOnSale`, `takeOffSale`) that validate current `CommodityStatus` before mutating and enqueue domain events.
-- Application services compose multiple dependencies via constructor injection and coordinate persistence + event publishing in a single transactional boundary.
-- Tests are organized as property-based tests under `domain/*/...PropertyTest.kt` and integration-style tests under `service/*Test.kt`, mirroring the production package structure.

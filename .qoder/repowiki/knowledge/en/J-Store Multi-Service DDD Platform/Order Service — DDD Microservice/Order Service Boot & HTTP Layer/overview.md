@@ -1,0 +1,1 @@
+Spring Boot application entry point that wires the order domain and application layers, exposes REST controllers for orders and after-sales, and configures Redis, transactions, and the domain event bus.

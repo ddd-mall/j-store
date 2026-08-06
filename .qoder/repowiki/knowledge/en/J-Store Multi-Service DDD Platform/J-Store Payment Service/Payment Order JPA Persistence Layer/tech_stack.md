@@ -1,0 +1,1 @@
+Kotlin JVM with Spring Boot, Spring Data JPA, Jakarta Persistence annotations, and PostgreSQL (runtime driver). Tests use `io.zonky.test:embedded-postgres:2.1.0` for an embedded database fixture.

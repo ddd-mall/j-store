@@ -1,0 +1,1 @@
+Infrastructure adapters implementing the user account domain interfaces via Spring Data JPA (PostgreSQL), Redis, BCrypt password hashing, and HS256 JWT token issuance/verification.

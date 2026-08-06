@@ -1,1 +1,0 @@
-Kotlin JVM targeting Java 25 (kotlin.jvm plugin), Kotest with property-based testing (`kotest.property`), Mockito/Mockito-Kotlin for test doubles, JUnit 5 platform. Domain utilities come from `j-store-common-core` (Result monad, Entity base, SnowFlakSequence, Logger).

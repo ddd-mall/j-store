@@ -1,6 +1,0 @@
-- Cross-cutting concerns are exposed as Spring `@AutoConfiguration` classes registered through `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` rather than `@ComponentScan`.
-- Path-based authentication rules are configured by implementing the `AuthenticationConfigurer` interface and returning Ant-style patterns from `authenticatedPathPatterns()` / `excludedPathPatterns()`, with empty lists as defaults.
-- Thread-local state is encapsulated in a singleton object (`AuthenticatedUserContext`) with explicit `set`/`clear` lifecycle managed in interceptor `preHandle`/`afterCompletion` pairs.
-- Authentication decisions follow a fixed priority order: `@SkipLogin` overrides everything, then `@RequireLogin` (method or class level), then excluded patterns, then authenticated patterns, then default allow.
-- Error responses are centralized in `object AuthenticationErrors` producing `BusinessError` instances with consistent fields (message, errorCode, httpCode) written as JSON via Jackson.
-- Handler method argument injection uses Spring's `HandlerMethodArgumentResolver` pattern where `supportsParameter` checks both the custom annotation and the expected `UserId` type.

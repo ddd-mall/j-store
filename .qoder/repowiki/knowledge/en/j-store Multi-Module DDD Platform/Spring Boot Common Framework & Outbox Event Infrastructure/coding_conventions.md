@@ -1,6 +1,0 @@
-- Spring Boot autoconfiguration classes are annotated with `@Configuration` and `@EnableConfigurationProperties`, and individual features are conditionally enabled via `@ConditionalOnProperty`.
-- Bean wiring is centralized in a single `*AutoConfiguration` class where each `@Bean` method constructs one component and declares its dependencies explicitly.
-- Configuration properties are defined as `data class` with `@ConfigurationProperties(prefix = ...)`, validated in an `init { require(...) }` block with descriptive error messages.
-- Repositories expose a JPA interface (`*JpaRepository`) alongside a custom repository implementation (`*RepositoryImpl`) that wraps it with additional logic such as EntityManager access.
-- Event serialization and upcasting are abstracted behind interfaces (`EventSerializer`, `EventUpcaster`) with concrete implementations provided, enabling pluggable versioning strategies.
-- Monitoring components are optional and resolved via `ObjectProvider<T>` with a fallback to a no-op implementation when not available.

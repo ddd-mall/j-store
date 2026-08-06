@@ -1,0 +1,5 @@
+- Each repository implementation is a Spring `@Repository` class annotated with `@Transactional(propagation = Propagation.MANDATORY)` on mutating methods to enforce caller-managed transactions.
+- Domain-to-persistence mapping is centralized in an inner `object Converter` exposing `toPO` and `toDomain` functions, keeping conversion logic co-located with the repository implementation.
+- JPA entities live in a `persistence/` subpackage alongside their corresponding `*JpaRepository` Spring Data interface, forming a tight PO-repository pair per aggregate.
+- ID generation for transient entities uses a process-local `AtomicLong` sequence initialized from `System.currentTimeMillis()`, exposed via `nextId()`/`nextLineId()`/`nextStatementNo()` methods rather than database-generated IDs.
+- Price values are persisted as integer fen amounts (`amountFen`) and converted to/from `Price.ofFen(...)` at the converter boundary, keeping monetary precision consistent across the persistence layer.

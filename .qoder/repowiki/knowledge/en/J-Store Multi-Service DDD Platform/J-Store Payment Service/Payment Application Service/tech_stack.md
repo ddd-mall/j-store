@@ -1,0 +1,1 @@
+Kotlin JVM (toolchain 25) with Gradle Kotlin DSL; Kotest + JUnit 5 for testing; Result/BusinessError error handling pattern from `com.jstore.common.utils`; SnowFlake distributed ID generation; event publishing via `DomainEventPublisher`.

@@ -1,0 +1,1 @@
+PostgreSQL 16 Alpine image; raw SQL migrations executed via PostgreSQL's `/docker-entrypoint-initdb.d/` convention; JSONB used for order address storage (see `03-order-address-jsonb.sql`).

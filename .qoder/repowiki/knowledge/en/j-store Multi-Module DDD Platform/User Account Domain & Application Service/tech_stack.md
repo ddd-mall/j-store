@@ -1,1 +1,0 @@
-Kotlin JVM (toolchain 25) with Gradle Kotlin DSL; testing uses Kotest (FunSpec, assertions, property-based testing via kotest-property) and Mockito-Kotlin for mocking. Depends on `j-store-common-core` for shared types (`BusinessError`, `Result`, `Id`, `PhoneNumber`, `SnowFlakSequence`, `AgreeGate`, `DomainEventPublisher`).

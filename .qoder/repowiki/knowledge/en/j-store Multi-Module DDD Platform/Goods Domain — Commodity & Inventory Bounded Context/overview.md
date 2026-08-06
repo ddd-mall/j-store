@@ -1,1 +1,0 @@
-Kotlin DDD bounded context implementing the goods domain with commodity (SPU/SKU/GoodsStyle) lifecycle, draft-based copy-on-write editing, and TCC-style inventory reservation, exposed through service orchestration and ACL adapters.

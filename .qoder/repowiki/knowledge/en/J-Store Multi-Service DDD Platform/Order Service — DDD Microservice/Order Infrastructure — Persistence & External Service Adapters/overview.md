@@ -1,0 +1,1 @@
+Provides Spring Data JPA persistence for Order and AfterSale aggregates, a Goods service adapter to the goods API, and integration tests backed by an embedded PostgreSQL instance.

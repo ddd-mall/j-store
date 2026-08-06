@@ -1,0 +1,1 @@
+Gradle multi-project orchestrating J-Store's shared libraries, domain-driven microservices (order, goods, user, shop, accounting, payment, fulfillment, warehouse), and Docker/PostgreSQL infrastructure under a unified Kotlin/Spring Boot build.

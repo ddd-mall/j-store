@@ -1,0 +1,1 @@
+Gradle project using version catalogs (`libs.plugins.kotlin.jvm`, `libs.*`); tests run via `./gradlew test` with JUnit Platform enabled; requires JDK 25 per `kotlin { jvmToolchain(25) }`.

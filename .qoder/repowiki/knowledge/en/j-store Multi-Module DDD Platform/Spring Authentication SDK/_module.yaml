@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: authentication_sdk
-title: Spring Authentication SDK
-scope:
-    - j-store-authentication-spring-sdk/
-source_files: []
-depends_on: []
-related_to:
-    - path: user_infrastructure

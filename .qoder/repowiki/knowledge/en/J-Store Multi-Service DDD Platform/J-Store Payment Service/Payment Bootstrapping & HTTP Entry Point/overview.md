@@ -1,0 +1,1 @@
+Spring Boot application entry that wires the payment domain and application layers, exposes REST endpoints for payment capture/refund, and provides transactional wrapping around the PaymentUseCase.

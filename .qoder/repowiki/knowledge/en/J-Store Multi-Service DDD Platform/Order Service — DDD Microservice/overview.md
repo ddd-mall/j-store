@@ -1,0 +1,1 @@
+Spring Boot microservice implementing the Order bounded context with a four-layer DDD split: domain aggregates, application use cases, JPA persistence adapters, and HTTP controllers wired together at boot.

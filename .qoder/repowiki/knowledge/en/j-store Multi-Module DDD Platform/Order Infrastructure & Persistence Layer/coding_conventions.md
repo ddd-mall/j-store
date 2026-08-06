@@ -1,6 +1,0 @@
-- Each repository interface has a corresponding `*RepositoryImpl` class annotated with `@Repository` that delegates to a Spring Data JPA `*JpaRepository` and performs domain↔PO conversion through an internal `Converter` object or inline mapping functions.
-- Domain-to-PO and PO-to-domain conversions are centralized in private nested `Converter` objects (e.g., `OrderRepositoryImpl.Converter`) rather than scattered across methods, keeping persistence concerns out of the domain layer.
-- Concurrent operations use a combination of JPA `@Version` optimistic locking and explicit `findByIdForUpdate` row locks, with `DataIntegrityViolationException` and `ObjectOptimisticLockingFailureException` caught and translated into domain `BusinessError` results via a local `RepositoryAbort` exception.
-- Idempotency is enforced by persisting `AfterSaleCommandReceipt` records keyed by `(actorId, commandType, idempotencyKey)` and recovering prior results on conflict via a separate read-only `TransactionTemplate`.
-- External API boundaries are implemented as thin adapter classes in `acl` that accept domain types and return domain types, never leaking external DTOs into the domain layer.
-- JSON-persisted fields use nullable Kotlin data classes with default `null` values so Jackson deserialization tolerates missing historical columns without throwing.

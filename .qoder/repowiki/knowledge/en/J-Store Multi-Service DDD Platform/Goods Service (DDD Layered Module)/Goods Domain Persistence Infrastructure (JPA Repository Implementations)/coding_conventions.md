@@ -1,0 +1,6 @@
+- Each repository implementation is a `@Repository`-annotated class implementing the domain interface, delegating persistence through a Spring Data `JpaRepository` injected via constructor.
+- Mutating methods use `@Transactional(propagation = Propagation.MANDATORY)` to enforce execution within an existing transaction boundary.
+- Domain-to-PersistentObject conversion is encapsulated in a private/internal `object Converter` with paired `toPO` and `toDomain` functions, keeping mapping logic co-located with the repository.
+- Complex domain collections (e.g., attributes, images, skuSnapshots) are serialized/deserialized through `JsonUtils.toJsonString` / `JsonUtils.deserialize` when stored in PO fields.
+- Value types from the domain layer (e.g., `SpuId`, `MerchantId`, `Price`) are unwrapped via `.value` when persisted and reconstructed when loaded back into domain objects.
+- Property-based round-trip tests are written using Kotest's property testing framework to verify converter correctness across random inputs.

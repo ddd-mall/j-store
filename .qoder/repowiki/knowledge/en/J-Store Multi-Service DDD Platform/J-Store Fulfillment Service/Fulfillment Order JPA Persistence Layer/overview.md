@@ -1,0 +1,1 @@
+Spring Data JPA persistence implementation for the FulfillmentOrder domain, mapping between domain entities and JPA persistent objects backed by PostgreSQL.

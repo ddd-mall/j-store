@@ -1,1 +1,0 @@
-Kotlin JVM with Spring Boot 3.x, Spring Data JPA, Jakarta Persistence (`jakarta.persistence.*`), PostgreSQL driver, Lombok for boilerplate reduction, and Kotest with property-based testing (`kotest-property`) for converter round-trip verification. Built against JVM toolchain 25.

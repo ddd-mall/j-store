@@ -1,0 +1,1 @@
+Kotlin JVM with Spring Boot, Spring Data JPA, Jakarta Persistence (`jakarta.persistence.*`), PostgreSQL driver, Lombok (compile-time annotation processing), Kotest + JUnit 5 for property-based tests, Kotlin 25 toolchain.

@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: shop_service
+title: Shop Merchant Domain & JPA Infrastructure
+scope:
+    - j-store-shop/
+    - j-store-shop-infrastructure/
+source_files: []
+depends_on: []
+related_to: []

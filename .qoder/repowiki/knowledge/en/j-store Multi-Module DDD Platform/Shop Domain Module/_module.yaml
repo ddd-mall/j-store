@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: shop_domain
-title: Shop Domain Module
-scope:
-    - j-store-shop/
-source_files: []
-depends_on: []
-related_to: []

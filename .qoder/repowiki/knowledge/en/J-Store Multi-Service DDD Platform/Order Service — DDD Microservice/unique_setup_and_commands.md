@@ -1,0 +1,1 @@
+Each subproject has its own `build.gradle.kts`; the boot subproject is the runnable entry point that pulls in the other three layers as dependencies.

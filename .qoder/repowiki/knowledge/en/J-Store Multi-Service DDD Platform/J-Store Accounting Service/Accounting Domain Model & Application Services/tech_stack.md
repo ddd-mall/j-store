@@ -1,0 +1,1 @@
+Kotlin JVM with Gradle Kotlin DSL, targeting JVM toolchain 25; testing uses Kotest (FunSpec style) with JUnit Platform, Mockito and Mockito-Kotlin for mocks; common framework primitives (`AggregateRoot`, `RecordsDomainEvents`, `Id`, `Price`, `Result`, `BusinessError`) come from the shared `:j-store-common-core` project.

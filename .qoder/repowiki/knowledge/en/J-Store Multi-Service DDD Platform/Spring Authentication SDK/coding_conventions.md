@@ -1,0 +1,5 @@
+- Cross-cutting behavior is expressed as Spring `@AutoConfiguration` classes annotated with `@ConditionalOnBean` / `@ConditionalOnMissingBean` rather than manual bean wiring.
+- Path-based policy is externalized through small `interface` configurers (`AuthenticationConfigurer`) with default empty implementations, allowing consumers to opt-in per feature.
+- Error handling uses a centralized `BusinessError` enum-like object (`AuthenticationErrors`) mapping each failure case to a code, message, and HTTP status, consumed uniformly by the interceptor.
+- Per-request state is stored in a `ThreadLocal` accessed through a singleton `object` (`AuthenticatedUserContext`) with explicit `set`/`clear` methods, ensuring cleanup in `afterCompletion`.
+- Annotations are minimal `@Retention(RUNTIME)` markers targeting specific elements (CLASS/FUNCTION for `@RequireLogin`, FUNCTION for `@SkipLogin`, VALUE_PARAMETER for `@CurrentUserId`).

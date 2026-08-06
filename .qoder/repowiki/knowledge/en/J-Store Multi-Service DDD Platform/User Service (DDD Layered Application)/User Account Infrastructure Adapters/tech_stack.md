@@ -1,0 +1,1 @@
+Kotlin JVM with Spring Boot Starter (Data JPA, Data Redis, Web), Spring Security Crypto for BCrypt, jjwt (api + jackson impl) for HS256 JWT, PostgreSQL driver (runtime), Kotest for property-based tests, JVM toolchain 25.

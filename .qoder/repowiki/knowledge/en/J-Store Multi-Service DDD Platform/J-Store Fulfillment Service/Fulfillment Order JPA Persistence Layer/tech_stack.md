@@ -1,0 +1,1 @@
+Kotlin JVM (toolchain 25) with Spring Boot JPA, Jakarta Persistence annotations, Spring Data JPA repositories, and PostgreSQL as the runtime database; tests use JUnit Platform and embedded Postgres via io.zonky.test.

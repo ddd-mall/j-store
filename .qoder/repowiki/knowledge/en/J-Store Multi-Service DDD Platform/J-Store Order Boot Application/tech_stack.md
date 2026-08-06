@@ -1,0 +1,1 @@
+Kotlin + Java mixed codebase on Java 25, Spring Boot with Spring Data JPA, Flyway for schema migration, PostgreSQL runtime, embedded Postgres (io.zonky.test) for tests, Redis via spring-data-redis, Lombok for boilerplate, FastExcel for spreadsheet handling, and Docker image built from amazoncorretto:25-al2023-headless.

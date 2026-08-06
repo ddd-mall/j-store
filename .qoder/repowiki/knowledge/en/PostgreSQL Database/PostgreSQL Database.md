@@ -9,4 +9,4 @@ scope:
     - '**'
 ---
 
-Primary relational database used by j-store application. Configured via JDBC connection in application-local.properties with schema 'develop'. Docker Compose setup provides local development environment. All domain data including outbox_entry and domain_event_consumption tables are stored here.
+Primary relational database for all domain data persistence. Used via Spring Data JPA with Hikari connection pooling. Local development runs through Docker Compose with custom schema 'develop'. Flyway handles database migrations. Connection details configured via JSTORE_DB_* environment variables.

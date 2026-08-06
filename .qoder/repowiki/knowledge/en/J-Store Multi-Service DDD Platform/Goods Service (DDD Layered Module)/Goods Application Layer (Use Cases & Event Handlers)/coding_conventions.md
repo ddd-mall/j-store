@@ -1,0 +1,6 @@
+- Every use-case method returns `Result<T, BusinessError>` and propagates failures via `onFailure` / `mapError` instead of throwing exceptions.
+- Command objects are validated at the start of each use-case method via `cmd.verify()` before any domain logic executes.
+- Integration message handlers implement `IntegrationMessageHandler<T>` with a stable `handlerId()` string using a `goods.*.v2` naming scheme.
+- Domain entities are mutated through factory classes (`SpuFactory`, `InventoryFactory`, `GoodsStyleFactory`, `SpuSnapshotFactory`) rather than direct constructors.
+- Repository access follows a find-then-mutate-then-save pattern, with `publishPendingEvents(domainEventPublisher)` called after persistence to flush domain events.
+- Concurrent mutations on inventory are guarded by wrapping operations in `inventoryLock.lock(...).use { ... }` blocks, mapping lock failures to `CONCURRENT_CONFLICT_EXCEPTION`.

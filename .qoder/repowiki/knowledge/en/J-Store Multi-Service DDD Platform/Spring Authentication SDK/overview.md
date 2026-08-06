@@ -1,0 +1,1 @@
+Spring Boot auto-configuration module that intercepts HTTP requests to validate bearer tokens, populate a thread-local authenticated user context, and expose the current user ID via annotations and argument resolvers.
