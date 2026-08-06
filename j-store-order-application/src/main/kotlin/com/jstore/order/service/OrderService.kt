@@ -11,6 +11,7 @@ import com.jstore.common.utils.Success
 import com.jstore.common.utils.map
 import com.jstore.common.utils.onFailure
 import com.jstore.common.utils.onSuccess
+import com.jstore.order.acl.UserService
 import com.jstore.order.domain.aftersale.AfterSaleId
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderErrors
@@ -28,11 +29,13 @@ class OrderService(
     private val orderFactory: OrderFactory,
     private val orderRepository: OrderRepository,
     private val domainEventPublisher: DomainEventPublisher,
+    private val userService: UserService,
 ) : OrderUseCase {
 
     /** 根据ID查询订单 */
-    override fun getOrderById(orderId: OrderId): Result<Order, BusinessError> {
+    override fun getOrderById(buyerId: Long, orderId: OrderId): Result<Order, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        if (order.buyerInfo.uid != buyerId) return Failure(OrderErrors.ORDER_NOT_FOUND)
         return Success(order)
     }
 
@@ -46,7 +49,9 @@ class OrderService(
         cmd.validate().onFailure {
             return Failure(it)
         }
-        return orderFactory.create(cmd).onSuccess { order ->
+        val buyerInfo =
+            userService.findUserInfo(cmd.buyerUid) ?: return Failure(OrderErrors.BUYER_INVALID)
+        return orderFactory.create(cmd, buyerInfo).onSuccess { order ->
             orderRepository.add(order)
             order.publishPendingEvents(domainEventPublisher)
         }
@@ -194,12 +199,13 @@ class OrderService(
     }
 
     /** 买家主动取消订单 */
-    override fun cancelOrder(cmd: OrderCancelCMD): Result<Unit, BusinessError> {
+    override fun cancelOrder(buyerId: Long, cmd: OrderCancelCMD): Result<Unit, BusinessError> {
         cmd.validate().onFailure {
             return Failure(it)
         }
         val order =
             orderRepository.findById(cmd.orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        if (order.buyerInfo.uid != buyerId) return Failure(OrderErrors.ORDER_NOT_FOUND)
         order.cancel(cmd.toReason()).onFailure {
             return Failure(it)
         }

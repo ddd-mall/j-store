@@ -104,8 +104,6 @@ class SnapshotVersionMismatchPropertyTest :
                     OrderCreateCMD(
                         buyerUid = 1L,
                         merchantId = 7,
-                        buyerPhone = "+8613800138000",
-                        buyerName = "买家",
                         recipientInfo =
                             OrderCreateCMD.RecipientInfoCMD(
                                 consigneeName = "张三",
@@ -129,7 +127,7 @@ class SnapshotVersionMismatchPropertyTest :
                             ),
                     )
 
-                val result = factory.create(cmd)
+                val result = factory.create(cmd, UserInfo(1L, PhoneNumber("+8613800138000"), "买家"))
 
                 result.shouldBeInstanceOf<Failure<BusinessError>>()
                 result.error.errorCode shouldBe "Order.Snapshot.VersionMismatch"

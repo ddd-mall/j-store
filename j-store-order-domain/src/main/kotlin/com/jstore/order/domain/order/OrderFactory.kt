@@ -3,7 +3,6 @@ package com.jstore.order.domain.order
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -16,7 +15,7 @@ import com.jstore.order.domain.order.command.OrderCreateCMD
 
 /** 订单工厂 负责组装一个合法的初始状态的 Order 聚合根 创建过程需要跨上下文查询（商品价格、地址信息），这些依赖不应注入到聚合根 */
 interface OrderFactory {
-    fun create(cmd: OrderCreateCMD): Result<Order, BusinessError>
+    fun create(cmd: OrderCreateCMD, buyerInfo: UserInfo): Result<Order, BusinessError>
 }
 
 class OrderFactoryImpl(
@@ -26,7 +25,8 @@ class OrderFactoryImpl(
     private val offerService: OfferService,
 ) : OrderFactory {
 
-    override fun create(cmd: OrderCreateCMD): Result<Order, BusinessError> {
+    override fun create(cmd: OrderCreateCMD, buyerInfo: UserInfo): Result<Order, BusinessError> {
+        if (buyerInfo.uid != cmd.buyerUid) return Failure(OrderErrors.BUYER_INVALID)
         // 1. 通过 ACL 查询商品信息
         val goodsIds = cmd.items.map { GoodsId(it.spuId, it.skuId) }
         val goodsInfoMap = goodsService.queryGoods(goodsIds).associateBy { it.id }
@@ -130,12 +130,7 @@ class OrderFactoryImpl(
             OrderImpl(
                 id = OrderId(snowFlakSequence.nextId()),
                 merchantId = requestedMerchantId,
-                buyerInfo =
-                    UserInfo(
-                        uid = cmd.buyerUid,
-                        phoneNumber = cmd.buyerPhone?.let { PhoneNumber(it) },
-                        userName = cmd.buyerName,
-                    ),
+                buyerInfo = buyerInfo,
                 _items = orderItems.toMutableList(),
                 recipientInfo = recipientInfo,
                 _tradeStatus = TradeStatus.CREATED,

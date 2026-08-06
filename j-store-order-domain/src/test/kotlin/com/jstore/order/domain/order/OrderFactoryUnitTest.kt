@@ -85,8 +85,6 @@ class OrderFactoryUnitTest :
                 OrderCreateCMD(
                     buyerUid = 1L,
                     merchantId = 7,
-                    buyerPhone = "+8613800138000",
-                    buyerName = "买家",
                     recipientInfo =
                         OrderCreateCMD.RecipientInfoCMD(
                             consigneeName = "张三",
@@ -110,7 +108,7 @@ class OrderFactoryUnitTest :
                         ),
                 )
 
-            val result = factory.create(cmd)
+            val result = factory.create(cmd, UserInfo(1L, PhoneNumber("+8613800138000"), "买家"))
 
             result.shouldBeInstanceOf<Success<Order>>()
             result.value.tradeStatus shouldBe TradeStatus.CREATED
@@ -146,8 +144,6 @@ class OrderFactoryUnitTest :
                 OrderCreateCMD(
                     buyerUid = 1L,
                     merchantId = 7,
-                    buyerPhone = "+8613800138000",
-                    buyerName = "买家",
                     recipientInfo =
                         OrderCreateCMD.RecipientInfoCMD(
                             consigneeName = "张三",
@@ -171,7 +167,7 @@ class OrderFactoryUnitTest :
                         ),
                 )
 
-            val result = factory.create(cmd)
+            val result = factory.create(cmd, UserInfo(1L, PhoneNumber("+8613800138000"), "买家"))
 
             result.shouldBeInstanceOf<Failure<BusinessError>>()
             result.error shouldBe geoError

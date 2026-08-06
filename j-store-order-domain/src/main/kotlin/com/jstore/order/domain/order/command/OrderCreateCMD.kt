@@ -13,8 +13,6 @@ import java.io.Serializable
 data class OrderCreateCMD(
     val buyerUid: Long,
     val merchantId: Long,
-    val buyerPhone: String?,
-    val buyerName: String?,
     val recipientInfo: RecipientInfoCMD,
     val items: List<OrderItemCMD>,
 ) : Serializable {

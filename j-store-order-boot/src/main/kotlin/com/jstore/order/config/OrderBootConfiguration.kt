@@ -9,6 +9,8 @@ import com.jstore.order.acl.GoodsService
 import com.jstore.order.acl.GoodsServiceImpl
 import com.jstore.order.acl.OfferService
 import com.jstore.order.acl.OfferServiceImpl
+import com.jstore.order.acl.UserService
+import com.jstore.order.acl.UserServiceImpl
 import com.jstore.order.domain.aftersale.*
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderFactoryImpl
@@ -28,6 +30,7 @@ import com.jstore.order.service.PaymentRefundSucceededOrderHandler
 import com.jstore.order.service.SaleAuthorizationFailedOrderHandler
 import com.jstore.order.service.SaleAuthorizedOrderHandler
 import com.jstore.shop.api.OfferSnapshotQueryService
+import com.jstore.user.api.UserProfileQueryService
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
@@ -52,6 +55,10 @@ class OrderBootConfiguration {
         OfferServiceImpl(offerSnapshotQueryService)
 
     @Bean
+    fun orderUserService(userProfileQueryService: UserProfileQueryService): UserService =
+        UserServiceImpl(userProfileQueryService)
+
+    @Bean
     fun orderFactory(
         snowFlakSequence: SnowFlakSequence,
         goodsService: GoodsService,
@@ -71,11 +78,13 @@ class OrderBootConfiguration {
         orderFactory: OrderFactory,
         orderRepository: OrderRepository,
         domainEventPublisher: DomainEventPublisher,
+        userService: UserService,
     ): OrderService {
         return OrderService(
             orderFactory,
             orderRepository,
             domainEventPublisher,
+            userService,
         )
     }
 
