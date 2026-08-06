@@ -26,23 +26,35 @@ class ResultTest :
 
         // ========== getOrThrow ==========
 
-        test("getOrThrow returns value on Success") {
-            Success(42).getOrThrow() shouldBe 42
+        test("getOrThrow returns value on Success without invoking the exception mapper") {
+            val result: Result<Int, String> = Success(42)
+            var mapperInvoked = false
+
+            result.getOrThrow {
+                mapperInvoked = true
+                IllegalStateException(it)
+            } shouldBe 42
+            mapperInvoked shouldBe false
         }
 
-        test("getOrThrow throws ResultUnwrapException with error context on Failure") {
+        test("getOrThrow maps the error to a caller-defined exception") {
             val ex =
-                shouldThrow<ResultUnwrapException> {
-                    Failure("something broke").getOrThrow()
+                shouldThrow<IllegalArgumentException> {
+                    Failure("something broke").getOrThrow { error ->
+                        IllegalArgumentException("domain failure: $error")
+                    }
                 }
+            ex.message shouldContain "domain failure"
             ex.message shouldContain "something broke"
         }
 
-        test("getOrThrow preserves a throwable error as the cause") {
+        test("getOrThrow throws the exact exception returned by the mapper") {
             val cause = IllegalArgumentException("something broke")
+            val mapped = IllegalStateException("mapped failure", cause)
 
-            val ex = shouldThrow<ResultUnwrapException> { Failure(cause).getOrThrow() }
+            val ex = shouldThrow<IllegalStateException> { Failure(cause).getOrThrow { mapped } }
 
+            ex shouldBe mapped
             ex.cause shouldBe cause
         }
 
