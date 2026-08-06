@@ -11,15 +11,15 @@ Java、Kotlin 和 Gradle Kotlin DSL 代码统一由 Spotless 格式化：Java �
 ./gradlew spotlessCheck
 ```
 
-如需启用仓库提供的 pre-push hook，可执行：
+如需启用仓库提供的 Spotless Git hooks，可执行：
 
 ```bash
-./gradlew spotlessInstallGitPrePushHook
+./gradlew installSpotlessGitHooks
 ```
 
-该 hook 只检查本次待推送提交中新增或修改的 Kotlin、Java 与 Gradle Kotlin 文件；纯文档或其他非源码推送会跳过 Spotless。完整仓库检查仍可通过 `./gradlew spotlessCheck` 执行。
+`pre-commit` hook 只格式化已暂存的 Kotlin、Java 与 Gradle Kotlin 文件，并将格式化结果重新暂存到当前 commit。如果目标文件同时包含未暂存修改，hook 会终止提交，避免意外提交这些修改。
 
-hook 会在推送前检查格式；发现问题时会自动格式化并终止本次推送，确认并提交格式化结果后再重新推送。
+`pre-push` hook 保留为后备检查，只检查本次待推送提交中新增或修改的目标文件；纯文档或其他非源码操作会跳过 Spotless。完整仓库检查仍可通过 `./gradlew spotlessCheck` 执行。
 
 Spotless 同时检查所有 Java、Kotlin 源码的 Apache-2.0 许可证声明。新增源码缺少声明时，运行
 `spotlessApply` 会根据 [`config/spotless/license-header.txt`](config/spotless/license-header.txt) 自动补充。

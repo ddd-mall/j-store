@@ -1,0 +1,62 @@
+#!/bin/sh
+
+set -eu
+
+repository_root=$(git rev-parse --show-toplevel)
+git_directory=$(git rev-parse --git-dir)
+
+case "$git_directory" in
+    /*) ;;
+    *) git_directory="$repository_root/$git_directory" ;;
+esac
+
+target_file="$git_directory/spotless-pre-commit-files.$$"
+partially_staged_file="$git_directory/spotless-pre-commit-partial.$$"
+
+cleanup() {
+    rm -f "$target_file" "$partially_staged_file"
+}
+
+trap cleanup EXIT HUP INT TERM
+
+git diff --cached --name-only --diff-filter=ACMR -- \
+    '*.java' '*.kt' '*.gradle.kts' > "$target_file"
+
+if [ ! -s "$target_file" ]; then
+    echo "No staged Kotlin/Java files; skipping Spotless."
+    exit 0
+fi
+
+: > "$partially_staged_file"
+while IFS= read -r path; do
+    if ! git diff --quiet -- "$path"; then
+        printf '%s\n' "$path" >> "$partially_staged_file"
+    fi
+done < "$target_file"
+
+if [ -s "$partially_staged_file" ]; then
+    echo >&2 "Spotless cannot safely format files that also have unstaged changes:"
+    sed 's/^/  /' "$partially_staged_file" >&2
+    echo >&2 "Stage or discard those changes before committing."
+    exit 1
+fi
+
+echo "Spotless will format these staged files:"
+sed 's/^/  /' "$target_file"
+
+cd "$repository_root"
+if [ -n "${SPOTLESS_PRE_COMMIT_GRADLE:-}" ]; then
+    gradle_executor=$SPOTLESS_PRE_COMMIT_GRADLE
+elif [ -x ./gradlew ]; then
+    gradle_executor=./gradlew
+else
+    gradle_executor=./gradlew.bat
+fi
+
+"$gradle_executor" spotlessApply "-PspotlessFilesFile=$target_file"
+
+while IFS= read -r path; do
+    git add -- "$path"
+done < "$target_file"
+
+echo "Spotless formatting is included in this commit."
