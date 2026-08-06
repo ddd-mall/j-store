@@ -2,7 +2,7 @@ package com.jstore.order.service
 
 import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.properties.Price
-import com.jstore.common.utils.getOrThrow
+import com.jstore.common.utils.expect
 import com.jstore.contracts.commerce.*
 import com.jstore.order.domain.aftersale.AfterSaleId
 import com.jstore.order.domain.order.OrderId
@@ -21,7 +21,7 @@ class PaymentCapturedOrderHandler(private val orders: OrderUseCase) :
                 message.currency,
                 message.occurredAt,
             )
-            .getOrThrow()
+            .expect("${handlerId()} failed to record payment capture")
     }
 }
 
@@ -32,7 +32,7 @@ class FulfillmentPreparedOrderHandler(private val orders: OrderUseCase) :
     override fun handle(message: FulfillmentPreparedIntegrationEvent) {
         orders
             .recordFulfillmentPrepared(OrderId(message.orderId), message.fulfillmentId.toString())
-            .getOrThrow()
+            .expect("${handlerId()} failed to record fulfillment preparation")
     }
 }
 
@@ -43,7 +43,7 @@ class FulfillmentDispatchedOrderHandler(private val orders: OrderUseCase) :
     override fun handle(message: FulfillmentDispatchedIntegrationEvent) {
         orders
             .recordShipmentDispatched(OrderId(message.orderId), message.fulfillmentId.toString())
-            .getOrThrow()
+            .expect("${handlerId()} failed to record shipment dispatch")
     }
 }
 
@@ -54,8 +54,10 @@ class FulfillmentDeliveredOrderHandler(private val orders: OrderUseCase) :
     override fun handle(message: FulfillmentDeliveredIntegrationEvent) {
         orders
             .recordShipmentDelivered(OrderId(message.orderId), message.fulfillmentId.toString())
-            .getOrThrow()
-        orders.completeOrder(OrderId(message.orderId)).getOrThrow()
+            .expect("${handlerId()} failed to record shipment delivery")
+        orders
+            .completeOrder(OrderId(message.orderId))
+            .expect("${handlerId()} failed to complete order")
     }
 }
 
@@ -72,7 +74,7 @@ class PaymentRefundSucceededOrderHandler(
                 message.refundId.toString(),
                 message.occurredAt,
             )
-            .getOrThrow()
+            .expect("${handlerId()} failed to record after-sale refund")
         orders
             .recordRefundSucceeded(
                 orderId = OrderId(message.orderId),
@@ -88,7 +90,7 @@ class PaymentRefundSucceededOrderHandler(
                     },
                 occurredAt = message.occurredAt,
             )
-            .getOrThrow()
+            .expect("${handlerId()} failed to project order refund")
     }
 }
 
@@ -104,6 +106,6 @@ class PaymentRefundFailedOrderHandler(private val afterSales: AfterSaleUseCase) 
                 message.reason,
                 message.occurredAt,
             )
-            .getOrThrow()
+            .expect("${handlerId()} failed to record refund failure")
     }
 }

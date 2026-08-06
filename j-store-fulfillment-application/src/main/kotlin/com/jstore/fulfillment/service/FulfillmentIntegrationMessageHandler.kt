@@ -1,7 +1,7 @@
 package com.jstore.fulfillment.service
 
 import com.jstore.common.framework.messaging.IntegrationMessageHandler
-import com.jstore.common.utils.getOrThrow
+import com.jstore.common.utils.expect
 import com.jstore.contracts.commerce.CreateFulfillmentForOrderCommand
 import com.jstore.fulfillment.domain.FulfillmentItem
 import com.jstore.fulfillment.domain.ShippingRecipient
@@ -35,6 +35,6 @@ class CreateFulfillmentForOrderCommandHandler(private val fulfillments: Fulfillm
                         },
                 )
             )
-            .getOrThrow()
+            .expect("${handlerId()} failed to create fulfillment")
     }
 }
