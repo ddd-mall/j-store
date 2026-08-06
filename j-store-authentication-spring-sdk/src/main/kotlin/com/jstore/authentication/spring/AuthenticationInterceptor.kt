@@ -64,19 +64,23 @@ class AuthenticationInterceptor(
                 return false
             }
 
-            val userId = tokenProvider.parseAccessToken(token)
-            if (userId == null) {
+            val claims = tokenProvider.parseAccessToken(token)
+            if (claims == null) {
                 writeErrorResponse(response, AuthenticationErrors.TOKEN_INVALID)
                 return false
             }
 
-            val jti = tokenProvider.getAccessTokenJti(token)
-            if (jti != null && tokenStore.isAccessTokenBlacklisted(jti)) {
-                writeErrorResponse(response, AuthenticationErrors.TOKEN_BLACKLISTED)
+            if (!tokenStore.isSessionActive(
+                    claims.userId,
+                    claims.sessionId,
+                    claims.sessionEpoch,
+                )
+            ) {
+                writeErrorResponse(response, AuthenticationErrors.TOKEN_REVOKED)
                 return false
             }
 
-            AuthenticatedUserContext.set(userId)
+            AuthenticatedUserContext.set(claims.userId)
             return true
         } catch (_: Exception) {
             writeErrorResponse(response, AuthenticationErrors.INTERNAL_ERROR)
