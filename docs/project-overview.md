@@ -35,6 +35,8 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-payment-domain/application/infrastructure/boot`: 支付单与退款用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-fulfillment-domain/application/infrastructure/boot`: 履约单用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-user-domain/application/infrastructure/boot`: 用户账户领域、注册登录用例、JPA/JWT/Redis 适配以及 Spring Web/事务装配。
+- `j-store-user-api`: User 上下文发布的稳定用户资料查询契约，只包含用户 ID、昵称、已验证手机号和账号状态等标量快照。
+- `j-store-user-client-spring`: 用户资料远程 HTTP 客户端与条件自动配置；单体使用进程内实现，微服务消费方通过 `jstore.user-query.mode=remote` 切换。
 - `j-store-authentication-spring-sdk`: 基于 Spring MVC 的认证拦截器、当前用户参数解析、登录注解与自动配置，依赖 `j-store-user-domain`。
 - `j-store-accounting-domain/application/infrastructure/boot`: 会计账户、期间、凭证、结算领域与用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-boot`: 当前主启动模块，组合各上下文 boot、公共 Spring 基础设施和认证 SDK，并承载数据库迁移、跨上下文事件翻译器、订单过期定时任务。
@@ -47,7 +49,8 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - Store/Offer：一个 SKU 可按店铺、渠道、市场分别定价和启停；授权时用数据库悲观锁校验店铺、Offer 版本、价格、有效期和限购，并签发有时效、可幂等、可释放的业务凭证。
 - Inventory/ATP：按 `onHand - reserved - safetyStock - isolatedQuantity` 计算可承诺量；授权过期或 ATP 不足时拒绝预留。
 - WMS：维护实物在库数量和来源版本；订单不直接锁 WMS 数据库，旧库存事件不会覆盖新镜像。
-- 用户：用户注册、登录、强制下线、昵称和密码值对象、JWT 与 Redis token 基础设施。
+- 用户：用户注册、登录、强制下线、昵称和密码值对象、JWT 与 Redis token 基础设施，以及供业务上下文读取标量资料的本地/远程双部署查询能力。
+- 订单用户快照：创建订单只接受认证上下文的用户 ID，通过 Order 本地 ACL 查询 ACTIVE 用户并冻结昵称和手机号；收货人联系方式保持独立语义。
 - 店铺：商户、商户成员、角色权限、成员管理用例和其它上下文复用的商户授权服务。
 - 支付与履约：支付单、退款、履约单的领域模型、集成消息处理、JPA/Outbox 与事务装配。
 - 会计：账户、会计期间、分录、结算单等领域模型、JPA 仓储实现与事务装配。
@@ -106,7 +109,7 @@ boot/interface -> application -> domain -> common-core
 ./gradlew :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
 ./gradlew :j-store-payment-domain:test :j-store-payment-application:test :j-store-payment-boot:test
 ./gradlew :j-store-fulfillment-domain:test :j-store-fulfillment-application:test :j-store-fulfillment-boot:test
-./gradlew :j-store-user-domain:test :j-store-user-application:test :j-store-user-boot:test
+./gradlew :j-store-user-api:test :j-store-user-application:test :j-store-user-client-spring:test :j-store-user-boot:test
 ./gradlew :j-store-shop-domain:test :j-store-shop-application:test :j-store-shop-infrastructure:test :j-store-shop-boot:test
 ./gradlew :j-store-inventory-domain:test :j-store-inventory-application:test :j-store-inventory-infrastructure:test
 ./gradlew :j-store-warehouse-domain:test :j-store-warehouse-application:test :j-store-warehouse-infrastructure:test

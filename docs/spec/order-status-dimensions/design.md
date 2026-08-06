@@ -263,8 +263,6 @@ var afterSaleStatus: AfterSaleStatus = AfterSaleStatus.NONE
 data class OrderResponse(
     val id: Long,
     val buyerUid: Long,
-    val buyerPhone: String?,
-    val buyerName: String?,
     val tradeStatus: String,
     val paymentStatus: String,
     val fulfillmentStatus: String,
@@ -277,7 +275,7 @@ data class OrderResponse(
 )
 ```
 
-`Order.toOrderResponse()` 分别使用四个枚举的 `.name`，彻底删除订单级 `status`；`OrderItemResponse.status` 继续返回行项状态名称。详情、分页及创建响应均复用该转换函数。
+`Order.toOrderResponse()` 分别使用四个枚举的 `.name`，彻底删除订单级 `status`；`OrderItemResponse.status` 继续返回行项状态名称。详情、分页及创建响应均复用该转换函数。账号昵称和已验证手机号按 `user-profile-query` 规格仅保留为交易内部快照，不进入公开响应。
 
 ## 数据模型
 
@@ -343,8 +341,6 @@ CREATE INDEX idx_orders_after_sale_status_create_time
 {
   "id": 10001,
   "buyerUid": 20001,
-  "buyerPhone": null,
-  "buyerName": null,
   "tradeStatus": "ACTIVE",
   "paymentStatus": "PARTIALLY_REFUNDED",
   "fulfillmentStatus": "DELIVERED",

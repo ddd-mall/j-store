@@ -74,8 +74,6 @@ class OrderController(private val orderService: OrderUseCase) {
         val id: Long,
         val merchantId: Long,
         val buyerUid: Long,
-        val buyerPhone: String?,
-        val buyerName: String?,
         val tradeStatus: String,
         val paymentStatus: String,
         val fulfillmentStatus: String,
@@ -133,8 +131,6 @@ class OrderController(private val orderService: OrderUseCase) {
             OrderCreateCMD(
                 buyerUid = userId.value,
                 merchantId = request.merchantId,
-                buyerPhone = null,
-                buyerName = null,
                 recipientInfo =
                     OrderCreateCMD.RecipientInfoCMD(
                         consigneeName = request.recipientInfo.consigneeName,
@@ -170,7 +166,9 @@ class OrderController(private val orderService: OrderUseCase) {
         @CurrentUserId userId: UserId,
         @PathVariable orderId: Long,
     ): ResponseEntity<*> {
-        return orderService.getOrderById(OrderId(orderId)).toResponse { it.toOrderResponse() }
+        return orderService.getOrderById(userId.value, OrderId(orderId)).toResponse {
+            it.toOrderResponse()
+        }
     }
 
     @GetMapping
@@ -201,7 +199,7 @@ class OrderController(private val orderService: OrderUseCase) {
                 category = request.category,
                 description = request.description,
             )
-        return orderService.cancelOrder(cmd).toResponse {}
+        return orderService.cancelOrder(userId.value, cmd).toResponse {}
     }
 
     // ---- Helpers ----
@@ -211,8 +209,6 @@ class OrderController(private val orderService: OrderUseCase) {
             id = id.value,
             merchantId = merchantId.value,
             buyerUid = buyerInfo.uid,
-            buyerPhone = buyerInfo.phoneNumber?.value,
-            buyerName = buyerInfo.userName,
             tradeStatus = tradeStatus.name,
             paymentStatus = paymentStatus.name,
             fulfillmentStatus = fulfillmentStatus.name,

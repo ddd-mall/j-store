@@ -51,6 +51,32 @@ docker compose --env-file .env -f docker-compose.postgres.yml ps
 
 运行 Spring Boot local profile 前，将 `.env` 中对应的 `JSTORE_*` 变量导入启动进程。IDE 用户可在本地 Run Configuration 中配置；不要把值写入受版本控制的 properties 文件。
 
+模块化单体默认使用进程内用户资料查询，不开放内部 HTTP 端点：
+
+```properties
+jstore.user-query.mode=local
+jstore.user-query.server.enabled=false
+```
+
+拆分为微服务时，User 服务启用内部查询端点：
+
+```properties
+jstore.user-query.server.enabled=true
+jstore.user-query.server.token=${JSTORE_USER_QUERY_TOKEN}
+```
+
+Order、Shop 等消费服务切换为远程客户端：
+
+```properties
+jstore.user-query.mode=remote
+jstore.user-query.remote.base-url=${JSTORE_USER_SERVICE_URL}
+jstore.user-query.remote.token=${JSTORE_USER_QUERY_TOKEN}
+jstore.user-query.remote.connect-timeout=2s
+jstore.user-query.remote.read-timeout=3s
+```
+
+`JSTORE_USER_QUERY_TOKEN` 必须是至少 32 字符的独立随机凭证，不得提交到仓库。生产集群还应使用 mTLS、NetworkPolicy 或服务网格策略限制内部端点的网络访问。
+
 停止服务：
 
 ```bash

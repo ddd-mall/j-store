@@ -4,6 +4,7 @@ import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
+import com.jstore.order.acl.UserService
 import com.jstore.order.domain.order.FulfillmentStatus
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderErrors
@@ -13,6 +14,7 @@ import com.jstore.order.domain.order.OrderItemStatus
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
+import com.jstore.order.domain.order.UserInfo
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
@@ -32,11 +34,14 @@ class OrderServiceStatusDimensionsTest :
             val factory = mock(OrderFactory::class.java)
             val repository = mock(OrderRepository::class.java)
             val publisher = mock(DomainEventPublisher::class.java)
+            val users = mock(UserService::class.java)
             val command = validCreateCommand()
+            val buyer = UserInfo(command.buyerUid, PhoneNumber("+8613800138000"), "buyer")
             val error = OrderErrors.CORRESPONDING_GOODS_NOT_FOUND
-            `when`(factory.create(command)).thenReturn(Failure(error))
+            `when`(users.findUserInfo(command.buyerUid)).thenReturn(buyer)
+            `when`(factory.create(command, buyer)).thenReturn(Failure(error))
 
-            OrderService(factory, repository, publisher).createOrder(command) shouldBe
+            OrderService(factory, repository, publisher, users).createOrder(command) shouldBe
                 Failure(error)
 
             verifyNoInteractions(repository, publisher)
@@ -51,7 +56,7 @@ class OrderServiceStatusDimensionsTest :
             `when`(repository.findById(id)).thenReturn(order)
             `when`(order.confirmStock()).thenReturn(Failure(OrderErrors.ILLEGAL_STATE))
 
-            OrderService(factory, repository, publisher)
+            OrderService(factory, repository, publisher, mock(UserService::class.java))
                 .confirmStock(id)
                 .shouldBeInstanceOf<Failure<*>>()
             verify(repository, never()).save(order)
@@ -77,8 +82,8 @@ class OrderServiceStatusDimensionsTest :
             `when`(repository.findById(order.id)).thenReturn(order)
             `when`(repository.save(order)).thenReturn(order)
 
-            OrderService(factory, repository, publisher).confirmStock(order.id) shouldBe
-                Success(Unit)
+            OrderService(factory, repository, publisher, mock(UserService::class.java))
+                .confirmStock(order.id) shouldBe Success(Unit)
 
             verify(repository).save(order)
             published.single().shouldBeInstanceOf<OrderStockConfirmedEvent>()
@@ -107,8 +112,8 @@ class OrderServiceStatusDimensionsTest :
             `when`(repository.findById(order.id)).thenReturn(order)
             `when`(repository.save(order)).thenReturn(order)
 
-            OrderService(factory, repository, publisher).completeOrder(order.id) shouldBe
-                Success(Unit)
+            OrderService(factory, repository, publisher, mock(UserService::class.java))
+                .completeOrder(order.id) shouldBe Success(Unit)
 
             published.single().shouldBeInstanceOf<OrderCompletedEvent>()
             order.pendingDomainEvents().size shouldBe 0
@@ -119,8 +124,6 @@ private fun validCreateCommand() =
     OrderCreateCMD(
         buyerUid = 1L,
         merchantId = 7L,
-        buyerPhone = "+8613800138000",
-        buyerName = "buyer",
         recipientInfo =
             OrderCreateCMD.RecipientInfoCMD(
                 consigneeName = "recipient",

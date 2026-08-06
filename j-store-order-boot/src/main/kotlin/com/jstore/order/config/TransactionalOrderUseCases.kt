@@ -33,7 +33,9 @@ class TransactionalOrderUseCase(
     private val write = TransactionTemplate(transactionManager)
     private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun getOrderById(orderId: OrderId) = read { delegate.getOrderById(orderId) }
+    override fun getOrderById(buyerId: Long, orderId: OrderId) = read {
+        delegate.getOrderById(buyerId, orderId)
+    }
 
     override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> = read {
         delegate.pageListByUserId(uid, currentPage, pageSize)
@@ -90,7 +92,9 @@ class TransactionalOrderUseCase(
 
     override fun completeOrder(orderId: OrderId) = write { delegate.completeOrder(orderId) }
 
-    override fun cancelOrder(cmd: OrderCancelCMD) = write { delegate.cancelOrder(cmd) }
+    override fun cancelOrder(buyerId: Long, cmd: OrderCancelCMD) = write {
+        delegate.cancelOrder(buyerId, cmd)
+    }
 
     private fun <T> read(block: () -> T): T = requireNotNull(read.execute { block() })
 
