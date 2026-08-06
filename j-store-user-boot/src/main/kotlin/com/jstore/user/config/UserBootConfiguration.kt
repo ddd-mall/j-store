@@ -19,11 +19,11 @@ package com.jstore.user.config
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.user.domain.useraccount.*
-import com.jstore.user.filter.JwtAuthenticationFilter
+import com.jstore.user.security.RedisLoginAttemptGuard
+import com.jstore.user.security.RedisPhoneVerificationGateway
 import com.jstore.user.service.UserAccountService
 import com.jstore.user.service.UserAccountUseCase
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -44,8 +44,14 @@ class UserBootConfiguration {
     }
 
     @Bean
-    fun jwtTokenProvider(@Value("\${jwt.secret}") secretKey: String): TokenProvider {
-        return JwtTokenProvider(secretKey)
+    fun jwtTokenProvider(
+        @Value("\${jwt.access-secret}") accessSecret: String,
+        @Value("\${jwt.refresh-secret}") refreshSecret: String,
+        @Value("\${jwt.issuer}") issuer: String,
+        @Value("\${jwt.audience}") audience: String,
+        @Value("\${jwt.key-id}") keyId: String,
+    ): TokenProvider {
+        return JwtTokenProvider(accessSecret, refreshSecret, issuer, audience, keyId)
     }
 
     @Bean
@@ -54,12 +60,25 @@ class UserBootConfiguration {
     }
 
     @Bean
+    fun phoneVerificationGateway(
+        stringRedisTemplate: StringRedisTemplate,
+        @Value("\${account.phone-verification.hmac-secret}") hmacSecret: String,
+    ): PhoneVerificationGateway = RedisPhoneVerificationGateway(stringRedisTemplate, hmacSecret)
+
+    @Bean
+    fun loginAttemptGuard(stringRedisTemplate: StringRedisTemplate): LoginAttemptGuard =
+        RedisLoginAttemptGuard(stringRedisTemplate)
+
+    @Bean
     fun userAccountService(
         userAccountFactory: UserAccountFactory,
         userAccountRepository: UserAccountRepository,
         passwordHasher: PasswordHasher,
         tokenProvider: TokenProvider,
         tokenStore: TokenStore,
+        phoneVerificationGateway: PhoneVerificationGateway,
+        phoneVerificationCodeSender: PhoneVerificationCodeSender,
+        loginAttemptGuard: LoginAttemptGuard,
         domainEventPublisher: DomainEventPublisher,
     ): UserAccountService {
         return UserAccountService(
@@ -68,6 +87,9 @@ class UserBootConfiguration {
             passwordHasher = passwordHasher,
             tokenProvider = tokenProvider,
             tokenStore = tokenStore,
+            phoneVerificationGateway = phoneVerificationGateway,
+            phoneVerificationCodeSender = phoneVerificationCodeSender,
+            loginAttemptGuard = loginAttemptGuard,
             domainEventPublisher = domainEventPublisher,
         )
     }
@@ -87,15 +109,4 @@ class UserBootConfiguration {
             transactionManager = transactionManager,
         )
 
-    @Bean
-    fun jwtAuthenticationFilter(
-        tokenProvider: TokenProvider,
-        tokenStore: TokenStore,
-    ): FilterRegistrationBean<JwtAuthenticationFilter> {
-        val filter = JwtAuthenticationFilter(tokenProvider, tokenStore)
-        val registration = FilterRegistrationBean(filter)
-        registration.addUrlPatterns("/api/*")
-        registration.order = 1
-        return registration
-    }
 }

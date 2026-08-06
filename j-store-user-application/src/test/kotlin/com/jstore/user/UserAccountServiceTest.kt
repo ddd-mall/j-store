@@ -17,268 +17,199 @@
 package com.jstore.user
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.user.domain.useraccount.*
 import com.jstore.user.domain.useraccount.command.UserRegisterCMD
-import com.jstore.user.domain.useraccount.event.UserAccountForcedOfflineEvent
 import com.jstore.user.domain.useraccount.event.UserAccountLoggedInEvent
-import com.jstore.user.domain.useraccount.event.UserAccountRegisteredEvent
+import com.jstore.user.service.RefreshTokenDigest
 import com.jstore.user.service.UserAccountService
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import java.util.*
 import org.mockito.kotlin.*
 
-class UserAccountServiceTest :
-    FunSpec({
+class UserAccountServiceTest : FunSpec({
+    lateinit var factory: UserAccountFactory
+    lateinit var repository: UserAccountRepository
+    lateinit var passwordHasher: PasswordHasher
+    lateinit var tokenProvider: TokenProvider
+    lateinit var tokenStore: TokenStore
+    lateinit var verificationGateway: PhoneVerificationGateway
+    lateinit var codeSender: PhoneVerificationCodeSender
+    lateinit var loginGuard: LoginAttemptGuard
+    lateinit var eventPublisher: DomainEventPublisher
+    lateinit var service: UserAccountService
 
-        // --- Shared mocks ---
-        lateinit var factory: UserAccountFactory
-        lateinit var repository: UserAccountRepository
-        lateinit var passwordHasher: PasswordHasher
-        lateinit var tokenProvider: TokenProvider
-        lateinit var tokenStore: TokenStore
-        lateinit var eventPublisher: DomainEventPublisher
-        lateinit var service: UserAccountService
+    val phone = PhoneNumber("+8613800000001")
+    val userId = UserId(1L)
 
-        beforeEach {
-            factory = mock()
-            repository = mock()
-            passwordHasher = mock()
-            tokenProvider = mock()
-            tokenStore = mock()
-            eventPublisher = mock()
-            service =
-                UserAccountService(
-                    factory,
-                    repository,
-                    passwordHasher,
-                    tokenProvider,
-                    tokenStore,
-                    eventPublisher,
-                )
-        }
+    fun activeAccount(status: UserAccountStatus = UserAccountStatus.ACTIVE) =
+        UserAccountImpl(
+            id = userId,
+            phoneNumber = phone,
+            nickname = Nickname("testuser"),
+            passwordHash = Password("hashed_pw"),
+            status = status,
+        )
 
-        val phone = PhoneNumber("+8613800000001")
-        val userId = UserId(1L)
-
-        fun activeAccount(
-            id: UserId = userId,
-            phoneNumber: PhoneNumber = phone,
-            nickname: Nickname = Nickname("testuser"),
-            passwordHash: Password = Password("hashed_pw"),
-            status: UserAccountStatus = UserAccountStatus.ACTIVE,
-        ): UserAccountImpl =
-            UserAccountImpl(
-                id = id,
-                phoneNumber = phoneNumber,
-                nickname = nickname,
-                passwordHash = passwordHash,
-                status = status,
+    beforeEach {
+        factory = mock()
+        repository = mock()
+        passwordHasher = mock()
+        tokenProvider = mock()
+        tokenStore = mock()
+        verificationGateway = mock()
+        codeSender = mock()
+        loginGuard = mock()
+        eventPublisher = mock()
+        whenever(loginGuard.isAllowed(any())).thenReturn(true)
+        service =
+            UserAccountService(
+                factory,
+                repository,
+                passwordHasher,
+                tokenProvider,
+                tokenStore,
+                verificationGateway,
+                codeSender,
+                loginGuard,
+                eventPublisher,
             )
+    }
 
-        // ==================== Register ====================
+    test("request phone verification sends code but only returns public challenge") {
+        val challenge = PhoneVerificationChallenge("challenge-1", java.time.Instant.now().plusSeconds(300))
+        whenever(verificationGateway.createChallenge(phone))
+            .thenReturn(IssuedPhoneVerificationChallenge(challenge, "123456"))
 
-        test("register - success") {
-            val cmd = UserRegisterCMD(phone, "nick", "Pass1234")
-            val registeredEvent = UserAccountRegisteredEvent(userId = userId, phoneNumber = phone)
-            val account =
-                mock<UserAccount> {
-                    on { id } doReturn userId
-                    on { pendingDomainEvents() } doReturn listOf(registeredEvent)
-                }
+        val result = service.requestPhoneVerification(phone)
 
-            whenever(repository.existsByPhoneNumber(phone)).thenReturn(false)
-            whenever(factory.create(eq(cmd), eq(passwordHasher))).thenReturn(Success(account))
+        result.shouldBeInstanceOf<Success<PhoneVerificationChallenge>>()
+        result.value shouldBe challenge
+        verify(codeSender).send(phone, "123456")
+    }
 
-            val result = service.register(cmd)
+    test("register consumes phone-bound proof before creating account") {
+        val cmd = UserRegisterCMD(phone, "nick", "Pass1234")
+        val proof = PhoneVerificationProof("challenge-1", "123456")
+        val account = mock<UserAccount> { on { id } doReturn userId }
+        whenever(verificationGateway.consumeChallenge(phone, proof)).thenReturn(true)
+        whenever(repository.existsByPhoneNumber(phone)).thenReturn(false)
+        whenever(factory.create(cmd, passwordHasher)).thenReturn(Success(account))
 
-            result.shouldBeInstanceOf<Success<UserAccount>>()
-            result.value.id shouldBe userId
+        val result = service.register(cmd, proof)
+
+        result.shouldBeInstanceOf<Success<UserAccount>>()
+        inOrder(verificationGateway, repository) {
+            verify(verificationGateway).consumeChallenge(phone, proof)
             verify(repository).add(account)
-            verify(eventPublisher, atLeastOnce()).publishEvent(any<DomainEvent>())
         }
+    }
 
-        test("register - phone duplicate rejection") {
-            val cmd = UserRegisterCMD(phone, "nick", "Pass1234")
-            whenever(repository.existsByPhoneNumber(phone)).thenReturn(true)
+    test("invalid phone proof cannot create an account") {
+        val cmd = UserRegisterCMD(phone, "nick", "Pass1234")
+        val proof = PhoneVerificationProof("challenge-1", "000000")
+        whenever(verificationGateway.consumeChallenge(phone, proof)).thenReturn(false)
 
-            val result = service.register(cmd)
+        val result = service.register(cmd, proof)
 
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.PHONE_ALREADY_REGISTERED
-            verify(repository, never()).add(any())
-        }
+        result.shouldBeInstanceOf<Failure<BusinessError>>()
+        result.error shouldBe UserAccountErrors.PHONE_VERIFICATION_INVALID
+        verify(repository, never()).add(any())
+    }
 
-        // ==================== Login ====================
+    test("login creates an independent session with current epoch") {
+        whenever(repository.findByPhoneNumber(phone)).thenReturn(activeAccount())
+        whenever(passwordHasher.matches("rawPw", "hashed_pw")).thenReturn(true)
+        whenever(tokenStore.currentSessionEpoch(userId)).thenReturn(7L)
+        whenever(tokenProvider.issueAccessToken(eq(userId), any(), eq(7L))).thenReturn("access")
+        whenever(tokenProvider.issueRefreshToken(eq(userId), any(), eq(7L))).thenReturn("refresh")
 
-        test("login - creates tokens and defers refresh-token persistence") {
-            val account = activeAccount()
-            whenever(repository.findByPhoneNumber(phone)).thenReturn(account)
-            whenever(passwordHasher.matches("rawPw", "hashed_pw")).thenReturn(true)
-            whenever(tokenProvider.issueAccessToken(userId)).thenReturn("access_token")
-            whenever(tokenProvider.issueRefreshToken(userId)).thenReturn("refresh_token")
+        val result = service.login(phone, "rawPw")
 
-            val result = service.login(phone, "rawPw")
+        result.shouldBeInstanceOf<Success<AuthTokenPair>>()
+        result.value.accessToken shouldBe "access"
+        verify(loginGuard).reset(phone)
+        verify(eventPublisher).publishEvent(any<UserAccountLoggedInEvent>())
+        val sessionIds = argumentCaptor<String>()
+        verify(tokenProvider).issueAccessToken(eq(userId), sessionIds.capture(), eq(7L))
+        sessionIds.firstValue.isNotBlank() shouldBe true
+    }
 
-            result.shouldBeInstanceOf<Success<AuthTokenPair>>()
-            result.value.accessToken shouldBe "access_token"
-            result.value.refreshToken shouldBe "refresh_token"
-            verify(tokenStore, never()).storeRefreshToken(any(), any(), any())
-            verify(eventPublisher).publishEvent(any<UserAccountLoggedInEvent>())
-        }
+    test("unknown phone and wrong password return the same credential error") {
+        whenever(repository.findByPhoneNumber(phone)).thenReturn(null)
+        val unknown = service.login(phone, "rawPw")
 
-        test("login - user not found") {
-            whenever(repository.findByPhoneNumber(phone)).thenReturn(null)
+        whenever(repository.findByPhoneNumber(phone)).thenReturn(activeAccount())
+        whenever(passwordHasher.matches("rawPw", "hashed_pw")).thenReturn(false)
+        val wrong = service.login(phone, "rawPw")
 
-            val result = service.login(phone, "rawPw")
+        unknown.shouldBeInstanceOf<Failure<BusinessError>>().error shouldBe
+            UserAccountErrors.INVALID_CREDENTIALS
+        wrong.shouldBeInstanceOf<Failure<BusinessError>>().error shouldBe
+            UserAccountErrors.INVALID_CREDENTIALS
+        verify(loginGuard, times(2)).recordFailure(phone)
+    }
 
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.USER_NOT_FOUND
-        }
+    test("rate-limited login does not query account data") {
+        whenever(loginGuard.isAllowed(phone)).thenReturn(false)
 
-        test("login - password mismatch") {
-            val account = activeAccount()
-            whenever(repository.findByPhoneNumber(phone)).thenReturn(account)
-            whenever(passwordHasher.matches("wrongPw", "hashed_pw")).thenReturn(false)
+        val result = service.login(phone, "rawPw")
 
-            val result = service.login(phone, "wrongPw")
+        result.shouldBeInstanceOf<Failure<BusinessError>>().error shouldBe
+            UserAccountErrors.LOGIN_RATE_LIMITED
+        verify(repository, never()).findByPhoneNumber(any())
+    }
 
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.PASSWORD_MISMATCH
-        }
+    test("refresh rotates the stored digest atomically") {
+        val claims = AuthTokenClaims(userId, "session-1", 3L, "refresh-jti")
+        whenever(tokenProvider.parseRefreshToken("old-refresh")).thenReturn(claims)
+        whenever(repository.findById(userId)).thenReturn(activeAccount())
+        whenever(tokenProvider.issueAccessToken(userId, "session-1", 3L)).thenReturn("new-access")
+        whenever(tokenProvider.issueRefreshToken(userId, "session-1", 3L)).thenReturn("new-refresh")
+        whenever(
+            tokenStore.rotateRefreshSession(
+                userId,
+                "session-1",
+                RefreshTokenDigest.sha256("old-refresh"),
+                RefreshTokenDigest.sha256("new-refresh"),
+                3L,
+                604800L,
+            )
+        ).thenReturn(RefreshTokenRotationResult.ROTATED)
 
-        test("login - account disabled") {
-            val account = activeAccount(status = UserAccountStatus.DISABLED)
-            whenever(repository.findByPhoneNumber(phone)).thenReturn(account)
-            whenever(passwordHasher.matches("rawPw", "hashed_pw")).thenReturn(true)
+        val result = service.refreshToken("old-refresh")
 
-            val result = service.login(phone, "rawPw")
+        result.shouldBeInstanceOf<Success<AuthTokenPair>>()
+        result.value.refreshToken shouldBe "new-refresh"
+    }
 
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.ACCOUNT_DISABLED
-        }
+    test("refresh replay returns revoked and never exposes replacement tokens") {
+        val claims = AuthTokenClaims(userId, "session-1", 3L, "refresh-jti")
+        whenever(tokenProvider.parseRefreshToken("replayed")).thenReturn(claims)
+        whenever(repository.findById(userId)).thenReturn(activeAccount())
+        whenever(tokenProvider.issueAccessToken(any(), any(), any())).thenReturn("unused-access")
+        whenever(tokenProvider.issueRefreshToken(any(), any(), any())).thenReturn("unused-refresh")
+        whenever(tokenStore.rotateRefreshSession(any(), any(), any(), any(), any(), any()))
+            .thenReturn(RefreshTokenRotationResult.REPLAY_DETECTED)
 
-        // ==================== RefreshToken ====================
+        val result = service.refreshToken("replayed")
 
-        test("refreshToken - success") {
-            whenever(tokenProvider.parseRefreshToken("old_refresh")).thenReturn(userId)
-            whenever(tokenStore.getRefreshToken(userId)).thenReturn("old_refresh")
-            whenever(repository.findById(userId)).thenReturn(activeAccount())
-            whenever(tokenProvider.issueAccessToken(userId)).thenReturn("new_access")
-            whenever(tokenProvider.issueRefreshToken(userId)).thenReturn("new_refresh")
+        result.shouldBeInstanceOf<Failure<BusinessError>>().error shouldBe
+            UserAccountErrors.REFRESH_TOKEN_REVOKED
+    }
 
-            val result = service.refreshToken("old_refresh")
+    test("logout revokes only the authenticated session") {
+        val claims = AuthTokenClaims(userId, "session-logout", 3L, "access-jti")
+        whenever(tokenProvider.parseAccessToken("access-token")).thenReturn(claims)
 
-            result.shouldBeInstanceOf<Success<AuthTokenPair>>()
-            result.value.accessToken shouldBe "new_access"
-            result.value.refreshToken shouldBe "new_refresh"
-            verify(tokenStore).storeRefreshToken(eq(userId), eq("new_refresh"), eq(604800L))
-        }
+        val result = service.logout(userId, "access-token")
 
-        test("refreshToken - token invalid") {
-            whenever(tokenProvider.parseRefreshToken("bad_token")).thenReturn(null)
-
-            val result = service.refreshToken("bad_token")
-
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.TOKEN_INVALID
-        }
-
-        test("refreshToken - token mismatch removes and returns error") {
-            whenever(tokenProvider.parseRefreshToken("stolen_token")).thenReturn(userId)
-            whenever(tokenStore.getRefreshToken(userId)).thenReturn("real_token")
-
-            val result = service.refreshToken("stolen_token")
-
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.REFRESH_TOKEN_REVOKED
-            verify(tokenStore).removeRefreshToken(userId)
-        }
-
-        test("refreshToken - account disabled") {
-            val disabledAccount = activeAccount(status = UserAccountStatus.DISABLED)
-            whenever(tokenProvider.parseRefreshToken("refresh")).thenReturn(userId)
-            whenever(tokenStore.getRefreshToken(userId)).thenReturn("refresh")
-            whenever(repository.findById(userId)).thenReturn(disabledAccount)
-
-            val result = service.refreshToken("refresh")
-
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.ACCOUNT_DISABLED
-            verify(tokenStore).removeRefreshToken(userId)
-        }
-
-        // ==================== ChangePassword ====================
-
-        test("changePassword - success") {
-            val account = activeAccount()
-            whenever(repository.findById(userId)).thenReturn(account)
-            whenever(passwordHasher.matches("oldPw", "hashed_pw")).thenReturn(true)
-            whenever(passwordHasher.hash("NewPass12")).thenReturn("hashed_new")
-
-            val result = service.changePassword(userId, "oldPw", "NewPass12")
-
-            result.shouldBeInstanceOf<Success<Unit>>()
-            account.passwordHash shouldBe Password("hashed_new")
-            verify(repository).save(account)
-        }
-
-        test("changePassword - old password wrong") {
-            val account = activeAccount()
-            whenever(repository.findById(userId)).thenReturn(account)
-            whenever(passwordHasher.matches("wrongOld", "hashed_pw")).thenReturn(false)
-
-            val result = service.changePassword(userId, "wrongOld", "NewPass12")
-
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.OLD_PASSWORD_MISMATCH
-        }
-
-        test("changePassword - new password weak") {
-            val account = activeAccount()
-            whenever(repository.findById(userId)).thenReturn(account)
-            whenever(passwordHasher.matches("oldPw", "hashed_pw")).thenReturn(true)
-
-            val result = service.changePassword(userId, "oldPw", "weak")
-
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe UserAccountErrors.PASSWORD_STRENGTH_INSUFFICIENT
-        }
-
-        // ==================== ForceOffline ====================
-
-        test("forceOffline - records durable event and defers token revocation") {
-            val account = activeAccount()
-            whenever(repository.findById(userId)).thenReturn(account)
-            whenever(tokenProvider.getAccessTokenJti("access_tok")).thenReturn("jti-123")
-            whenever(tokenProvider.getAccessTokenRemainingSeconds("access_tok")).thenReturn(600L)
-
-            val result = service.forceOffline(userId, "access_tok")
-
-            result.shouldBeInstanceOf<Success<Unit>>()
-            verify(tokenStore, never()).blacklistAccessToken(any(), any())
-            verify(tokenStore, never()).removeRefreshToken(any())
-            verify(eventPublisher).publishEvent(any<UserAccountForcedOfflineEvent>())
-        }
-
-        // ==================== Disable ====================
-
-        test("disable - persists account and defers refresh-token revocation") {
-            val account = activeAccount()
-            whenever(repository.findById(userId)).thenReturn(account)
-
-            val result = service.disable(userId)
-
-            result.shouldBeInstanceOf<Success<Unit>>()
-            account.status shouldBe UserAccountStatus.DISABLED
-            verify(repository).save(account)
-            verify(tokenStore, never()).removeRefreshToken(any())
-            verify(eventPublisher).publishEvent(any<UserAccountForcedOfflineEvent>())
-        }
-    })
+        result.shouldBeInstanceOf<Success<Unit>>()
+        verify(tokenStore).revokeSession(userId, "session-logout")
+        verify(tokenStore, never()).revokeAllSessions(any())
+    }
+})

@@ -7,6 +7,8 @@ import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
 import com.jstore.user.domain.useraccount.command.UserRegisterCMD
+import com.jstore.user.service.RefreshTokenDigest
+import com.jstore.user.domain.useraccount.PhoneVerificationProof
 import com.jstore.user.service.UserAccountUseCase
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -25,17 +27,23 @@ class TransactionalUserAccountUseCase(
     private val write = TransactionTemplate(transactionManager)
     private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun register(cmd: UserRegisterCMD) = tx { delegate.register(cmd) }
+    override fun requestPhoneVerification(phoneNumber: PhoneNumber) =
+        delegate.requestPhoneVerification(phoneNumber)
+
+    override fun register(cmd: UserRegisterCMD, verificationProof: PhoneVerificationProof) =
+        tx { delegate.register(cmd, verificationProof) }
 
     override fun login(phoneNumber: PhoneNumber, rawPassword: String) =
         tx { delegate.login(phoneNumber, rawPassword) }
             .also { result ->
                 if (result is Success) {
-                    tokenProvider.parseRefreshToken(result.value.refreshToken)?.let { userId ->
-                        tokenStore.storeRefreshToken(
-                            userId,
-                            result.value.refreshToken,
-                            REFRESH_TOKEN_TTL_SECONDS,
+                    tokenProvider.parseRefreshToken(result.value.refreshToken)?.let { claims ->
+                        tokenStore.storeRefreshSession(
+                            userId = claims.userId,
+                            sessionId = claims.sessionId,
+                            refreshTokenDigest = RefreshTokenDigest.sha256(result.value.refreshToken),
+                            sessionEpoch = claims.sessionEpoch,
+                            ttlSeconds = REFRESH_TOKEN_TTL_SECONDS,
                         )
                     }
                 }
@@ -44,39 +52,33 @@ class TransactionalUserAccountUseCase(
     // 刷新令牌是 Redis 主导的外部状态交换，不伪装成数据库原子事务。
     override fun refreshToken(refreshToken: String) = delegate.refreshToken(refreshToken)
 
+    override fun logout(userId: UserId, accessToken: String) = delegate.logout(userId, accessToken)
+
     override fun findById(userId: UserId) = query { delegate.findById(userId) }
 
     override fun changeNickname(userId: UserId, newNickname: Nickname) = tx {
         delegate.changeNickname(userId, newNickname)
     }
 
-    override fun changePassword(userId: UserId, oldPassword: String, newPassword: String) = tx {
-        delegate.changePassword(userId, oldPassword, newPassword)
-    }
+    override fun changePassword(userId: UserId, oldPassword: String, newPassword: String) =
+        tx { delegate.changePassword(userId, oldPassword, newPassword) }
+            .also { result -> if (result is Success) tokenStore.revokeAllSessions(userId) }
 
     override fun disable(userId: UserId) =
         tx { delegate.disable(userId) }
             .also { result ->
-                if (result is Success) tokenStore.removeRefreshToken(userId)
+                if (result is Success) tokenStore.revokeAllSessions(userId)
             }
 
     override fun enable(userId: UserId) = tx { delegate.enable(userId) }
 
-    override fun forceOffline(userId: UserId, accessToken: String?) =
-        tx { delegate.forceOffline(userId, accessToken) }
+    override fun forceOffline(userId: UserId) =
+        tx { delegate.forceOffline(userId) }
             .also { result ->
                 if (result is Success) {
-                    blacklist(accessToken)
-                    tokenStore.removeRefreshToken(userId)
+                    tokenStore.revokeAllSessions(userId)
                 }
             }
-
-    private fun blacklist(accessToken: String?) {
-        if (accessToken == null) return
-        val jti = tokenProvider.getAccessTokenJti(accessToken) ?: return
-        val remainingSeconds = tokenProvider.getAccessTokenRemainingSeconds(accessToken)
-        if (remainingSeconds > 0) tokenStore.blacklistAccessToken(jti, remainingSeconds)
-    }
 
     private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 
