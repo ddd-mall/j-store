@@ -1,0 +1,1 @@
+Spring Data JPA persistence for Order and AfterSale aggregates plus an ACL adapter to the external Goods service, with embedded-Postgres integration tests validating concurrency, idempotency, and rollback semantics.

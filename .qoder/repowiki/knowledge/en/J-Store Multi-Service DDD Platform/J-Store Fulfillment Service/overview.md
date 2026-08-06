@@ -1,1 +1,0 @@
-Spring Boot fulfillment service implementing a DDD-style four-layer architecture that manages order fulfillment state transitions and persists them via JPA, exposed through REST endpoints.

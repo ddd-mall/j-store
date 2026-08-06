@@ -1,1 +1,0 @@
-Kotlin DDD domain layer defining the Order and AfterSale aggregate roots, their value objects, repositories, factories, and ACL interfaces for cross-bounded-context collaboration.

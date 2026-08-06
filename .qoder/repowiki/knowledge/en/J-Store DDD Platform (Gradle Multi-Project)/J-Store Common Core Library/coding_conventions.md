@@ -1,0 +1,6 @@
+- Public APIs are expressed as Kotlin interfaces or sealed classes with minimal concrete implementations left for consumers to provide (e.g., `DomainEventPublisher`, `IntegrationMessagePublisher`, `GeoAddressService`, `Logger`).
+- Domain models enforce invariants in their `init` blocks using `require { ... }` with descriptive error messages rather than relying on external validation.
+- Cross-process contracts define stable metadata fields (`messageId`, `messageName`, `messageVersion`, `partitionKey`, `correlationId`, `causationId`, `tenantId`) and derive deterministic IDs via `UUID.nameUUIDFromBytes` over a canonical string representation.
+- Error handling uses the `Result<T, E>` sealed class with `Success`/`Failure` variants and extension functions (`map`, `flatMap`, `orElse`, `fold`, `onSuccess`, `onFailure`) instead of throwing exceptions for expected failures.
+- Concurrent abstractions follow a callback-based pattern (`ListenableFuture` with `addCallback`) mirroring Guava's `ListenableFuture` rather than using coroutines or CompletableFuture.
+- Utility extensions are declared as top-level `fun` receivers on existing types to keep them discoverable without requiring object instantiation.
