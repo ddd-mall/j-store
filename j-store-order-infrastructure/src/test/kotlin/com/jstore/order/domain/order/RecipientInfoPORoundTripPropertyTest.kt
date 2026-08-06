@@ -38,10 +38,10 @@ import java.util.Locale
 class RecipientInfoPORoundTripPropertyTest :
     FunSpec({
 
-        // Generator for valid Chinese phone numbers (11 digits starting with 13x)
+        // Generator for valid Chinese phone numbers in E.164 (mobile numbers starting with 13x)
         val validPhoneArb: Arb<PhoneNumber> =
             Arb.int(0..99999999).map { num ->
-                PhoneNumber("13${num.toString().padStart(9, '0')}")
+                PhoneNumber("+8613${num.toString().padStart(9, '0')}")
             }
 
         // Generator for non-blank strings
@@ -94,6 +94,20 @@ class RecipientInfoPORoundTripPropertyTest :
                 nonBlankStringArb,
             )
 
+        // Generator for optional postal codes
+        val optionalPostalCodeArb: Arb<String?> =
+            Arb.choice(
+                Arb.constant(null as String?),
+                Arb.int(100000..999999).map { it.toString() },
+            )
+
+        // Generator for customs fields (按国附加清关字段)
+        val customsFieldsArb: Arb<Map<String, String>> =
+            Arb.choice(
+                Arb.constant(emptyMap()),
+                nonBlankStringArb.map { mapOf("CPF" to it) },
+            )
+
         // Generator for valid ShippingInfo
         val recipientInfoArb: Arb<RecipientInfo> =
             Arb.bind(
@@ -101,12 +115,16 @@ class RecipientInfoPORoundTripPropertyTest :
                 validContractInfoArb,
                 i18nGeoAddressArb,
                 optionalDetailAddressArb,
-            ) { consigneeName, contractInfo, address, detailAddress ->
+                optionalPostalCodeArb,
+                customsFieldsArb,
+            ) { consigneeName, contractInfo, address, detailAddress, postalCode, customsFields ->
                 RecipientInfo(
                     name = consigneeName,
                     contractInfo = contractInfo,
                     shippingAddress = address,
                     shippingDetailAddress = detailAddress,
+                    postalCode = postalCode,
+                    customsFields = customsFields,
                 )
             }
 
@@ -157,6 +175,8 @@ class RecipientInfoPORoundTripPropertyTest :
                 restoredShippingInfo.shippingAddress shouldBe originalShippingInfo.shippingAddress
                 restoredShippingInfo.shippingDetailAddress shouldBe
                     originalShippingInfo.shippingDetailAddress
+                restoredShippingInfo.postalCode shouldBe originalShippingInfo.postalCode
+                restoredShippingInfo.customsFields shouldBe originalShippingInfo.customsFields
             }
         }
     })

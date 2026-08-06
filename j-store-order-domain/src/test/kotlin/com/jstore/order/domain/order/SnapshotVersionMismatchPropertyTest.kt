@@ -117,7 +117,7 @@ class SnapshotVersionMismatchPropertyTest :
                     OrderCreateCMD(
                         buyerUid = 1L,
                         merchantId = 7,
-                        buyerPhone = "13800138000",
+                        buyerPhone = "+8613800138000",
                         buyerName = "买家",
                         recipientInfo =
                             OrderCreateCMD.RecipientInfoCMD(
@@ -125,7 +125,7 @@ class SnapshotVersionMismatchPropertyTest :
                                 countryCode = "CN",
                                 consigneeContractInfo =
                                     OrderCreateCMD.ContractInfoCMD(
-                                        phoneNumber = PhoneNumber("13900139000"),
+                                        phoneNumber = PhoneNumber("+8613900139000"),
                                         emailAddress = null,
                                     ),
                                 shippingDistrictCode = "110000",

@@ -89,10 +89,9 @@ class OrderFactoryImpl(
 
         // 4. 从 RecipientInfoCMD 构建 ShippingInfo
         val recipientInfoCmd = cmd.recipientInfo
-        val countryCode = recipientInfoCmd.countryCode ?: "CN"
         val address =
             geoAddressService
-                .getByCode(countryCode, recipientInfoCmd.shippingDistrictCode)
+                .getByCode(recipientInfoCmd.countryCode, recipientInfoCmd.shippingDistrictCode)
                 .fold(
                     onSuccess = { it },
                     onFailure = {
@@ -112,6 +111,8 @@ class OrderFactoryImpl(
                 contractInfo = contractInfo,
                 shippingAddress = address,
                 shippingDetailAddress = recipientInfoCmd.shippingDetailAddress,
+                postalCode = recipientInfoCmd.postalCode,
+                customsFields = recipientInfoCmd.customsFields,
             )
 
         // 5. 组装聚合根
