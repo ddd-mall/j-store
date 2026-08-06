@@ -17,7 +17,17 @@
 - [OrderUseCases.kt](file://j-store-order-application/src/main/kotlin/com/jstore/order/service/OrderUseCases.kt)
 - [OrderRepositoryImpl.kt](file://j-store-order-infrastructure/src/main/kotlin/com/jstore/order/domain/order/OrderRepositoryImpl.kt)
 - [UserId.kt](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserId.kt)
+- [OrderFactory.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderFactory.kt)
+- [UserAccountFactory.kt](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccountFactory.kt)
+- [CommodityService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/CommodityService.kt)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive Single Responsibility Principle (SRP) guidelines section with mandatory coding standards
+- Enhanced implementation code quality requirements for modules, classes, and functions
+- Updated coding conventions to emphasize separation of responsibilities
+- Added practical examples demonstrating SRP application across different layers
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -32,7 +42,7 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document explains how DDD is implemented in J-Store with concrete examples from the codebase. It covers bounded contexts, aggregates, entities, value objects, repositories, and the four-layer module structure (domain, application, infrastructure, boot). It also documents coding conventions for commands, domain events, and repositories; provides practical patterns and anti-patterns; and addresses aggregate boundaries, consistency models, and cross-context communication.
+This document explains how DDD is implemented in J-Store with concrete examples from the codebase. It covers bounded contexts, aggregates, entities, value objects, repositories, and the four-layer module structure (domain, application, infrastructure, boot). It also documents coding conventions for commands, domain events, and repositories; provides practical patterns and anti-patterns; and addresses aggregate boundaries, consistency models, and cross-context communication. **Updated** with mandatory Single Responsibility Principle (SRP) guidelines that enforce strict separation of concerns across all implementation code.
 
 ## Project Structure
 J-Store organizes each bounded context into four Gradle modules:
@@ -140,6 +150,41 @@ Practical example:
 - [ddd-guidelines.md:31-47](file://docs/steering/ddd-guidelines.md#L31-L47)
 - [OrderUseCases.kt:25-70](file://j-store-order-application/src/main/kotlin/com/jstore/order/service/OrderUseCases.kt#L25-L70)
 
+### Single Responsibility Principle (SRP) Guidelines
+**Updated** The Single Responsibility Principle is now a mandatory requirement for all implementation code in J-Store:
+
+- **Module Level**: Each module should have one well-defined responsibility and one primary reason to change
+- **Class Level**: Each class should encapsulate a single cohesive set of functionality
+- **Function Level**: Each function should perform one specific task
+- **Separation of Concerns**: Unrelated responsibilities must be separated into distinct units
+
+Examples of SRP application:
+- `OrderService` handles order orchestration only, delegating business logic to domain objects
+- `OrderRepositoryImpl` focuses solely on persistence concerns with conversion logic
+- `OrderFactory` manages aggregate creation without business orchestration
+- `CommodityService` coordinates commodity operations while keeping business rules in domain
+
+```mermaid
+flowchart TD
+ClientRequest["Client Request"] --> ApplicationLayer["Application Layer<br/>Orchestration Only"]
+ApplicationLayer --> DomainLayer["Domain Layer<br/>Business Rules"]
+ApplicationLayer --> InfrastructureLayer["Infrastructure Layer<br/>Persistence & External Systems"]
+subgraph "SRP Enforcement"
+ApplicationLayer -.->|"No business logic"| DomainLayer
+DomainLayer -.->|"No infrastructure"| InfrastructureLayer
+InfrastructureLayer -.->|"No business rules"| ApplicationLayer
+end
+```
+
+**Diagram sources**
+- [OrderService.kt:24-29](file://j-store-order-application/src/main/kotlin/com/jstore/order/service/OrderService.kt#L24-L29)
+- [OrderRepositoryImpl.kt:17-31](file://j-store-order-infrastructure/src/main/kotlin/com/jstore/order/domain/order/OrderRepositoryImpl.kt#L17-L31)
+- [OrderFactory.kt:16-25](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderFactory.kt#L16-L25)
+
+**Section sources**
+- [ddd-guidelines.md:77-80](file://docs/steering/ddd-guidelines.md#L77-L80)
+- [OrderService.kt:24-29](file://j-store-order-application/src/main/kotlin/com/jstore/order/service/OrderService.kt#L24-L29)
+
 ### Entities, Aggregates, and Value Objects
 - Entities implement Entity<I> with a strongly-typed Identifier
 - Aggregates extend EventRecordingAggregateRoot<I> to record events privately and expose snapshots
@@ -194,10 +239,10 @@ Price ..> Identifier : "uses"
 **Diagram sources**
 - [AggregateRoot.kt:1-40](file://j-store-common-core/src/main/kotlin/com/jstore/common/framework/AggregateRoot.kt#L1-L40)
 - [Order.kt:13-89](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/Order.kt#L13-L89)
-- [OrderImpl.kt:19-36](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderImpl.kt#L19-L36)
-- [UserAccount.kt:15-35](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccount.kt#L15-L35)
-- [UserAccountImpl.kt:13-21](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccountImpl.kt#L13-L21)
-- [Price.kt:15-19](file://j-store-common-core/src/main/kotlin/com/jstore/common/properties/Price.kt#L15-L19)
+- [OrderImpl.kt:19-36](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderImpl.kt#L19-36)
+- [UserAccount.kt:15-35](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccount.kt#L15-35)
+- [UserAccountImpl.kt:13-21](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccountImpl.kt#L13-21)
+- [Price.kt:15-19](file://j-store-common-core/src/main/kotlin/com/jstore/common/properties/Price.kt#L15-19)
 
 **Section sources**
 - [OrderImpl.kt:88-149](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/OrderImpl.kt#L88-L149)
@@ -306,6 +351,7 @@ Guidelines emphasize:
 - Direct object references between aggregates
 - Persistence details in repository interfaces
 - Mutable value objects
+- **New**: Violating SRP by combining unrelated responsibilities in single units
 
 **Section sources**
 - [ddd-guidelines.md:150-159](file://docs/steering/ddd-guidelines.md#L150-L159)
@@ -337,8 +383,7 @@ Dom --> Common["common-core"]
 - Use pagination wrappers (Page/SortedPage) for efficient queries
 - Avoid heavy transformations in hot paths; keep converters localized in infrastructure
 - Leverage immutable value objects to reduce defensive copying overhead
-
-[No sources needed since this section provides general guidance]
+- **Updated**: Apply SRP to improve testability and maintain performance by isolating expensive operations
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -346,6 +391,7 @@ Common issues and resolutions:
 - Illegal state transitions: validate preconditions in aggregate methods
 - Missing source documents in accounting: check idempotency checks and repository lookups
 - Transaction failures: ensure MANDATORY propagation for mutating repository methods
+- **New**: SRP violations causing maintenance difficulties: refactor large classes into focused, single-purpose components
 
 **Section sources**
 - [AggregateRoot.kt:24-29](file://j-store-common-core/src/main/kotlin/com/jstore/common/framework/AggregateRoot.kt#L24-L29)
@@ -353,9 +399,7 @@ Common issues and resolutions:
 - [OrderService.kt:33-35](file://j-store-order-application/src/main/kotlin/com/jstore/order/service/OrderService.kt#L33-L35)
 
 ## Conclusion
-J-Store’s DDD implementation emphasizes clear boundaries, behavior-rich aggregates, immutable value objects, and robust event-driven communication. The four-layer module structure and strict dependency rules ensure maintainability and scalability. Following the coding conventions and avoiding anti-patterns leads to consistent, testable, and evolvable domain models.
-
-[No sources needed since this section summarizes without analyzing specific files]
+J-Store's DDD implementation emphasizes clear boundaries, behavior-rich aggregates, immutable value objects, and robust event-driven communication. The four-layer module structure and strict dependency rules ensure maintainability and scalability. **Updated** with mandatory Single Responsibility Principle guidelines that enforce separation of concerns across all implementation code, leading to consistent, testable, and evolvable domain models. Following the coding conventions and avoiding anti-patterns ensures high-quality, maintainable software architecture.
 
 ## Appendices
 
@@ -369,6 +413,7 @@ J-Store’s DDD implementation emphasizes clear boundaries, behavior-rich aggreg
 - Factories: complex creation logic, framework-free
 - Application Services: orchestration only, no business rules
 - ACL: external context isolation
+- **Updated**: SRP: each unit has one responsibility, separate unrelated concerns
 
 **Section sources**
 - [ddd-guidelines.md:75-177](file://docs/steering/ddd-guidelines.md#L75-L177)
