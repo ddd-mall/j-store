@@ -103,9 +103,13 @@ class OfferAuthorizationServiceTest {
 
 private class FakeAuthorizations : SaleAuthorizationRepository {
     val values = linkedMapOf<SaleAuthorizationId, SaleAuthorization>()
-    override fun save(aggregate: SaleAuthorization): SaleAuthorization =
-        aggregate.also { values[it.id] = it }
+
+    override fun save(aggregate: SaleAuthorization): SaleAuthorization = aggregate.also {
+        values[it.id] = it
+    }
+
     override fun findById(id: SaleAuthorizationId): SaleAuthorization? = values[id]
+
     override fun findByOrderId(orderId: Long): List<SaleAuthorization> =
         values.values.filter { it.orderId == orderId }
 }

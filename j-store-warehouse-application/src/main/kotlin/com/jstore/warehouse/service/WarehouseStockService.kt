@@ -25,7 +25,9 @@ class WarehouseStockService(
         reason: String,
     ): Result<Unit, BusinessError> {
         val stock = stocks.findById(stockId) ?: return Failure(WarehouseErrors.NOT_FOUND)
-        stock.adjustTo(quantity, reason).onFailure { return Failure(it) }
+        stock.adjustTo(quantity, reason).onFailure {
+            return Failure(it)
+        }
         stocks.save(stock)
         stock.publishPendingEvents(publisher)
         return Success(Unit)

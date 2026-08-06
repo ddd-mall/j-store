@@ -18,16 +18,16 @@ package com.jstore.user
 
 import com.jstore.user.domain.useraccount.JwtTokenProvider
 import com.jstore.user.domain.useraccount.UserId
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.security.Keys
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
 import io.kotest.property.checkAll
-import io.jsonwebtoken.Jwts
-import io.jsonwebtoken.security.Keys
 import java.time.Instant
 import java.util.Date
 
@@ -41,7 +41,6 @@ import java.util.Date
  */
 class JwtTokenProviderPropertyTest :
     FunSpec({
-
         val accessSecret = "access-secret-key-for-jwt-must-be-at-least-32-bytes!!"
         val refreshSecret = "refresh-secret-key-for-jwt-must-be-at-least-32-bytes!"
         val tokenProvider =
@@ -115,11 +114,15 @@ class JwtTokenProviderPropertyTest :
             val now = Instant.now()
             val inconsistent =
                 Jwts.builder()
-                    .header().keyId("test-key-1").and()
+                    .header()
+                    .keyId("test-key-1")
+                    .and()
                     .id("jti")
                     .subject("43")
                     .issuer("j-store-test")
-                    .audience().add("j-store-api-test").and()
+                    .audience()
+                    .add("j-store-api-test")
+                    .and()
                     .claim("userId", 42L)
                     .claim("sid", "session")
                     .claim("sev", 1L)

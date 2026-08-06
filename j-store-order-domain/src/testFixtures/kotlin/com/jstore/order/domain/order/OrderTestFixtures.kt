@@ -21,10 +21,10 @@ import com.jstore.common.geo.CountryCode
 import com.jstore.common.geo.DivisionLevel
 import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.common.properties.Price
-import java.time.LocalDateTime
-import java.util.Locale
 import com.jstore.order.acl.OfferInfo
 import com.jstore.order.acl.OfferService
+import java.time.LocalDateTime
+import java.util.Locale
 
 fun testOrder(
     trade: TradeStatus = TradeStatus.CREATED,
@@ -88,20 +88,19 @@ fun testOrder(
 fun testOfferService(
     merchantId: Long = 7,
     price: Price = Price.ofFen(100),
-): OfferService =
-    OfferService { ids ->
-        ids.map {
-            OfferInfo(
-                offerId = it,
-                storeId = 1,
-                merchantId = merchantId,
-                skuId = it,
-                channelId = "ONLINE",
-                market = "CN",
-                price = price,
-                version = 1,
-                fulfillmentNodeId = "DEFAULT",
-                allowBackorder = false,
-            )
-        }
+): OfferService = OfferService { ids ->
+    ids.map {
+        OfferInfo(
+            offerId = it,
+            storeId = 1,
+            merchantId = merchantId,
+            skuId = it,
+            channelId = "ONLINE",
+            market = "CN",
+            price = price,
+            version = 1,
+            fulfillmentNodeId = "DEFAULT",
+            allowBackorder = false,
+        )
     }
+}

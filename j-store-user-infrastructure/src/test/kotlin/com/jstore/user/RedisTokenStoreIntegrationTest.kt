@@ -17,43 +17,44 @@ import org.springframework.data.redis.core.StringRedisTemplate
 
 class RedisTokenStoreIntegrationTest {
     @Test
-    fun `multiple sessions rotate atomically and all sessions can be revoked`() = withRedis { store ->
-        val userId = UserId(42)
-        val epoch = store.currentSessionEpoch(userId)
-        store.storeRefreshSession(userId, "phone", "digest-phone", epoch, 600)
-        store.storeRefreshSession(userId, "web", "digest-web", epoch, 600)
+    fun `multiple sessions rotate atomically and all sessions can be revoked`() =
+        withRedis { store ->
+            val userId = UserId(42)
+            val epoch = store.currentSessionEpoch(userId)
+            store.storeRefreshSession(userId, "phone", "digest-phone", epoch, 600)
+            store.storeRefreshSession(userId, "web", "digest-web", epoch, 600)
 
-        assertTrue(store.isSessionActive(userId, "phone", epoch))
-        assertTrue(store.isSessionActive(userId, "web", epoch))
-        assertEquals(
-            RefreshTokenRotationResult.ROTATED,
-            store.rotateRefreshSession(
-                userId,
-                "phone",
-                "digest-phone",
-                "digest-phone-next",
-                epoch,
-                600,
-            ),
-        )
-        assertEquals(
-            RefreshTokenRotationResult.REPLAY_DETECTED,
-            store.rotateRefreshSession(
-                userId,
-                "phone",
-                "digest-phone",
-                "attacker-next",
-                epoch,
-                600,
-            ),
-        )
-        assertFalse(store.isSessionActive(userId, "phone", epoch))
-        assertTrue(store.isSessionActive(userId, "web", epoch))
+            assertTrue(store.isSessionActive(userId, "phone", epoch))
+            assertTrue(store.isSessionActive(userId, "web", epoch))
+            assertEquals(
+                RefreshTokenRotationResult.ROTATED,
+                store.rotateRefreshSession(
+                    userId,
+                    "phone",
+                    "digest-phone",
+                    "digest-phone-next",
+                    epoch,
+                    600,
+                ),
+            )
+            assertEquals(
+                RefreshTokenRotationResult.REPLAY_DETECTED,
+                store.rotateRefreshSession(
+                    userId,
+                    "phone",
+                    "digest-phone",
+                    "attacker-next",
+                    epoch,
+                    600,
+                ),
+            )
+            assertFalse(store.isSessionActive(userId, "phone", epoch))
+            assertTrue(store.isSessionActive(userId, "web", epoch))
 
-        val newEpoch = store.revokeAllSessions(userId)
-        assertEquals(epoch + 1, newEpoch)
-        assertFalse(store.isSessionActive(userId, "web", epoch))
-    }
+            val newEpoch = store.revokeAllSessions(userId)
+            assertEquals(epoch + 1, newEpoch)
+            assertFalse(store.isSessionActive(userId, "web", epoch))
+        }
 
     @Test
     fun `the same refresh token has at most one successful successor`() = withRedis { store ->

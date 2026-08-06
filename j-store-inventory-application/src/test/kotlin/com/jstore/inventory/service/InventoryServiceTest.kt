@@ -39,8 +39,7 @@ class InventoryServiceTest {
         val reservations = FakeReservations()
 
         assertIs<Failure<*>>(
-            service(positions, reservations)
-                .reserve(reserveCommand(expiresAt = now, quantity = 1))
+            service(positions, reservations).reserve(reserveCommand(expiresAt = now, quantity = 1))
         )
         assertEquals(0, positions.single().reserved)
         assertEquals(0, reservations.values.size)
@@ -111,20 +110,30 @@ class InventoryServiceTest {
 private class FakePositions(vararg initial: StockPosition) : StockPositionRepository {
     private val values = initial.associateBy { it.id }.toMutableMap()
 
-    override fun save(aggregate: StockPosition): StockPosition = aggregate.also { values[it.id] = it }
+    override fun save(aggregate: StockPosition): StockPosition = aggregate.also {
+        values[it.id] = it
+    }
+
     override fun findById(id: StockPositionId): StockPosition? = values[id]
+
     override fun findBySkuAndNode(skuId: SkuId, nodeId: FulfillmentNodeId): StockPosition? =
         values.values.singleOrNull { it.skuId == skuId && it.fulfillmentNodeId == nodeId }
+
     fun single() = values.values.single()
 }
 
 private class FakeReservations : StockReservationRepository {
     val values = linkedMapOf<StockReservationId, StockReservation>()
-    override fun save(aggregate: StockReservation): StockReservation =
-        aggregate.also { values[it.id] = it }
+
+    override fun save(aggregate: StockReservation): StockReservation = aggregate.also {
+        values[it.id] = it
+    }
+
     override fun findById(id: StockReservationId): StockReservation? = values[id]
+
     override fun findByBusinessKey(businessKey: String): StockReservation? =
         values.values.singleOrNull { it.businessKey == businessKey }
+
     override fun findByOrderId(orderId: Long): List<StockReservation> =
         values.values.filter { it.orderId == orderId }
 }

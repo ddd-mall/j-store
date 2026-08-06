@@ -23,26 +23,29 @@ class AccountSecurityMigrationTest {
                     ClassPathResource("db/migration/V20260808__account_security_hardening.sql"),
                 )
 
-                connection.prepareStatement(
-                    """
-                    select column_default, character_maximum_length
-                    from information_schema.columns
-                    where table_schema = 'develop'
-                      and table_name = 'user_accounts'
-                      and column_name = ?
-                    """.trimIndent()
-                ).use { statement ->
-                    statement.setString(1, "id")
-                    statement.executeQuery().use { rows ->
-                        rows.next()
-                        assertNull(rows.getString("column_default"))
+                connection
+                    .prepareStatement(
+                        """
+                        select column_default, character_maximum_length
+                        from information_schema.columns
+                        where table_schema = 'develop'
+                          and table_name = 'user_accounts'
+                          and column_name = ?
+                        """
+                            .trimIndent()
+                    )
+                    .use { statement ->
+                        statement.setString(1, "id")
+                        statement.executeQuery().use { rows ->
+                            rows.next()
+                            assertNull(rows.getString("column_default"))
+                        }
+                        statement.setString(1, "phone_number")
+                        statement.executeQuery().use { rows ->
+                            rows.next()
+                            assertEquals(16, rows.getInt("character_maximum_length"))
+                        }
                     }
-                    statement.setString(1, "phone_number")
-                    statement.executeQuery().use { rows ->
-                        rows.next()
-                        assertEquals(16, rows.getInt("character_maximum_length"))
-                    }
-                }
 
                 connection.createStatement().use { statement ->
                     statement.executeUpdate(
@@ -50,7 +53,8 @@ class AccountSecurityMigrationTest {
                         insert into develop.user_accounts(
                             id, phone_number, nickname, password_hash, status
                         ) values (9001, '+123456789012345', 'user', 'hash', 'ACTIVE')
-                        """.trimIndent()
+                        """
+                            .trimIndent()
                     )
                 }
 
@@ -61,7 +65,8 @@ class AccountSecurityMigrationTest {
                             insert into develop.user_accounts(
                                 phone_number, nickname, password_hash, status
                             ) values ('+14155552671', 'user2', 'hash', 'ACTIVE')
-                            """.trimIndent()
+                            """
+                                .trimIndent()
                         )
                     }
                 }

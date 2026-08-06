@@ -29,9 +29,7 @@ class RedisPhoneVerificationGateway(
         require(sendIntervalSeconds > 0) { "send interval must be positive" }
     }
 
-    override fun createChallenge(
-        phoneNumber: PhoneNumber
-    ): IssuedPhoneVerificationChallenge? {
+    override fun createChallenge(phoneNumber: PhoneNumber): IssuedPhoneVerificationChallenge? {
         val challengeId = randomBytesHex(24)
         val code = random.nextInt(1_000_000).toString().padStart(6, '0')
         val stored =
@@ -56,7 +54,9 @@ class RedisPhoneVerificationGateway(
         phoneNumber: PhoneNumber,
         proof: PhoneVerificationProof,
     ): Boolean {
-        if (proof.challengeId.isBlank() || proof.code.length != 6 || !proof.code.all(Char::isDigit)) {
+        if (
+            proof.challengeId.isBlank() || proof.code.length != 6 || !proof.code.all(Char::isDigit)
+        ) {
             return false
         }
         return redisTemplate.execute(
@@ -92,7 +92,8 @@ class RedisPhoneVerificationGateway(
                 redis.call('SET', KEYS[1], '1', 'EX', ARGV[3])
                 redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[2])
                 return 1
-                """.trimIndent(),
+                """
+                    .trimIndent(),
                 Long::class.java,
             )
 
@@ -104,7 +105,8 @@ class RedisPhoneVerificationGateway(
                 redis.call('DEL', KEYS[1])
                 if stored == ARGV[1] then return 1 end
                 return 0
-                """.trimIndent(),
+                """
+                    .trimIndent(),
                 Long::class.java,
             )
     }

@@ -88,9 +88,7 @@ class TokenValidationErrorPropertyTest :
             }
         }
 
-        test(
-            "inactive server session produces Auth.Token.Revoked with HTTP 401"
-        ) {
+        test("inactive server session produces Auth.Token.Revoked with HTTP 401") {
             checkAll(
                 PropTestConfig(iterations = 100),
                 Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },

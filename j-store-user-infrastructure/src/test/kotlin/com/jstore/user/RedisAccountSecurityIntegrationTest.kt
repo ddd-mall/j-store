@@ -7,9 +7,9 @@ import com.jstore.user.security.RedisPhoneVerificationGateway
 import java.net.ServerSocket
 import java.time.Duration
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
-import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
@@ -22,11 +22,13 @@ class RedisAccountSecurityIntegrationTest {
     @Test
     fun `challenge is rate limited phone bound one time and stored as HMAC only`() =
         withRedis { template ->
-            val gateway = RedisPhoneVerificationGateway(template, "hmac-secret-at-least-thirty-two-bytes")
+            val gateway =
+                RedisPhoneVerificationGateway(template, "hmac-secret-at-least-thirty-two-bytes")
             val issued = requireNotNull(gateway.createChallenge(phone))
 
             assertNull(gateway.createChallenge(phone))
-            val stored = template.opsForValue().get("phone_verification:${issued.challenge.challengeId}")
+            val stored =
+                template.opsForValue().get("phone_verification:${issued.challenge.challengeId}")
             assertEquals(64, stored?.length)
             assertNotEquals(issued.code, stored)
             assertFalse(stored.orEmpty().contains(issued.code))

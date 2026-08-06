@@ -10,8 +10,7 @@ fun interface StockPositionGuard {
     fun lock(keys: List<StockPositionId>): List<StockPosition>
 }
 
-interface StockReservationRepository :
-    AggregateRepository<StockReservationId, StockReservation> {
+interface StockReservationRepository : AggregateRepository<StockReservationId, StockReservation> {
     fun findByBusinessKey(businessKey: String): StockReservation?
 
     fun findByOrderId(orderId: Long): List<StockReservation>

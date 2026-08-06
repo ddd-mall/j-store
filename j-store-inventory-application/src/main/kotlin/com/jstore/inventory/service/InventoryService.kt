@@ -2,14 +2,12 @@ package com.jstore.inventory.service
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.framework.event.publishPendingEvents
 import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.common.utils.onFailure
 import com.jstore.contracts.commerce.ConfirmInventoryCommand
-import com.jstore.contracts.commerce.InventoryReservationFailedIntegrationEvent
 import com.jstore.contracts.commerce.PhysicalStockChangedIntegrationEvent
 import com.jstore.contracts.commerce.ReleaseInventoryCommand
 import com.jstore.contracts.commerce.ReserveInventoryCommand
@@ -41,7 +39,9 @@ interface InventoryUseCase {
 
     fun release(orderId: Long): Result<Unit, BusinessError>
 
-    fun applyPhysicalStock(message: PhysicalStockChangedIntegrationEvent): Result<Boolean, BusinessError>
+    fun applyPhysicalStock(
+        message: PhysicalStockChangedIntegrationEvent
+    ): Result<Boolean, BusinessError>
 }
 
 class InventoryService(
@@ -58,9 +58,7 @@ class InventoryService(
         val now = Instant.now(clock)
         if (
             command.items.any {
-                it.authorizationId.isBlank() ||
-                    it.quantity <= 0 ||
-                    !now.isBefore(it.expiresAt)
+                it.authorizationId.isBlank() || it.quantity <= 0 || !now.isBefore(it.expiresAt)
             }
         ) {
             return Failure(InventoryErrors.RESERVATION_CONFLICT)
@@ -84,10 +82,9 @@ class InventoryService(
             )
         }
 
-        val keys =
-            normalized.map {
-                StockPositionId("${it.skuId}@${it.fulfillmentNodeId}")
-            }
+        val keys = normalized.map {
+            StockPositionId("${it.skuId}@${it.fulfillmentNodeId}")
+        }
         val locked = positionGuard.lock(keys).associateBy { it.id }
         if (locked.size != keys.distinct().size) return Failure(InventoryErrors.POSITION_NOT_FOUND)
 
@@ -95,8 +92,11 @@ class InventoryService(
         for (item in normalized) {
             val key = StockPositionId("${item.skuId}@${item.fulfillmentNodeId}")
             val position = locked.getValue(key)
-            position.reserve(item.quantity).onFailure { return Failure(it) }
-            val businessKey = "ORDER-${command.orderId}-SKU-${item.skuId}-NODE-${item.fulfillmentNodeId}"
+            position.reserve(item.quantity).onFailure {
+                return Failure(it)
+            }
+            val businessKey =
+                "ORDER-${command.orderId}-SKU-${item.skuId}-NODE-${item.fulfillmentNodeId}"
             val reservation =
                 StockReservation(
                     id = StockReservationId(businessKey),
@@ -123,14 +123,20 @@ class InventoryService(
     override fun confirm(orderId: Long): Result<Unit, BusinessError> {
         val records = reservations.findByOrderId(orderId)
         if (records.isEmpty()) return Failure(InventoryErrors.RESERVATION_NOT_FOUND)
-        val keys = records.map { StockPositionId("${it.skuId.value}@${it.fulfillmentNodeId.value}") }
+        val keys = records.map {
+            StockPositionId("${it.skuId.value}@${it.fulfillmentNodeId.value}")
+        }
         val locked = positionGuard.lock(keys).associateBy { it.id }
         for (record in records) {
             val key = StockPositionId("${record.skuId.value}@${record.fulfillmentNodeId.value}")
             val position = locked[key] ?: return Failure(InventoryErrors.POSITION_NOT_FOUND)
             if (record.status.name == "CONFIRMED") continue
-            position.confirm(record.quantity).onFailure { return Failure(it) }
-            record.confirm().onFailure { return Failure(it) }
+            position.confirm(record.quantity).onFailure {
+                return Failure(it)
+            }
+            record.confirm().onFailure {
+                return Failure(it)
+            }
             positions.save(position)
             reservations.save(record)
         }
@@ -146,8 +152,12 @@ class InventoryService(
         for (record in active) {
             val key = StockPositionId("${record.skuId.value}@${record.fulfillmentNodeId.value}")
             val position = locked[key] ?: return Failure(InventoryErrors.POSITION_NOT_FOUND)
-            position.release(record.quantity).onFailure { return Failure(it) }
-            record.release(Instant.now(clock)).onFailure { return Failure(it) }
+            position.release(record.quantity).onFailure {
+                return Failure(it)
+            }
+            record.release(Instant.now(clock)).onFailure {
+                return Failure(it)
+            }
             positions.save(position)
             reservations.save(record)
         }

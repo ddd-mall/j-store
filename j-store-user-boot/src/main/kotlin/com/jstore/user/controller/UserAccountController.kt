@@ -91,8 +91,9 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
     fun requestPhoneVerification(
         @RequestBody request: PhoneVerificationRequest
     ): ResponseEntity<*> =
-        userAccountService.requestPhoneVerification(PhoneNumber(request.phoneNumber))
-            .toResponse { it }
+        userAccountService.requestPhoneVerification(PhoneNumber(request.phoneNumber)).toResponse {
+            it
+        }
 
     @SkipLogin
     @PostMapping("/register")

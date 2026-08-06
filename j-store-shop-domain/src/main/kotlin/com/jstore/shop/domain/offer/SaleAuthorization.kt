@@ -9,7 +9,8 @@ import com.jstore.common.utils.Success
 import com.jstore.shop.domain.offer.event.SaleAuthorizationReleasedEvent
 import java.time.Instant
 
-class SaleAuthorization private constructor(
+class SaleAuthorization
+private constructor(
     override val id: SaleAuthorizationId,
     val orderId: Long,
     val offerId: SalesOfferId,

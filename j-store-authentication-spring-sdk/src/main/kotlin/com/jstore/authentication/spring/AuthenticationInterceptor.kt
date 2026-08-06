@@ -70,7 +70,8 @@ class AuthenticationInterceptor(
                 return false
             }
 
-            if (!tokenStore.isSessionActive(
+            if (
+                !tokenStore.isSessionActive(
                     claims.userId,
                     claims.sessionId,
                     claims.sessionEpoch,

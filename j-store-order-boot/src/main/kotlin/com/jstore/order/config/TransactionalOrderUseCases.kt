@@ -14,8 +14,8 @@ import com.jstore.order.domain.aftersale.command.AfterSaleRejectCMD
 import com.jstore.order.domain.aftersale.command.AfterSaleRetryRefundCMD
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.order.SuccessfulRefundItem
 import com.jstore.order.domain.order.SaleAuthorizationRef
+import com.jstore.order.domain.order.SuccessfulRefundItem
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.service.AfterSaleOrderAccess
@@ -41,7 +41,10 @@ class TransactionalOrderUseCase(
 
     override fun createOrder(cmd: OrderCreateCMD) = write { delegate.createOrder(cmd) }
 
-    override fun recordSaleAuthorized(orderId: OrderId, authorizations: List<SaleAuthorizationRef>) = write {
+    override fun recordSaleAuthorized(
+        orderId: OrderId,
+        authorizations: List<SaleAuthorizationRef>,
+    ) = write {
         delegate.recordSaleAuthorized(orderId, authorizations)
     }
 

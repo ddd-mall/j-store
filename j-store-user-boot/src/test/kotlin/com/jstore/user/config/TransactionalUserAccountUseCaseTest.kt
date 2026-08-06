@@ -39,13 +39,14 @@ class TransactionalUserAccountUseCaseTest {
 
         inOrder(transactionManager, tokenStore) {
             verify(transactionManager).commit(transactionStatus)
-            verify(tokenStore).storeRefreshSession(
-                userId,
-                "session-1",
-                RefreshTokenDigest.sha256("refresh"),
-                5L,
-                604800L,
-            )
+            verify(tokenStore)
+                .storeRefreshSession(
+                    userId,
+                    "session-1",
+                    RefreshTokenDigest.sha256("refresh"),
+                    5L,
+                    604800L,
+                )
         }
     }
 

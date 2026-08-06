@@ -16,7 +16,6 @@
  */
 package com.jstore.order.acl
 
-import com.jstore.common.properties.Price
 import com.jstore.goods.api.GoodsSkuSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotQueryService

@@ -16,8 +16,8 @@
  */
 package com.jstore.order.domain.order.persistence
 
-import com.jstore.order.domain.order.FulfillmentStatus
 import com.jstore.order.domain.order.CommitmentStatus
+import com.jstore.order.domain.order.FulfillmentStatus
 import com.jstore.order.domain.order.OrderItemStatus
 import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus

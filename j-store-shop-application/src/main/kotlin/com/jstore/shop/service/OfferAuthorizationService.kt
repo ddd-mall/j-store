@@ -4,7 +4,6 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.publishPendingEvents
 import com.jstore.common.framework.messaging.IntegrationMessageHandler
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
@@ -24,8 +23,8 @@ import com.jstore.shop.domain.offer.SalesOfferRepository
 import com.jstore.shop.domain.offer.StoreGuard
 import com.jstore.shop.domain.offer.StoreId
 import com.jstore.shop.domain.offer.StoreStatus
-import com.jstore.shop.domain.offer.event.SaleAuthorizationRejectedEvent
 import com.jstore.shop.domain.offer.event.AuthorizedSaleLine
+import com.jstore.shop.domain.offer.event.SaleAuthorizationRejectedEvent
 import com.jstore.shop.domain.offer.event.SaleAuthorizedEvent
 import java.time.Duration
 import java.time.Instant
@@ -64,7 +63,8 @@ class OfferAuthorizationService(
         if (
             lockedStores.size != storeIds.size ||
                 lockedStores.values.any {
-                    it.status != StoreStatus.ACTIVE || it.merchantId != MerchantId(command.merchantId)
+                    it.status != StoreStatus.ACTIVE ||
+                        it.merchantId != MerchantId(command.merchantId)
                 }
         ) {
             return Failure(OfferErrors.NOT_ACTIVE)
@@ -73,29 +73,31 @@ class OfferAuthorizationService(
         if (locked.size != ids.size) return Failure(OfferErrors.NOT_FOUND)
 
         val authorizations =
-            command.items.sortedBy { it.offerId }.map { item ->
-                val offer = locked.getValue(SalesOfferId(item.offerId))
-                if (
-                    offer.merchantId != MerchantId(command.merchantId) ||
-                        offer.skuId.value != item.skuId ||
-                        offer.storeId.value != item.storeId
-                ) {
-                    return Failure(OfferErrors.NOT_FOUND)
+            command.items
+                .sortedBy { it.offerId }
+                .map { item ->
+                    val offer = locked.getValue(SalesOfferId(item.offerId))
+                    if (
+                        offer.merchantId != MerchantId(command.merchantId) ||
+                            offer.skuId.value != item.skuId ||
+                            offer.storeId.value != item.storeId
+                    ) {
+                        return Failure(OfferErrors.NOT_FOUND)
+                    }
+                    val result =
+                        offer.authorize(
+                            orderId = command.orderId,
+                            quantity = item.quantity,
+                            expectedPriceFen = item.unitPriceFen,
+                            now = command.occurredAt,
+                            expectedVersion = item.offerVersion,
+                            ttl = ttl,
+                        )
+                    when (result) {
+                        is Failure -> return result
+                        is Success -> result.value
+                    }
                 }
-                val result =
-                    offer.authorize(
-                        orderId = command.orderId,
-                        quantity = item.quantity,
-                        expectedPriceFen = item.unitPriceFen,
-                        now = command.occurredAt,
-                        expectedVersion = item.offerVersion,
-                        ttl = ttl,
-                    )
-                when (result) {
-                    is Failure -> return result
-                    is Success -> result.value
-                }
-            }
         authorizations.forEach {
             authorizationRepository.save(it)
         }
@@ -127,8 +129,11 @@ class OfferAuthorizationService(
             val authorization =
                 authorizationRepository.findById(SaleAuthorizationId(rawId))
                     ?: return Failure(OfferErrors.AUTHORIZATION_NOT_FOUND)
-            if (authorization.orderId != orderId) return Failure(OfferErrors.AUTHORIZATION_NOT_FOUND)
-            authorization.release(now).onFailure { return Failure(it) }
+            if (authorization.orderId != orderId)
+                return Failure(OfferErrors.AUTHORIZATION_NOT_FOUND)
+            authorization.release(now).onFailure {
+                return Failure(it)
+            }
             authorizationRepository.save(authorization)
             authorization.publishPendingEvents(publisher)
         }
