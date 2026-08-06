@@ -23,9 +23,7 @@ class TransactionalCommodityUseCase(
 
     override fun publish(spuId: SpuId) = tx { delegate.publish(spuId) }
 
-    override fun putOnSale(spuId: SpuId) = tx { delegate.putOnSale(spuId) }
-
-    override fun takeOffSale(spuId: SpuId) = tx { delegate.takeOffSale(spuId) }
+    override fun archive(spuId: SpuId) = tx { delegate.archive(spuId) }
 
     override fun getDraft(spuId: SpuId) = tx { delegate.getDraft(spuId) }
 

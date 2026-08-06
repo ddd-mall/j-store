@@ -12,6 +12,7 @@ import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
 import com.jstore.order.domain.order.event.OrderPaidEvent
+import com.jstore.order.domain.order.event.OrderSaleAuthorizedEvent
 import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
 import java.time.Instant
 import java.time.LocalDateTime
@@ -25,6 +26,10 @@ class OrderImpl(
     private var _tradeStatus: TradeStatus,
     private var _paymentStatus: PaymentStatus,
     private var _fulfillmentStatus: FulfillmentStatus,
+    private var _commitmentStatus: CommitmentStatus =
+        if (_tradeStatus == TradeStatus.CREATED) CommitmentStatus.PENDING_OFFER
+        else CommitmentStatus.CONFIRMED,
+    private val _saleAuthorizations: MutableList<SaleAuthorizationRef> = mutableListOf(),
     override val amountSnapshot: OrderAmountSnapshot,
     private var _paidAmount: Price = Price.ZERO,
     private var _refundedAmount: Price = Price.ZERO,
@@ -45,6 +50,12 @@ class OrderImpl(
 
     override val fulfillmentStatus: FulfillmentStatus
         get() = _fulfillmentStatus
+
+    override val commitmentStatus: CommitmentStatus
+        get() = _commitmentStatus
+
+    override val saleAuthorizations: List<SaleAuthorizationRef>
+        get() = _saleAuthorizations.toList()
 
     override val paidAmount: Price
         get() = _paidAmount
@@ -80,16 +91,55 @@ class OrderImpl(
                 merchantId = merchantId,
                 payableAmount = amountSnapshot.payableAmount,
                 currency = amountSnapshot.currency,
-                items = _items.map { OrderItemSnapshot(skuId = it.skuId, quantity = it.quantity) },
+                items = orderItemSnapshots(),
             )
         )
     }
 
+    override fun recordSaleAuthorized(
+        authorizations: List<SaleAuthorizationRef>
+    ): Result<Unit, BusinessError> =
+        transition(
+            _tradeStatus == TradeStatus.CREATED &&
+                _commitmentStatus == CommitmentStatus.PENDING_OFFER &&
+                authorizations.isNotEmpty() &&
+                authorizations.map { it.authorizationId }.distinct().size == authorizations.size &&
+                authorizations.map { it.offerId }.toSet() == _items.map { it.offerId }.toSet(),
+            "登记销售授权",
+        ) {
+            _saleAuthorizations.clear()
+            _saleAuthorizations.addAll(authorizations)
+            _commitmentStatus = CommitmentStatus.OFFER_AUTHORIZED
+            raise(
+                OrderSaleAuthorizedEvent(
+                    orderId = id,
+                    merchantId = merchantId,
+                    authorizations = authorizations,
+                    items = orderItemSnapshots(),
+                )
+            )
+        }
+
+    override fun markSaleAuthorizationFailed(reason: String): Result<Unit, BusinessError> =
+        transition(
+            _tradeStatus == TradeStatus.CREATED &&
+                _commitmentStatus == CommitmentStatus.PENDING_OFFER,
+            "销售授权失败",
+        ) {
+            _commitmentStatus = CommitmentStatus.FAILED
+            _tradeStatus = TradeStatus.CLOSED
+            mutableItems().forEach { it.markCanceled() }
+            raise(OrderCancelledEvent(id, reason))
+        }
+
     override fun confirmStock(): Result<Unit, BusinessError> =
         transition(
-            _tradeStatus == TradeStatus.CREATED && unpaid(),
+            _tradeStatus == TradeStatus.CREATED &&
+                _commitmentStatus == CommitmentStatus.OFFER_AUTHORIZED &&
+                unpaid(),
             "确认库存",
         ) {
+            _commitmentStatus = CommitmentStatus.CONFIRMED
             _tradeStatus = TradeStatus.ACTIVE
             raise(
                 OrderStockConfirmedEvent(
@@ -103,9 +153,12 @@ class OrderImpl(
 
     override fun markStockInsufficient(reason: String): Result<Unit, BusinessError> =
         transition(
-            _tradeStatus == TradeStatus.CREATED && unpaid(),
+            _tradeStatus == TradeStatus.CREATED &&
+                _commitmentStatus == CommitmentStatus.OFFER_AUTHORIZED &&
+                unpaid(),
             "库存不足取消",
         ) {
+            _commitmentStatus = CommitmentStatus.FAILED
             _tradeStatus = TradeStatus.CLOSED
             mutableItems().forEach { it.markCanceled() }
             raise(OrderCancelledEvent(id, reason))
@@ -141,7 +194,7 @@ class OrderImpl(
                 paymentReference = paymentReference,
                 paidAmount = capturedAmount,
                 currency = currency,
-                items = _items.map { OrderItemSnapshot(it.skuId, it.quantity) },
+                items = orderItemSnapshots(),
                 occurredAt = occurredAt,
             )
         )
@@ -349,6 +402,22 @@ class OrderImpl(
     }
 
     private fun mutableItems(): List<OrderItemImpl> = _items.map { it as OrderItemImpl }
+
+    private fun orderItemSnapshots(): List<OrderItemSnapshot> =
+        _items.map {
+            OrderItemSnapshot(
+                offerId = it.offerId,
+                storeId = it.storeId,
+                spuId = it.spuId,
+                skuId = it.skuId,
+                quantity = it.quantity,
+                catalogSnapshotVersion = it.snapshotVersion,
+                offerVersion = it.offerVersion,
+                fulfillmentNodeId = it.fulfillmentNodeId,
+                channelId = it.channelId,
+                unitPrice = it.unitPrice,
+            )
+        }
 
     private fun touch() {
         _updateTime = LocalDateTime.now()

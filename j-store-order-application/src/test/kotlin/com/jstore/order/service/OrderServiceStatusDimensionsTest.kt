@@ -60,7 +60,11 @@ class OrderServiceStatusDimensionsTest :
         test("stock confirmation persists order and publishes payment creation gate event") {
             val factory = mock(OrderFactory::class.java)
             val repository = mock(OrderRepository::class.java)
-            val order = testOrder(trade = TradeStatus.CREATED)
+            val order =
+                testOrder(
+                    trade = TradeStatus.CREATED,
+                    commitment = com.jstore.order.domain.order.CommitmentStatus.OFFER_AUTHORIZED,
+                )
             val published = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
             val publisher =
                 object : DomainEventPublisher {

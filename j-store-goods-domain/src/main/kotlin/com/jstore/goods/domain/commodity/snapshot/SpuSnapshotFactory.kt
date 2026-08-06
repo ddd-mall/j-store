@@ -24,7 +24,6 @@ class SpuSnapshotFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : S
                         skuId = sku.id,
                         skuName = sku.skuName,
                         attributes = sku.attributes.toList(),
-                        price = sku.price,
                         merchantCode = sku.merchantCode,
                         barcode = sku.barcode,
                     )

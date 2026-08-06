@@ -21,7 +21,6 @@ class GoodsServiceImpl(private val goodsSnapshotQueryService: GoodsSnapshotQuery
                 spuName = snapshot.spuName,
                 skuName = skuSnapshot.skuName,
                 attributes = skuSnapshot.attributes,
-                price = skuSnapshot.price,
             )
         }
     }

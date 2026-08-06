@@ -88,14 +88,18 @@ class SnapshotVersionMismatchPropertyTest :
                                     spuName = "测试商品",
                                     skuName = "默认规格",
                                     attributes = emptyList(),
-                                    price = Price.ofFen(100),
                                 )
                             }
                         }
                     }
 
                 val factory =
-                    OrderFactoryImpl(snowFlakSequence, goodsService, stubGeoAddressService)
+                    OrderFactoryImpl(
+                        snowFlakSequence,
+                        goodsService,
+                        stubGeoAddressService,
+                        testOfferService(),
+                    )
 
                 val cmd =
                     OrderCreateCMD(

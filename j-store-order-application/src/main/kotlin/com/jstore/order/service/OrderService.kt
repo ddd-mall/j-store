@@ -8,8 +8,8 @@ import com.jstore.common.query.Page
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.common.utils.flatMap
 import com.jstore.common.utils.map
+import com.jstore.common.utils.onFailure
 import com.jstore.common.utils.onSuccess
 import com.jstore.order.domain.aftersale.AfterSaleId
 import com.jstore.order.domain.order.Order
@@ -17,6 +17,7 @@ import com.jstore.order.domain.order.OrderErrors
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
+import com.jstore.order.domain.order.SaleAuthorizationRef
 import com.jstore.order.domain.order.SuccessfulRefundItem
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
@@ -41,19 +42,51 @@ class OrderService(
     }
 
     /** 创建订单 */
-    override fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError> =
-        cmd.validate().flatMap(orderFactory::create).onSuccess { order ->
+    override fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError> {
+        cmd.validate().onFailure {
+            return Failure(it)
+        }
+        return orderFactory.create(cmd).onSuccess { order ->
             orderRepository.add(order)
             order.publishPendingEvents(domainEventPublisher)
         }
+    }
+
+    override fun recordSaleAuthorized(
+        orderId: OrderId,
+        authorizations: List<SaleAuthorizationRef>,
+    ): Result<Unit, BusinessError> {
+        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        order.recordSaleAuthorized(authorizations).onFailure {
+            return Failure(it)
+        }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
+    }
+
+    override fun markSaleAuthorizationFailed(
+        orderId: OrderId,
+        reason: String,
+    ): Result<Unit, BusinessError> {
+        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        order.markSaleAuthorizationFailed(reason).onFailure {
+            return Failure(it)
+        }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
+    }
 
     /** 库存预扣成功回调 */
     override fun confirmStock(orderId: OrderId): Result<Unit, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        return order.confirmStock().onSuccess {
-            orderRepository.save(order)
-            order.publishPendingEvents(domainEventPublisher)
+        order.confirmStock().onFailure {
+            return Failure(it)
         }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
     }
 
     /** 库存不足，取消订单 */
@@ -62,10 +95,12 @@ class OrderService(
         reason: String,
     ): Result<Unit, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        return order.markStockInsufficient(reason).onSuccess {
-            orderRepository.save(order)
-            order.publishPendingEvents(domainEventPublisher)
+        order.markStockInsufficient(reason).onFailure {
+            return Failure(it)
         }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
     }
 
     /** 由支付集成事实驱动，不对 HTTP 控制器暴露。 */
@@ -77,14 +112,13 @@ class OrderService(
         occurredAt: Instant,
     ): Result<Boolean, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        return order
-            .recordPaymentCaptured(paymentReference, amount, currency, occurredAt)
-            .onSuccess { changed ->
-                if (changed) {
-                    orderRepository.save(order)
-                    order.publishPendingEvents(domainEventPublisher)
-                }
+        val changed = order.recordPaymentCaptured(paymentReference, amount, currency, occurredAt)
+        return changed.onSuccess { didChange ->
+            if (didChange) {
+                orderRepository.save(order)
+                order.publishPendingEvents(domainEventPublisher)
             }
+        }
     }
 
     override fun recordFulfillmentPrepared(
@@ -92,8 +126,9 @@ class OrderService(
         fulfillmentReference: String,
     ): Result<Boolean, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        return order.recordFulfillmentPrepared(fulfillmentReference).onSuccess { changed ->
-            if (changed) {
+        val changed = order.recordFulfillmentPrepared(fulfillmentReference)
+        return changed.onSuccess { didChange ->
+            if (didChange) {
                 orderRepository.save(order)
                 order.publishPendingEvents(domainEventPublisher)
             }
@@ -105,8 +140,9 @@ class OrderService(
         fulfillmentReference: String,
     ): Result<Boolean, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        return order.recordShipmentDispatched(fulfillmentReference).onSuccess { changed ->
-            if (changed) {
+        val changed = order.recordShipmentDispatched(fulfillmentReference)
+        return changed.onSuccess { didChange ->
+            if (didChange) {
                 orderRepository.save(order)
                 order.publishPendingEvents(domainEventPublisher)
             }
@@ -118,8 +154,9 @@ class OrderService(
         fulfillmentReference: String,
     ): Result<Boolean, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        return order.recordShipmentDelivered(fulfillmentReference).onSuccess { changed ->
-            if (changed) {
+        val changed = order.recordShipmentDelivered(fulfillmentReference)
+        return changed.onSuccess { didChange ->
+            if (didChange) {
                 orderRepository.save(order)
                 order.publishPendingEvents(domainEventPublisher)
             }
@@ -134,36 +171,40 @@ class OrderService(
         occurredAt: Instant,
     ): Result<Boolean, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        return order.recordRefundSucceeded(refundId, afterSaleId, items, occurredAt).map {
-            projection ->
-            projection.newlyRegistered.also { changed ->
-                if (changed) {
+        val projection = order.recordRefundSucceeded(refundId, afterSaleId, items, occurredAt)
+        return projection
+            .onSuccess { result ->
+                if (result.newlyRegistered) {
                     orderRepository.save(order)
                     order.publishPendingEvents(domainEventPublisher)
                 }
             }
-        }
+            .map { it.newlyRegistered }
     }
 
     /** 完成订单 */
     override fun completeOrder(orderId: OrderId): Result<Unit, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        return order.complete().onSuccess {
-            orderRepository.save(order)
-            order.publishPendingEvents(domainEventPublisher)
+        order.complete().onFailure {
+            return Failure(it)
         }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
     }
 
     /** 买家主动取消订单 */
     override fun cancelOrder(cmd: OrderCancelCMD): Result<Unit, BusinessError> {
-        return cmd.validate().flatMap { valid ->
-            val order =
-                orderRepository.findById(valid.orderId)
-                    ?: return@flatMap Failure(OrderErrors.ORDER_NOT_FOUND)
-            order.cancel(valid.toReason()).onSuccess {
-                orderRepository.save(order)
-                order.publishPendingEvents(domainEventPublisher)
-            }
+        cmd.validate().onFailure {
+            return Failure(it)
         }
+        val order =
+            orderRepository.findById(cmd.orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        order.cancel(cmd.toReason()).onFailure {
+            return Failure(it)
+        }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
     }
 }

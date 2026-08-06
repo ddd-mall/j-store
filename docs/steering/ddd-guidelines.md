@@ -7,6 +7,8 @@ fileMatchPattern: ['**/*.kt', '**/*.kts']
 
 This project is a Kotlin/Spring Boot e-commerce system following Domain-Driven Design. All code changes must conform to these rules.
 
+当前有界上下文、权威事实和交易一致性协议以 [领域建模说明](../domain-modeling.md) 为事实总览；本文件规定实现这些模型时必须遵守的代码和分层约束。
+
 ## Tech Stack
 
 - Kotlin 2.3, Java 25, Spring Boot 3.5, Spring Data JPA, PostgreSQL
@@ -68,7 +70,7 @@ When creating domain objects, use these existing base types:
 - `Identifier` — marker interface for typed identities
 - `AggregateRepository<I : Identifier, A : AggregateRoot<I>>` — aggregate-only repository with `save(aggregate)` and `findById(id)`
 - `Page<T>` / `SortedPage<T>` — query pagination wrappers under `com.jstore.common.query`
-- `Result<T, E>` — custom sealed result type with `Success<T>` / `Failure<E>`, supports `map`, `onSuccess`, `onFailure`, `fold`, `getOrThrow`
+- `Result<T, E>` — custom sealed result type with `Success<T>` / `Failure<E>`, supports `map`, `onSuccess`, `onFailure`, `fold`, and explicit `getOrThrow(errorMapper)` at exception boundaries
 - `BusinessError` — error type with `message`, `errorCode`, `httpCode`; use `CommonBusinessError` constants or define context-specific error objects
 - `DomainEvent` — immutable event contract with stable ID, name, version, time and scalar aggregate reference metadata
 
@@ -98,7 +100,7 @@ When creating domain objects, use these existing base types:
 - Commands are data carriers — no business logic inside
 
 ### Domain Events
-- Name with past-tense verb + `Event` suffix (e.g., `OrderCreatedEvent`, `CommodityOnSaleEvent`)
+- Name with past-tense verb + `Event` suffix (e.g., `OrderCreatedEvent`, `CommodityPublishedEvent`)
 - Place in `domain/{aggregate}/event/` package
 - Implement `DomainEvent` directly and provide all stable envelope metadata at compile time
 - Record inside the aggregate via protected `raise(event)`
@@ -149,8 +151,9 @@ When creating domain objects, use these existing base types:
 
 ### Error Handling
 - Use `Result<T, BusinessError>` (from `com.jstore.common.utils`) — not exceptions — for expected business failures
-- Define context-specific error objects (e.g., `OrderErrors`, `StorageErrors`) following the `CommonBusinessError` pattern
+- Define context-specific error objects (e.g., `OrderErrors`, `InventoryErrors`) following the `CommonBusinessError` pattern
 - Use `onFailure { return Failure(it) }` for early-return error propagation
+- Do not unwrap `BusinessError` inside domain or application use cases. At an infrastructure boundary that must throw (for example, message redelivery), use `getOrThrow(::BusinessErrorException)` so the structured error remains available.
 
 ## Prohibited Patterns
 
@@ -167,16 +170,16 @@ When creating domain objects, use these existing base types:
 
 | Building Block | Pattern | Examples |
 |---|---|---|
-| Aggregate Root / Entity | Business noun | `Order`, `Spu`, `Inventory` |
-| Entity Implementation | Noun + `Impl` | `NormalOrderImpl` |
+| Aggregate Root / Entity | Business noun | `Order`, `Spu`, `SalesOffer`, `StockPosition` |
+| Entity Implementation | Noun + `Impl` | `OrderImpl`, `SpuImpl` |
 | Value Object | Business noun | `OrderId`, `Money`, `Price`, `PhoneNumber` |
-| Domain Event | Past-tense + `Event` | `OrderCreatedEvent`, `CommodityOnSaleEvent` |
+| Domain Event | Past-tense + `Event` | `OrderCreatedEvent`, `CommodityPublishedEvent`, `StockReservedEvent` |
 | Command | Verb phrase + `CMD`/`Command` | `NormalOrderCreateCMD`, `CommodityCreateCmd` |
 | Repository Interface | Root + `Repository` | `OrderRepository`, `SpuRepository` |
 | Repository Impl | Root + `RepositoryImpl` | `OrderRepositoryImpl` |
 | Application Service | Context + `Service` | `CommodityService`, `InventoryService` |
-| Factory | Root + `Factory` | `NormalOrderFactory`, `SpuFactory` |
+| Factory | Root + `Factory` | `OrderFactory`, `SpuFactory` |
 | ACL Interface | External context + `Service` | `GoodsService`, `GeoAddressService` |
 | Persistence Object | Entity + `PO` | `OrderPO`, `SkuPO` |
 | JPA Repository | Entity + `POJpaRepository` | `OrderPOJpaRepository` |
-| Error Constants | Context + `Errors` | `OrderErrors`, `StorageErrors` |
+| Error Constants | Context + `Errors` | `OrderErrors`, `InventoryErrors` |

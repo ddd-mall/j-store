@@ -5,10 +5,11 @@
 ## 开始工作前
 
 1. 阅读 `docs/project-overview.md`。
-2. Kotlin/Gradle 变更阅读 `docs/steering/ddd-guidelines.md`。
-3. 新功能或行为修复阅读 `docs/steering/tdd-guidelines.md`。
-4. agent 编排、自动维护、评审、发布和生产相关工作阅读 `docs/steering/agent-governance.md`。
-5. 有适用规格时，以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为产品意图来源。
+2. 领域边界、聚合、状态机或跨上下文协作变更阅读 `docs/domain-modeling.md`。
+3. Kotlin/Gradle 变更阅读 `docs/steering/ddd-guidelines.md`。
+4. 新功能或行为修复阅读 `docs/steering/tdd-guidelines.md`。
+5. agent 编排、自动维护、评审、发布和生产相关工作阅读 `docs/steering/agent-governance.md`。
+6. 有适用规格时，以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为产品意图来源。
 
 ## 长期记忆与文档索引
 
@@ -17,6 +18,7 @@
 ### 项目理解
 
 - [docs/project-overview.md](docs/project-overview.md)：项目技术栈、模块边界、分层结构、运行与测试入口概览。
+- [docs/domain-modeling.md](docs/domain-modeling.md)：当前有界上下文、权威事实、聚合一致性边界、交易 Saga 与长期模型维护规则。
 
 ### 规范约束
 

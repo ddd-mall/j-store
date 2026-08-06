@@ -45,15 +45,21 @@ include("j-store-user-infrastructure")
 
 include("j-store-user-boot")
 
-include("j-store-shop")
+include("j-store-shop-domain")
+
+include("j-store-shop-api")
+
+include("j-store-shop-application")
+
+include("j-store-shop-infrastructure")
+
+include("j-store-shop-boot")
 
 include("j-store-authentication-spring-sdk")
 
 include("j-store-accounting-domain")
 
 include("j-store-accounting-application")
-
-include("j-store-shop-infrastructure")
 
 include("j-store-accounting-infrastructure")
 
@@ -75,8 +81,20 @@ include("j-store-fulfillment-infrastructure")
 
 include("j-store-fulfillment-boot")
 
-include("j-store-warehouse")
+include("j-store-inventory-domain")
+
+include("j-store-inventory-application")
+
+include("j-store-inventory-infrastructure")
+
+include("j-store-inventory-boot")
+
+include("j-store-warehouse-domain")
+
+include("j-store-warehouse-application")
 
 include("j-store-warehouse-infrastructure")
+
+include("j-store-warehouse-boot")
 
 include("j-store-admin-boot")

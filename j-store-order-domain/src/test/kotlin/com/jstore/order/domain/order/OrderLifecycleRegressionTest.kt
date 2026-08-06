@@ -12,41 +12,62 @@ import org.junit.jupiter.api.Test
 
 class OrderLifecycleRegressionTest {
     @Test
-    fun `stock confirmation opens order and records payment creation gate event`() {
+    fun `order must persist offer authorization before stock can confirm the trade`() {
+        val order = testOrder(commitment = CommitmentStatus.PENDING_OFFER)
+
+        assertIs<Failure<*>>(order.confirmStock())
+        assertIs<Success<Unit>>(
+            order.recordSaleAuthorized(
+                listOf(SaleAuthorizationRef("sale-auth-1", 10, java.time.Instant.MAX))
+            )
+        )
+        assertEquals(CommitmentStatus.OFFER_AUTHORIZED, order.commitmentStatus)
+        assertIs<Success<Unit>>(order.confirmStock())
+        assertEquals(CommitmentStatus.CONFIRMED, order.commitmentStatus)
+        assertEquals(TradeStatus.ACTIVE, order.tradeStatus)
+    }
+
+    @Test
+    fun `stock confirmation activates order and records payment eligibility fact once`() {
         val order = testOrder(trade = TradeStatus.CREATED)
 
+        assertIs<Success<Unit>>(
+            order.recordSaleAuthorized(
+                listOf(SaleAuthorizationRef("sale-auth-1", 10, java.time.Instant.MAX))
+            )
+        )
         assertIs<Success<Unit>>(order.confirmStock())
 
         assertEquals(TradeStatus.ACTIVE, order.tradeStatus)
-        val event = assertIs<OrderStockConfirmedEvent>(order.pendingDomainEvents().single())
+        val event = order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().single()
         assertEquals(order.id, event.orderId)
         assertEquals(order.merchantId, event.merchantId)
         assertEquals(order.amountSnapshot.payableAmount, event.payableAmount)
         assertEquals(order.amountSnapshot.currency, event.currency)
-    }
-
-    @Test
-    fun `stock failure closes order without recording payment creation gate event`() {
-        val order = testOrder(trade = TradeStatus.CREATED)
-
-        assertIs<Success<Unit>>(order.markStockInsufficient("out of stock"))
-
-        assertEquals(TradeStatus.CLOSED, order.tradeStatus)
-        assertIs<OrderCancelledEvent>(order.pendingDomainEvents().single())
-        assertTrue(order.pendingDomainEvents().none { it is OrderStockConfirmedEvent })
-    }
-
-    @Test
-    fun `duplicate stock confirmation cannot record another payment creation gate event`() {
-        val order = testOrder(trade = TradeStatus.CREATED)
-        assertIs<Success<Unit>>(order.confirmStock())
-
         assertIs<Failure<*>>(order.confirmStock())
-
         assertEquals(
             1,
             order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().size,
         )
+    }
+
+    @Test
+    fun `stock failure closes authorized order without recording payment eligibility fact`() {
+        val order = testOrder(trade = TradeStatus.CREATED)
+        assertIs<Success<Unit>>(
+            order.recordSaleAuthorized(
+                listOf(SaleAuthorizationRef("sale-auth-1", 10, java.time.Instant.MAX))
+            )
+        )
+
+        assertIs<Success<Unit>>(order.markStockInsufficient("out of stock"))
+
+        assertEquals(CommitmentStatus.FAILED, order.commitmentStatus)
+        assertEquals(TradeStatus.CLOSED, order.tradeStatus)
+        assertIs<OrderCancelledEvent>(
+            order.pendingDomainEvents().filterIsInstance<OrderCancelledEvent>().single()
+        )
+        assertTrue(order.pendingDomainEvents().none { it is OrderStockConfirmedEvent })
     }
 
     @Test

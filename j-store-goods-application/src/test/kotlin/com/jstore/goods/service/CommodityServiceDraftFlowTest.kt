@@ -2,7 +2,6 @@ package com.jstore.goods.service
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.goods.domain.commodity.*
@@ -56,7 +55,6 @@ class CommodityServiceDraftFlowTest :
                 id = SkuId(id),
                 skuName = name,
                 attributes = listOf(Attribute("color", "red")),
-                price = Price.ofFen(9900L),
             )
 
         fun createOnSaleSpu(
@@ -68,7 +66,7 @@ class CommodityServiceDraftFlowTest :
                 id = id,
                 name = name,
                 description = "商品描述",
-                _status = CommodityStatus.ON_SALE,
+                _status = CommodityStatus.PUBLISHED,
                 _skus = mutableListOf(createSku(1L)),
                 _version = version,
             )
@@ -99,7 +97,7 @@ class CommodityServiceDraftFlowTest :
             result.error shouldBe CommodityErrors.SPU_NOT_FOUND
         }
 
-        test("editOnSale - 非 ON_SALE 状态返回 ONLY_ON_SALE_NEEDS_DRAFT") {
+        test("editOnSale - 非 PUBLISHED 状态返回 ONLY_PUBLISHED_NEEDS_DRAFT") {
             val draftSpu =
                 SpuImpl(
                     id = sourceSpuId,
@@ -113,7 +111,7 @@ class CommodityServiceDraftFlowTest :
             val result = service.getDraft(sourceSpuId)
 
             result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.ONLY_ON_SALE_NEEDS_DRAFT
+            result.error shouldBe CommodityErrors.ONLY_PUBLISHED_NEEDS_DRAFT
         }
 
         test("editOnSale - 已有草稿时幂等返回已有草稿") {
@@ -267,9 +265,9 @@ class CommodityServiceDraftFlowTest :
             source.status shouldBe originalStatus
         }
 
-        // ==================== createOrUpdate ON_SALE 拦截测试 ====================
+        // ==================== createOrUpdate PUBLISHED 拦截测试 ====================
 
-        test("createOrUpdate - ON_SALE 商品直接编辑被拦截") {
+        test("createOrUpdate - PUBLISHED 商品直接编辑被拦截") {
             val cmd =
                 CommodityCreateCmd(
                     spuId = sourceSpuId,
@@ -283,7 +281,7 @@ class CommodityServiceDraftFlowTest :
             val result = service.createOrUpdate(cmd)
 
             result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.ON_SALE_DIRECT_EDIT_REJECTED
+            result.error shouldBe CommodityErrors.PUBLISHED_DIRECT_EDIT_REJECTED
             verify(spuFactory, never()).update(any(), any())
             verify(spuRepository, never()).save(any())
         }
@@ -322,7 +320,7 @@ class CommodityServiceDraftFlowTest :
             result.value shouldBe updatedSpu
         }
 
-        test("createOrUpdate - OFF_SALE 商品允许直接编辑") {
+        test("createOrUpdate - ARCHIVED 商品允许直接编辑") {
             val cmd =
                 CommodityCreateCmd(
                     spuId = sourceSpuId,
@@ -335,7 +333,7 @@ class CommodityServiceDraftFlowTest :
                     id = sourceSpuId,
                     name = "旧名称",
                     description = "旧描述",
-                    _status = CommodityStatus.OFF_SALE,
+                    _status = CommodityStatus.ARCHIVED,
                     _skus = mutableListOf(createSku(1L)),
                 )
             val updatedSpu =
@@ -343,7 +341,7 @@ class CommodityServiceDraftFlowTest :
                     id = sourceSpuId,
                     name = cmd.spuName,
                     description = cmd.description,
-                    _status = CommodityStatus.OFF_SALE,
+                    _status = CommodityStatus.ARCHIVED,
                     _skus = mutableListOf(createSku(1L)),
                 )
             whenever(spuRepository.findById(sourceSpuId)).thenReturn(offSaleSpu)

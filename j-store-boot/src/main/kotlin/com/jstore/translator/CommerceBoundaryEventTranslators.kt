@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component
 @Component
 class OrderStockConfirmedToPaymentTranslator(private val publisher: IntegrationMessagePublisher) :
     DomainEventListener<OrderStockConfirmedEvent> {
-    override fun listenerId() = "translator.order-stock-confirmed.to-payment-order.v1"
+    override fun listenerId() = "translator.order-stock-confirmed.to-payment-order.v3"
 
     override fun onDomainEvent(event: OrderStockConfirmedEvent) {
         publisher.publish(
@@ -78,8 +78,6 @@ class OrderPaidToFulfillmentTranslator(
                         recipient.shippingAddress.countryCode.value,
                         recipient.shippingAddress.getLeafCode(),
                         recipient.shippingDetailAddress,
-                        recipient.postalCode,
-                        recipient.customsFields,
                     ),
                 items =
                     order.items.map {

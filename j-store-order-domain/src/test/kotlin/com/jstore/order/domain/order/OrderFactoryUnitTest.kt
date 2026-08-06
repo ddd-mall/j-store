@@ -51,7 +51,6 @@ class OrderFactoryUnitTest :
                             spuName = "测试商品",
                             skuName = "默认规格",
                             attributes = emptyList(),
-                            price = Price.ofFen(100),
                         )
                     }
                 }
@@ -75,7 +74,13 @@ class OrderFactoryUnitTest :
                     }
                 }
 
-            val factory = OrderFactoryImpl(snowFlakSequence, stubGoodsService, capturingGeoService)
+            val factory =
+                OrderFactoryImpl(
+                    snowFlakSequence,
+                    stubGoodsService,
+                    capturingGeoService,
+                    testOfferService(),
+                )
 
             val cmd =
                 OrderCreateCMD(
@@ -130,7 +135,13 @@ class OrderFactoryUnitTest :
                     }
                 }
 
-            val factory = OrderFactoryImpl(snowFlakSequence, stubGoodsService, failingGeoService)
+            val factory =
+                OrderFactoryImpl(
+                    snowFlakSequence,
+                    stubGoodsService,
+                    failingGeoService,
+                    testOfferService(),
+                )
 
             val cmd =
                 OrderCreateCMD(

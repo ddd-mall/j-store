@@ -37,6 +37,28 @@ data class ContractItem(
     val orderItemId: Long? = null,
 )
 
+data class ContractSaleItem(
+    val offerId: Long,
+    val storeId: Long,
+    val spuId: Long,
+    val skuId: Long,
+    val quantity: Int,
+    val catalogSnapshotVersion: Long,
+    val offerVersion: Long,
+    val fulfillmentNodeId: String,
+    val channelId: String,
+    val unitPriceFen: Long,
+)
+
+data class ContractAuthorizedSaleItem(
+    val authorizationId: String,
+    val offerId: Long,
+    val skuId: Long,
+    val quantity: Int,
+    val fulfillmentNodeId: String,
+    val expiresAt: Instant,
+)
+
 data class ContractRecipient(
     val name: String,
     val phone: String?,
@@ -48,23 +70,100 @@ data class ContractRecipient(
     val customsFields: Map<String, String> = emptyMap(),
 )
 
-@IntegrationMessageType("inventory.reserve", 1)
+@IntegrationMessageType("sale.authorize", 1)
+data class AuthorizeSaleCommand(
+    val orderId: Long,
+    val merchantId: Long,
+    val items: List<ContractSaleItem>,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationCommand(
+        id("sale.authorize", orderId, occurredAtValue),
+        "sale.authorize",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        merchantId.toString(),
+        "store.commands",
+    )
+
+@IntegrationMessageType("sale.authorization.release", 1)
+data class ReleaseSaleAuthorizationCommand(
+    val orderId: Long,
+    val authorizationIds: List<String>,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationCommand(
+        id("sale.authorization.release", orderId, occurredAtValue),
+        "sale.authorization.release",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        null,
+        "store.commands",
+    )
+
+@IntegrationMessageType("sale.authorized", 1)
+data class SaleAuthorizedIntegrationEvent(
+    val orderId: Long,
+    val items: List<ContractAuthorizedSaleItem>,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationEvent(
+        id("sale.authorized", orderId, occurredAtValue),
+        "sale.authorized",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        null,
+        "order.events",
+    )
+
+@IntegrationMessageType("sale.authorization-failed", 1)
+data class SaleAuthorizationFailedIntegrationEvent(
+    val orderId: Long,
+    val reason: String,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationEvent(
+        id("sale.authorization-failed", orderId, occurredAtValue),
+        "sale.authorization-failed",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        null,
+        "order.events",
+    )
+
+@IntegrationMessageType("inventory.reserve", 3)
 data class ReserveInventoryCommand(
     val orderId: Long,
-    val items: List<ContractItem>,
+    val items: List<ContractAuthorizedSaleItem>,
     val sourceMessageId: String,
-    val merchantId: Long? = null,
+    val merchantId: Long,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationCommand(
         messageId = id("inventory.reserve", orderId, occurredAtValue),
         messageName = "inventory.reserve",
-        messageVersion = 1,
+        messageVersion = 3,
         occurredAt = occurredAtValue,
         partitionKey = orderId.toString(),
         correlationId = orderId.toString(),
         causationId = sourceMessageId,
-        tenantId = merchantId?.toString(),
+        tenantId = merchantId.toString(),
         destination = "inventory.commands",
     )
 
@@ -106,36 +205,18 @@ data class ReleaseInventoryCommand(
         "inventory.commands",
     )
 
-@IntegrationMessageType("inventory.restore-after-refund", 1)
-data class RestoreInventoryAfterRefundCommand(
-    val afterSaleId: Long,
-    val orderId: Long,
-    val items: List<ContractItem>,
-    val sourceMessageId: String,
-    val occurredAtValue: Instant,
-) :
-    CommerceIntegrationCommand(
-        id("inventory.restore-after-refund", orderId, occurredAtValue),
-        "inventory.restore-after-refund",
-        1,
-        occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
-        sourceMessageId,
-        null,
-        "inventory.commands",
-    )
-
-@IntegrationMessageType("inventory.reserved", 1)
+@IntegrationMessageType("inventory.reserved", 2)
 data class InventoryReservedIntegrationEvent(
     val orderId: Long,
+    val authorizationIds: List<String>,
+    val reservationIds: List<String>,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationEvent(
         id("inventory.reserved", orderId, occurredAtValue),
         "inventory.reserved",
-        1,
+        2,
         occurredAtValue,
         orderId.toString(),
         orderId.toString(),
@@ -144,9 +225,10 @@ data class InventoryReservedIntegrationEvent(
         "order.events",
     )
 
-@IntegrationMessageType("inventory.reservation-failed", 1)
+@IntegrationMessageType("inventory.reservation-failed", 2)
 data class InventoryReservationFailedIntegrationEvent(
     val orderId: Long,
+    val authorizationIds: List<String>,
     val reason: String,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
@@ -154,13 +236,35 @@ data class InventoryReservationFailedIntegrationEvent(
     CommerceIntegrationEvent(
         id("inventory.reservation-failed", orderId, occurredAtValue),
         "inventory.reservation-failed",
-        1,
+        2,
         occurredAtValue,
         orderId.toString(),
         orderId.toString(),
         sourceMessageId,
         null,
         "order.events",
+    )
+
+@IntegrationMessageType("warehouse.physical-stock-changed", 1)
+data class PhysicalStockChangedIntegrationEvent(
+    val skuId: Long,
+    val fulfillmentNodeId: String,
+    val onHand: Int,
+    val sourceVersion: Long,
+    val reason: String,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationEvent(
+        id("warehouse.physical-stock-changed", skuId, occurredAtValue),
+        "warehouse.physical-stock-changed",
+        1,
+        occurredAtValue,
+        "$skuId@$fulfillmentNodeId",
+        "$skuId@$fulfillmentNodeId",
+        sourceMessageId,
+        null,
+        "inventory.events",
     )
 
 @IntegrationMessageType("payment.create-for-order", 1)

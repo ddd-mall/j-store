@@ -4,7 +4,16 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CONTEXTS = ("goods", "payment", "fulfillment", "user", "accounting")
+CONTEXTS = (
+    "goods",
+    "payment",
+    "fulfillment",
+    "user",
+    "accounting",
+    "shop",
+    "inventory",
+    "warehouse",
+)
 FORBIDDEN_IMPORT = re.compile(r"^import (org\.springframework|jakarta\.|org\.hibernate)", re.MULTILINE)
 
 
@@ -29,6 +38,31 @@ class CommerceContextModuleBoundaryTest(unittest.TestCase):
             build = (ROOT / f"j-store-{context}-application" / "build.gradle.kts").read_text(encoding="utf-8")
             self.assertNotIn(f'project(":j-store-{context}-infrastructure")', build)
             self.assertNotIn(f'project(":j-store-{context}-boot")', build)
+
+    def test_mutating_repository_adapters_require_an_existing_transaction(self):
+        bare_write_transaction = re.compile(
+            r"@Transactional\s*\n\s*override fun (?:save|add|create|createWithOwner)\b"
+        )
+        for context in CONTEXTS:
+            source = ROOT / f"j-store-{context}-infrastructure" / "src" / "main"
+            self.assertTrue(source.is_dir(), source)
+            for path in source.rglob("*RepositoryImpl.kt"):
+                text = path.read_text(encoding="utf-8")
+                self.assertIsNone(
+                    bare_write_transaction.search(text),
+                    f"{path} opens a write transaction instead of requiring Propagation.MANDATORY",
+                )
+
+    def test_domain_models_do_not_expose_public_mutable_state(self):
+        public_var = re.compile(r"^\s+var\s+[A-Za-z_]\w*\s*:", re.MULTILINE)
+        for context in CONTEXTS:
+            source = ROOT / f"j-store-{context}-domain" / "src" / "main"
+            self.assertTrue(source.is_dir(), source)
+            for path in source.rglob("*.kt"):
+                self.assertIsNone(
+                    public_var.search(path.read_text(encoding="utf-8")),
+                    f"{path} exposes mutable domain state outside behavior methods",
+                )
 
 
 if __name__ == "__main__":

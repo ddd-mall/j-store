@@ -8,7 +8,7 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.common.utils.map
+import com.jstore.common.utils.onFailure
 import com.jstore.common.utils.onSuccess
 import com.jstore.payment.domain.payment.PaymentErrors
 import com.jstore.payment.domain.payment.PaymentOrder
@@ -83,16 +83,16 @@ class PaymentApplicationService(
         val payment =
             repository.findByOrderId(command.orderId)
                 ?: return Failure(PaymentErrors.ORDER_NOT_FOUND)
-        return payment
-            .capture(
+        val changed =
+            payment.capture(
                 command.providerTransactionId,
                 command.amount,
                 command.currency,
                 occurredAt,
             )
-            .onSuccess { changed ->
-                if (changed) persistAndPublish(payment)
-            }
+        return changed.onSuccess { didChange ->
+            if (didChange) persistAndPublish(payment)
+        }
     }
 
     override fun requestRefund(
@@ -115,10 +115,11 @@ class PaymentApplicationService(
                 amount = request.amount,
                 requestedAt = occurredAt,
             )
-        return payment.requestRefund(refund, occurredAt).map {
-            persistAndPublish(payment)
-            refund.id
+        payment.requestRefund(refund, occurredAt).onFailure {
+            return Failure(it)
         }
+        persistAndPublish(payment)
+        return Success(refund.id)
     }
 
     override fun retryRefund(
@@ -151,8 +152,9 @@ class PaymentApplicationService(
     ): Result<Boolean, BusinessError> {
         val payment =
             repository.findByRefundId(refundId) ?: return Failure(PaymentErrors.REFUND_NOT_FOUND)
-        return mutation(payment).onSuccess { changed ->
-            if (changed) persistAndPublish(payment)
+        val changed = mutation(payment)
+        return changed.onSuccess { didChange ->
+            if (didChange) persistAndPublish(payment)
         }
     }
 

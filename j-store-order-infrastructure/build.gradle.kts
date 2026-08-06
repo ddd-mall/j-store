@@ -15,6 +15,7 @@ dependencies {
     implementation(libs.kotlin.reflect)
     api(project(":j-store-order-domain"))
     implementation(project(":j-store-goods-api"))
+    implementation(project(":j-store-shop-api"))
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)

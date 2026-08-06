@@ -75,6 +75,11 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 tradeStatus = order.tradeStatus,
                 paymentStatus = order.paymentStatus,
                 fulfillmentStatus = order.fulfillmentStatus,
+                commitmentStatus = order.commitmentStatus,
+                saleAuthorizationIds =
+                    order.saleAuthorizations.joinToString(";") {
+                        "${it.authorizationId}|${it.offerId}|${it.expiresAt.toEpochMilli()}"
+                    },
                 currency = order.amountSnapshot.currency,
                 itemsSubtotal = order.amountSnapshot.itemsSubtotal.toBigDecimal(),
                 discountAmount = order.amountSnapshot.discountAmount.toBigDecimal(),
@@ -109,6 +114,11 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
             return OrderItemPO(
                 id = item.id.value,
                 orderId = orderId,
+                offerId = item.offerId,
+                storeId = item.storeId,
+                offerVersion = item.offerVersion,
+                fulfillmentNodeId = item.fulfillmentNodeId,
+                channelId = item.channelId,
                 skuId = item.skuId,
                 spuId = item.spuId,
                 goodsName = item.goodsName,
@@ -160,6 +170,21 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 _tradeStatus = po.tradeStatus,
                 _paymentStatus = po.paymentStatus,
                 _fulfillmentStatus = po.fulfillmentStatus,
+                _commitmentStatus = po.commitmentStatus,
+                _saleAuthorizations =
+                    po.saleAuthorizationIds
+                        .split(';')
+                        .filter(String::isNotBlank)
+                        .map {
+                            val parts = it.split('|')
+                            require(parts.size == 3)
+                            SaleAuthorizationRef(
+                                parts[0],
+                                parts[1].toLong(),
+                                java.time.Instant.ofEpochMilli(parts[2].toLong()),
+                            )
+                        }
+                        .toMutableList(),
                 amountSnapshot =
                     OrderAmountSnapshot(
                         currency = po.currency,
@@ -196,6 +221,13 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 id = OrderItemId(po.id),
                 skuId = po.skuId,
                 spuId = po.spuId,
+                // Rows written before the Offer boundary was introduced have no offer columns.
+                // The migration backfills them; these fallbacks also keep history readers safe.
+                offerId = po.offerId.takeIf { it > 0 } ?: po.skuId,
+                storeId = po.storeId.takeIf { it > 0 } ?: 1,
+                offerVersion = po.offerVersion.coerceAtLeast(1),
+                fulfillmentNodeId = po.fulfillmentNodeId,
+                channelId = po.channelId,
                 goodsName = po.goodsName,
                 skuDescription = po.skuDescription,
                 quantity = po.quantity,

@@ -83,8 +83,9 @@ class FulfillmentApplicationService(
     ): Result<Boolean, BusinessError> {
         val fulfillment =
             repository.findByOrderId(orderId) ?: return Failure(FulfillmentErrors.NOT_FOUND)
-        return operation(fulfillment).onSuccess { changed ->
-            if (changed) {
+        val changed = operation(fulfillment)
+        return changed.onSuccess { didChange ->
+            if (didChange) {
                 repository.save(fulfillment)
                 fulfillment.publishPendingEvents(publisher)
             }

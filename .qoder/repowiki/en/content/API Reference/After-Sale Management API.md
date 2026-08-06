@@ -159,6 +159,7 @@ Authentication: Requires login via @RequireLogin. Current user ID is injected vi
 - POST /api/after-sales/{id}/approve
   - Purpose: Approve after-sale (merchant only).
   - Headers: Idempotency-Key (required, 1–128 chars).
+  - Example header: `Idempotency-Key: "<merchant-approval-request-id>"`.
   - Behavior: If return required, moves to RETURN_REQUIRED; otherwise moves to REFUND_PENDING and initiates refund.
 
 - POST /api/after-sales/{id}/reject
