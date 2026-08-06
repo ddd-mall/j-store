@@ -1,0 +1,1 @@
+Kotlin with Spring Boot, Spring Data JPA, and PostgreSQL for persistence; Gradle Kotlin DSL for multi-module builds.

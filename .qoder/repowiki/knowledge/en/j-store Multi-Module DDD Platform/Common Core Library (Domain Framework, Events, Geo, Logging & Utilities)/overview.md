@@ -1,1 +1,0 @@
-Shared Kotlin/Java library providing domain primitives (Entity, Repository, Identify), an in-process domain event bus with outbox pattern, i18n geo-address modeling, a pluggable logging facade, Result type, and utility helpers used across j-store services.

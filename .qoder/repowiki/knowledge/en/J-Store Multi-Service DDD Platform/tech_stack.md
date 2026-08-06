@@ -1,0 +1,1 @@
+Kotlin/JVM with Spring Boot, Gradle Kotlin DSL, PostgreSQL 16, Docker Compose, Spotless (ktfmt + google-java-format), CycloneDX for SBOM, Java 25 toolchain, Lombok/KAPT plugins.

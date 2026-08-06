@@ -1,0 +1,4 @@
+- Bean wiring is done through `@Configuration` classes with factory functions annotated `@Bean`, taking dependencies as parameters rather than field injection.
+- Cross-cutting concerns like transactions are implemented as decorator classes implementing the same interface as the delegate (e.g., `TransactionalPaymentUseCase` wraps `PaymentUseCase`).
+- HTTP responses are produced by extending `Result<T, BusinessError>` with an extension function `.response { ... }` that folds success/failure into `ResponseEntity` objects.
+- Controller methods enforce merchant authorization by calling `authorized`/`authorizedRefund` helpers that fetch the entity then check `MerchantPermission` before invoking the service.

@@ -1,0 +1,1 @@
+Built with Gradle Kotlin DSL (`build.gradle.kts`); tests run via `./gradlew test` using JUnit Platform. Requires JVM 25 as declared by `kotlin { jvmToolchain(25) }`.

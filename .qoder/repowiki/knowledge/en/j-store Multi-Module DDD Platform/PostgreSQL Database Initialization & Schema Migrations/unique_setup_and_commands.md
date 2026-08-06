@@ -1,1 +1,0 @@
-Build with `docker build -t jstore-postgres .` inside `docker/postgres/`; the container initializes the database on first run by executing every `.sql` file under `init/` in numeric filename order via PostgreSQL's built-in init entrypoint.

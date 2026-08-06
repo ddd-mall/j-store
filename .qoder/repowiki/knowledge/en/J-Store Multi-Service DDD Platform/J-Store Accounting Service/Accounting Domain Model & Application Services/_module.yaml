@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: accounting_service/accounting_domain
+title: Accounting Domain Model & Application Services
+scope:
+    - j-store-accounting-domain/
+source_files: []
+depends_on: []
+related_to: []

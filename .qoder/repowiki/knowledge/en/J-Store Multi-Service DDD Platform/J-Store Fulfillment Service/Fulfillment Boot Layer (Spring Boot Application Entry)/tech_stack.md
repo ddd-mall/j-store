@@ -1,0 +1,1 @@
+Kotlin JVM with Spring Boot (via `kotlin.plugin.spring`), Spring Web for REST endpoints, Spring TX (`PlatformTransactionManager` + `TransactionTemplate`) for programmatic transactions, JUnit Platform for testing, Mockito-Kotlin for mocks, and Kotlin test framework. JVM toolchain set to 25.

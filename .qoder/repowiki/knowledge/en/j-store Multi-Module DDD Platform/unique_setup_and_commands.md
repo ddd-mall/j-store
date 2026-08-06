@@ -1,1 +1,0 @@
-Start local Postgres and Redis with `docker-compose -f docker-compose.postgres.yml up -d` from the repository root; build and run individual modules via `./gradlew :<module>:bootRun`. Database credentials and connection URLs are configured in each module's application-local.properties and match the docker-compose.postgres.yml service definitions.

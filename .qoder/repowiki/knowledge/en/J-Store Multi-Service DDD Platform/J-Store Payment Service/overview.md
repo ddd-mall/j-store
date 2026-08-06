@@ -1,0 +1,1 @@
+Spring Boot payment service implementing DDD with a domain-only core, application orchestration, JPA persistence, and a thin boot module that wires everything behind REST endpoints.

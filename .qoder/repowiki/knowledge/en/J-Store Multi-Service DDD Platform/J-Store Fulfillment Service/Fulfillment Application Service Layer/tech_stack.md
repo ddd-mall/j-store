@@ -1,0 +1,1 @@
+Kotlin/JVM with Gradle Kotlin DSL, JVM toolchain 25, Kotest runner + assertions for testing, SnowFlake sequence for ID generation, and a Result-based error handling pattern via `com.jstore.common.utils.Result`.

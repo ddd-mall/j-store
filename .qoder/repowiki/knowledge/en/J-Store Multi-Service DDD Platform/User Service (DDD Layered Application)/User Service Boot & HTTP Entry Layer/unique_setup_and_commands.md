@@ -1,0 +1,1 @@
+Build and test via Gradle Kotlin DSL (`build.gradle.kts`); tests run on JUnit Platform (`tasks.test { useJUnitPlatform() }`). Requires a `jwt.secret` property for `JwtTokenProvider` and a Redis connection for `StringRedisTemplate` at runtime.

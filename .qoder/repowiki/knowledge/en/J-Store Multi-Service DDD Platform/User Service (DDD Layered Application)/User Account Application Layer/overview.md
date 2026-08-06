@@ -1,0 +1,1 @@
+Application-layer orchestration for user account use cases (register, login, token refresh, profile updates, enable/disable, force offline) that coordinates domain aggregates, repositories, and event publishing without encoding business rules.

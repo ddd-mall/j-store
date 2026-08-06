@@ -1,0 +1,1 @@
+Each sub-module has its own `build.gradle.kts`; the boot module is the Spring Boot application entry point that pulls in the other four modules at runtime.

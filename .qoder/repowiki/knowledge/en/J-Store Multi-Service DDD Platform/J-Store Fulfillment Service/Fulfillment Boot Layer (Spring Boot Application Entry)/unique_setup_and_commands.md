@@ -1,0 +1,1 @@
+Run tests with Gradle's `./gradlew test` which uses JUnit Platform; the project targets JVM 25 via `kotlin { jvmToolchain(25) }`. No special bootstrap script — Spring Boot auto-configuration picks up the `@Configuration` and `@RestController` classes.

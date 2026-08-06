@@ -1,4 +1,0 @@
-- Each feature spec under `spec/<feature>/` follows a fixed triple-file layout: `requirement.md`, `design.md`, and `tasks.md`, with optional `review-log.md` and `summary.md`.
-- Agent prompts under `ai/` are authored as Chinese Markdown files with parallel English-generated counterparts named `生成"<prompt-name>"的提示词.md`.
-- Guideline documents under `steering/` use concise Markdown sections focused on a single architectural concern (DDD, TDD, agent memory) without cross-references to code.
-- Technical articles under `technic/` follow a problem-solution format with concrete steps, commands, and file paths rather than abstract descriptions.

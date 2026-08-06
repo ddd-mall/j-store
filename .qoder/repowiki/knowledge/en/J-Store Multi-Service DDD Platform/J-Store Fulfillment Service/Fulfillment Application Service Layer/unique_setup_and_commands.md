@@ -1,0 +1,1 @@
+Tests run under JUnit Platform via `tasks.test { useJUnitPlatform() }`; the module requires the sibling `:j-store-fulfillment-domain` and `:j-store-integration-contracts` projects to be present on the classpath.

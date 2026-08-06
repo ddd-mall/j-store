@@ -1,0 +1,5 @@
+- Each aggregate is defined as a sealed interface extending `AggregateRoot<IdType>` plus a matching `*Impl` class that implements business methods and raises domain events via `raise(...)`.
+- Domain methods return `Result<Unit, BusinessError>` or `Result<Boolean, BusinessError>` using `Success`/`Failure` from `common.utils` instead of throwing exceptions.
+- Identity types are value objects wrapping `Long` by extending `Id<Long>` (e.g. `SpuId`, `GoodsStyleId`, `MerchantId`, `CommodityCode`).
+- Persistence is accessed only through repository interfaces extending `AggregateRepository<I, A>`, keeping domain logic infrastructure-agnostic.
+- Property-based tests are written as Kotest `FunSpec` subclasses using `checkAll` with custom `Arb` generators to validate domain invariants across random inputs.

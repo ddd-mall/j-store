@@ -1,0 +1,4 @@
+- Domain entities are converted to/from JPA persistent objects via dedicated private `toPO` and `toDomain` helper functions within the repository implementation rather than using automatic mappers.
+- Monetary amounts are stored as `BigDecimal` in POs and wrapped/unwrapped through the domain `Price` type during conversion.
+- Entity relationships use `CascadeType.ALL` with `orphanRemoval = true` and `FetchType.EAGER` to keep aggregate consistency simple at the persistence boundary.
+- Repository query methods follow Spring Data naming conventions, with complex joins expressed via explicit `@Query` JPQL strings.

@@ -74,6 +74,11 @@ When creating domain objects, use these existing base types:
 
 ## Coding Rules
 
+### Single Responsibility Principle (SRP)
+- Implementation code MUST follow the Single Responsibility Principle (SRP).
+- Each module, class, function, or other cohesive unit MUST have one well-defined responsibility and one primary reason to change.
+- Separate unrelated responsibilities instead of accumulating them in the same unit.
+
 ### Entities & Aggregates
 - Entities are identified by a typed ID implementing `Identifier` (e.g., `data class OrderId(val value: Long) : Identifier`)
 - Aggregate roots implement `AggregateRoot<{Id}>`; event-producing roots also implement `RecordsDomainEvents`, normally through `EventRecordingAggregateRoot`

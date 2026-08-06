@@ -1,1 +1,0 @@
-Kotlin JVM with Spring Boot, Spring Data JPA, Hibernate, and PostgreSQL driver; tests run against an in-memory H2 database in PostgreSQL compatibility mode using Kotest assertions and JUnit 5.

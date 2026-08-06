@@ -1,6 +1,0 @@
-- Every domain entity is defined as an interface extending `AgreeGate<T>` with a separate `*Impl` class, and persistence is accessed through a dedicated `*Repository` interface rather than direct instantiation.
-- Business operations return `Result<Value, BusinessError>` using `Success`/`Failure` wrappers from `j-store-common.utils`, and failures are propagated with `onFailure` lambdas instead of exceptions.
-- Domain entities validate their invariants in `init` blocks using `require(...)` with localized error messages (e.g. amount > ZERO, non-blank IDs, date ordering).
-- Command objects follow a `RecordXxxCMD` naming convention and are pure data classes consumed by application service methods.
-- Cross-module integration points are modeled as ACL interfaces under `acl/` returning lightweight info DTOs, keeping the domain decoupled from callers.
-- Domain events are grouped in `domain/<bounded-context>/event/` subpackages and published through an optional `DomainEventPublisher` injected into application services.

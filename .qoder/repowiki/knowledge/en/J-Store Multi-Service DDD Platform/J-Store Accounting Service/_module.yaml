@@ -1,0 +1,14 @@
+schema_version: 1
+module_path: accounting_service
+title: J-Store Accounting Service
+scope:
+    - j-store-accounting-application/
+    - j-store-accounting-domain/
+    - j-store-accounting-infrastructure/
+    - j-store-accounting-boot/
+source_files: []
+depends_on: []
+related_to:
+    - path: fulfillment_service
+    - path: order_service
+    - path: payment_service

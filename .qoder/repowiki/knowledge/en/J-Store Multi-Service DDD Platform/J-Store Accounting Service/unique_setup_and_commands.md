@@ -1,0 +1,1 @@
+Each subproject has its own `build.gradle.kts`; the boot module assembles all other modules at runtime via Spring dependency injection without additional orchestration scripts.
