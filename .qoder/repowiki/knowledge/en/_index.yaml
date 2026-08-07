@@ -3,11 +3,11 @@ schema_version: 1
 locale: en-US
 branch: feature-initial
 nodes_managed: true
-exported_at: "2026-08-06T11:40:42Z"
+exported_at: "2026-08-07T01:44:27Z"
 modules:
     "":
-        dir_name: J-Store Commerce Platform Root
-        title: J-Store Commerce Platform Root
+        dir_name: J-Store Multi-Module DDD Commerce Platform
+        title: J-Store Multi-Module DDD Commerce Platform
         scope:
             - AGENTS.md
             - SECURITY.md
@@ -39,6 +39,7 @@ modules:
             - docs
             - fulfillment_service
             - goods_service
+            - inventory_service
             - orchestration_boot
             - order_service
             - payment_service
@@ -104,8 +105,8 @@ modules:
         depends_on: []
         related_to: []
     authentication_sdk:
-        dir_name: Spring Authentication SDK
-        title: Spring Authentication SDK
+        dir_name: Spring Authentication SDK (Bearer Token Interceptor & Context)
+        title: Spring Authentication SDK (Bearer Token Interceptor & Context)
         scope:
             - j-store-authentication-spring-sdk/
         source_files: []
@@ -115,7 +116,6 @@ modules:
             - path: fulfillment_service/boot_layer
             - path: order_service/boot_layer
             - path: payment_service/payment_boot
-            - path: user_service/boot_layer
     common_core:
         dir_name: J-Store Common Core Library
         title: J-Store Common Core Library
@@ -124,11 +124,10 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: user_service/domain_layer
+        related_to: []
     common_spring:
-        dir_name: Spring Boot Auto-Configuration for Outbox, Domain Events & Messaging
-        title: Spring Boot Auto-Configuration for Outbox, Domain Events & Messaging
+        dir_name: Spring Boot Auto-Configuration for Outbox, Domain & Integration Messaging
+        title: Spring Boot Auto-Configuration for Outbox, Domain & Integration Messaging
         scope:
             - j-store-common-spring/
         source_files: []
@@ -154,8 +153,8 @@ modules:
         depends_on: []
         related_to: []
     fulfillment_service:
-        dir_name: Fulfillment Service (DDD Four-Layer Spring Boot Application)
-        title: Fulfillment Service (DDD Four-Layer Spring Boot Application)
+        dir_name: Fulfillment Service (Four-Layer DDD Gradle Modules)
+        title: Fulfillment Service (Four-Layer DDD Gradle Modules)
         scope:
             - j-store-fulfillment-application/
             - j-store-fulfillment-domain/
@@ -209,8 +208,8 @@ modules:
         depends_on: []
         related_to: []
     goods_service:
-        dir_name: Goods Service (DDD Layered Module)
-        title: Goods Service (DDD Layered Module)
+        dir_name: Goods Service (DDD Feature Module)
+        title: Goods Service (DDD Feature Module)
         scope:
             - j-store-goods-application/
             - j-store-goods-domain/
@@ -263,6 +262,18 @@ modules:
         children: []
         depends_on: []
         related_to: []
+    inventory_service:
+        dir_name: Inventory Service (Stock Position & Reservation)
+        title: Inventory Service (Stock Position & Reservation)
+        scope:
+            - j-store-inventory-domain/
+            - j-store-inventory-application/
+            - j-store-inventory-infrastructure/
+            - j-store-inventory-boot/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
     orchestration_boot:
         dir_name: J-Store Order Boot Application
         title: J-Store Order Boot Application
@@ -275,8 +286,8 @@ modules:
         related_to:
             - path: accounting_service/accounting_boot
     order_service:
-        dir_name: Order Service (DDD Bounded Context)
-        title: Order Service (DDD Bounded Context)
+        dir_name: Order Bounded Context Microservice
+        title: Order Bounded Context Microservice
         scope:
             - j-store-order-application/
             - j-store-order-domain/
@@ -333,8 +344,8 @@ modules:
         related_to:
             - path: goods_service/goods_domain
     payment_service:
-        dir_name: J-Store Payment Service
-        title: J-Store Payment Service
+        dir_name: Payment Service (DDD Gradle Multi-Module)
+        title: Payment Service (DDD Gradle Multi-Module)
         scope:
             - j-store-payment-application/
             - j-store-payment-domain/
@@ -387,11 +398,20 @@ modules:
         depends_on: []
         related_to: []
     shop_service:
-        dir_name: Shop Merchant Domain & JPA Infrastructure
-        title: Shop Merchant Domain & JPA Infrastructure
+        dir_name: Shop Domain Persistence Infrastructure
+        title: Shop Domain Persistence Infrastructure
         scope:
-            - j-store-shop/
             - j-store-shop-infrastructure/
+        source_files: []
+        children:
+            - shop_service/shop_api
+        depends_on: []
+        related_to: []
+    shop_service/shop_api:
+        dir_name: Shop Offer Snapshot Query API
+        title: Shop Offer Snapshot Query API
+        scope:
+            - j-store-shop-api/
         source_files: []
         children: []
         depends_on: []
@@ -406,8 +426,8 @@ modules:
         depends_on: []
         related_to: []
     user_service:
-        dir_name: User Service DDD Application
-        title: User Service DDD Application
+        dir_name: User Account Service (DDD Spring Boot Application)
+        title: User Account Service (DDD Spring Boot Application)
         scope:
             - j-store-user-application/
             - j-store-user-domain/
@@ -415,44 +435,42 @@ modules:
             - j-store-user-boot/
         source_files: []
         children:
-            - user_service/application_layer
-            - user_service/boot_layer
-            - user_service/domain_layer
-            - user_service/infrastructure_layer
+            - user_service/user_application
+            - user_service/user_boot
+            - user_service/user_domain
+            - user_service/user_infrastructure
         depends_on: []
         related_to: []
-    user_service/application_layer:
-        dir_name: User Account Application Layer
-        title: User Account Application Layer
+    user_service/user_application:
+        dir_name: User Account Application Service
+        title: User Account Application Service
         scope:
             - j-store-user-application/
         source_files: []
         children: []
         depends_on: []
         related_to: []
-    user_service/boot_layer:
-        dir_name: User Service Boot & HTTP Entry Layer
-        title: User Service Boot & HTTP Entry Layer
+    user_service/user_boot:
+        dir_name: User Service Spring Boot Application
+        title: User Service Spring Boot Application
         scope:
             - j-store-user-boot/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: authentication_sdk
-    user_service/domain_layer:
-        dir_name: User Account Domain Layer
-        title: User Account Domain Layer
+        related_to: []
+    user_service/user_domain:
+        dir_name: User Account Domain Model
+        title: User Account Domain Model
         scope:
             - j-store-user-domain/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: common_core
-    user_service/infrastructure_layer:
-        dir_name: User Account Infrastructure Adapters
-        title: User Account Infrastructure Adapters
+        related_to: []
+    user_service/user_infrastructure:
+        dir_name: User Account Infrastructure (Persistence, JWT & Redis Security)
+        title: User Account Infrastructure (Persistence, JWT & Redis Security)
         scope:
             - j-store-user-infrastructure/
         source_files: []
@@ -460,8 +478,8 @@ modules:
         depends_on: []
         related_to: []
     warehouse_service:
-        dir_name: Warehouse Service & Infrastructure Scaffolding
-        title: Warehouse Service & Infrastructure Scaffolding
+        dir_name: Warehouse Service & Infrastructure Layer
+        title: Warehouse Service & Infrastructure Layer
         scope:
             - j-store-warehouse/
             - j-store-warehouse-infrastructure/

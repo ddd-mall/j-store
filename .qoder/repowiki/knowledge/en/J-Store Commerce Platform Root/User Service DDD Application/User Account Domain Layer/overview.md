@@ -1,1 +1,0 @@
-Kotlin DDD domain layer defining the UserAccount aggregate root, value objects (Nickname, Password, UserId), factory, repository interface, and domain events for user account registration and lifecycle management.

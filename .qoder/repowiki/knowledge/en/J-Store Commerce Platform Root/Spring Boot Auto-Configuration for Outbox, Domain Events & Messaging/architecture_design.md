@@ -1,9 +1,0 @@
-The module is a Spring Boot auto-configuration library built around three sub-packages under `com.jstore.common.framework`:
-
-- `event/` — Spring-backed domain event infrastructure: `SpringLocalDomainEventBus` delegates to `ApplicationEventPublisher`, with listener registration via `SpringDomainEventListenerRegistry` / `RegistrationMachine` / `TypeResolver`, and a `MulticasterGuard` for async dispatch.
-- `event/outbox/` — The core outbox implementation: `OutboxAutoConfiguration` wires all beans behind `@ConditionalOnProperty(prefix = "jstore.outbox", name = ["enabled"])`. It composes `OutboxPublisher` → `OutboxDeliveryRouter` → pluggable `OutboxDeliveryChannel` implementations (`LocalDomainEventDeliveryChannel`, `BrokerIntegrationMessageDeliveryChannel`). Persistence lives in `persistence/` (JPA entities `OutboxEntryPO`, `OutboxDeadLetterAuditPO` + repository impl). Scheduling/cleanup is handled by `OutboxScheduler` + `OutboxCleaner`, with dead-lettering via `OutboxDeadLetterService` and observability through `OutboxMonitor` (Micrometer-backed or noop).
-- `messaging/` — Integration message bus mirroring the outbox design: `SpringLocalIntegrationMessageBus` routes `IntegrationMessageHandler`s with consumption tracking, while `OutboxIntegrationMessagePublisher` bridges outbox entries to broker transports. A `BrokerTransportModeGuard` selects between local and broker delivery based on `MessagingProperties.mode`.
-
-A separate `geo/` package provides a `GeoAddressServiceProxy` that dispatches to `CountryAddressProvider` implementations (e.g., China-specific ones), backed by `data/district.xlsx`.
-
-Dependency direction: this module depends on `j-store-common-core` (core abstractions) and Spring Boot/JPA; it exposes `api` dependencies for JPA so consumers can define their own entities, but internal wiring is entirely driven by `OutboxAutoConfiguration` bean definitions.

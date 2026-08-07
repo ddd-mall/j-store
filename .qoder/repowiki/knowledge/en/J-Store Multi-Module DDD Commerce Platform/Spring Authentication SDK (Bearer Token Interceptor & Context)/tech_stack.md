@@ -1,0 +1,1 @@
+Kotlin JVM targeting JDK 25, Spring Boot 3.x (`spring-boot-starter-web`), Jackson `ObjectMapper` for serializing error responses, Kotest + property-based testing for tests, and Spring's `@AutoConfiguration` mechanism activated via `META-INF/spring/...AutoConfiguration.imports`.

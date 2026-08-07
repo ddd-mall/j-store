@@ -1,0 +1,1 @@
+Kotlin Gradle modules scaffolding the warehouse service application entry point and its Spring Data JPA infrastructure layer for persisting physical stock entities.

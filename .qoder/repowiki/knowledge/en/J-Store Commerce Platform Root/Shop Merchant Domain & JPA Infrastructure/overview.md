@@ -1,1 +1,0 @@
-Implements the merchant aggregate (Merchant, MerchantMembership) with its domain service and repository interfaces in j-store-shop, plus Spring Data JPA persistence implementations in j-store-shop-infrastructure.

@@ -1,0 +1,1 @@
+Spring Boot + JPA implementation of the shop domain's repository ports, persisting merchant and offer aggregates to PostgreSQL via Spring Data repositories.

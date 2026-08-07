@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: user_service/user_application
+title: User Account Application Service
+scope:
+    - j-store-user-application/
+source_files: []
+depends_on: []
+related_to: []

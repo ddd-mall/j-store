@@ -1,1 +1,0 @@
-Gradle composite root that unifies J-Store's shared Kotlin/Spring Boot libraries, DDD microservices per bounded context, and PostgreSQL Docker infrastructure under a single build with enforced module boundaries.

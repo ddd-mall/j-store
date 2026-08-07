@@ -1,1 +1,0 @@
-Each subproject is an independent Gradle module (`build.gradle.kts`) with its own `src/main/kotlin` and `src/test/kotlin`; the boot module is the single executable entry point that wires all other layers via Spring `@Bean` definitions in `UserBootConfiguration`.

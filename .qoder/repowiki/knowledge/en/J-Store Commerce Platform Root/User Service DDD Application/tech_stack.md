@@ -1,1 +1,0 @@
-Kotlin + Spring Boot, Spring Data JPA with PostgreSQL, Redis for token storage, BCrypt for password hashing, HS256 JWT for authentication tokens, and a shared `com.jstore.common` framework providing `SnowFlakSequence`, `DomainEventPublisher`, `BusinessError`, `PhoneNumber`, and `Result` types reused across layers.

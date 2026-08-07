@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: user_service/user_domain
+title: User Account Domain Model
+scope:
+    - j-store-user-domain/
+source_files: []
+depends_on: []
+related_to: []

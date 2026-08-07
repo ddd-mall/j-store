@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: inventory_service
+title: Inventory Service (Stock Position & Reservation)
+scope:
+    - j-store-inventory-domain/
+    - j-store-inventory-application/
+    - j-store-inventory-infrastructure/
+    - j-store-inventory-boot/
+source_files: []
+depends_on: []
+related_to: []

@@ -1,0 +1,1 @@
+Shared Kotlin/JVM library providing DDD primitives, transactional outbox domain events, cross-process messaging contracts, internationalized geocoding utilities, a Rust-style Result type, logging abstractions, and common value types for the J-Store platform.

@@ -2,15 +2,23 @@
 
 <cite>
 **Referenced Files in This Document**
-- [Inventory.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/Inventory.kt)
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
-- [InventoryLock.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/InventoryLock.kt)
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
-- [InventoryEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryEventHandler.kt)
-- [InventoryConfirmEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryConfirmEventHandler.kt)
-- [InventoryReleaseEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryReleaseEventHandler.kt)
-- [TransactionalInventoryUseCase.kt](file://j-store-goods-boot/src/main/kotlin/com/jstore/goods/config/TransactionalInventoryUseCase.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
+- [InventoryTypes.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/InventoryTypes.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
+- [InventoryEvents.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/event/InventoryEvents.kt)
+- [InventoryErrors.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/InventoryErrors.kt)
+- [InventoryRepositories.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/InventoryRepositories.kt)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Completely migrated from legacy inventory management system in goods domain to dedicated inventory module
+- Replaced Inventory aggregate with StockPosition aggregate for better stock management
+- Introduced StockReservation aggregate for reservation lifecycle management
+- Updated all workflows to use new inventory services and repositories
+- Enhanced event-driven architecture with proper domain events
+- Improved concurrency control with StockPositionGuard
 
 ## Table of Contents
 1. Introduction
@@ -24,172 +32,160 @@
 9. Conclusion
 
 ## Introduction
-This document explains the inventory management system implemented in the Goods module. It focuses on:
-- The Inventory aggregate design and its TCC-style operations (reserve, confirm/deduct, release).
-- Stock reservation mechanisms via ReservationRecord with idempotency and expiry semantics.
-- Inventory synchronization patterns across services using domain events and event handlers.
-- Allocation strategies, stock level calculations, availability checks, and concurrency controls.
-- Event-driven architecture for cross-service communication and distributed considerations.
+This document explains the inventory management system implemented in the dedicated Inventory module, which has completely replaced the legacy inventory functionality that was previously embedded in the Goods domain. The new system focuses on:
+- The StockPosition aggregate design with advanced stock tracking capabilities
+- Stock reservation mechanisms via StockReservation with idempotency and expiry semantics
+- Inventory synchronization patterns across services using domain events and integration messages
+- Allocation strategies, stock level calculations, availability checks, and enhanced concurrency controls
+- Event-driven architecture for cross-service communication and distributed considerations
 
 ## Project Structure
-The inventory functionality is split between domain and application layers:
-- Domain layer defines the Inventory aggregate, ReservationRecord, and locking abstractions.
-- Application layer orchestrates workflows, enforces idempotency, and coordinates persistence and locking.
-- Boot configuration provides transactional boundaries for use cases.
+The inventory functionality is now organized in a dedicated module with clear separation between domain, application, and infrastructure layers:
+- Domain layer defines StockPosition aggregate, StockReservation, and type definitions
+- Application layer orchestrates workflows through InventoryService with proper transaction boundaries
+- Infrastructure layer provides persistence implementations and repository abstractions
+- Boot configuration wires up the service components and message handlers
 
 ```mermaid
 graph TB
-subgraph "Goods Domain"
-INV["Inventory.kt"]
-RR["ReservationRecord.kt"]
-LOCK["InventoryLock.kt"]
+subgraph "Inventory Domain"
+SP["StockPosition.kt"]
+SR["StockReservation.kt"]
+IT["InventoryTypes.kt"]
 end
-subgraph "Goods Application"
+subgraph "Inventory Application"
 SVC["InventoryService.kt"]
-EH1["InventoryEventHandler.kt"]
-EH2["InventoryConfirmEventHandler.kt"]
-EH3["InventoryReleaseEventHandler.kt"]
+EH1["ReserveInventoryCommandHandler"]
+EH2["ConfirmInventoryCommandHandler"]
+EH3["ReleaseInventoryCommandHandler"]
+EH4["PhysicalStockChangedHandler"]
 end
-subgraph "Boot"
-TX["TransactionalInventoryUseCase.kt"]
+subgraph "Infrastructure"
+REP["InventoryRepositories.kt"]
+PO["Persistence Objects"]
 end
-SVC --> INV
-SVC --> RR
-SVC --> LOCK
+SVC --> SP
+SVC --> SR
+SVC --> REP
 EH1 --> SVC
 EH2 --> SVC
 EH3 --> SVC
-TX --> SVC
+EH4 --> SVC
 ```
 
 **Diagram sources**
-- [Inventory.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/Inventory.kt)
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
-- [InventoryLock.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/InventoryLock.kt)
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
-- [InventoryEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryEventHandler.kt)
-- [InventoryConfirmEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryConfirmEventHandler.kt)
-- [InventoryReleaseEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryReleaseEventHandler.kt)
-- [TransactionalInventoryUseCase.kt](file://j-store-goods-boot/src/main/kotlin/com/jstore/goods/config/TransactionalInventoryUseCase.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
+- [InventoryTypes.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/InventoryTypes.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
 
 **Section sources**
-- [Inventory.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/Inventory.kt)
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
-- [InventoryLock.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/InventoryLock.kt)
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
-- [InventoryEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryEventHandler.kt)
-- [InventoryConfirmEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryConfirmEventHandler.kt)
-- [InventoryReleaseEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryReleaseEventHandler.kt)
-- [TransactionalInventoryUseCase.kt](file://j-store-goods-boot/src/main/kotlin/com/jstore/goods/config/TransactionalInventoryUseCase.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
+- [InventoryTypes.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/InventoryTypes.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
 
 ## Core Components
-- Inventory aggregate: Maintains availableQuantity and reservedQuantity; exposes reserve, deduct, release, and add operations.
-- ReservationRecord: Tracks a pre-reservation with bizCode idempotency key, commodityCode, amount, status transitions (RESERVED → CONFIRMED or RELEASED), and expiryTime.
-- InventoryLock: Abstraction for per-commodity locking to ensure concurrency safety during updates.
-- InventoryService: Orchestrates reserve/confirm/release flows, enforces idempotency via ReservationRecord, applies locking, and persists state changes.
+- **StockPosition aggregate**: Maintains onHand, reserved, safetyStock, and isolatedQuantity; exposes reserve, confirm, release, and physical stock update operations with ATP (Available to Promise) calculation
+- **StockReservation aggregate**: Tracks reservation lifecycle with businessKey idempotency, order association, authorization tracking, status transitions (RESERVED → CONFIRMED or RELEASED), and expiry handling
+- **Type system**: Strongly-typed identifiers (StockPositionId, StockReservationId, SkuId, FulfillmentNodeId) ensuring data integrity
+- **InventoryService**: Orchestrates reserve/confirm/release flows with proper locking, idempotency, and event publishing
 
 Key behaviors:
-- Pre-reservation (reserve): Checks availability, moves quantity from available to reserved, creates a ReservationRecord with an expiry window.
-- Confirmation (confirm): Validates record state and expiry, transitions to CONFIRMED, deducts reserved quantity.
-- Release (release): Validates record state, transitions to RELEASED, returns reserved quantity back to available.
+- **Pre-reservation (reserve)**: Validates availability using ATP calculation, creates reservations with TTL, publishes StockReservedEvent
+- **Confirmation (confirm)**: Processes confirmed orders, deducts from both reserved and on-hand quantities
+- **Release (release)**: Handles order cancellations, returns reserved quantities back to available pool
+- **Physical stock sync**: WMS integration for absolute stock updates with version-based idempotency
 
 **Section sources**
-- [Inventory.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/Inventory.kt)
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
-- [InventoryLock.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/InventoryLock.kt)
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
+- [InventoryTypes.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/InventoryTypes.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
 
 ## Architecture Overview
-The system uses a TCC-like pattern within a single service boundary, coordinated by application use cases and protected by locks. Events are published and handled by separate components to synchronize inventory state across modules.
+The system uses a modern DDD approach with clear aggregate boundaries, event sourcing for reservations, and integration messaging for cross-service communication.
 
 ```mermaid
 sequenceDiagram
-participant Client as "Caller"
+participant Client as "Order Service"
+participant Handler as "ReserveInventoryCommandHandler"
 participant UseCase as "InventoryService"
-participant Lock as "InventoryLock"
-participant Repo as "InventoryRepository"
-participant RRepo as "ReservationRecordRepository"
-participant Inv as "Inventory"
-participant Rec as "ReservationRecord"
-Client->>UseCase : reserve(bizCode, commodityCode, amount)
-UseCase->>RRepo : findByBizCode(bizCode)
-alt Idempotent hit
-RRepo-->>UseCase : existing record
-UseCase-->>Client : Success(record)
-else No prior reservation
-UseCase->>Lock : lock(commodityCode, timeout, unit)
-Lock-->>UseCase : Lock handle
-UseCase->>Repo : findById(commodityCode)
-Repo-->>UseCase : Inventory
-UseCase->>Inv : reserve(amount)
-Inv-->>UseCase : Result
-UseCase->>Repo : save(Inventory)
-UseCase->>Rec : create(RESERVED, expiry)
-UseCase->>RRepo : save(ReservationRecord)
-UseCase-->>Client : Success(record)
-end
+participant Guard as "StockPositionGuard"
+participant Position as "StockPosition"
+participant Reservation as "StockReservation"
+participant Bus as "Event Bus"
+Client->>Handler : ReserveInventoryCommand
+Handler->>UseCase : reserve(command)
+UseCase->>Guard : lock(positions)
+Guard-->>UseCase : locked positions
+UseCase->>Position : reserve(quantity)
+Position-->>UseCase : Result
+UseCase->>Reservation : create(RESERVED, ttl)
+UseCase->>Bus : publish StockReservedEvent
+Bus-->>Client : Success(reservationIds)
 ```
 
 **Diagram sources**
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
-- [Inventory.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/Inventory.kt)
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
-- [InventoryLock.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/InventoryLock.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
 
 ## Detailed Component Analysis
 
-### Inventory Aggregate
-- State fields: availableQuantity, reservedQuantity.
-- Operations:
-  - reserve(amount): Decreases availableQuantity, increases reservedQuantity if sufficient.
-  - deduct(amount): Decreases reservedQuantity when confirming a reservation.
-  - release(amount): Increases availableQuantity and decreases reservedQuantity when releasing.
-  - add(quantity): Increases availableQuantity for stock replenishment.
+### StockPosition Aggregate
+- **State fields**: onHand (physical stock), reserved (committed but not shipped), safetyStock (buffer), isolatedQuantity (quarantined stock)
+- **Operations**:
+  - reserve(quantity): Decreases availableToPromise by reserving quantity
+  - confirm(quantity): Deducts from both reserved and onHand when order ships
+  - release(quantity): Returns reserved quantity back to available pool
+  - applyPhysicalStock(onHand, sourceVersion): Absolute update from WMS with version control
+  - changeSafetyStock(), changeIsolatedQuantity(): Adjust buffer and quarantine levels
 
-Stock level calculation:
-- Available = total - reserved
-- Reserved = sum of active reservations not yet confirmed or released
-- Deductible = reserved minus already confirmed amounts
+**Stock level calculation**:
+- Available to Promise (ATP) = onHand - reserved - safetyStock - isolatedQuantity
+- Physical stock changes are versioned to handle concurrent WMS updates
+- Safety stock acts as a buffer to prevent overselling during peak demand
 
-Availability check:
-- reserve() validates availableQuantity >= amount before moving stock to reserved.
-
-Concurrency control:
-- Per-commodity lock ensures only one update path executes at a time for a given commodity.
+**Concurrency control**:
+- Uses StockPositionGuard for distributed locking per position key
+- Version-based optimistic locking for physical stock updates
 
 ```mermaid
 classDiagram
-class Inventory {
-+reserve(amount) Result~Boolean,BusinessError~
-+deduct(amount) Result~Boolean,BusinessError~
-+release(amount) Result~Boolean,BusinessError~
-+add(quantity) Result~Boolean,BusinessError~
+class StockPosition {
++onHand : Int
++reserved : Int
++safetyStock : Int
++isolatedQuantity : Int
++availableToPromise : Int
++reserve(quantity) Result~Unit,BusinessError~
++confirm(quantity) Result~Unit,BusinessError~
++release(quantity) Result~Unit,BusinessError~
++applyPhysicalStock(onHand, sourceVersion) Boolean
 }
-class InventoryImpl {
--availableQuantity : BigDecimal
--reservedQuantity : BigDecimal
--version : Long
+class StockPositionId {
++value : String
 }
-Inventory <|.. InventoryImpl
+StockPosition --> StockPositionId
 ```
 
 **Diagram sources**
-- [Inventory.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/Inventory.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
 
 **Section sources**
-- [Inventory.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/Inventory.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
 
-### ReservationRecord and Status Transitions
-- Fields: id, bizCode, commodityCode, amount, status, expiryTime.
-- Transitions:
-  - confirm(): RESERVED → CONFIRMED; rejects if already CONFIRMED or RELEASED or expired.
-  - release(): RESERVED → RELEASED; rejects if already CONFIRMED or RELEASED.
+### StockReservation and Status Transitions
+- **Fields**: businessKey (idempotency), orderId, saleAuthorizationId, skuId, fulfillmentNodeId, quantity, expiresAt, status
+- **Transitions**:
+  - confirm(): RESERVED → CONFIRMED; idempotent if already confirmed
+  - release(now): RESERVED → RELEASED; raises StockReservationReleasedEvent
+- **Expiry handling**: Reservations have TTL-based expiration managed by external cleanup processes
 
-Idempotency:
-- findByBizCode() enables returning existing records for duplicate requests.
-
-Expiry handling:
-- Expired records cannot be confirmed; they must be released or cleaned up.
+**Idempotency**:
+- businessKey ensures duplicate requests are handled safely
+- findByOrderId() enables batch processing of order-related operations
 
 ```mermaid
 stateDiagram-v2
@@ -201,175 +197,163 @@ RELEASED --> [*]
 ```
 
 **Diagram sources**
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
 
 **Section sources**
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
 
 ### InventoryService Orchestration
-Reserve workflow:
-- Check idempotency via ReservationRecordRepository.findByBizCode().
-- Acquire per-commodity lock.
-- Load Inventory, call reserve(), persist updated Inventory.
-- Create ReservationRecord with RESERVED status and expiry, persist it.
+**Reserve workflow**:
+- Validates command parameters and normalizes items by grouping identical SKU/node combinations
+- Acquires distributed locks on all required positions
+- Creates StockReservation records with TTL and publishes StockReservedEvent
+- Returns reservation IDs for downstream processing
 
-Confirm workflow:
-- Load ReservationRecord by bizCode.
-- Transition to CONFIRMED via confirm().
-- Load Inventory, call deduct(), persist both.
+**Confirm workflow**:
+- Loads all reservations for an order
+- Applies confirm() to each active reservation
+- Updates both StockPosition and StockReservation aggregates
+- Idempotent - can be called multiple times safely
 
-Release workflow:
-- Load ReservationRecord by bizCode.
-- Transition to RELEASED via release().
-- Load Inventory, call release(), persist both.
+**Release workflow**:
+- Filters only active (RESERVED) reservations
+- Releases quantities back to available pool
+- Raises StockReservationReleasedEvent for downstream notifications
 
-Add workflow:
-- Acquire lock, load Inventory, add quantity, persist.
+**Physical stock sync**:
+- Handles WMS integration events with absolute stock values
+- Uses sourceVersion for optimistic concurrency control
+- Creates positions on-demand if they don't exist
 
 ```mermaid
 flowchart TD
-Start([Function Entry]) --> CheckIdempotent["Check ReservationRecord by bizCode"]
-CheckIdempotent --> Found{"Found?"}
-Found --> |Yes| ReturnExisting["Return Existing Record"]
-Found --> |No| AcquireLock["Acquire InventoryLock"]
-AcquireLock --> LoadInv["Load Inventory by commodityCode"]
-LoadInv --> ReserveOp["Inventory.reserve(amount)"]
-ReserveOp --> SaveInv["Persist Inventory"]
-SaveInv --> CreateRec["Create ReservationRecord(RESERVED, expiry)"]
-CreateRec --> SaveRec["Persist ReservationRecord"]
-SaveRec --> End([Function Exit])
-ReturnExisting --> End
+Start([Reserve Command]) --> Validate["Validate & Normalize Items"]
+Validate --> LockPositions["Acquire Distributed Locks"]
+LockPositions --> CreateReservations["Create StockReservations"]
+CreateReservations --> PublishEvent["Publish StockReservedEvent"]
+PublishEvent --> End([Success with Reservation IDs])
 ```
 
 **Diagram sources**
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
 
 **Section sources**
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
 
-### Event Handlers and Cross-Service Synchronization
-- InventoryEventHandler: Consumes domain events to trigger inventory actions such as pre-reservation or adjustments based on upstream business events.
-- InventoryConfirmEventHandler: Consumes confirmation events to finalize deductions against reserved stock.
-- InventoryReleaseEventHandler: Consumes release events to restore reserved stock back to available.
+### Integration Message Handlers
+- **ReserveInventoryCommandHandler**: Entry point for stock reservation requests, publishes domain events
+- **ConfirmInventoryCommandHandler**: Processes payment confirmation to finalize stock deductions
+- **ReleaseInventoryCommandHandler**: Handles order cancellation to restore reserved stock
+- **PhysicalStockChangedHandler**: Integrates with WMS for physical stock updates
 
-These handlers coordinate with InventoryService to apply state changes consistently and publish further events as needed.
+These handlers provide clean interfaces for cross-service communication and ensure proper error handling and event publication.
 
 ```mermaid
 sequenceDiagram
-participant Upstream as "Upstream Service"
-participant Bus as "Event Bus"
-participant Handler as "InventoryEventHandler"
-participant Conf as "InventoryConfirmEventHandler"
-participant Rel as "InventoryReleaseEventHandler"
-participant SVC as "InventoryService"
-Upstream->>Bus : Publish InventoryEvent
-Bus->>Handler : Handle InventoryEvent
-Handler->>SVC : reserve(...)
-SVC-->>Handler : Result
-Handler-->>Bus : Publish InventoryConfirmedEvent
-Bus->>Conf : Handle InventoryConfirmedEvent
-Conf->>SVC : confirm(...)
-SVC-->>Conf : Result
-Bus->>Rel : Handle InventoryReleasedEvent
-Rel->>SVC : release(...)
-SVC-->>Rel : Result
+participant OrderSvc as "Order Service"
+participant Bus as "Message Bus"
+participant InvHandler as "Inventory Handlers"
+participant UseCase as "InventoryService"
+OrderSvc->>Bus : ReserveInventoryCommand
+Bus->>InvHandler : Handle Reserve
+InvHandler->>UseCase : reserve()
+UseCase-->>InvHandler : Result
+InvHandler->>Bus : StockReservedEvent / StockReservationFailedEvent
 ```
 
 **Diagram sources**
-- [InventoryEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryEventHandler.kt)
-- [InventoryConfirmEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryConfirmEventHandler.kt)
-- [InventoryReleaseEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryReleaseEventHandler.kt)
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
 
 **Section sources**
-- [InventoryEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryEventHandler.kt)
-- [InventoryConfirmEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryConfirmEventHandler.kt)
-- [InventoryReleaseEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryReleaseEventHandler.kt)
-
-### Transaction Boundaries
-- TransactionalInventoryUseCase configures transactional boundaries for inventory use cases, ensuring atomicity of reserve/confirm/release operations and their side effects.
-
-**Section sources**
-- [TransactionalInventoryUseCase.kt](file://j-store-goods-boot/src/main/kotlin/com/jstore/goods/config/TransactionalInventoryUseCase.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
 
 ## Dependency Analysis
-- InventoryService depends on:
-  - InventoryRepository (persistence of Inventory)
-  - ReservationRecordRepository (idempotency and lifecycle tracking)
-  - InventoryFactory (creation of Inventory instances)
-  - InventoryLock (concurrency control)
-  - SnowFlakSequence (reservation record ID generation)
-- Inventory aggregate encapsulates stock math and validation.
-- ReservationRecord encapsulates reservation lifecycle and expiry logic.
-- Event handlers depend on InventoryService to apply domain operations.
+- **InventoryService depends on**:
+  - StockPositionRepository (persistence of stock positions)
+  - StockReservationRepository (reservation lifecycle tracking)
+  - StockPositionGuard (distributed locking)
+  - DomainEventPublisher (event publishing)
+  - Clock (time-based operations for TTL)
+- **Domain aggregates encapsulate**:
+  - StockPosition: Stock math, validation, and physical stock updates
+  - StockReservation: Reservation lifecycle and state transitions
+- **Integration handlers depend on**:
+  - InventoryService for core business logic
+  - Event bus for cross-service communication
 
 ```mermaid
 graph LR
-SVC["InventoryService"] --> INV_REPO["InventoryRepository"]
-SVC --> RR_REPO["ReservationRecordRepository"]
-SVC --> FACT["InventoryFactory"]
-SVC --> LOCK["InventoryLock"]
-SVC --> SEQ["SnowFlakSequence"]
-SVC --> INV["Inventory"]
-SVC --> RR["ReservationRecord"]
-EH1["InventoryEventHandler"] --> SVC
-EH2["InventoryConfirmEventHandler"] --> SVC
-EH3["InventoryReleaseEventHandler"] --> SVC
+SVC["InventoryService"] --> POS_REPO["StockPositionRepository"]
+SVC --> RES_REPO["StockReservationRepository"]
+SVC --> GUARD["StockPositionGuard"]
+SVC --> PUBLISHER["DomainEventPublisher"]
+SVC --> CLOCK["Clock"]
+SVC --> POS["StockPosition"]
+SVC --> RES["StockReservation"]
+HANDLER1["ReserveHandler"] --> SVC
+HANDLER2["ConfirmHandler"] --> SVC
+HANDLER3["ReleaseHandler"] --> SVC
+HANDLER4["WMSHandler"] --> SVC
 ```
 
 **Diagram sources**
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
-- [Inventory.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/Inventory.kt)
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
-- [InventoryLock.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/InventoryLock.kt)
-- [InventoryEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryEventHandler.kt)
-- [InventoryConfirmEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryConfirmEventHandler.kt)
-- [InventoryReleaseEventHandler.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryReleaseEventHandler.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
 
 **Section sources**
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
 
 ## Performance Considerations
-- Concurrency control:
-  - Per-commodity lock prevents hot-spot contention on high-demand SKUs.
-  - Ensure lock timeouts are tuned to avoid long waits under load.
-- Idempotency:
-  - ReservationRecord lookup by bizCode avoids duplicate reserves and reduces contention.
-- Throughput:
-  - Batch operations should be considered for bulk stock adjustments.
-  - Minimize round-trips by coalescing repository calls where safe.
-- Scalability:
-  - For distributed deployments, implement InventoryLock with a distributed lock provider.
-  - Use asynchronous event processing with retry and dead-lettering for resilience.
-- Observability:
-  - Log lock acquisition failures and concurrent conflicts to detect bottlenecks.
-  - Track reservation expiry rates to tune expiry windows.
-
-[No sources needed since this section provides general guidance]
+- **Distributed locking**:
+  - StockPositionGuard prevents hot-spot contention on high-demand SKUs
+  - Batch locking for multi-item orders reduces lock acquisition overhead
+  - Configurable timeouts to balance between consistency and performance
+- **Idempotency**:
+  - businessKey-based deduplication prevents duplicate reservations
+  - Version-based physical stock updates handle concurrent WMS updates
+- **Throughput optimization**:
+  - Item normalization groups identical SKU/node combinations
+  - Batch operations for confirm/release reduce database round-trips
+  - Asynchronous event processing decouples inventory updates from order processing
+- **Scalability**:
+  - Stateless service design enables horizontal scaling
+  - Event-driven architecture supports eventual consistency patterns
+  - WMS integration handles large-scale physical stock updates efficiently
+- **Monitoring**:
+  - Track reservation TTL expiry rates to tune timeout configurations
+  - Monitor lock contention metrics to identify bottlenecks
+  - Log failed reservations for capacity planning
 
 ## Troubleshooting Guide
 Common issues and resolutions:
-- Insufficient inventory:
-  - Occurs when availableQuantity < requested amount during reserve().
-  - Action: Review demand spikes, increase stock, or adjust allocation strategy.
-- Concurrent conflict:
-  - Lock acquisition failure maps to a concurrent conflict error.
-  - Action: Increase lock timeout, scale consumers, or reduce contention via sharding.
-- Reservation not found:
-  - Confirm/release requires an existing ReservationRecord by bizCode.
-  - Action: Verify upstream idempotency keys and event delivery.
-- Illegal state:
-  - Confirm/release called on invalid states or expired records.
-  - Action: Enforce correct ordering and implement cleanup for expired reservations.
+- **Insufficient ATP**:
+  - Occurs when availableToPromise < requested quantity during reserve()
+  - Action: Review safety stock levels, increase physical stock, or adjust allocation strategy
+- **Position not found**:
+  - Distributed lock acquisition fails when position doesn't exist
+  - Action: Ensure WMS has initialized stock positions for all SKUs/nodes
+- **Illegal reservation state**:
+  - Confirm/release called on invalid states or expired reservations
+  - Action: Verify upstream ordering and implement cleanup for expired reservations
+- **Reservation conflicts**:
+  - Duplicate reservation attempts or expired TTL
+  - Action: Check businessKey uniqueness and adjust reservation TTL based on order processing time
+- **WMS sync issues**:
+  - Physical stock updates fail due to version conflicts
+  - Action: Implement retry logic with exponential backoff for WMS integration failures
 
 **Section sources**
-- [InventoryService.kt](file://j-store-goods-application/src/main/kotlin/com/jstore/goods/service/InventoryService.kt)
-- [ReservationRecord.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/inventory/ReservationRecord.kt)
+- [InventoryService.kt](file://j-store-inventory-application/src/main/kotlin/com/jstore/inventory/service/InventoryService.kt)
+- [StockPosition.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockPosition.kt)
+- [StockReservation.kt](file://j-store-inventory-domain/src/main/kotlin/com/jstore/inventory/domain/StockReservation.kt)
 
 ## Conclusion
-The inventory management system implements a robust TCC-style model with clear separation of concerns:
-- Inventory aggregate handles stock math and validations.
-- ReservationRecord provides idempotent, expirable reservations.
-- InventoryService orchestrates workflows with locking and persistence.
-- Event handlers enable cross-service synchronization and decoupled updates.
-For high-concurrency and distributed scenarios, focus on lock tuning, idempotency guarantees, and resilient event processing to maintain consistency and performance.
+The inventory management system has been successfully migrated from the legacy Goods domain implementation to a dedicated Inventory module with improved architecture and capabilities:
+- **StockPosition aggregate** provides robust stock tracking with ATP calculation and WMS integration
+- **StockReservation aggregate** offers reliable reservation lifecycle management with proper state transitions
+- **InventoryService** orchestrates complex workflows with distributed locking and event-driven communication
+- **Integration handlers** enable seamless cross-service communication with proper error handling
+- **Enhanced scalability** through distributed locking, event sourcing, and asynchronous processing
+
+For high-concurrency and distributed scenarios, the system leverages modern DDD patterns, event-driven architecture, and distributed coordination primitives to maintain consistency while maximizing throughput and availability.

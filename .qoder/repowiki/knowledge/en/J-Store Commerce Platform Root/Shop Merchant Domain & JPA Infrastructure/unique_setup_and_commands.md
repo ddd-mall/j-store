@@ -1,1 +1,0 @@
-Build and test each module with Gradle (`./gradlew :j-store-shop:test`, `./gradlew :j-store-shop-infrastructure:test`). The infrastructure module requires a running PostgreSQL instance at runtime since it declares `runtimeOnly(libs.postgresql)`.

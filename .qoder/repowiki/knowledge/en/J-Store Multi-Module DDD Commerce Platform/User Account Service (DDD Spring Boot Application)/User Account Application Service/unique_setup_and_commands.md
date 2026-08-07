@@ -1,0 +1,1 @@
+Tests execute under JUnit Platform (`tasks.test { useJUnitPlatform() }`) using Kotest runners; requires JDK 25 per `kotlin.jvmToolchain(25)`.

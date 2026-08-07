@@ -1,0 +1,1 @@
+Kotlin 2.3 + Spring Boot on Java 25, Gradle multi-project with convention plugins, PostgreSQL 16 for persistence, Docker Compose for local infra, Spotless for cross-module code style enforcement, CycloneDX for dependency BOMs.

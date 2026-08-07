@@ -1,0 +1,1 @@
+Gradle multi-module workspace that assembles J-Store's domain services, shared libraries, and Docker infrastructure into a cohesive microservices platform built on Kotlin/Spring Boot with four-layer DDD.

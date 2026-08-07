@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: user_service/boot_layer
-title: User Service Boot & HTTP Entry Layer
-scope:
-    - j-store-user-boot/
-source_files: []
-depends_on: []
-related_to:
-    - path: authentication_sdk

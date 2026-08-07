@@ -1,0 +1,1 @@
+Defines the JVM-facing query API for retrieving offer snapshots, exposing a functional interface and a data class consumed by shop services.

@@ -1,0 +1,1 @@
+Tests in the infrastructure module rely on `embedded-postgres` to spin up a test database automatically; all modules run under Kotlin JVM toolchain 25 and use JUnit Platform via `useJUnitPlatform()`.

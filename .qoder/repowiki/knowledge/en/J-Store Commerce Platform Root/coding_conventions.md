@@ -1,6 +1,0 @@
-- Each bounded context follows a four-layer split: domain, application, infrastructure, and boot modules, consistently named `j-store-<context>-*`.
-- Shared primitives live in `j-store-common-core` (DDD aggregates, Result type, domain events) and auto-configured Spring integrations in `j-store-common-spring`.
-- All services use Spring Boot auto-configuration rather than manual wiring, with boot modules assembling factories, repositories, and use cases.
-- Cross-cutting authentication is handled centrally via `j-store-authentication-spring-sdk` intercepting HTTP requests and populating thread-local user context.
-- Event-driven communication uses the transactional outbox pattern defined in common-core and exposed through common-spring auto-configuration.
-- Code style is enforced uniformly via Spotless: ktfmt for Kotlin, google-java-format for Java, applied across all subprojects from origin/master.

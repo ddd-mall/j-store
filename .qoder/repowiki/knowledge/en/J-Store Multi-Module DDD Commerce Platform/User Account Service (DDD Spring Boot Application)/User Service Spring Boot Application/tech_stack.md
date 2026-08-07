@@ -1,0 +1,1 @@
+Kotlin JVM with Spring Boot Web, Spring Data Redis, Spring Validation, and JUnit Platform; JWT tokens issued via `JwtTokenProvider` and stored in Redis through `RedisTokenStore`; authentication handled by `j-store-authentication-spring-sdk` annotations (`@RequireLogin`, `@CurrentUserId`, `@SkipLogin`).

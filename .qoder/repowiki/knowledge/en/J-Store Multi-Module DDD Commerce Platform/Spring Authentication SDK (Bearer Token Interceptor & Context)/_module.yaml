@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: authentication_sdk
+title: Spring Authentication SDK (Bearer Token Interceptor & Context)
+scope:
+    - j-store-authentication-spring-sdk/
+source_files: []
+depends_on: []
+related_to:
+    - path: fulfillment_service/boot_layer
+    - path: order_service/boot_layer
+    - path: payment_service/payment_boot

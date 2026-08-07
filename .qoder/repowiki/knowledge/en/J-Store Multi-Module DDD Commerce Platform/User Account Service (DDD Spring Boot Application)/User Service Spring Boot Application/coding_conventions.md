@@ -1,0 +1,5 @@
+- Cross-cutting concerns are wired as Spring `@Bean` methods in dedicated `*Configuration` classes rather than via component scanning alone.
+- Controllers return `ResponseEntity<*>` built from domain `Result<T, BusinessError>` values through a private `toResponse` helper that maps success to 200 OK and failure to the error's HTTP code.
+- Optional features are enabled at runtime via `@ConditionalOnProperty` with explicit prefixes (e.g. `jstore.user-query.server.enabled`, `jstore.user-query.mode`) instead of feature flags in code.
+- Environment-specific implementations are selected with `@Profile` annotations (e.g. `DevelopmentPhoneVerificationSender` for `local`/`dev`).
+- Write paths that touch both the database and Redis are wrapped in a `TransactionalUserAccountUseCase` decorator so Redis side-effects execute only after the underlying DB transaction commits successfully.
