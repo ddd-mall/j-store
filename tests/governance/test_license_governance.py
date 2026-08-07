@@ -94,6 +94,19 @@ class LicenseGovernanceContractTest(unittest.TestCase):
             contexts,
         )
 
+    def test_quality_workflow_fetches_spotless_ratchet_reference(self) -> None:
+        build_script = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        quality_workflow = (REPO_ROOT / ".github/workflows/quality.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('ratchetFrom("origin/master")', build_script)
+        self.assertIn(
+            "fetch-depth: 0",
+            quality_workflow,
+            "Quality Gate must fetch origin/master for the Spotless ratchet baseline",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
