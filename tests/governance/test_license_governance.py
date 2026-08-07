@@ -72,9 +72,9 @@ class LicenseGovernanceContractTest(unittest.TestCase):
         self.assertEqual("branch", ruleset["target"])
         self.assertEqual("active", ruleset["enforcement"])
         rule_types = {rule["type"] for rule in ruleset["rules"]}
-        self.assertTrue(
-            {"deletion", "non_fast_forward", "pull_request", "required_status_checks"}
-            <= rule_types
+        self.assertLessEqual(
+            {"deletion", "non_fast_forward", "pull_request", "required_status_checks"},
+            rule_types,
         )
         status_rule = next(
             rule for rule in ruleset["rules"] if rule["type"] == "required_status_checks"
