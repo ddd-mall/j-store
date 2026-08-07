@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: orchestration_boot
+title: J-Store Order Boot Application
+scope:
+    - j-store-boot/
+    - j-store-admin-boot/
+source_files: []
+depends_on: []
+related_to:
+    - path: accounting_service/accounting_boot

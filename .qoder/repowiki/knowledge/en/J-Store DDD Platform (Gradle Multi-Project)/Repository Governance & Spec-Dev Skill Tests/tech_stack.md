@@ -1,1 +1,0 @@
-Python `unittest` framework with `jsonschema.Draft202012Validator` for schema validation, `tomllib` for TOML parsing, and `importlib.util` for dynamic module loading of sibling scripts. Shell scripting is invoked through `subprocess.run` for the governance check script.
