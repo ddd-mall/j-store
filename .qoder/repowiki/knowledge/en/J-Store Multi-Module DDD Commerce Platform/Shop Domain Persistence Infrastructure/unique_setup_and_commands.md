@@ -1,0 +1,1 @@
+Build and test per-module with `./gradlew :j-store-shop-infrastructure:test`; tests require a running PostgreSQL instance at runtime because the driver is `runtimeOnly` and no embedded database is configured.

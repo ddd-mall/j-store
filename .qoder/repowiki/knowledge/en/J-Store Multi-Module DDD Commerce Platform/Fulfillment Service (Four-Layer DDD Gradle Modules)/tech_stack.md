@@ -1,0 +1,1 @@
+Kotlin + Spring Boot + Spring Data JPA + PostgreSQL, with each layer packaged as an independent Gradle module (`build.gradle.kts`).

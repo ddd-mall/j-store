@@ -1,0 +1,1 @@
+Implements Spring-based infrastructure for the user domain: JPA persistence of user accounts, BCrypt password hashing, HS256 JWT token issuance/validation, and Redis-backed login attempt guarding and phone verification challenges.

@@ -1,0 +1,1 @@
+Kotlin JVM (toolchain 25) built with Gradle Kotlin DSL; uses Kotlin `fun interface` to define a SAM-style query contract.

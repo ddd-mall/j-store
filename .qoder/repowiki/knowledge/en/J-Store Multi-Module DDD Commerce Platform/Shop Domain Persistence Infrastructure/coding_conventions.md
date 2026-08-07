@@ -1,0 +1,5 @@
+- Each repository adapter is a `@Repository` class implementing a domain repository interface and receiving Spring Data `*JpaRepository` instances through constructor injection.
+- Domain-to-Persistence conversion is isolated in an `internal object Converter` (or private `toPO`/`toDomain` helpers) inside each repository implementation, keeping mapping logic co-located with the adapter.
+- Write methods are annotated with `@Transactional(propagation = Propagation.MANDATORY)` to force callers to supply transactions, while read-only queries use `@Transactional(readOnly = true)`.
+- JPA entities live in a `persistence/` sub-package alongside their Spring Data repository interfaces, separated from the repository adapters that implement domain ports.
+- Aggregate identifiers are passed across the boundary as value types whose underlying `value` field is used as the JPA `@Id` column.

@@ -1,0 +1,1 @@
+Application-layer orchestration for user account operations including registration, login, token refresh, profile updates, and account lifecycle management via domain-driven use cases.

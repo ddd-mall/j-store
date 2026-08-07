@@ -1,0 +1,1 @@
+Spring Boot payment service organized as four Gradle subprojects that enforce a strict one-way dependency chain from boot through application and infrastructure into a framework-free domain core.

@@ -1,6 +1,0 @@
-- Spring Boot auto-configuration is centralized in a single `*AutoConfiguration` class annotated with `@Configuration`, `@EnableConfigurationProperties`, and `@ConditionalOnProperty`, with all beans defined as `@Bean` methods.
-- Configuration properties are declared as `@ConfigurationProperties` data classes with validation enforced in an `init { require(...) }` block using descriptive error messages prefixed by the property key.
-- Pluggable components (delivery channels, transports, handlers) are exposed as interfaces injected via `List<Interface>` or `ObjectProvider<T>`, allowing conditional activation with `@ConditionalOnBean`.
-- Persistence layers follow a JPA pattern: entity PO classes live in a `persistence/` sub-package paired with a `*RepositoryImpl` that wraps a generated `*JpaRepository` plus `EntityManager`.
-- Serialization is consistently implemented via Jackson with a dedicated serializer class (`JacksonEventSerializer`, `JacksonIntegrationMessageSerializer`) constructed from an injected `ObjectMapper` and a type registry.
-- Handlers and listeners are registered through explicit registry classes (`SpringDomainEventListenerRegistry`, `SpringIntegrationMessageTypeRegistryRegistrar`) rather than annotation scanning, with type resolution done via reflection on generic parameters.

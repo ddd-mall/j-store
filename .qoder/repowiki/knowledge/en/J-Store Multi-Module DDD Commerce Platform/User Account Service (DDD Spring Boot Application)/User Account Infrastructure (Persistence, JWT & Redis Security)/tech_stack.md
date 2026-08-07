@@ -1,0 +1,1 @@
+Kotlin JVM on JDK 25; Spring Boot with Spring Data JPA (Hibernate + PostgreSQL runtime) and Spring Data Redis; jjwt (io.jsonwebtoken) for HS256 JWT signing; Spring Security Crypto for BCrypt; Kotest + JUnit 5 for tests; Embedded PostgreSQL via io.zonky.test for integration tests.

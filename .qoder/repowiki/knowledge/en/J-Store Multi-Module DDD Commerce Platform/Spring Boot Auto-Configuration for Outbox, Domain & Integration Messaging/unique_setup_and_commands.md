@@ -1,0 +1,1 @@
+Tests run on JUnit Platform (`useJUnitPlatform()`) with Kotlin toolchain 25. The outbox feature is opt-in via property `jstore.outbox.enabled=true`; without it `OutboxAutoConfiguration` does not activate. Integration tests spin up an embedded Postgres instance via `io.zonky.test:embedded-postgres:2.1.0`.

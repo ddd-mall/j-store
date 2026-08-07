@@ -1,1 +1,0 @@
-Tests run via JUnit Platform (`tasks.test.useJUnitPlatform()`). Consumers must supply `TokenProvider` and `TokenStore` beans; the auto-configuration activates only when both are present on the classpath and the application is a servlet web app.

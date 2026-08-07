@@ -1,1 +1,0 @@
-Kotlin JVM with Spring Boot 3.x (`spring-boot-starter-web`), Jackson for JSON error responses, Kotest + property-based testing for tests, and Spring's `AutoConfiguration` mechanism for zero-config setup. Requires JDK 25 toolchain.

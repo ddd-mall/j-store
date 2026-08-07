@@ -1,3 +1,0 @@
-- Each module uses a flat `com.jstore` package with a single `Main.kt` entry point following the IntelliJ Kotlin template.
-- Gradle configuration is written in Kotlin DSL (`build.gradle.kts`) with identical structure across both modules: `kotlin("jvm")` plugin, `mavenCentral()` repository, and `useJUnitPlatform()` test task.
-- Versioning follows semantic versioning with `-SNAPSHOT` suffix and a shared `group = "com.jstore"` across all modules.

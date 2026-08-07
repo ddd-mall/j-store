@@ -1,0 +1,4 @@
+- Domain ports are declared as Kotlin interfaces in `j-store-user-domain` (e.g. `TokenProvider`, `TokenStore`, `PasswordHasher`, `LoginAttemptGuard`, `PhoneVerificationGateway`) and implemented in `j-store-user-infrastructure`, keeping infrastructure pluggable behind stable contracts.
+- Spring `@Configuration` beans in `UserBootConfiguration` bind external secrets via `@Value` placeholders (JWT secrets, HMAC secret) and inject infrastructure implementations into application-layer use cases.
+- Application-layer use cases delegate to domain aggregates and infrastructure ports without direct framework coupling, enabling transactional wrapping via `TransactionalUserAccountUseCase`.
+- Property-based tests using Kotest are co-located with domain logic to validate value-object invariants and aggregate state transitions.

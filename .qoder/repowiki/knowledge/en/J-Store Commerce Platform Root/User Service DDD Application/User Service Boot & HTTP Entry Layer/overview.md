@@ -1,1 +1,0 @@
-Spring Boot bootstrapping layer for the user service that wires domain/application components, exposes REST endpoints under /api/users, and registers a JWT authentication filter.

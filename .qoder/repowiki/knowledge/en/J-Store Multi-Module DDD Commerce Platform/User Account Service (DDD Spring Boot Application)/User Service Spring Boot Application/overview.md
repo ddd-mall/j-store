@@ -1,0 +1,1 @@
+Spring Boot application that wires the user domain, application, and infrastructure layers into a web server exposing public and internal REST endpoints for user account management.

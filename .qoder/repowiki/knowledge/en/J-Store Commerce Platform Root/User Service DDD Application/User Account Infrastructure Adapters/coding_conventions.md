@@ -1,5 +1,0 @@
-- Domain-to-persistence mapping is centralized in a private nested `Converter` object with explicit `toPO` and `toDomain` functions rather than implicit serialization.
-- Infrastructure adapters implement domain interfaces (e.g., `TokenProvider`, `TokenStore`, `PasswordHasher`, `UserAccountRepository`) and are wired into Spring via constructor injection without additional annotations beyond `@Repository` where needed.
-- Transactional boundaries on repository methods explicitly declare `@Transactional(propagation = Propagation.MANDATORY)` to enforce caller-managed transactions.
-- External cryptographic operations delegate to well-known libraries (`BCryptPasswordEncoder`, jjwt `Jwts.builder()`) rather than implementing algorithms directly.
-- Redis key naming follows a consistent `{prefix}:{id}` convention defined as `companion object` constants per store type.

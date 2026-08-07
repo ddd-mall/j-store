@@ -1,1 +1,0 @@
-Kotlin JVM (toolchain 25) built with Gradle Kotlin DSL; testing uses Kotest (`FunSpec`, assertions, property tests) and Mockito-Kotlin for mocking; JUnit 5 platform via `useJUnitPlatform()`.

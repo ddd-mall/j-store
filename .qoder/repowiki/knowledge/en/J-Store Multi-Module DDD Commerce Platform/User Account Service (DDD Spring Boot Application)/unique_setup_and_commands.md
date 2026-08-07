@@ -1,0 +1,1 @@
+Each subproject is an independent Gradle module built with `kotlin { jvmToolchain(25) }`; the boot module depends on the other three and is the single deployable Spring Boot application exposing REST endpoints under `com.jstore.user.controller`.

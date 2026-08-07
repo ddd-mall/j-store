@@ -1,6 +1,0 @@
-- Domain entities implement an interface (e.g. `UserAccount`) while the concrete class suffices state and behavior separately (`UserAccountImpl`), keeping the interface stable for dependency injection.
-- Value objects are immutable Kotlin `data class`es that enforce invariants in their `init` block via `require(...)`, failing fast on invalid construction.
-- Domain operations return `Result<T, BusinessError>` instead of throwing exceptions, with failures constructed via `Failure(...)` and success via `Success(...)`.
-- Domain events are declared as data classes implementing `DomainEvent`, annotated with `@DomainEventType(name = ..., version = ...)`, and derive identity/timestamps from `newDomainEventId()` and `Instant.now()`.
-- Repository interfaces extend `AggregateRepository<Id, Entity>` and are defined in the domain package, with implementations deferred to the infrastructure layer.
-- Property-based tests use Kotest `checkAll` with custom `Arb` generators to assert invariants over many random valid inputs rather than hand-written unit cases.

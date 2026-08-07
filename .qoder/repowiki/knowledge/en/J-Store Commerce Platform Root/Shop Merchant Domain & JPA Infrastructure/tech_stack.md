@@ -1,1 +1,0 @@
-Kotlin JVM with Spring Boot Starter Data JPA, Spring Data JPA, and PostgreSQL driver; JPA entities use `jakarta.persistence.*` annotations; tests run on JUnit 5 via the Kotlin test plugin; both modules target JVM toolchain 25.

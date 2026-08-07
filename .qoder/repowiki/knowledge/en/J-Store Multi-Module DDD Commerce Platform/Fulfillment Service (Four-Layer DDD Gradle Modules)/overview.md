@@ -1,0 +1,1 @@
+Spring Boot fulfillment service split into four independent Gradle modules that enforce a one-way dependency chain from boot through application and infrastructure down to a framework-free domain layer.

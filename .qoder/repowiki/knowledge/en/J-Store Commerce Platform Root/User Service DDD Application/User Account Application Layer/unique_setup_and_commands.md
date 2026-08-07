@@ -1,1 +1,0 @@
-Build and test via Gradle: `./gradlew :j-store-user-application:test` runs the Kotest suite on JUnit 5. The project depends on sibling modules `:j-store-user-domain` and `:j-store-common-core` declared as `api`/`implementation` dependencies in `build.gradle.kts`.

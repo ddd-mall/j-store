@@ -1,1 +1,0 @@
-Spring Boot starter providing auto-configured outbox pattern, local domain event bus, integration message bus, and geo address utilities on top of the j-store-common-core framework.

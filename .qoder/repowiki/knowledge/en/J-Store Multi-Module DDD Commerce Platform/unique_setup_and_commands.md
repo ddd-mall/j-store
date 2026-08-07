@@ -1,0 +1,1 @@
+`gradlew spotlessApply` formats all Java/Kotlin/Kotlin-Gradle sources across every subproject using ktfmt/google-java-format; `gradlew installSpotlessGitPrePushHook` installs pre-commit/pre-push hooks from `scripts/git-hooks`; `docker compose -f docker-compose.postgres.yml up` boots the shared PostgreSQL instance used by all services.

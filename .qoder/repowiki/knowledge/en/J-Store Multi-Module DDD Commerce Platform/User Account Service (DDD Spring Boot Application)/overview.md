@@ -1,0 +1,1 @@
+Spring Boot application that assembles a DDD-based user account service by wiring domain aggregates, application use cases, and infrastructure implementations through Spring configuration.

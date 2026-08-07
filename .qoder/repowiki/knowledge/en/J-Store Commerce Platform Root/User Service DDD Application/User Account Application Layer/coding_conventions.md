@@ -1,5 +1,0 @@
-- Every use-case method returns `Result<T, BusinessError>` using `Success`/`Failure` wrappers from `com.jstore.common.utils`, never throwing exceptions for business failures.
-- Domain mutations are performed by calling methods on the loaded aggregate object (e.g., `account.changeNickname(...)`, `account.disable()`) and then persisting via `userAccountRepository.save(account)`.
-- Side effects are emitted through two channels: `account.publishPendingEvents(domainEventPublisher)` for aggregate-level events and direct `domainEventPublisher.publishEvent(...)` for cross-cutting events like login or forced-offline.
-- Constructor injection is used exclusively for all collaborators (factory, repository, hasher, token provider/store, event publisher), with no field-level dependency resolution.
-- Tests follow a shared-mock pattern: collaborators are declared as `lateinit var` properties, instantiated in `beforeEach`, and verified with `verify(...)` / `whenever(...)` from Mockito-Kotlin.

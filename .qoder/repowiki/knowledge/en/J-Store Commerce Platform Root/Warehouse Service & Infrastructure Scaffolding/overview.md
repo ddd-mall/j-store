@@ -1,1 +1,0 @@
-Kotlin/JVM Gradle project scaffolds for the warehouse service and its infrastructure layer, both initialized with default IntelliJ-generated Main entry points and JUnit 5 test configuration.

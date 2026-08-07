@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: user_service/infrastructure_layer
-title: User Account Infrastructure Adapters
-scope:
-    - j-store-user-infrastructure/
-source_files: []
-depends_on: []
-related_to: []
