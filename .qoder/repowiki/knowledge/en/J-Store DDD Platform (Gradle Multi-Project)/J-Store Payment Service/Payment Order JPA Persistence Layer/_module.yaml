@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: payment_service/payment_infrastructure
-title: Payment Order JPA Persistence Layer
-scope:
-    - j-store-payment-infrastructure/
-source_files: []
-depends_on: []
-related_to:
-    - path: payment_service/payment_application

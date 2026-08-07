@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: payment_service/payment_boot
+title: Payment Bootstrapping & HTTP Entry Point
+scope:
+    - j-store-payment-boot/
+source_files: []
+depends_on: []
+related_to:
+    - path: authentication_sdk
