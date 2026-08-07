@@ -1,1 +1,0 @@
-Kotlin JVM (toolchain 25) with Spring Boot + Spring Data JPA, PostgreSQL runtime, and an embedded Postgres (`io.zonky.test:embedded-postgres:2.1.0`) for tests; uses `jakarta.persistence.LockModeType.PESSIMISTIC_WRITE` for row-level locking.

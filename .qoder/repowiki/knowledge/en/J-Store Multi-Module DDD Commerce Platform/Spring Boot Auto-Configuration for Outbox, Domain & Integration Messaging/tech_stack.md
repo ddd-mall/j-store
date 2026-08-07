@@ -1,1 +1,0 @@
-Kotlin JVM with Spring Boot 3.x (via `kotlin.plugin.spring` and `spring.boot.dependencies` BOM), Spring Data JPA for persistence, Micrometer for metrics, Jackson for serialization, FastExcel for district data, Kotest + Mockito for tests, and io.zonky.test embedded Postgres for integration testing.

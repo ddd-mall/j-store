@@ -1,1 +1,0 @@
-Spring Boot starter that intercepts MVC requests to validate bearer tokens, populate a thread-local authenticated user context, and inject the current user ID via annotations and argument resolvers.

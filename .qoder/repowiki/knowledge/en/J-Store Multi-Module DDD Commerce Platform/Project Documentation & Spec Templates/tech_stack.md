@@ -1,1 +1,0 @@
-Markdown-only documentation with Mermaid diagrams for architecture illustrations; Chinese and English mixed content reflecting bilingual team usage.

@@ -1,1 +1,0 @@
-Kotlin JVM with Spring Boot (spring-boot-starter-web, spring-tx, spring-boot-starter-validation), JUnit Platform for tests, Mockito-Kotlin for mocking, compiled against JVM toolchain 25.

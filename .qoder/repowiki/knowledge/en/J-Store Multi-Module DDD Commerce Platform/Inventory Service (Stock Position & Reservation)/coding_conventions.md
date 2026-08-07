@@ -1,5 +1,0 @@
-- Domain aggregates extend `AggregateRoot<ID>` from `common-framework` and expose behavior methods returning `Result<T, BusinessError>` via `Success`/`Failure` wrappers instead of throwing exceptions.
-- Persistence is decoupled through repository interfaces defined in the domain module and implemented as Spring `@Repository` classes in the infrastructure module that convert between domain entities and JPA POs via private `toPO`/`toDomain` helpers.
-- Concurrent access to stock positions is serialized by acquiring locks through the `StockPositionGuard.lock(keys)` interface before mutating aggregates, with the implementation using `findAllByIdForUpdate` with `PESSIMISTIC_WRITE`.
-- Message-driven entry points implement `IntegrationMessageHandler<T>` with a stable `handlerId()` string and delegate work to `InventoryUseCase`, then wrap each handler bean in a `TransactionTemplate` at boot time to enforce transactions.
-- Business keys are constructed deterministically from order/SKU/node identifiers (e.g. `ORDER-${orderId}-SKU-${skuId}-NODE-${nodeId}`) rather than relying on opaque UUIDs for cross-process lookups.

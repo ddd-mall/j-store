@@ -1,1 +1,0 @@
-DDD-structured goods feature split across domain, application, infrastructure, boot wiring and a thin API contract, with Spring Boot assembling factories, repositories and use cases behind transactional adapters.

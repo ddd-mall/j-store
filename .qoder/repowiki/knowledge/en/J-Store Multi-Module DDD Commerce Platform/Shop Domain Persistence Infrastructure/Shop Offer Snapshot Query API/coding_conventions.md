@@ -1,3 +1,0 @@
-- Public query contracts are expressed as Kotlin `fun interface` with a single method, enabling lambda-based implementations.
-- Data returned from queries is modeled as immutable Kotlin `data class` instances with value semantics.
-- Shared domain primitives such as `Price` are imported from `com.jstore.common.properties` rather than redefined locally.

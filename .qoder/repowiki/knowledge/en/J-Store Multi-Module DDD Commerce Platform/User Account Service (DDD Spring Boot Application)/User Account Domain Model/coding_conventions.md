@@ -1,6 +1,0 @@
-- Domain behavior returns `Result<T, BusinessError>` instead of throwing exceptions, using `Success`/`Failure` from `com.jstore.common.utils`.
-- Value objects enforce invariants in their `init` block or constructor parameters (e.g., `Nickname`, `Password`, `UserId`), rejecting invalid input via `require`/exceptions.
-- External dependencies are expressed as interfaces (ports) such as `PasswordHasher`, `TokenProvider`, `TokenStore`, `PhoneVerificationGateway`, keeping the aggregate infrastructure-free.
-- Domain events are data classes annotated with `@DomainEventType` and implementing `DomainEvent`, carrying `aggregateType`, `aggregateId`, `eventName`, and `eventVersion`.
-- State transitions in `UserAccountImpl` update `updateTime = LocalDateTime.now()` and return `Success(Unit)` on success or `Failure(UserAccountErrors.*)` on illegal state.
-- Property-based tests in `src/test/kotlin/com/jstore/user/*PropertyTest.kt` use Kotest `Arb` generators and `checkAll` to verify value-object and factory invariants across random inputs.

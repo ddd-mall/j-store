@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: warehouse_service
-title: Warehouse Service & Infrastructure Layer
-scope:
-    - j-store-warehouse/
-    - j-store-warehouse-infrastructure/
-source_files: []
-depends_on: []
-related_to: []

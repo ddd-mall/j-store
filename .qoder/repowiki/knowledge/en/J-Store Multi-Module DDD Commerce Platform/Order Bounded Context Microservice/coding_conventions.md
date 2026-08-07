@@ -1,4 +1,0 @@
-- Domain aggregates are split into an interface file plus an `Impl` implementation, with factories and error types co-located in the same package.
-- Repository interfaces live in the domain layer while their Spring Data JPA implementations (with PO/Converter classes) reside in the infrastructure layer.
-- Command objects are grouped under a `command` subpackage within each aggregate's domain directory.
-- Integration tests that require a database are placed under `src/test/kotlin/.../integration` and run against an embedded PostgreSQL instance.

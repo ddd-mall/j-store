@@ -1,4 +1,0 @@
-- Bean assembly is done through `@Bean` functions in a single `GoodsBootConfiguration` class rather than component scanning, with dependencies injected as function parameters.
-- Transactional boundaries are implemented by wrapping a delegate `*UseCase` with a `TransactionTemplate` created from `PlatformTransactionManager`, exposing both write and read-only templates.
-- Write and read transaction execution is delegated through small private helper functions (`tx` / `query`) that call `requireNotNull(...execute { block() })` to unwrap the result.
-- Factories are constructed with a `SnowFlakSequence` dependency injected at the configuration layer, keeping ID generation out of domain code.

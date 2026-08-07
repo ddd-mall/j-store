@@ -1,1 +1,0 @@
-Build uses Gradle Kotlin DSL (`build.gradle.kts`) with version catalogs via `alias(libs.plugins.*)`; tests run under JUnit Platform with Kotest property-based testing (`kotest.property`). Requires JDK 25 (`kotlin.jvmToolchain(25)`).

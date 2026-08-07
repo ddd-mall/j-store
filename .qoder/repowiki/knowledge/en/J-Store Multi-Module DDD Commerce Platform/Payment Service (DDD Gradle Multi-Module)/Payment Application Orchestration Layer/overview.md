@@ -1,1 +1,0 @@
-Application-layer orchestration for payment order creation, capture, and refund workflows, exposing a PaymentUseCase interface with message handlers that translate integration commands into domain operations.

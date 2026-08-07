@@ -1,1 +1,0 @@
-Kotlin + Spring Boot + Spring Data JPA for persistence; SnowFlakSequence for ID generation; shared `com.jstore.common` framework for DomainEventPublisher, Price type and properties.

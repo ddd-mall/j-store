@@ -1,1 +1,0 @@
-Spring Boot microservice implementing the Order bounded context with a four-layer DDD split across domain, application, infrastructure, and boot subprojects.

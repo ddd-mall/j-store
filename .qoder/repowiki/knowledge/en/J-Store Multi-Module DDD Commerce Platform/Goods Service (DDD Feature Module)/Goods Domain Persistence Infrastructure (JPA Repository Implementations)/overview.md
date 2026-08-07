@@ -1,1 +1,0 @@
-Spring Data JPA persistence layer that implements the goods domain repository interfaces, mapping between domain entities and JPA persistent objects for SPU, SKU, GoodsStyle, and SpuSnapshot aggregates.

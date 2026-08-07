@@ -1,1 +1,0 @@
-Application-layer orchestration that translates integration and domain events into journal entry creation, settlement statement confirmation, and payment settlement workflows using the accounting domain repositories.

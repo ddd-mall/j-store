@@ -1,4 +1,0 @@
-- Persistence entities are defined as data classes annotated with `@Entity`/`@Table`/`@Column`/`@Version` and paired with a Spring Data `JpaRepository` interface of the same name suffixed with `JpaRepository`.
-- Domain-to-persistence mapping is centralized in private `toPO` and `toDomain` converter functions inside the repository implementation, keeping JPA types isolated from the domain layer.
-- Repository methods that mutate state are annotated with `@Transactional(propagation = Propagation.MANDATORY)` to require an existing transaction context.
-- Gradle configuration uses version catalogs (`alias(libs.plugins.*)`, `libs.spring.boot.dependencies`) and identical structure across modules: `kotlin("jvm")` plugin, `mavenCentral()` repository, and `useJUnitPlatform()` test task.

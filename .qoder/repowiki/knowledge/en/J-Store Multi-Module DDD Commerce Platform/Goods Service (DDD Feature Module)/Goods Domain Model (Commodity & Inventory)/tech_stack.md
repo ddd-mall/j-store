@@ -1,1 +1,0 @@
-Kotlin JVM (toolchain 25), Gradle Kotlin DSL, Kotest (FunSpec + property testing via `kotest.property`), Mockito/Mockito-Kotlin for test doubles, JUnit 5 platform. Depends on `:j-store-common-core` for `AggregateRoot`, `AggregateRepository`, `Id`, `Result`, and `BusinessError` types.

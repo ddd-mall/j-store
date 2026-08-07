@@ -1,1 +1,0 @@
-Each subproject is an independent Gradle module built separately; `./gradlew test` runs JUnit Platform tests across all modules, and the boot module is the single executable entry point that pulls in the other three as project dependencies.

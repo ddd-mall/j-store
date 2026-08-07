@@ -1,7 +1,5 @@
 # Project Overview
 
-![J-Store logo](../../../../assets/j-store-logo.svg)
-
 <cite>
 **Referenced Files in This Document**
 - [settings.gradle.kts](file://settings.gradle.kts)
@@ -10,6 +8,7 @@
 - [libs.versions.toml](file://gradle/libs.versions.toml)
 - [docker-compose.postgres.yml](file://docker-compose.postgres.yml)
 - [project-overview.md](file://docs/project-overview.md)
+- [README.md](file://README.md)
 - [JStoreOrderBootApplication.kt](file://j-store-boot/src/main/kotlin/JStoreOrderBootApplication.kt)
 - [application.properties](file://j-store-boot/src/main/resources/application.properties)
 - [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
@@ -17,6 +16,13 @@
 - [Spu.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/commodity/Spu.kt)
 - [UserAccount.kt](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccount.kt)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated Introduction section to reflect professional project branding and responsive README integration
+- Added new section documenting the professional logo system with SVG/PNG assets and light/dark theme support
+- Enhanced Getting Started section with updated repository presentation information
+- Updated Conclusion to reflect enhanced project presentation capabilities
 
 ## Table of Contents
 1. Introduction
@@ -32,7 +38,7 @@
 ## Introduction
 J-Store is a Kotlin and Spring Boot e-commerce backend that implements Domain-Driven Design (DDD) through a modular, multi-module Gradle architecture. It organizes business capabilities into bounded contexts such as Order Management, Goods Catalog, User Authentication, Payment Processing, Fulfillment, and Accounting. The platform leverages modern tooling including Kotlin 2.3.0, Spring Boot 3.5.16, PostgreSQL, Redis, and Gradle Kotlin DSL for dependency management and build orchestration.
 
-The project emphasizes clear architectural boundaries, testability, and operational robustness. It includes an integrated Outbox-based event infrastructure to ensure reliable cross-context communication and supports local development with Docker Compose for PostgreSQL and Redis.
+The project emphasizes clear architectural boundaries, testability, and operational robustness. It includes an integrated Outbox-based event infrastructure to ensure reliable cross-context communication and supports local development with Docker Compose for PostgreSQL and Redis. The repository features a professional project presentation system with responsive logo assets supporting both light and dark themes, enhancing the developer experience across different environments.
 
 ## Project Structure
 J-Store uses a layered, context-oriented module layout:
@@ -156,8 +162,11 @@ Key entry points:
 - Root application class initializes Spring Boot features like JPA auditing, scheduling, and configuration properties.
 - Local profiles configure database, Redis, JWT, and Outbox behavior for development.
 
+**Updated** Enhanced project presentation with professional logo system supporting responsive design and theme-aware rendering.
+
 **Section sources**
 - [project-overview.md](file://docs/project-overview.md)
+- [README.md](file://README.md)
 - [JStoreOrderBootApplication.kt](file://j-store-boot/src/main/kotlin/JStoreOrderBootApplication.kt)
 - [application.properties](file://j-store-boot/src/main/resources/application.properties)
 - [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
@@ -182,6 +191,31 @@ common["Common Core"] --> domain
 - [project-overview.md](file://docs/project-overview.md)
 
 ## Detailed Component Analysis
+
+### Professional Logo System and Project Presentation
+The project now features a professional logo system with responsive design capabilities. The README.md integrates SVG logo assets with automatic light/dark theme detection using HTML `<picture>` elements and CSS media queries. This enhancement improves the visual presentation of the project across different GitHub themes and development environments.
+
+The logo system includes:
+- SVG format logos for scalability and crisp rendering at any size
+- Dark mode optimized variants for better contrast in dark themes
+- Responsive design that automatically switches between light and dark logos based on user preferences
+- Consistent branding across all project documentation and presentations
+
+```mermaid
+flowchart TD
+ThemeDetection["Theme Detection<br/>(prefers-color-scheme)"] --> LightMode{"Light Mode?"}
+ThemeDetection --> DarkMode{"Dark Mode?"}
+LightMode --> |Yes| ShowLightLogo["Display j-store-logo.svg"]
+DarkMode --> |Yes| ShowDarkLogo["Display j-store-logo-dark.svg"]
+ShowLightLogo --> EnhancedPresentation["Enhanced Visual Experience"]
+ShowDarkLogo --> EnhancedPresentation
+```
+
+**Diagram sources**
+- [README.md](file://README.md)
+
+**Section sources**
+- [README.md](file://README.md)
 
 ### Order Management Context
 The Order aggregate encapsulates trade, payment, fulfillment, and refund facts with explicit state transitions and validation rules. It exposes methods for stock confirmation, payment capture recording, fulfillment lifecycle updates, cancellation, and refund eligibility/projection.
@@ -301,13 +335,16 @@ Build and dependency management:
 - Configure environment variables for database URL, credentials, Redis host/port/password/database, and JWT secret.
 - Run the application with the local profile to enable Flyway migrations and Outbox mode.
 
+The enhanced project presentation includes professional branding with responsive logo assets that automatically adapt to light and dark themes, improving the overall developer experience when exploring the repository.
+
 ```mermaid
 flowchart TD
 Start(["Start Development"]) --> LaunchDocker["Run docker-compose.postgres.yml"]
 LaunchDocker --> VerifyServices{"PostgreSQL and Redis healthy?"}
 VerifyServices --> |No| Troubleshoot["Check ports, env vars, healthchecks"]
 VerifyServices --> |Yes| ConfigureApp["Set application-local.properties env vars"]
-ConfigureApp --> RunApp["Run j-store-boot application"]
+ConfigureApp --> EnhancedUI["Experience Enhanced Project Presentation"]
+EnhancedUI --> RunApp["Run j-store-boot application"]
 RunApp --> MigrateDB["Flyway applies migrations"]
 MigrateDB --> Ready["Service ready on configured port"]
 ```
@@ -316,11 +353,13 @@ MigrateDB --> Ready["Service ready on configured port"]
 - [docker-compose.postgres.yml](file://docker-compose.postgres.yml)
 - [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
 - [application.properties](file://j-store-boot/src/main/resources/application.properties)
+- [README.md](file://README.md)
 
 **Section sources**
 - [docker-compose.postgres.yml](file://docker-compose.postgres.yml)
 - [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
 - [application.properties](file://j-store-boot/src/main/resources/application.properties)
+- [README.md](file://README.md)
 
 ### Common Gradle Commands
 - Run all tests: ./gradlew test
@@ -373,6 +412,6 @@ common["Common Core"] --> domain
 - [application.properties](file://j-store-boot/src/main/resources/application.properties)
 
 ## Conclusion
-J-Store delivers a robust, modular e-commerce backend grounded in DDD principles. Its clear separation of concerns, strong testing foundations, and operational tooling make it suitable for scalable and maintainable development. By following the documented architecture boundaries and leveraging the provided setup instructions, teams can rapidly extend functionality across bounded contexts while ensuring consistency and reliability.
+J-Store delivers a robust, modular e-commerce backend grounded in DDD principles. Its clear separation of concerns, strong testing foundations, and operational tooling make it suitable for scalable and maintainable development. The enhanced project presentation system with professional logo assets and responsive theme support further improves the developer experience and project accessibility. By following the documented architecture boundaries and leveraging the provided setup instructions, teams can rapidly extend functionality across bounded contexts while ensuring consistency and reliability.
 
 [No sources needed since this section summarizes without analyzing specific files]

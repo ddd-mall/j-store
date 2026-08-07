@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: accounting_service/accounting_boot
-title: Accounting Service Bootstrapping & Spring Configuration
-scope:
-    - j-store-accounting-boot/
-source_files: []
-depends_on: []
-related_to:
-    - path: orchestration_boot

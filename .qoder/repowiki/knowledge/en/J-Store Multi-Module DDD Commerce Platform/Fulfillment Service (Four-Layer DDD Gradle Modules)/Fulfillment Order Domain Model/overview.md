@@ -1,1 +1,0 @@
-Kotlin domain layer defining the FulfillmentOrder aggregate, its state machine (PENDING → READY → SHIPPED → DELIVERED), value objects, business errors, and domain events for order fulfillment.

@@ -1,1 +1,0 @@
-Build and test via Gradle with `./gradlew :j-store-goods-domain:test` which runs Kotest tests on the JUnit 5 platform; the module targets JVM 25 via `kotlin.jvmToolchain(25)`.

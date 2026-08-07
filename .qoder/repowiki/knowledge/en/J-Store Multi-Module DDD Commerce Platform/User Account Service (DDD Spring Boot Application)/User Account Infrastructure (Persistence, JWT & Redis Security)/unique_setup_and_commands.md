@@ -1,1 +1,0 @@
-Tests run under JUnit Platform with Kotlin/JUnit 5 and require an embedded PostgreSQL instance started via `EmbeddedPostgres.builder().start()` inside each test; the Gradle task `test` uses `useJUnitPlatform()`. The build targets JVM toolchain 25.

@@ -1,1 +1,0 @@
-Tests run with `./gradlew test` which invokes JUnit Platform; the project requires JDK 25 as declared by `kotlin { jvmToolchain(25) }`.

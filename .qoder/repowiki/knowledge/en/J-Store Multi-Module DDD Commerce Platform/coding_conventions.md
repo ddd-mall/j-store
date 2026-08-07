@@ -1,4 +1,0 @@
-- Each bounded context follows a four-layer Gradle module split: domain (framework-free), application, infrastructure, and boot wiring modules with strict one-way dependencies.
-- Cross-context messaging uses the shared `j-store-integration-contracts` module instead of direct inter-service imports.
-- Domain logic is expressed via DDD aggregates, repositories, and use cases persisted through JPA repository ports defined in infrastructure modules.
-- Event-driven side effects are implemented through the transactional outbox pattern auto-configured by `j-store-common-spring`.

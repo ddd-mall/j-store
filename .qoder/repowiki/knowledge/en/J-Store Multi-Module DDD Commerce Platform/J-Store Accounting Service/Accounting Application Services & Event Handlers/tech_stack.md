@@ -1,1 +1,0 @@
-Kotlin JVM (toolchain 25) built with Gradle Kotlin DSL; testing uses Kotest (runner, assertions, property) and Mockito/Mockito-Kotlin; JUnit Platform via `useJUnitPlatform()`. Domain contracts come from `:j-store-accounting-domain`, shared utilities from `:j-store-common-core`, and integration event types from `:j-store-integration-contracts`.

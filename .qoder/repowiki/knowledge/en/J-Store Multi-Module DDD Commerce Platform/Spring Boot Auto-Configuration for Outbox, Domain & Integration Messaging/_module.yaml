@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: common_spring
-title: Spring Boot Auto-Configuration for Outbox, Domain & Integration Messaging
-scope:
-    - j-store-common-spring/
-source_files: []
-depends_on: []
-related_to: []

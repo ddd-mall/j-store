@@ -1,5 +1,0 @@
-- Use-cases return `Result<T, BusinessError>` and surface failures through `Failure(PaymentErrors.XXX)` rather than throwing exceptions.
-- Mutating operations follow a three-step pattern: load entity from repository, invoke a domain mutation method, then call `persistAndPublish` only when the mutation reports a change.
-- Integration message handlers implement `IntegrationMessageHandler<T>` with a stable `handlerId()` string and delegate all business logic to an injected `PaymentUseCase`, performing only DTO-to-request mapping.
-- Time-sensitive mutations accept an explicit `occurredAt: Instant` parameter with a default of `Instant.now()` so callers can supply deterministic timestamps for testing or replay.
-- ID generation is delegated to `SnowFlakSequence.nextId()` rather than using UUIDs or database-generated IDs.

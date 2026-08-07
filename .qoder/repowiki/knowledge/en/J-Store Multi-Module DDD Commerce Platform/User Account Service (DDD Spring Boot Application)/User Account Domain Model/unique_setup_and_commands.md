@@ -1,1 +1,0 @@
-Tests run on JUnit Platform via `useJUnitPlatform()` in `build.gradle.kts`; property-based tests exercise value objects and factory rules through Kotest `checkAll` generators.

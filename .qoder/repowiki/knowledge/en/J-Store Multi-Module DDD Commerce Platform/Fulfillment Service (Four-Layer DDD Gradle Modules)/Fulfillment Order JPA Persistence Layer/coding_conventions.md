@@ -1,4 +1,0 @@
-- Domain-to-persistence mapping is implemented via private `toPO` and `toDomain` helper functions inside the repository implementation rather than through separate mappers or libraries.
-- JPA entities are placed in a `persistence` subpackage co-located with the domain classes they persist, keeping infrastructure concerns adjacent to their domain counterparts.
-- Repository implementations are annotated with `@Repository` and enforce transactional boundaries using `@Transactional(propagation = Propagation.MANDATORY)` on write operations.
-- Entity fields use explicit column names via `@Column(name = ...)` with nullable constraints and length limits declared directly on the entity properties.

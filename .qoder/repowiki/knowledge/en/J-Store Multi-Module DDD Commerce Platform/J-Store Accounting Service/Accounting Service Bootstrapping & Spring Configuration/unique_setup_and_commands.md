@@ -1,1 +1,0 @@
-Build uses Gradle Kotlin DSL with version catalogs (`libs.plugins.*`, `libs.spring.boot.dependencies`). Tests run under JUnit Platform (`tasks.test { useJUnitPlatform() }`) and require JVM 25 (`kotlin { jvmToolchain(25) }`).

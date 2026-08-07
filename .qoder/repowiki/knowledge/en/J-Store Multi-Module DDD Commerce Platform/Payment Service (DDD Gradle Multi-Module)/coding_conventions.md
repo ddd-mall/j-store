@@ -1,5 +1,0 @@
-- Domain layer contains no framework dependencies — only Kotlin stdlib and shared contracts.
-- Infrastructure implements domain interfaces rather than extending domain classes, preserving clean boundaries.
-- Application layer orchestrates use cases without direct access to persistence or HTTP concerns.
-- All modules declare `kotlin { jvmToolchain(25) }` and use `useJUnitPlatform()` for test execution.
-- Cross-module dependencies are expressed exclusively through Gradle project references (`project(":j-store-payment-*")`) rather than published artifacts.

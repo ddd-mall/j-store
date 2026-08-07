@@ -1,1 +1,0 @@
-Domain model for user accounts implementing DDD aggregate root, value objects, factories, repositories, and domain events with property-based tests.

@@ -1,6 +1,0 @@
-- Each domain aggregate has a dedicated `*RepositoryImpl` class annotated with `@Repository` that implements the corresponding domain `*Repository` interface, delegating all persistence to Spring Data JPA repositories.
-- Write methods are wrapped with `@Transactional(propagation = Propagation.MANDATORY)` so callers must supply an existing transaction boundary.
-- Domain-to-persistence mapping is isolated in an `internal object Converter` or private `toPO`/`toDomain` functions inside the repository, never leaking PO types outside the infrastructure package.
-- JPA entities are declared as data-like classes with Jakarta `@Entity`, `@Table`, `@Column`, `@Enumerated(EnumType.STRING)`, and `@Version` fields, with JSONB columns handled through custom `@Convert` converters.
-- Concurrent modifications are guarded by a combination of optimistic `@Version` checks and explicit `SELECT ... FOR UPDATE` locks taken in sorted order over item IDs to prevent deadlocks.
-- Idempotency is enforced through a dedicated `after_sale_command_receipts` table with a unique constraint on `(actor_id, command_type, idempotency_key)`, checked via a try-insert pattern before mutating state.

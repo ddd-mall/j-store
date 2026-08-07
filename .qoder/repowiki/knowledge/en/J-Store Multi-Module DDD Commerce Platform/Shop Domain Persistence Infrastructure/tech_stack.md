@@ -1,1 +1,0 @@
-Kotlin JVM toolchain 25, Spring Boot Starter Data JPA with `kotlin.plugin.jpa` and `kotlin.plugin.spring`, PostgreSQL driver as `runtimeOnly`, JPA annotations from `jakarta.persistence.*`, JUnit 5 via `useJUnitPlatform()`.

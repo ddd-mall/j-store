@@ -1,6 +1,0 @@
-- Domain entities expose behavior through methods returning `Result<Boolean, BusinessError>` rather than throwing exceptions, with error codes centralized in the `PaymentErrors` object.
-- Aggregate state mutations are paired with `raise(...)` calls to emit typed domain events defined as data classes extending the sealed `PaymentDomainEvent` base.
-- Value types like `PaymentOrderId` and `PaymentRefundId` are declared as data classes wrapping a primitive and extending the shared `Id<T>` type from common-core.
-- Invariants are enforced at construction time via `require` blocks in `init` sections, failing fast with descriptive messages before any operation proceeds.
-- Repository interfaces extend `AggregateRepository<Id, Aggregate>` from common-core and add only domain-specific lookup methods (e.g., `findByOrderId`, `findByRefundId`).
-- Domain events are immutable data classes annotated with `@DomainEventType(name = "...")` and auto-generate their `eventId` via `newDomainEventId()`.
