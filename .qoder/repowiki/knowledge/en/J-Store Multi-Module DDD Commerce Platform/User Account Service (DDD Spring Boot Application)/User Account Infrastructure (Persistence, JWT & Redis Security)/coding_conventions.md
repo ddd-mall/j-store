@@ -1,5 +1,0 @@
-- Infrastructure classes implement domain interfaces from `:j-store-user-domain` (e.g. `UserAccountRepository`, `LoginAttemptGuard`, `PhoneVerificationGateway`, `TokenProvider`) and are wired via Spring `@Repository` or constructor injection.
-- Domain-entity to persistence-object mapping is centralized in a private `object Converter` (or equivalent nested object) with paired `toPO` / `toDomain` functions, keeping JPA details out of the domain layer.
-- Redis-backed components use `StringRedisTemplate` together with inline Lua scripts defined as `DefaultRedisScript` constants to perform atomic read-modify-write operations (e.g. incrementing failure counters, creating/consuming challenges).
-- Security-sensitive configuration values (JWT secrets, HMAC keys, issuer/audience/keyId) are validated in class constructors via `require { ... }` blocks before being used, failing fast on misconfiguration.
-- Entity columns are declared with explicit `@Column(name = ..., nullable = ..., length = ...)` annotations and enums are persisted with `@Enumerated(EnumType.STRING)`.

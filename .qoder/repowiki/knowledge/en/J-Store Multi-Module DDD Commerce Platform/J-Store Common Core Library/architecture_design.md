@@ -1,7 +1,0 @@
-Flat Kotlin/JVM library under `com.jstore.common` organized by functional concern with no internal sub-modules:
-- `framework/` — DDD building blocks: `Entity`, `AggregateRoot`, `Identifier`, plus an event-driven architecture where aggregates record `DomainEvent`s via `RecordsDomainEvents` and publish through `DomainEventPublisher`. The default implementation uses a transactional outbox (`framework/event/outbox/`) whose `OutboxEntry` model enforces state invariants (lease fencing, message-kind/target constraints) at construction time.
-- `framework/messaging/` — Cross-process contract layer defining `IntegrationMessage`, `IntegrationEvent`, `IntegrationCommand`, and a `BrokerIntegrationMessageTransport` that routes through the same outbox infrastructure via `OutboxDeliveryTarget`.
-- `geo/` — Internationalized address model (`I18nGeoAddress`, `CountryCode`, `DivisionLevel`) with pluggable `CountryAddressProvider` and Jackson serialization support.
-- `logging/` — Abstract `Logger`/`LoggerFactory` interfaces with an SLF4J implementation in `slf4j/`.
-- `persistent/`, `properties/`, `query/`, `utils/` — Value types (`SnowFlakeId`, `Price`, `PhoneNumber`, `Page<T>`), a Rust-style `Result<T,E>` sealed class with extensive combinators, concurrent primitives (`ListenableFuture`), JSON helpers, string utilities, and a weak-reference cache.
-Dependency direction is inward toward these abstractions; consumers depend only on interfaces. No framework wiring lives here — it is purely API surface.

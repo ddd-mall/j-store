@@ -1,5 +1,0 @@
-- Domain repository interfaces are implemented in the infrastructure module with a naming convention of `<Aggregate>RepositoryImpl` plus separate PO and JpaRepository classes under a `persistence/` subpackage.
-- Domain aggregates expose both an interface and an `Impl` class, keeping implementation details out of the domain model.
-- Application-layer commands are grouped under a `command/` package with explicit CMD-suffixed types for each operation.
-- Domain events are placed in an `event/` subpackage within each aggregate directory and follow a past-tense naming convention (e.g., `*PostedEvent`, `*PaidEvent`).
-- Error handling uses dedicated error classes per aggregate (e.g., `AccountingAccountErrors`, `SettlementErrors`) rather than generic exceptions.

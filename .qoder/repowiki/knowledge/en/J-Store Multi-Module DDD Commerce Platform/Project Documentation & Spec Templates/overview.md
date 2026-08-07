@@ -1,1 +1,0 @@
-Centralized documentation for the j-store DDD project, including spec templates, agent prompts, steering guidelines, operational runbooks, and feature/design/requirement specifications organized by domain.

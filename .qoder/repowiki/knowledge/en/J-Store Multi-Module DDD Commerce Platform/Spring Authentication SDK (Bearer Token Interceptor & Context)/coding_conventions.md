@@ -1,6 +1,0 @@
-- Cross-cutting behavior is wired through Spring `@AutoConfiguration` classes annotated with `@ConditionalOnBean` / `@ConditionalOnMissingBean` rather than manual `@Configuration` wiring.
-- Extensibility points are exposed as small default-empty `interface` configurers (`AuthenticationConfigurer`) so consumers opt-in per feature without overriding unrelated methods.
-- Error handling centralizes every failure case in an `object` of `BusinessError` constants (code, message, HTTP status) and writes them uniformly from the interceptor via Jackson serialization.
-- Per-request state is stored in a `ThreadLocal` accessed through a singleton `object` (`AuthenticatedUserContext`) with explicit `set`/`clear` methods, with cleanup guaranteed in `afterCompletion`.
-- Annotations are minimal `@Retention(RUNTIME)` markers scoped to their target elements (`CLASS`/`FUNCTION` for `@RequireLogin`, `FUNCTION` for `@SkipLogin`, `VALUE_PARAMETER` for `@CurrentUserId`).
-- Path matching uses Spring's `AntPathMatcher` against flattened pattern lists derived from all registered `AuthenticationConfigurer` instances.

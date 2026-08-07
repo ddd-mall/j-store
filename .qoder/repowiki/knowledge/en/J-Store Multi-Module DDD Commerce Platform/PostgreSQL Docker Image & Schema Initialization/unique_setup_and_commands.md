@@ -1,1 +1,0 @@
-Build the image with `docker build -t j-store-postgres ./docker/postgres`. On first run, PostgreSQL automatically executes all `init/*.sql` scripts in lexicographic order before accepting connections.

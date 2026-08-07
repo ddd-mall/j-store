@@ -1,5 +1,0 @@
-- Each spec under `docs/spec/<name>/` follows a fixed file layout: `requirement.md`, `design.md`, `tasks.md`, with optional `summary.md`, `review-log.md`, and `delta.md` for changes.
-- Requirement documents use SHALL-based acceptance criteria in THE/WHEN/WHILE/IF forms, and each requirement is numbered sequentially with a user story header.
-- Design documents include Overview, Architecture (Mermaid flowchart/sequenceDiagram), Components and Interfaces, Data Models, Correctness Properties, Error Handling, and Testing Strategy sections.
-- Agent prompt files in `ai/` are written in Chinese and follow a consistent naming pattern: `创建<角色> agent 的提示词.md` paired with `生成“创建<角色> agent 的提示词”的提示词.md`.
-- Governance and steering documents use YAML front-matter with an `inclusion: always` tag to mark them as authoritative and always included by agents.

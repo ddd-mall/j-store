@@ -1,1 +1,0 @@
-Kotlin JVM (toolchain 25), Gradle Kotlin DSL; Kotest FunSpec + Kotest Property for property-based tests; Mockito/Mockito-Kotlin for test doubles.

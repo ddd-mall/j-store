@@ -1,1 +1,0 @@
-Kotlin with Spring Boot, Spring Data JPA (PostgreSQL), Redis, and a custom domain event bus; each layer is a separate Gradle subproject under this scope.

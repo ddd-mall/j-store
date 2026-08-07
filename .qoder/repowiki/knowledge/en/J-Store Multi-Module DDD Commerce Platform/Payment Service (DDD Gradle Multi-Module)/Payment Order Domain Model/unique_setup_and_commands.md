@@ -1,1 +1,0 @@
-Build and test with Gradle using the project's root; tests run under JUnit Platform (`tasks.test.useJUnitPlatform()`). Requires JDK 25 as specified by `kotlin { jvmToolchain(25) }`.

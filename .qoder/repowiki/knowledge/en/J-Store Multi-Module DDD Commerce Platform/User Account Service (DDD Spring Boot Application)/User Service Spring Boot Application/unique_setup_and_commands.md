@@ -1,1 +1,0 @@
-Builds with Gradle Kotlin DSL using JVM toolchain 25 and runs tests via JUnit Platform (`tasks.test { useJUnitPlatform() }`). Requires configuration properties such as `jwt.*`, `account.phone-verification.hmac-secret`, and `jstore.user-query.*` to enable the internal query server or switch query mode between `local` and remote.

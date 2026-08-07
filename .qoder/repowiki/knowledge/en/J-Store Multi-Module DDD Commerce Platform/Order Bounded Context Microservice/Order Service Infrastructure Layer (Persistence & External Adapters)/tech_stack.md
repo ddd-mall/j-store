@@ -1,1 +1,0 @@
-Kotlin JVM 25 with Spring Boot, Spring Data JPA, Spring Web/WebFlux, Lombok, PostgreSQL driver, and Kotest (JUnit 5) for testing; embedded PostgreSQL via `io.zonky.test:embedded-postgres:2.1.0` is used exclusively for integration tests.

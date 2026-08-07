@@ -1,1 +1,0 @@
-Docker image definition and numbered SQL migration scripts that bootstrap a PostgreSQL 16 database with the develop schema, domain tables (orders, goods), and transactional outbox infrastructure for event-driven messaging.

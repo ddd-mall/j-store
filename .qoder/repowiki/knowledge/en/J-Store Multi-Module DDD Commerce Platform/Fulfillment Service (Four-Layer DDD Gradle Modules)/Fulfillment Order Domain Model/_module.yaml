@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: fulfillment_service/domain_layer
-title: Fulfillment Order Domain Model
-scope:
-    - j-store-fulfillment-domain/
-source_files: []
-depends_on: []
-related_to: []

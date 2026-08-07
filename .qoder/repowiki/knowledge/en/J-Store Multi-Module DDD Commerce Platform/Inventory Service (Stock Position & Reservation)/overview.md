@@ -1,1 +1,0 @@
-Kotlin/Domain-Driven service that reserves, confirms, and releases inventory stock positions per SKU and fulfillment node, persisting state via JPA and reacting to WMS physical-stock events.

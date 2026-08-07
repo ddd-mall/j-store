@@ -1,6 +1,0 @@
-- Each aggregate exposes an interface plus an `*Impl` class that extends `EventRecordingAggregateRoot<I>` and raises domain events via `raise(...)` instead of mutating state directly.
-- State-changing methods return `Result<T, BusinessError>` and use a private `transition(valid, operation, action)` helper to enforce preconditions, mutate state, call `touch()`, and wrap outcomes uniformly.
-- Cross-boundary services are declared as interfaces in the `acl/` package and injected only into factory classes (e.g. `OrderFactoryImpl`), never into aggregate implementations.
-- Persistence is accessed exclusively through repository interfaces extending `AggregateRepository<I, E>`, keeping aggregates free of infrastructure concerns.
-- Domain errors are centralized in `*Errors.kt` files and surfaced through `Failure(OrderErrors.*.msg(...))` rather than exceptions.
-- Tests use Kotest `FunSpec` style with inline stubs for external dependencies and a shared `testFixtures` source set for reusable aggregate builders like `testOrder(...)`.

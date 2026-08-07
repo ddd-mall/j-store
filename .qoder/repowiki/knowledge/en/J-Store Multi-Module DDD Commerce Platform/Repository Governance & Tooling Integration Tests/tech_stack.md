@@ -1,1 +1,0 @@
-Python `unittest` framework with `jsonschema.Draft202012Validator` for schema validation, `tomllib` (stdlib) for TOML parsing, `importlib.util` for dynamic module loading of sibling scripts, and `subprocess.run` for invoking shell-based tooling (`check-agent-governance.sh`, Git hooks).

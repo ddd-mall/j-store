@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: user_service/user_infrastructure
-title: User Account Infrastructure (Persistence, JWT & Redis Security)
-scope:
-    - j-store-user-infrastructure/
-source_files: []
-depends_on: []
-related_to: []

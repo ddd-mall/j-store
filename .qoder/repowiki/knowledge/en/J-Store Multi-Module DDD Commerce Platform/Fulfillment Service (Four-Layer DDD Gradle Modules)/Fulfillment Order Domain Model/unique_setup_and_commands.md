@@ -1,1 +1,0 @@
-Build and run tests via Gradle: `./gradlew build` (uses `useJUnitPlatform()`). Requires JVM toolchain 25 as declared in `kotlin { jvmToolchain(25) }`.

@@ -1,1 +1,0 @@
-Kotlin JVM with Gradle Kotlin DSL, Spring Boot Starter Data JPA, PostgreSQL runtime driver, JPA entity mapping via `kotlin-jpa` plugin, and JUnit Platform for tests; JDK toolchain set to 25.

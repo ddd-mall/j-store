@@ -1,1 +1,0 @@
-Spring Boot application entry point that wires the fulfillment domain, application, and infrastructure layers into a REST API with transactional use-case boundaries and merchant authorization.

@@ -1,5 +1,0 @@
-- Each use-case method accepts a strongly-typed command data class from `service.command.*` and returns `Result<T, BusinessError>` instead of throwing exceptions.
-- Repository lookups are chained with `let { when(result) { is Success -> ... is Failure -> return Failure(...) } }` to propagate failures through the `Result` type.
-- Journal entries are built by constructing a `JournalEntryImpl`, appending debit/credit `JournalLine`s via `addLine(...).onFailure { return Failure(it) }`, posting against an open period, then saving.
-- External integration events are handled by classes implementing `IntegrationMessageHandler<T>` with a stable `handlerId()` string, while internal domain events use `DomainEventListener<T>` with a `listenerId()`.
-- Test fixtures provide in-memory fake repository implementations (`Fake*Repository`) that mirror the domain repository interfaces to support unit tests without persistence.

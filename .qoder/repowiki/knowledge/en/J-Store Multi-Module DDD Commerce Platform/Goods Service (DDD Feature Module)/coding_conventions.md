@@ -1,4 +1,0 @@
-- Domain entities expose repository interfaces in the domain layer while implementations live under `infrastructure/...persistence/` with PO classes suffixed `PO` and JPA repositories suffixed `JpaRepository`.
-- Factories (`SpuFactory`, `GoodsStyleFactory`, `SpuSnapshotFactory`) are instantiated in `GoodsBootConfiguration` using `SnowFlakSequence` for ID generation.
-- Application use cases are wrapped in `Transactional*UseCase` adapters annotated with Spring transaction management to ensure domain operations run within a transaction boundary.
-- External-facing contracts are defined in the `api` module as Kotlin interfaces plus data classes, keeping cross-service payloads versioned separately from internal domain models.

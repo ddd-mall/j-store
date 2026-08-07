@@ -1,1 +1,0 @@
-Tests run under JUnit Platform and require an embedded PostgreSQL instance provided by `io.zonky.test:embedded-postgres:2.1.0`; no external database setup is needed beyond Gradle's standard `test` task.

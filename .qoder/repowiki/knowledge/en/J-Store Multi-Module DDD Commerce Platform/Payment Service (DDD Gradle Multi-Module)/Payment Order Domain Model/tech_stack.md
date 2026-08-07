@@ -1,1 +1,0 @@
-Kotlin JVM (targeting JDK 25 via `kotlin.jvm` plugin), Kotest for testing with JUnit 5 platform, Gradle Kotlin DSL build script. Depends on shared abstractions from `:j-store-common-core` for `AggregateRoot`, `AggregateRepository`, `Price`, `Id`, `BusinessError`, `Result`, and the event framework.
