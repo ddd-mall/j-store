@@ -96,3 +96,7 @@ docker compose --env-file .env -f docker-compose.postgres.yml down -v
 ## 安全提示
 
 历史版本曾包含本地 PostgreSQL 和 JWT 开发凭据。删除当前文件中的明文不会使历史凭据失效；所有曾使用这些值的环境都必须轮换凭据。不要复用示例值或把生产连接信息放进仓库。
+
+## 开源协议
+
+本项目采用 [Apache License 2.0](LICENSE) 开源许可证发布。
