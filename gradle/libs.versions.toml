@@ -6,7 +6,7 @@ spring-cloud = "2023.0.5"
 spring-cloud-alibaba = "2023.0.3.2"
 kotest = "5.9.1"
 postgresql = "42.7.12"
-kotlin = "2.3.0"
+kotlin = "2.4.10"
 spotless = "8.9.0"
 slf4j = "2.0.16"
 jackson = "2.21.5"
@@ -107,4 +107,5 @@ springframework = { id = "org.springframework.boot", version.ref = "spring-boot"
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-plugin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 kotlin-plugin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
+kotlin-plugin-lombok = { id = "org.jetbrains.kotlin.plugin.lombok", version.ref = "kotlin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

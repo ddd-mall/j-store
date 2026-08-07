@@ -1,0 +1,19 @@
+version = 1
+
+[default]
+classification = "original"
+copyright = "潘少峰 (Peter Pan)"
+years = "2024-2026"
+license = "Apache-2.0"
+
+[overrides.gradle_wrapper]
+classification = "third-party"
+copyright = "2015 the original author or authors"
+license = "Apache-2.0"
+source = "https://github.com/gradle/gradle"
+reason = "Gradle-generated wrapper launchers and wrapper runtime are redistributed, not original j-store code."
+paths = [
+  "gradlew",
+  "gradlew.bat",
+  "gradle/wrapper/**",
+]

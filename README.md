@@ -19,6 +19,17 @@ Java、Kotlin 和 Gradle Kotlin DSL 代码统一由 Spotless 格式化：Java �
 
 hook 会在推送前检查格式；发现问题时会自动格式化并终止本次推送，确认并提交格式化结果后再重新推送。
 
+Spotless 同时检查所有 Java、Kotlin 源码的 Apache-2.0 许可证声明。新增源码缺少声明时，运行
+`spotlessApply` 会根据 [`config/spotless/license-header.txt`](config/spotless/license-header.txt) 自动补充。
+
+依赖许可证由 Licensee 审计，未知或未批准许可证会使构建失败：
+
+```bash
+./gradlew licensee
+```
+
+机器可读文件归属见 [`config/licenses/file-ownership.toml`](config/licenses/file-ownership.toml)，仓库内第三方文件及依赖说明见 [`THIRD_PARTY.md`](THIRD_PARTY.md)。
+
 ## 本地依赖服务
 
 前置条件：Docker Desktop，或 Docker Engine 与 Compose 插件。
@@ -68,3 +79,9 @@ docker compose --env-file .env -f docker-compose.postgres.yml down -v
 ## 安全提示
 
 历史版本曾包含本地 PostgreSQL 和 JWT 开发凭据。删除当前文件中的明文不会使历史凭据失效；所有曾使用这些值的环境都必须轮换凭据。不要复用示例值或把生产连接信息放进仓库。
+
+## 许可证
+
+Copyright 2024-2026 潘少峰 (Peter Pan)。本项目依据 [Apache License 2.0](LICENSE) 授权。
+
+所有 Gradle JAR 产物均携带 `META-INF/LICENSE` 和 `META-INF/THIRD_PARTY.md`。正式版本的证据生成与签名标签流程见 [`docs/operations/release-evidence.md`](docs/operations/release-evidence.md)。

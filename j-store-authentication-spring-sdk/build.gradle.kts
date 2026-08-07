@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    kotlin("plugin.spring")
+    alias(libs.plugins.kotlin.plugin.spring)
 }
 
 repositories {
