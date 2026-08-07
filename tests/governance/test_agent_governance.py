@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import tomllib
 import unittest
@@ -10,6 +11,19 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class AgentGovernanceContractTest(unittest.TestCase):
+    def test_kotlin_plugin_versions_are_not_hardcoded_in_gradle_scripts(self) -> None:
+        hardcoded_plugin_version = re.compile(
+            r'(?:kotlin\("[^"]+"\)|id\("org\.jetbrains\.kotlin\.[^"]+"\))'
+            r'\s+version\s+"[^"]+"'
+        )
+
+        offenders = []
+        for path in REPO_ROOT.rglob("*.gradle.kts"):
+            if hardcoded_plugin_version.search(path.read_text(encoding="utf-8")):
+                offenders.append(path.relative_to(REPO_ROOT).as_posix())
+
+        self.assertEqual([], offenders, f"hardcoded Kotlin plugin versions: {offenders}")
+
     def test_repository_governance_contract(self) -> None:
         result = subprocess.run(
             ["bash", "scripts/check-agent-governance.sh"],

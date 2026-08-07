@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.plugin.lombok) apply false
     alias(libs.plugins.spotless)
-    kotlin("plugin.spring") version "2.3.0"
+    alias(libs.plugins.kotlin.plugin.spring)
     id("org.cyclonedx.bom") version "3.3.0"
 }
 
