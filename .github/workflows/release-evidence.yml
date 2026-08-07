@@ -1,0 +1,61 @@
+name: Release Evidence
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag that points to the checked-out commit
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Install specification test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-quality.txt
+
+      - name: Build release evidence
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: ./scripts/create-release-evidence.sh "$RELEASE_TAG" --ci
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            build/release-evidence/${{ inputs.tag || github.ref_name }}/artifacts/*
+            build/release-evidence/${{ inputs.tag || github.ref_name }}/source/*
+
+      - name: Upload release evidence candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-evidence-${{ inputs.tag || github.ref_name }}
+          path: build/release-evidence/${{ inputs.tag || github.ref_name }}/
+          if-no-files-found: error
+          retention-days: 90

@@ -39,12 +39,18 @@ working_tree_contains_secret() {
 
 required_files=(
   AGENTS.md
+  LICENSE
+  THIRD_PARTY.md
   docs/steering/agent-governance.md
+  docs/operations/release-evidence.md
   .env.example
+  config/licenses/file-ownership.toml
   requirements-security.txt
   .github/CODEOWNERS
   .github/workflows/quality.yml
+  .github/workflows/release-evidence.yml
   .github/workflows/security.yml
+  .github/rulesets/master.json
   .github/dependabot.yml
   .codex/agents/maintenance-orchestrator.toml
   .codex/agents/product-steward.toml
@@ -97,8 +103,16 @@ search_quietly 'osv-scanner.*scan source' .github/workflows/security.yml || \
   fail "security workflow is missing OSV dependency vulnerability scanning"
 search_quietly 'cyclonedxDirectBom' .github/workflows/security.yml || \
   fail "security workflow is missing a resolved production dependency SBOM"
+search_quietly 'dependency-license-audit' .github/workflows/security.yml || \
+  fail "security workflow is missing dependency license auditing"
+search_quietly 'gradlew licensee' .github/workflows/security.yml || \
+  fail "security workflow does not enforce the Licensee policy"
 search_quietly 'gitleaks.*git' .github/workflows/security.yml || \
   fail "security workflow is missing Gitleaks CLI history scanning"
+search_quietly 'attest-build-provenance' .github/workflows/release-evidence.yml || \
+  fail "release evidence workflow is missing artifact provenance attestation"
+search_quietly 'required_status_checks' .github/rulesets/master.json || \
+  fail "master ruleset is missing required status checks"
 
 if ((failures > 0)); then
   printf '%d governance check(s) failed.\n' "$failures" >&2

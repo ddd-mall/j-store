@@ -4,10 +4,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-printf '%s\n' '[1/3] Repository governance'
+printf '%s\n' '[1/6] Repository governance'
 ./scripts/check-agent-governance.sh
 
-printf '%s\n' '[2/3] Spec-dev contract tests'
+printf '%s\n' '[2/6] Spec-dev and governance contract tests'
 if command -v uv >/dev/null 2>&1; then
   JSTORE_UV_CACHE_DIR="${JSTORE_UV_CACHE_DIR:-${TMPDIR:-/tmp}/j-store-uv-cache}"
   UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
@@ -23,7 +23,17 @@ else
   python3 -m unittest discover -s tests/governance -p 'test_*.py'
 fi
 
-printf '%s\n' '[3/3] Gradle regression tests'
+printf '%s\n' '[3/6] Source ownership and formatting'
+python3 scripts/check-file-ownership.py
+./gradlew spotlessCheck --no-daemon --console=plain
+
+printf '%s\n' '[4/6] Dependency license audit'
+./gradlew licensee --no-daemon --console=plain
+
+printf '%s\n' '[5/6] Gradle regression tests'
 ./gradlew test --no-daemon --console=plain
+
+printf '%s\n' '[6/6] Release artifact license verification'
+./gradlew verifyLicenseArtifacts --no-daemon --console=plain
 
 printf '%s\n' 'PASS: all local quality gates completed.'
