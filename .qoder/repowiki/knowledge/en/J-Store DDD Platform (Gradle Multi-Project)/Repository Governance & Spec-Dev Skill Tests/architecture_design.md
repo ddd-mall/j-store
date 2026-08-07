@@ -1,5 +1,0 @@
-Two independent test packages under `tests/`:
-- `governance/`: policy-enforcing tests that scan source trees, Gradle settings, and `.codex/agents/*.toml` files to assert architectural invariants (e.g. domain/application layers must be framework-free, no legacy flat modules, agent instructions must reference canonical docs). One test shells out to `scripts/check-agent-governance.sh`.
-- `skills/spec-dev/`: integration tests that dynamically import sibling scripts (`specctl.py`, `validate_evals.py`) via `importlib.util.spec_from_file_location`, then exercise their public APIs against synthetic temp directories or the repo's `.codex/skills/spec-dev/schemas` and `evals` fixtures.
-
-Each test file is a self-contained `unittest.TestCase` subclass with no shared base class; paths are resolved relative to `__file__` using `Path.resolve().parents[N]` to reach the repo root. There is no test runner configuration file — tests are executed directly via `python -m unittest` or the script's `if __name__ == "__main__"` block.

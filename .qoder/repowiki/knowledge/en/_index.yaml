@@ -3,11 +3,11 @@ schema_version: 1
 locale: en-US
 branch: feature-initial
 nodes_managed: true
-exported_at: "2026-08-06T10:11:59Z"
+exported_at: "2026-08-06T11:40:42Z"
 modules:
     "":
-        dir_name: J-Store DDD Platform (Gradle Multi-Project)
-        title: J-Store DDD Platform (Gradle Multi-Project)
+        dir_name: J-Store Commerce Platform Root
+        title: J-Store Commerce Platform Root
         scope:
             - AGENTS.md
             - SECURITY.md
@@ -63,10 +63,7 @@ modules:
             - accounting_service/accounting_domain
             - accounting_service/accounting_infrastructure
         depends_on: []
-        related_to:
-            - path: fulfillment_service
-            - path: order_service
-            - path: payment_service
+        related_to: []
     accounting_service/accounting_application:
         dir_name: Accounting Application Services & Event Handlers
         title: Accounting Application Services & Event Handlers
@@ -75,7 +72,9 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: order_service/application_layer
+            - path: payment_service/payment_application
     accounting_service/accounting_boot:
         dir_name: Accounting Service Bootstrapping & Spring Configuration
         title: Accounting Service Bootstrapping & Spring Configuration
@@ -84,7 +83,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: orchestration_boot
     accounting_service/accounting_domain:
         dir_name: Accounting Domain Model & Application Services
         title: Accounting Domain Model & Application Services
@@ -111,7 +111,11 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: fulfillment_service/boot_layer
+            - path: order_service/boot_layer
+            - path: payment_service/payment_boot
+            - path: user_service/boot_layer
     common_core:
         dir_name: J-Store Common Core Library
         title: J-Store Common Core Library
@@ -120,7 +124,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: user_service/domain_layer
     common_spring:
         dir_name: Spring Boot Auto-Configuration for Outbox, Domain Events & Messaging
         title: Spring Boot Auto-Configuration for Outbox, Domain Events & Messaging
@@ -163,9 +168,7 @@ modules:
             - fulfillment_service/domain_layer
             - fulfillment_service/infrastructure_layer
         depends_on: []
-        related_to:
-            - path: accounting_service
-            - path: order_service
+        related_to: []
     fulfillment_service/application_layer:
         dir_name: Fulfillment Application Layer & Use Cases
         title: Fulfillment Application Layer & Use Cases
@@ -174,7 +177,9 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: order_service/application_layer
+            - path: order_service/domain_layer
     fulfillment_service/boot_layer:
         dir_name: Fulfillment Boot Layer (Spring Boot Application Entry)
         title: Fulfillment Boot Layer (Spring Boot Application Entry)
@@ -183,7 +188,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: authentication_sdk
     fulfillment_service/domain_layer:
         dir_name: Fulfillment Order Domain Model
         title: Fulfillment Order Domain Model
@@ -218,8 +224,7 @@ modules:
             - goods_service/goods_domain
             - goods_service/goods_infrastructure
         depends_on: []
-        related_to:
-            - path: order_service
+        related_to: []
     goods_service/goods_application:
         dir_name: Goods Application Layer (Use Cases & Event Handlers)
         title: Goods Application Layer (Use Cases & Event Handlers)
@@ -228,8 +233,7 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: goods_service/goods_infrastructure
+        related_to: []
     goods_service/goods_boot:
         dir_name: Goods Boot & Transactional Use-Case Wiring
         title: Goods Boot & Transactional Use-Case Wiring
@@ -247,7 +251,9 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: order_service
+            - path: order_service/infrastructure_layer
     goods_service/goods_infrastructure:
         dir_name: Goods Domain Persistence Infrastructure (JPA Repository Implementations)
         title: Goods Domain Persistence Infrastructure (JPA Repository Implementations)
@@ -256,8 +262,7 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: goods_service/goods_application
+        related_to: []
     orchestration_boot:
         dir_name: J-Store Order Boot Application
         title: J-Store Order Boot Application
@@ -267,7 +272,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: accounting_service/accounting_boot
     order_service:
         dir_name: Order Service (DDD Bounded Context)
         title: Order Service (DDD Bounded Context)
@@ -284,10 +290,7 @@ modules:
             - order_service/infrastructure_layer
         depends_on: []
         related_to:
-            - path: accounting_service
-            - path: fulfillment_service
-            - path: goods_service
-            - path: payment_service
+            - path: goods_service/goods_domain
     order_service/application_layer:
         dir_name: Order & After-Sale Application Layer
         title: Order & After-Sale Application Layer
@@ -296,7 +299,9 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: accounting_service/accounting_application
+            - path: fulfillment_service/application_layer
     order_service/boot_layer:
         dir_name: Order Service Boot & HTTP Layer
         title: Order Service Boot & HTTP Layer
@@ -305,7 +310,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: authentication_sdk
     order_service/domain_layer:
         dir_name: Order & AfterSale Domain Layer
         title: Order & AfterSale Domain Layer
@@ -314,7 +320,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: fulfillment_service/application_layer
     order_service/infrastructure_layer:
         dir_name: Order Service Infrastructure Layer (Persistence & External Adapters)
         title: Order Service Infrastructure Layer (Persistence & External Adapters)
@@ -323,7 +330,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: goods_service/goods_domain
     payment_service:
         dir_name: J-Store Payment Service
         title: J-Store Payment Service
@@ -339,10 +347,7 @@ modules:
             - payment_service/payment_domain
             - payment_service/payment_infrastructure
         depends_on: []
-        related_to:
-            - path: accounting_service
-            - path: order_service
-            - path: user_service
+        related_to: []
     payment_service/payment_application:
         dir_name: Payment Application Orchestration Layer
         title: Payment Application Orchestration Layer
@@ -352,7 +357,7 @@ modules:
         children: []
         depends_on: []
         related_to:
-            - path: payment_service/payment_infrastructure
+            - path: accounting_service/accounting_application
     payment_service/payment_boot:
         dir_name: Payment Bootstrapping & HTTP Entry Point
         title: Payment Bootstrapping & HTTP Entry Point
@@ -361,7 +366,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: authentication_sdk
     payment_service/payment_domain:
         dir_name: Payment Order Domain Model
         title: Payment Order Domain Model
@@ -379,8 +385,7 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: payment_service/payment_application
+        related_to: []
     shop_service:
         dir_name: Shop Merchant Domain & JPA Infrastructure
         title: Shop Merchant Domain & JPA Infrastructure
@@ -392,8 +397,8 @@ modules:
         depends_on: []
         related_to: []
     tests:
-        dir_name: Repository Governance & Spec-Dev Skill Tests
-        title: Repository Governance & Spec-Dev Skill Tests
+        dir_name: Repository Governance & Tooling Integration Tests
+        title: Repository Governance & Tooling Integration Tests
         scope:
             - tests/
         source_files: []
@@ -415,8 +420,7 @@ modules:
             - user_service/domain_layer
             - user_service/infrastructure_layer
         depends_on: []
-        related_to:
-            - path: payment_service
+        related_to: []
     user_service/application_layer:
         dir_name: User Account Application Layer
         title: User Account Application Layer
@@ -434,7 +438,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: authentication_sdk
     user_service/domain_layer:
         dir_name: User Account Domain Layer
         title: User Account Domain Layer
@@ -443,7 +448,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: common_core
     user_service/infrastructure_layer:
         dir_name: User Account Infrastructure Adapters
         title: User Account Infrastructure Adapters

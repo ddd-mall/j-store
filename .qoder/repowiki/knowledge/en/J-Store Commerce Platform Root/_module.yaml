@@ -1,0 +1,27 @@
+schema_version: 1
+module_path: ""
+title: J-Store Commerce Platform Root
+scope:
+    - AGENTS.md
+    - SECURITY.md
+    - settings.gradle.kts
+    - build.gradle.kts
+    - gradle.properties
+    - gradlew.bat
+    - qodana.yaml
+    - requirements-quality.txt
+    - requirements-security.txt
+    - claude-workflow.md
+    - .editorconfig
+    - .env.example
+    - .gitattributes
+    - .gitignore
+    - .gitleaksignore
+    - README.md
+    - batch_insert_200k.sql
+    - docker-compose.postgres.yml
+    - gradlew
+    - spec-workflow.skill
+source_files: []
+depends_on: []
+related_to: []

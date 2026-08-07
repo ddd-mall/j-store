@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: order_service/boot_layer
-title: Order Service Boot & HTTP Layer
-scope:
-    - j-store-order-boot/
-source_files: []
-depends_on: []
-related_to: []

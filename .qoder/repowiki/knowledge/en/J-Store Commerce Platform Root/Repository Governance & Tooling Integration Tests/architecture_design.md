@@ -1,0 +1,6 @@
+Three independent test packages under `tests/`, each a self-contained `unittest.TestCase` suite with no shared base class:
+- `governance/`: policy-enforcing tests that scan `.codex/agents/*.toml` files via `tomllib`, assert architectural invariants (e.g. required doc references), and shell out to `scripts/check-agent-governance.sh` through `subprocess.run`.
+- `skills/spec-dev/`: integration tests that dynamically import sibling scripts (`specctl.py`, `validate_evals.py`) at runtime via `importlib.util.spec_from_file_location`, register them in `sys.modules`, then exercise their public APIs against temp directories or the repo's `.codex/skills/spec-dev/schemas` and `evals` fixtures.
+- `tooling/`: single test exercising the Git pre-push hook by creating a temporary bare repository, invoking `git` commands, and running the shell hook script with a controlled environment.
+
+Each test resolves the repository root relative to `__file__` using `Path.resolve().parents[N]` (2 parents up for `governance`/`tooling`, 3 for `skills/spec-dev`) so tests are portable across workspaces. There is no central test runner — each file ends with `if __name__ == "__main__": unittest.main()` and can be executed directly.

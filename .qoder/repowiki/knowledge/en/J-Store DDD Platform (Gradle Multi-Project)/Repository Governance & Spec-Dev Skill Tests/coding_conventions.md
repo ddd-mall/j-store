@@ -1,4 +1,0 @@
-- Each test file defines a single `unittest.TestCase` subclass with methods named `test_*` and uses `Path(__file__).resolve().parents[N]` to compute absolute repo-relative paths instead of hardcoding paths.
-- Sibling scripts under `.codex/skills/spec-dev/scripts/` are loaded at runtime via `importlib.util.spec_from_file_location` and registered in `sys.modules` before being exercised as Python modules.
-- Assertions use explicit `self.assertEqual`, `self.assertIn`, `self.assertNotIn`, and `self.assertTrue` rather than pytest-style asserts, keeping the suite runnable with plain `unittest`.
-- File I/O inside tests consistently specifies `encoding="utf-8"` when reading/writing text files to avoid platform-dependent defaults.

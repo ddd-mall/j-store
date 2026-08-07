@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: fulfillment_service/application_layer
+title: Fulfillment Application Layer & Use Cases
+scope:
+    - j-store-fulfillment-application/
+source_files: []
+depends_on: []
+related_to:
+    - path: order_service/application_layer
+    - path: order_service/domain_layer

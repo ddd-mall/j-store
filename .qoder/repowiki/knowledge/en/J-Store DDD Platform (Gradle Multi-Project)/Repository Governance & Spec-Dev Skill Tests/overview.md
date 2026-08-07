@@ -1,1 +1,0 @@
-Python unittest suites that enforce repository governance contracts, verify Gradle module boundaries for each commerce context, and validate the spec-dev skill's CLI tooling, JSON schemas, and behavioral evals.

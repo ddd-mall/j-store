@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: accounting_service/accounting_application
+title: Accounting Application Services & Event Handlers
+scope:
+    - j-store-accounting-application/
+source_files: []
+depends_on: []
+related_to:
+    - path: order_service/application_layer
+    - path: payment_service/payment_application

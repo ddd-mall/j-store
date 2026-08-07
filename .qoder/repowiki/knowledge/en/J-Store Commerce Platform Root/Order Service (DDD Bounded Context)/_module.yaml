@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: order_service
+title: Order Service (DDD Bounded Context)
+scope:
+    - j-store-order-application/
+    - j-store-order-domain/
+    - j-store-order-infrastructure/
+    - j-store-order-boot/
+source_files: []
+depends_on: []
+related_to:
+    - path: goods_service/goods_domain

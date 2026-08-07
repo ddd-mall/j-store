@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: goods_service/goods_infrastructure
-title: Goods Domain Persistence Infrastructure (JPA Repository Implementations)
-scope:
-    - j-store-goods-infrastructure/
-source_files: []
-depends_on: []
-related_to:
-    - path: goods_service/goods_application

@@ -1,1 +1,0 @@
-Gradle composite project orchestrating J-Store's shared Kotlin/Spring Boot libraries, domain-driven microservices, and PostgreSQL Docker infrastructure under a unified build with enforced module boundaries.
