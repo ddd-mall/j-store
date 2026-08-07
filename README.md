@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/j-store-logo-dark.svg">
+    <img src="assets/j-store-logo.svg" alt="J-Store logo" width="160">
+  </picture>
+</p>
+
 # j-store
 
 j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring Data JPA、PostgreSQL 和 Redis。项目结构、模块边界与测试入口见 [`docs/project-overview.md`](docs/project-overview.md)。
