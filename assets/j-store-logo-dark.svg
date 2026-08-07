@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="J-Store logo (dark)">
+  <title>J-Store logo (dark variant)</title>
+  <!-- 购物袋提手 -->
+  <path d="M196 196 a60 60 0 0 1 120 0" fill="none" stroke="#8B9CF9" stroke-width="36" stroke-linecap="round"/>
+  <!-- 袋身 -->
+  <rect x="116" y="196" width="280" height="228" rx="32" fill="#8B9CF9"/>
+  <!-- 字母 j 的点（翠绿点缀） -->
+  <circle cx="300" cy="244" r="18" fill="#34D399"/>
+  <!-- 字母 j 的笔画 -->
+  <path d="M300 284 v64 a48 48 0 0 1 -96 0 v-14" fill="none" stroke="#1E1B4B" stroke-width="34" stroke-linecap="round"/>
+</svg>

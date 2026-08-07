@@ -1,5 +1,7 @@
 # Project Overview
 
+![J-Store logo](../../../../assets/j-store-logo.svg)
+
 <cite>
 **Referenced Files in This Document**
 - [settings.gradle.kts](file://settings.gradle.kts)
