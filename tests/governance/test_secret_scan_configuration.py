@@ -17,7 +17,7 @@ AFTER_SALE_API = (
     / "After-Sale Processing API.md"
 )
 KNOWN_FALSE_POSITIVE = (
-    "e3355e12a6fe5a38e7d5fb9a18d0a59427e4a3b2:"
+    "2d3475ab73a045b213dae4f47e824c0ace1d7481:"
     ".qoder/repowiki/en/content/API Documentation/After-Sale Processing API.md:"
     "generic-api-key:466"
 )
