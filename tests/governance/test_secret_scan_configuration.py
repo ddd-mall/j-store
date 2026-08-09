@@ -13,8 +13,8 @@ AFTER_SALE_API = (
     / "repowiki"
     / "en"
     / "content"
-    / "API Documentation"
-    / "After-Sale Processing API.md"
+    / "API Reference"
+    / "After-Sale Management API.md"
 )
 KNOWN_FALSE_POSITIVE = (
     "2d3475ab73a045b213dae4f47e824c0ace1d7481:"

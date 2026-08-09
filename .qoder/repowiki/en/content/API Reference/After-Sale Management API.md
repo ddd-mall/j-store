@@ -197,6 +197,8 @@ Authorization:
 
 Idempotency:
 - All mutating endpoints accept Idempotency-Key header.
+- Use an operation-specific placeholder in examples, for example:
+  `Idempotency-Key: "<merchant-approval-request-id>"`.
 - Duplicate keys within the same actor and operation are short-circuited to previous result or conflict based on payload hash.
 
 **Section sources**
