@@ -15,6 +15,7 @@ dependencies {
     implementation(platform(libs.spring.boot.dependencies))
     implementation("org.springframework:spring-tx")
     testImplementation(libs.spring.boot.starter.test)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.test { useJUnitPlatform() }

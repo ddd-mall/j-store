@@ -108,6 +108,83 @@ CREATE INDEX IF NOT EXISTS idx_inventory_reservation_order
 CREATE INDEX IF NOT EXISTS idx_inventory_reservation_expiry
     ON inventory_stock_reservations(status, expires_at);
 
+-- The legacy goods Inventory stored available quantity after reservations had
+-- already been subtracted. Reconstruct physical stock without rounding or
+-- silently accepting values that the integer ATP model cannot represent.
+DO $$
+DECLARE
+    missing_columns TEXT;
+    invalid_inventory BOOLEAN;
+BEGIN
+    IF to_regclass('develop.inventory') IS NOT NULL THEN
+        SELECT string_agg(expected.column_name, ', ' ORDER BY expected.column_name)
+        INTO missing_columns
+        FROM (VALUES
+            ('commodity_code'),
+            ('available_quantity'),
+            ('reserved_quantity'),
+            ('version')
+        ) AS expected(column_name)
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM information_schema.columns actual
+            WHERE actual.table_schema = 'develop'
+              AND actual.table_name = 'inventory'
+              AND actual.column_name = expected.column_name
+        );
+
+        IF missing_columns IS NOT NULL THEN
+            RAISE EXCEPTION
+                'Cannot migrate develop.inventory: missing required columns: %',
+                missing_columns;
+        END IF;
+
+        EXECUTE $validation$
+            SELECT EXISTS (
+                SELECT 1
+                FROM develop.inventory
+                WHERE commodity_code IS NULL
+                   OR commodity_code <= 0
+                   OR available_quantity IS NULL
+                   OR reserved_quantity IS NULL
+                   OR version IS NULL
+                   OR available_quantity < 0
+                   OR reserved_quantity < 0
+                   OR version < 0
+                   OR available_quantity <> trunc(available_quantity)
+                   OR reserved_quantity <> trunc(reserved_quantity)
+                   OR available_quantity + reserved_quantity > 2147483647
+            )
+        $validation$ INTO invalid_inventory;
+
+        IF invalid_inventory THEN
+            RAISE EXCEPTION
+                'Cannot migrate develop.inventory: quantities must be nonnegative integral INTEGER values and version must be nonnegative';
+        END IF;
+
+        EXECUTE $migration$
+            INSERT INTO inventory_stock_positions(
+                id, sku_id, fulfillment_node_id, on_hand, reserved,
+                safety_stock, isolated_quantity, source_version, persistence_version
+            )
+            SELECT
+                commodity_code::TEXT || '@DEFAULT',
+                commodity_code,
+                'DEFAULT',
+                (available_quantity + reserved_quantity)::INTEGER,
+                reserved_quantity::INTEGER,
+                0,
+                0,
+                0,
+                version
+            FROM develop.inventory
+        $migration$;
+
+        DROP TABLE develop.inventory;
+    END IF;
+END
+$$;
+
 -- WMS physical stock authority.
 CREATE TABLE IF NOT EXISTS warehouse_physical_stock (
     id VARCHAR(192) PRIMARY KEY,
@@ -149,6 +226,25 @@ WHERE oi.order_id = o.id AND oi.store_id IS NULL;
 ALTER TABLE order_items ALTER COLUMN offer_id SET NOT NULL;
 ALTER TABLE order_items ALTER COLUMN store_id SET NOT NULL;
 
--- The superseded development-only goods inventory tables must not remain authoritative.
-DROP TABLE IF EXISTS goods_inventory_reservation;
-DROP TABLE IF EXISTS goods_inventory;
+-- Their historical schema is undocumented. Empty development tables may be
+-- removed, but nonempty tables require an explicit, reviewed conversion.
+DO $$
+DECLARE
+    legacy_table TEXT;
+    legacy_rows BIGINT;
+BEGIN
+    FOREACH legacy_table IN ARRAY ARRAY['goods_inventory_reservation', 'goods_inventory']
+    LOOP
+        IF to_regclass('develop.' || legacy_table) IS NOT NULL THEN
+            EXECUTE format('SELECT count(*) FROM develop.%I', legacy_table)
+                INTO legacy_rows;
+            IF legacy_rows > 0 THEN
+                RAISE EXCEPTION
+                    'Refusing to drop nonempty legacy table develop.% without a verified conversion',
+                    legacy_table;
+            END IF;
+            EXECUTE format('DROP TABLE develop.%I', legacy_table);
+        END IF;
+    END LOOP;
+END
+$$;

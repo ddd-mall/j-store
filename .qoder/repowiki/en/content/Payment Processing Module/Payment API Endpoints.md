@@ -330,7 +330,7 @@ All errors follow consistent schema:
 HTTP status codes:
 - 200: Success
 - 401: Authentication failure
-- 403: Authorization failure  
+- 403: Authorization failure
 - 404: Resource not found
 - 409: Business conflict/validation error
 

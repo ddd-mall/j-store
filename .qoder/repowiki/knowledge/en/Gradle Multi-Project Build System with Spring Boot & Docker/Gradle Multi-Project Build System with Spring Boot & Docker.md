@@ -37,7 +37,7 @@ J-Store uses **Gradle** as the primary build system for a multi-project Kotlin/S
 - `<context>-infrastructure`: JPA repositories and external integrations
 - `<context>-boot`: Spring Boot configuration and HTTP controllers
 
-**Dependency Management**: 
+**Dependency Management**:
 - Root `build.gradle.kts` applies common plugins (Kotlin JVM, Spotless code formatting, CycloneDX BOM generation)
 - All projects inherit group `com.jstore` and version from `gradle.properties`
 - Shared libraries (`j-store-common-core`, `j-store-common-spring`) use `api()` to expose transitive dependencies
