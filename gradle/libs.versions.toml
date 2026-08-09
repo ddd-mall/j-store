@@ -21,7 +21,7 @@ jjwt = "0.13.0"
 spring-security = "7.1.0"
 
 openai-version = "4.50.0"
-dashscope-sdk-java = "2.22.5"
+dashscope-sdk-java = "2.22.28"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
