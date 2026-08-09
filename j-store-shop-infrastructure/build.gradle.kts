@@ -22,6 +22,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlin.test.junit5)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

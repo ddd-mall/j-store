@@ -50,7 +50,7 @@ Catalog 查询继续提供商品名称、SKU 描述和资料版本。Store Offer
 
 1. 建立 Store Offer、Inventory ATP、WMS 库存表及订单 Saga 字段。
 2. 切换消息翻译器和运行时装配。
-3. 将现有 goods 库存开发数据迁移为默认履约节点的 StockPosition。
+3. 将现有 goods `inventory` 开发数据迁移为默认履约节点的 StockPosition：历史 `available_quantity` 已扣除预留量，因此 `onHand = availableQuantity + reservedQuantity`、`reserved = reservedQuantity`；只接受非负、整数且不超过 `INTEGER` 的数量，无法无损转换时迁移必须失败并保留源表。结构未被验证的 `goods_inventory*` 表只有为空时才可删除，非空时必须停止并由人工提供转换方案。
 4. 将现有 `ON_SALE` 商品转换成默认 Store 的 ACTIVE Offer，`OFF_SALE` 转换成 SUSPENDED Offer。
 5. 将 Catalog 状态映射：`DRAFT → DRAFT`，`ON_SALE/OFF_SALE → PUBLISHED`。
 6. 删除 goods 中的库存和销售许可实现。

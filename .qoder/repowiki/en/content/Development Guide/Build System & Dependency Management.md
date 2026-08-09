@@ -339,7 +339,7 @@ toolchainVersion=25
 
 ### Supported Platforms
 - **FreeBSD**: AArch64 and X86_64 architectures
-- **Linux**: AArch64 and X86_64 architectures  
+- **Linux**: AArch64 and X86_64 architectures
 - **macOS**: AArch64 (Apple Silicon) and X86_64 architectures
 - **Windows**: AArch64 and X86_64 architectures
 - **Unix**: Generic Unix-like systems with AArch64 support

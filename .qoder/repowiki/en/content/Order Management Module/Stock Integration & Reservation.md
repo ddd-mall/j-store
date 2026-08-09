@@ -198,7 +198,7 @@ InventoryRepository ..> Inventory : "persists"
 
 ### Inventory Application Service: Reservation Lifecycle
 The InventoryService implements TCC-like semantics:
-- reserve(bizCode, commodityCode, amount): 
+- reserve(bizCode, commodityCode, amount):
   - Idempotency check via reservationRecordRepository.findByBizCode
   - Acquire a lock for commodityCode
   - Load Inventory, call reserve(), save Inventory
