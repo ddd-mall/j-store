@@ -20,7 +20,7 @@ redisson = "3.52.0"
 jjwt = "0.13.0"
 spring-security = "7.1.0-RC1"
 
-openai-version = "4.15.0"
+openai-version = "4.50.0"
 dashscope-sdk-java = "2.22.5"
 
 [libraries]
