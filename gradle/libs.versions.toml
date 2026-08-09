@@ -16,7 +16,7 @@ junit = "6.1.2"
 mockito = "5.23.0"
 mockito-kotlin = "6.3.0"
 lombok = "1.18.36"
-redisson = "3.52.0"
+redisson = "4.7.0"
 jjwt = "0.13.0"
 spring-security = "7.1.0"
 
