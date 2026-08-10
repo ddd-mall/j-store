@@ -37,12 +37,32 @@ class SpringLocalIntegrationMessageBus(
     }
 
     override fun publish(message: IntegrationMessage) {
+        publishInternal(message, null)
+    }
+
+    override fun publish(message: IntegrationMessage, deliveryOrder: MessageDeliveryOrder) {
+        publishInternal(message, deliveryOrder)
+    }
+
+    private fun publishInternal(message: IntegrationMessage, deliveryOrder: MessageDeliveryOrder?) {
         val matching = registrations.filter { it.messageType.isInstance(message) }
         if (message is IntegrationCommand) {
             check(matching.size == 1) {
                 "IntegrationCommand requires exactly one handler: " +
                     "message=${message.messageName}, handlers=${matching.size}"
             }
+        }
+        if (
+            deliveryOrder != null &&
+                !consumptionRepository.tryStartOrdered(
+                    BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS,
+                    message.messageId,
+                    message.messageName,
+                    message.messageVersion,
+                    deliveryOrder,
+                )
+        ) {
+            return
         }
         matching.forEach { registration ->
             val handler = registration.handler

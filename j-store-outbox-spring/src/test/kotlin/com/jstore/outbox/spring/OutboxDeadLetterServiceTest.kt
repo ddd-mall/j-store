@@ -76,9 +76,6 @@ class OutboxDeadLetterServiceTest {
 
         override fun save(entry: OutboxEntry) = entry
 
-        override fun findPendingAndRetryable(maxRetryCount: Int, batchSize: Int) =
-            emptyList<OutboxEntry>()
-
         override fun claimPendingAndRetryable(
             maxRetryCount: Int,
             batchSize: Int,
@@ -99,13 +96,23 @@ class OutboxDeadLetterServiceTest {
 
         override fun findDeadLetters(batchSize: Int) = emptyList<OutboxEntry>()
 
-        override fun requeueDeadLetters(ids: Collection<String>, nextAttemptAt: Instant) = 0
-
         override fun countByStatus(status: OutboxEntryStatus) = 0L
+
+        override fun countByStatus(status: OutboxEntryStatus, transportId: String) = 0L
 
         override fun findOldestReadyAt(now: Instant, maxRetryCount: Int): Instant? = null
 
+        override fun findOldestReadyAt(
+            now: Instant,
+            maxRetryCount: Int,
+            transportId: String,
+        ): Instant? = null
+
         override fun countExpiredLocks(now: Instant) = 0L
+
+        override fun countExpiredLocks(now: Instant, transportId: String) = 0L
+
+        override fun findTransportIds() = emptySet<String>()
 
         override fun deletePublishedBefore(before: Instant, batchSize: Int) = 0
     }

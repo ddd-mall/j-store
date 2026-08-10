@@ -25,6 +25,7 @@ import com.jstore.outbox.IntegrationTransportPlanner
 import com.jstore.outbox.OutboxDeliveryTarget
 import com.jstore.outbox.OutboxEntryRepository
 import com.jstore.outbox.OutboxMessageKind
+import com.jstore.outbox.OutboxStreamSequenceAllocator
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -40,9 +41,13 @@ class OutboxIntegrationMessagePublisherTest :
         test("multiple targets persist independently retryable publications") {
             val repository = mock<OutboxEntryRepository>()
             val serializer = mock<IntegrationMessageSerializer>()
+            val sequenceAllocator = mock<OutboxStreamSequenceAllocator>()
             val registry = InMemoryIntegrationMessageTypeRegistry()
             registry.register("test.inventory.reserve", 1, TestReserveInventoryCommand::class.java)
             whenever(serializer.serialize(message)).thenReturn("{\"orderId\":42}")
+            val orderingKey = "57d0d731fe2cefe49a264ba7e12c17ae2b8de8fae70f4703504532a64e200f47"
+            whenever(sequenceAllocator.nextSequence("local", orderingKey)).thenReturn(7)
+            whenever(sequenceAllocator.nextSequence("kafka", orderingKey)).thenReturn(11)
             val publisher =
                 OutboxIntegrationMessagePublisher(
                     repository,
@@ -50,6 +55,7 @@ class OutboxIntegrationMessagePublisherTest :
                     SnowFlakSequence(1, 1),
                     registry,
                     IntegrationTransportPlanner(listOf("local", "kafka")),
+                    sequenceAllocator,
                 )
 
             publisher.publish(message)
@@ -59,10 +65,10 @@ class OutboxIntegrationMessagePublisherTest :
             captor.allValues
                 .map { it.deliveryTarget }
                 .shouldContainExactly(
-                    OutboxDeliveryTarget.LOCAL_INTEGRATION,
                     OutboxDeliveryTarget.BROKER,
+                    OutboxDeliveryTarget.LOCAL_INTEGRATION,
                 )
-            captor.allValues.map { it.transportId }.shouldContainExactly("local", "kafka")
+            captor.allValues.map { it.transportId }.shouldContainExactly("kafka", "local")
             captor.allValues.map { it.eventId }.distinct() shouldBe listOf(message.messageId)
             captor.allValues.map { it.messageKind }.distinct() shouldBe
                 listOf(OutboxMessageKind.INTEGRATION_COMMAND)
@@ -70,6 +76,8 @@ class OutboxIntegrationMessagePublisherTest :
                 listOf(message.partitionKey)
             captor.allValues.map { it.correlationId }.distinct() shouldBe
                 listOf(message.correlationId)
+            captor.allValues.map { it.orderingKey }.distinct() shouldBe listOf(orderingKey)
+            captor.allValues.map { it.sequenceNo }.shouldContainExactly(11, 7)
         }
     })
 

@@ -58,6 +58,14 @@ class OutboxEventPublisherTest :
                 InMemoryEventTypeRegistry().apply {
                     register("order.created", 4, OrderCreatedEvent::class.java)
                 }
+            val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+            whenever(
+                    streamSequenceAllocator.nextSequence(
+                        "local-domain",
+                        "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089",
+                    )
+                )
+                .thenReturn(9)
             val serializer = JacksonEventSerializer(objectMapper)
             val publisher =
                 OutboxEventPublisher(
@@ -65,6 +73,7 @@ class OutboxEventPublisherTest :
                     serializer,
                     SnowFlakSequence(1, 1),
                     eventTypeRegistry,
+                    streamSequenceAllocator,
                 )
 
             val event =
@@ -92,6 +101,9 @@ class OutboxEventPublisherTest :
             saved.status shouldBe OutboxEntryStatus.PENDING
             saved.retryCount shouldBe 0
             saved.payload shouldNotBe ""
+            saved.orderingKey shouldBe
+                "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089"
+            saved.sequenceNo shouldBe 9
         }
 
         test("serialization failure propagates exception ensuring business transaction rollback") {
@@ -104,6 +116,7 @@ class OutboxEventPublisherTest :
                 InMemoryEventTypeRegistry().apply {
                     register("order.created", 4, OrderCreatedEvent::class.java)
                 }
+            val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
 
             val publisher =
                 OutboxEventPublisher(
@@ -111,6 +124,7 @@ class OutboxEventPublisherTest :
                     mockSerializer,
                     SnowFlakSequence(1, 1),
                     eventTypeRegistry,
+                    streamSequenceAllocator,
                 )
 
             val event =
@@ -139,6 +153,7 @@ class OutboxEventPublisherTest :
                     serializer,
                     SnowFlakSequence(1, 1),
                     InMemoryEventTypeRegistry(),
+                    mock(),
                 )
 
             val event =

@@ -6,7 +6,7 @@ dependencies {
     api(libs.kotlin.stdlib)
     api(project(":j-store-accounting-domain"))
     implementation(project(":j-store-common-core"))
-    implementation(project(":j-store-messaging-core"))
+    api(project(":j-store-messaging-core"))
     implementation(project(":j-store-integration-contracts"))
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)

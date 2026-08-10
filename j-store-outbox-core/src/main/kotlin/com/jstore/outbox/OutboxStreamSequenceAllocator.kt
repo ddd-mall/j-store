@@ -14,22 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.messaging
+package com.jstore.outbox
 
-interface IntegrationMessageHandler<T : IntegrationMessage> {
-    fun handlerId(): String
-
-    fun handle(message: T)
-}
-
-interface LocalIntegrationMessageBus {
-    fun publish(message: IntegrationMessage)
-
-    fun publish(message: IntegrationMessage, deliveryOrder: MessageDeliveryOrder) {
-        throw UnsupportedOperationException("Ordered delivery requires a sequence-aware local bus")
-    }
-
-    fun register(handler: IntegrationMessageHandler<*>)
-
-    fun unregister(handler: IntegrationMessageHandler<*>)
+/** Allocates a monotonic position in one transport-specific ordering stream. */
+fun interface OutboxStreamSequenceAllocator {
+    fun nextSequence(transportId: String, orderingKey: String): Long
 }

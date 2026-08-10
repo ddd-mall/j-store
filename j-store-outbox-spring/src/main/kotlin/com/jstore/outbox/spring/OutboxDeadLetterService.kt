@@ -30,15 +30,6 @@ class OutboxDeadLetterService(
         return outboxEntryRepository.findDeadLetters(batchSize)
     }
 
-    fun requeue(ids: Collection<String>, nextAttemptAt: Instant = Instant.now()): Int {
-        val count = outboxEntryRepository.requeueDeadLetters(ids, nextAttemptAt)
-        if (count > 0) {
-            logger.warn("Outbox dead letters requeued: count={}, ids={}", count, ids)
-            outboxMonitor.recordRequeue(count)
-        }
-        return count
-    }
-
     override fun findDeadLetters(page: Int, size: Int): OutboxDeadLetterPage {
         require(page >= 1) { "page must be at least 1" }
         require(size in 1..200) { "size must be between 1 and 200" }

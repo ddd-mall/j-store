@@ -71,6 +71,55 @@ class SpringLocalIntegrationMessageBusTest :
 
             shouldThrow<IllegalStateException> { bus.publish(message) }
         }
+
+        test("ordered delivery advances one stream cursor before handler idempotency") {
+            val handler =
+                object : IntegrationMessageHandler<TestReserveInventoryCommand> {
+                    override fun handlerId() = "inventory.reserve.v1"
+
+                    override fun handle(message: TestReserveInventoryCommand) {}
+                }
+            val consumption = mock<MessageConsumptionRepository>()
+            val deliveryOrder = MessageDeliveryOrder("local", "stream-42", 2)
+            whenever(
+                    consumption.tryStartOrdered(
+                        "jstore.local-integration-bus",
+                        message.messageId,
+                        message.messageName,
+                        message.messageVersion,
+                        deliveryOrder,
+                    )
+                )
+                .thenReturn(true)
+            whenever(
+                    consumption.tryStart(
+                        handler.handlerId(),
+                        message.messageId,
+                        message.messageName,
+                        message.messageVersion,
+                    )
+                )
+                .thenReturn(true)
+
+            SpringLocalIntegrationMessageBus(listOf(handler), consumption)
+                .publish(message, deliveryOrder)
+
+            verify(consumption)
+                .tryStartOrdered(
+                    "jstore.local-integration-bus",
+                    message.messageId,
+                    message.messageName,
+                    message.messageVersion,
+                    deliveryOrder,
+                )
+            verify(consumption)
+                .tryStart(
+                    handler.handlerId(),
+                    message.messageId,
+                    message.messageName,
+                    message.messageVersion,
+                )
+        }
     })
 
 @IntegrationMessageType(name = "test.inventory.reserve", version = 1)

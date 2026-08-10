@@ -19,7 +19,10 @@ package com.jstore.outbox.spring.persistence
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.event.LocalDomainEventBus
+import com.jstore.messaging.BuiltInMessageConsumerIds
 import com.jstore.messaging.MessageConsumptionRepository
+import com.jstore.messaging.MessageDeliveryOrder
+import com.jstore.messaging.MessageSequenceGapException
 import com.jstore.messaging.tryStart
 import com.jstore.outbox.*
 import com.jstore.outbox.spring.*
@@ -64,6 +67,8 @@ class OutboxEntryRepositoryImplPostgresTest {
 
     @Autowired private lateinit var consumptionRepository: MessageConsumptionRepository
 
+    @Autowired private lateinit var streamSequenceAllocator: OutboxStreamSequenceAllocator
+
     @BeforeEach
     fun cleanDatabase() {
         jpaRepository.deleteAll()
@@ -79,12 +84,26 @@ class OutboxEntryRepositoryImplPostgresTest {
                 statement.executeUpdate("DELETE FROM outbox_listener_probe")
                 statement.executeUpdate("DELETE FROM outbox_dead_letter_audit")
                 statement.execute(
+                    "CREATE TABLE IF NOT EXISTS outbox_stream_position (" +
+                        "transport_id VARCHAR(64) NOT NULL, ordering_key VARCHAR(64) NOT NULL, " +
+                        "last_sequence_no BIGINT NOT NULL, PRIMARY KEY(transport_id, ordering_key))"
+                )
+                statement.executeUpdate("DELETE FROM outbox_stream_position")
+                statement.execute(
                     "CREATE TABLE IF NOT EXISTS domain_event_consumption (" +
                         "listener_id VARCHAR(512) NOT NULL, event_id VARCHAR(64) NOT NULL, " +
                         "event_name VARCHAR(256) NOT NULL, event_version INTEGER NOT NULL, " +
                         "consumed_at TIMESTAMPTZ NOT NULL, PRIMARY KEY(listener_id,event_id))"
                 )
                 statement.executeUpdate("DELETE FROM domain_event_consumption")
+                statement.execute(
+                    "CREATE TABLE IF NOT EXISTS message_stream_consumption (" +
+                        "consumer_id VARCHAR(512) NOT NULL, transport_id VARCHAR(64) NOT NULL, " +
+                        "ordering_key VARCHAR(64) NOT NULL, " +
+                        "last_sequence_no BIGINT NOT NULL, updated_at TIMESTAMPTZ NOT NULL, " +
+                        "PRIMARY KEY(consumer_id, transport_id, ordering_key))"
+                )
+                statement.executeUpdate("DELETE FROM message_stream_consumption")
             }
         }
     }
@@ -102,6 +121,8 @@ class OutboxEntryRepositoryImplPostgresTest {
                     correlationId = "checkout-42",
                     causationId = "order-created-42",
                     tenantId = "merchant-7",
+                    orderingKey = "inventory.commands:order-42",
+                    sequenceNo = 17,
                 )
 
         val saved =
@@ -115,6 +136,299 @@ class OutboxEntryRepositoryImplPostgresTest {
         assertEquals("checkout-42", saved.correlationId)
         assertEquals("order-created-42", saved.causationId)
         assertEquals("merchant-7", saved.tenantId)
+        assertEquals("inventory.commands:order-42", saved.orderingKey)
+        assertEquals(17, saved.sequenceNo)
+    }
+
+    @Test
+    fun `stream sequence allocation is monotonic and isolated by transport`() {
+        val transactions = TransactionTemplate(transactionManager)
+
+        val local =
+            transactions.execute {
+                listOf(
+                    streamSequenceAllocator.nextSequence("local", "Order:42"),
+                    streamSequenceAllocator.nextSequence("local", "Order:42"),
+                )
+            }!!
+        val kafka =
+            transactions.execute {
+                streamSequenceAllocator.nextSequence("kafka", "Order:42")
+            }!!
+
+        assertEquals(listOf(1L, 2L), local)
+        assertEquals(1L, kafka)
+    }
+
+    @Test
+    fun `ordered consumption accepts only the next sequence and rolls back gaps`() {
+        val transactions = TransactionTemplate(transactionManager)
+        assertTrue(
+            transactions.execute {
+                consumptionRepository.tryStartOrdered(
+                    "consumer-1",
+                    "message-1",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder("local", "Order:42", 1),
+                )
+            }!!
+        )
+
+        kotlin.test.assertFailsWith<MessageSequenceGapException> {
+            transactions.execute {
+                consumptionRepository.tryStartOrdered(
+                    "consumer-1",
+                    "message-3",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder("local", "Order:42", 3),
+                )
+            }
+        }
+
+        assertTrue(
+            transactions.execute {
+                consumptionRepository.tryStartOrdered(
+                    "consumer-1",
+                    "message-2",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder("local", "Order:42", 2),
+                )
+            }!!
+        )
+        assertFalse(
+            transactions.execute {
+                consumptionRepository.tryStartOrdered(
+                    "consumer-1",
+                    "message-2",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder("local", "Order:42", 2),
+                )
+            }!!
+        )
+    }
+
+    @Test
+    fun `ordered consumption catches up across records published before ordering migration`() {
+        val transportId = "local"
+        val orderingKey = "Order:migrated"
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "INSERT INTO outbox_stream_position " +
+                        "(transport_id, ordering_key, last_sequence_no) " +
+                        "VALUES ('$transportId', '$orderingKey', 4)"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO message_stream_consumption " +
+                        "(consumer_id, transport_id, ordering_key, last_sequence_no, updated_at) " +
+                        "VALUES ('${BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS}', " +
+                        "'$transportId', '$orderingKey', 1, NOW())"
+                )
+            }
+        }
+        repository.save(
+            entry(
+                id = "migrated-2",
+                status = OutboxEntryStatus.FAILED,
+                transportId = transportId,
+                orderingKey = orderingKey,
+                sequenceNo = 2,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.LOCAL_INTEGRATION,
+            )
+        )
+        repository.save(
+            entry(
+                id = "migrated-3",
+                status = OutboxEntryStatus.PUBLISHED,
+                transportId = transportId,
+                orderingKey = orderingKey,
+                sequenceNo = 3,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.LOCAL_INTEGRATION,
+            )
+        )
+        repository.save(
+            entry(
+                id = "migrated-4",
+                transportId = transportId,
+                orderingKey = orderingKey,
+                sequenceNo = 4,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.LOCAL_INTEGRATION,
+            )
+        )
+
+        val transactions = TransactionTemplate(transactionManager)
+        assertTrue(
+            transactions.execute {
+                consumptionRepository.tryStartOrdered(
+                    BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS,
+                    "message-2",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder(transportId, orderingKey, 2),
+                )
+            }!!
+        )
+        assertTrue(
+            transactions.execute {
+                consumptionRepository.tryStartOrdered(
+                    BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS,
+                    "message-4",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder(transportId, orderingKey, 4),
+                )
+            }!!
+        )
+    }
+
+    @Test
+    fun `ordered consumption isolates identical ordering keys by transport`() {
+        val transactions = TransactionTemplate(transactionManager)
+
+        val accepted =
+            listOf("local", "kafka").map { transportId ->
+                transactions.execute {
+                    consumptionRepository.tryStartOrdered(
+                        "consumer-1",
+                        "shared-message",
+                        "order.event",
+                        1,
+                        MessageDeliveryOrder(transportId, "Order:42", 1),
+                    )
+                }!!
+            }
+        assertEquals(listOf(true, false), accepted)
+        assertTrue(
+            transactions.execute {
+                consumptionRepository.tryStartOrdered(
+                    "consumer-1",
+                    "kafka-message-2",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder("kafka", "Order:42", 2),
+                )
+            }!!
+        )
+    }
+
+    @Test
+    fun `concurrent stream sequence allocation never duplicates or leaves a gap`() {
+        val start = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(8)
+        try {
+            val futures =
+                (1..16).map {
+                    pool.submit<Long> {
+                        start.await()
+                        TransactionTemplate(transactionManager).execute {
+                            streamSequenceAllocator.nextSequence("kafka", "Order:concurrent")
+                        }!!
+                    }
+                }
+            start.countDown()
+
+            assertEquals((1L..16L).toList(), futures.map { it.get() }.sorted())
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `rolled back sequence allocation is reusable by the next committed publication`() {
+        runCatching {
+            TransactionTemplate(transactionManager).executeWithoutResult {
+                assertEquals(
+                    1L,
+                    streamSequenceAllocator.nextSequence("kafka", "Order:rollback"),
+                )
+                error("rollback")
+            }
+        }
+
+        val committed =
+            TransactionTemplate(transactionManager).execute {
+                streamSequenceAllocator.nextSequence("kafka", "Order:rollback")
+            }
+
+        assertEquals(1L, committed!!)
+    }
+
+    @Test
+    fun `failed stream blocks only its own transport and ordering key`() {
+        val base = Instant.parse("2026-01-01T00:00:00Z")
+        repository.save(
+            entry(
+                "kafka-first",
+                status = OutboxEntryStatus.DEAD_LETTER,
+                createdAt = base,
+                aggregateId = "order-1",
+                transportId = "kafka",
+                orderingKey = "Order:order-1",
+                sequenceNo = 1,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.BROKER,
+            )
+        )
+        repository.save(
+            entry(
+                "kafka-second",
+                createdAt = base.plusSeconds(1),
+                aggregateId = "order-1",
+                transportId = "kafka",
+                orderingKey = "Order:order-1",
+                sequenceNo = 2,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.BROKER,
+            )
+        )
+        repository.save(
+            entry(
+                "local-same-order",
+                createdAt = base.plusSeconds(2),
+                aggregateId = "order-1",
+                transportId = "local",
+                orderingKey = "Order:order-1",
+                sequenceNo = 1,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.LOCAL_INTEGRATION,
+            )
+        )
+        repository.save(
+            entry(
+                "kafka-other-order",
+                createdAt = base.plusSeconds(3),
+                aggregateId = "order-2",
+                transportId = "kafka",
+                orderingKey = "Order:order-2",
+                sequenceNo = 1,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.BROKER,
+            )
+        )
+
+        val claimed =
+            repository.claimPendingAndRetryable(
+                5,
+                10,
+                "worker",
+                Instant.now().plusSeconds(60),
+            )
+
+        assertEquals(
+            setOf("local-same-order", "kafka-other-order"),
+            claimed.map { it.id }.toSet(),
+        )
+        assertEquals(
+            OutboxEntryStatus.PENDING,
+            jpaRepository.findById("kafka-second").orElseThrow().status,
+        )
     }
 
     @Test
@@ -311,6 +625,7 @@ class OutboxEntryRepositoryImplPostgresTest {
                 "same-aggregate-second",
                 createdAt = base.plusSeconds(1),
                 aggregateId = "same-aggregate",
+                sequenceNo = 2,
             )
         )
         val start = CountDownLatch(1)
@@ -342,7 +657,12 @@ class OutboxEntryRepositoryImplPostgresTest {
         val base = Instant.parse("2026-01-01T00:00:00Z")
         repository.save(entry("order-1-first", createdAt = base, aggregateId = "order-1"))
         repository.save(
-            entry("order-1-second", createdAt = base.plusSeconds(1), aggregateId = "order-1")
+            entry(
+                "order-1-second",
+                createdAt = base.plusSeconds(1),
+                aggregateId = "order-1",
+                sequenceNo = 2,
+            )
         )
         repository.save(
             entry("order-2-first", createdAt = base.plusSeconds(2), aggregateId = "order-2")
@@ -521,6 +841,59 @@ class OutboxEntryRepositoryImplPostgresTest {
     }
 
     @Test
+    fun `operational queries isolate backlog and failures by transport`() {
+        val now = Instant.now()
+        repository.save(
+            entry(
+                "local-ready",
+                createdAt = now.minusSeconds(30),
+                transportId = "local",
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.LOCAL_INTEGRATION,
+            )
+        )
+        repository.save(
+            entry(
+                "kafka-dead",
+                status = OutboxEntryStatus.DEAD_LETTER,
+                createdAt = now.minusSeconds(300),
+                transportId = "kafka",
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.BROKER,
+            )
+        )
+        repository.save(
+            entry(
+                "kafka-expired",
+                status = OutboxEntryStatus.IN_PROGRESS,
+                retryCount = 1,
+                createdAt = now.minusSeconds(120),
+                lockedBy = "dead-worker",
+                lockedAt = now.minusSeconds(60),
+                lockedUntil = now.minusSeconds(1),
+                transportId = "kafka",
+                orderingKey = "Order:kafka-expired",
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.BROKER,
+            )
+        )
+
+        assertEquals(setOf("kafka", "local"), repository.findTransportIds())
+        assertEquals(
+            now.minusSeconds(30).toEpochMilli(),
+            repository.findOldestReadyAt(now, 5, "local")?.toEpochMilli(),
+        )
+        assertEquals(
+            now.minusSeconds(120).toEpochMilli(),
+            repository.findOldestReadyAt(now, 5, "kafka")?.toEpochMilli(),
+        )
+        assertEquals(0L, repository.countExpiredLocks(now, "local"))
+        assertEquals(1L, repository.countExpiredLocks(now, "kafka"))
+        assertEquals(0L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER, "local"))
+        assertEquals(1L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER, "kafka"))
+    }
+
+    @Test
     fun `delete published before honors batch size`() {
         val old = Instant.parse("2025-01-01T00:00:00Z")
         repository.save(entry("old-1", status = OutboxEntryStatus.PUBLISHED, createdAt = old))
@@ -541,7 +914,7 @@ class OutboxEntryRepositoryImplPostgresTest {
     }
 
     @Test
-    fun `dead letters can be queried counted and requeued`() {
+    fun `dead letters can be queried and counted`() {
         val base = Instant.parse("2026-01-01T00:00:00Z")
         repository.save(
             entry(
@@ -567,29 +940,6 @@ class OutboxEntryRepositoryImplPostgresTest {
         assertEquals(listOf("dead-2", "dead-1"), deadLetters.map { it.id })
         assertEquals(2L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER))
         assertEquals(1L, repository.countByStatus(OutboxEntryStatus.FAILED))
-
-        val nextAttemptAt = Instant.parse("2026-01-02T00:00:00Z")
-        val requeued = repository.requeueDeadLetters(listOf("dead-1", "failed-1"), nextAttemptAt)
-
-        assertEquals(1, requeued)
-        val dead1 = jpaRepository.findById("dead-1").orElseThrow()
-        assertEquals(OutboxEntryStatus.FAILED, dead1.status)
-        assertEquals(nextAttemptAt, dead1.nextAttemptAt)
-        assertEquals(null, dead1.lockedBy)
-        assertEquals(null, dead1.lastError)
-        assertEquals(0, dead1.retryCount)
-        assertEquals(1L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER))
-        assertEquals(2L, repository.countByStatus(OutboxEntryStatus.FAILED))
-
-        val claimed =
-            repository.claimPendingAndRetryable(
-                maxRetryCount = 5,
-                batchSize = 1,
-                lockedBy = "recovery-worker",
-                lockedUntil = Instant.now().plusSeconds(60),
-            )
-        assertEquals(listOf("dead-1"), claimed.map { it.id })
-        assertEquals(1, claimed.single().retryCount)
     }
 
     private fun entry(
@@ -606,6 +956,11 @@ class OutboxEntryRepositoryImplPostgresTest {
         aggregateId: String = id,
         lastError: String? = null,
         payload: String = """{"source":"test"}""",
+        transportId: String = OutboxTransportIds.LOCAL_DOMAIN,
+        orderingKey: String = "Order:$aggregateId",
+        sequenceNo: Long = 1,
+        messageKind: OutboxMessageKind = OutboxMessageKind.DOMAIN_EVENT,
+        deliveryTarget: OutboxDeliveryTarget = OutboxDeliveryTarget.LOCAL_DOMAIN,
     ) =
         OutboxEntry(
             id = id,
@@ -623,6 +978,11 @@ class OutboxEntryRepositoryImplPostgresTest {
             lockedUntil = lockedUntil,
             lockToken = lockToken,
             lastError = lastError,
+            transportId = transportId,
+            orderingKey = orderingKey,
+            sequenceNo = sequenceNo,
+            messageKind = messageKind,
+            deliveryTarget = deliveryTarget,
         )
 
     @SpringBootConfiguration
@@ -640,6 +1000,11 @@ class OutboxEntryRepositoryImplPostgresTest {
         fun messageConsumptionRepository(
             entityManager: EntityManager
         ): MessageConsumptionRepository = MessageConsumptionRepositoryImpl(entityManager)
+
+        @Bean
+        fun outboxStreamSequenceAllocator(
+            entityManager: EntityManager
+        ): OutboxStreamSequenceAllocator = PostgresOutboxStreamSequenceAllocator(entityManager)
     }
 
     companion object {

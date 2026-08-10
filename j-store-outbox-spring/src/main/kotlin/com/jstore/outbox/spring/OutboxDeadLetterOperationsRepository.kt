@@ -65,6 +65,9 @@ data class OutboxDeadLetterSummary(
     val updatedAt: Instant,
     val retryCount: Int,
     val lastError: String?,
+    val transportId: String,
+    val orderingKey: String,
+    val sequenceNo: Long,
 )
 
 data class DeadLetterRequeueResult(

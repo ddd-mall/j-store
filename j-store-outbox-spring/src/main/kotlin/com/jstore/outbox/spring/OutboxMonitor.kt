@@ -54,21 +54,37 @@ class MicrometerOutboxMonitor(
     private val outboxEntryRepository: OutboxEntryRepository,
     private val operationalHealth: OutboxOperationalHealth,
     private val schedulerState: SchedulerExecutionState,
+    configuredTransportIds: Set<String> = emptySet(),
 ) : OutboxMonitor {
 
     init {
+        val transportIds =
+            (configuredTransportIds + operationalHealth.snapshot().transports.keys).sorted()
         OutboxEntryStatus.entries.forEach { status ->
             meterRegistry.gauge(
                 "jstore.outbox.entries",
-                listOf(Tag.of("status", status.name)),
+                listOf(Tag.of("status", status.name), Tag.of("transportId", "all")),
                 status,
             ) {
                 outboxEntryRepository.countByStatus(it).toDouble()
+            }
+            transportIds.forEach { transportId ->
+                meterRegistry.gauge(
+                    "jstore.outbox.entries",
+                    listOf(
+                        Tag.of("status", status.name),
+                        Tag.of("transportId", transportId),
+                    ),
+                    status,
+                ) {
+                    outboxEntryRepository.countByStatus(it, transportId).toDouble()
+                }
             }
         }
 
         meterRegistry.gauge(
             "jstore.outbox.oldest_ready.lag",
+            listOf(Tag.of("transportId", "all")),
             operationalHealth,
         ) {
             it.snapshot().oldestReadyLag.toMillis() / 1000.0
@@ -76,14 +92,35 @@ class MicrometerOutboxMonitor(
 
         meterRegistry.gauge(
             "jstore.outbox.expired_locks",
+            listOf(Tag.of("transportId", "all")),
             operationalHealth,
         ) {
             it.snapshot().expiredLockCount.toDouble()
         }
 
-        registerAlertGauge("lag") { it.lagAlert }
-        registerAlertGauge("expired_lock") { it.expiredLockAlert }
-        registerAlertGauge("dead_letter") { it.deadLetterAlert }
+        registerAlertGauge("lag", "all") { it.lagAlert }
+        registerAlertGauge("expired_lock", "all") { it.expiredLockAlert }
+        registerAlertGauge("dead_letter", "all") { it.deadLetterAlert }
+        transportIds.forEach { transportId ->
+            meterRegistry.gauge(
+                "jstore.outbox.oldest_ready.lag",
+                listOf(Tag.of("transportId", transportId)),
+                operationalHealth,
+            ) {
+                it.snapshot().transports[transportId]?.oldestReadyLag?.toMillis()?.div(1000.0)
+                    ?: 0.0
+            }
+            meterRegistry.gauge(
+                "jstore.outbox.expired_locks",
+                listOf(Tag.of("transportId", transportId)),
+                operationalHealth,
+            ) {
+                it.snapshot().transports[transportId]?.expiredLockCount?.toDouble() ?: 0.0
+            }
+            registerTransportAlertGauge("lag", transportId) { it.lagAlert }
+            registerTransportAlertGauge("expired_lock", transportId) { it.expiredLockAlert }
+            registerTransportAlertGauge("dead_letter", transportId) { it.deadLetterAlert }
+        }
 
         meterRegistry.gauge(
             "jstore.outbox.scheduler.last_success",
@@ -150,13 +187,32 @@ class MicrometerOutboxMonitor(
         meterRegistry.counter("jstore.outbox.scheduler.failure").increment()
     }
 
-    private fun registerAlertGauge(reason: String, active: (OutboxOperationalSnapshot) -> Boolean) {
+    private fun registerAlertGauge(
+        reason: String,
+        transportId: String,
+        active: (OutboxOperationalSnapshot) -> Boolean,
+    ) {
         meterRegistry.gauge(
             "jstore.outbox.alert",
-            listOf(Tag.of("reason", reason)),
+            listOf(Tag.of("reason", reason), Tag.of("transportId", transportId)),
             operationalHealth,
         ) {
             if (active(it.snapshot())) 1.0 else 0.0
+        }
+    }
+
+    private fun registerTransportAlertGauge(
+        reason: String,
+        transportId: String,
+        active: (OutboxTransportOperationalSnapshot) -> Boolean,
+    ) {
+        meterRegistry.gauge(
+            "jstore.outbox.alert",
+            listOf(Tag.of("reason", reason), Tag.of("transportId", transportId)),
+            operationalHealth,
+        ) {
+            val snapshot = it.snapshot().transports[transportId]
+            if (snapshot != null && active(snapshot)) 1.0 else 0.0
         }
     }
 }

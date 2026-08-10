@@ -64,4 +64,6 @@ class OutboxEntryPO(
     @Column(name = "correlation_id", nullable = false, length = 128) var correlationId: String = "",
     @Column(name = "causation_id", length = 128) var causationId: String? = null,
     @Column(name = "tenant_id", length = 128) var tenantId: String? = null,
+    @Column(name = "ordering_key", nullable = false, length = 64) var orderingKey: String = "",
+    @Column(name = "sequence_no", nullable = false) var sequenceNo: Long = 1,
 )

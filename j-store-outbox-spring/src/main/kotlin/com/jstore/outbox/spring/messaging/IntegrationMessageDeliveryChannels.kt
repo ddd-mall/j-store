@@ -30,8 +30,14 @@ class LocalIntegrationMessageDeliveryChannel(
     override val transportId: String = OutboxTransportIds.LOCAL
 
     override fun deliver(entry: OutboxEntry) {
+        check(entry.transportId == transportId) {
+            "LOCAL integration channel cannot deliver transport ${entry.transportId}"
+        }
         requireIntegration(entry)
-        bus.publish(serializer.deserialize(entry.payload, entry.eventType, entry.eventVersion))
+        bus.publish(
+            serializer.deserialize(entry.payload, entry.eventType, entry.eventVersion),
+            MessageDeliveryOrder(entry.transportId, entry.orderingKey, entry.sequenceNo),
+        )
     }
 }
 
@@ -41,9 +47,13 @@ class TransportIntegrationMessageDeliveryChannel(
     override val transportId: String = transport.transportId
 
     override fun deliver(entry: OutboxEntry) {
+        check(entry.transportId == transportId) {
+            "Transport channel $transportId cannot deliver transport ${entry.transportId}"
+        }
         requireIntegration(entry)
         transport.publish(
             IntegrationMessageEnvelope(
+                transportId = entry.transportId,
                 messageId = entry.eventId,
                 messageName = entry.eventType,
                 messageVersion = entry.eventVersion,
@@ -61,6 +71,8 @@ class TransportIntegrationMessageDeliveryChannel(
                 tenantId = entry.tenantId,
                 occurredAt = entry.occurredAt,
                 payload = entry.payload,
+                orderingKey = entry.orderingKey,
+                sequenceNo = entry.sequenceNo,
             )
         )
     }

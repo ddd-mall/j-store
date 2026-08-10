@@ -5,7 +5,7 @@ repositories { mavenCentral() }
 dependencies {
     api(project(":j-store-inventory-domain"))
     implementation(project(":j-store-common-core"))
-    implementation(project(":j-store-messaging-core"))
+    api(project(":j-store-messaging-core"))
     implementation(project(":j-store-integration-contracts"))
     testImplementation(libs.kotlin.test)
 }

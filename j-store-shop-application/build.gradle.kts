@@ -8,7 +8,7 @@ dependencies {
     implementation(project(":j-store-shop-api"))
     implementation(project(":j-store-integration-contracts"))
     implementation(project(":j-store-common-core"))
-    implementation(project(":j-store-messaging-core"))
+    api(project(":j-store-messaging-core"))
     testImplementation(libs.kotlin.test)
 }
 

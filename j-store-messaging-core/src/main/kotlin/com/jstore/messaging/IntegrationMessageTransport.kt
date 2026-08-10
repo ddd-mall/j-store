@@ -24,6 +24,7 @@ enum class IntegrationMessageKind {
 }
 
 data class IntegrationMessageEnvelope(
+    val transportId: String,
     val messageId: String,
     val messageName: String,
     val messageVersion: Int,
@@ -35,12 +36,24 @@ data class IntegrationMessageEnvelope(
     val tenantId: String?,
     val occurredAt: Instant,
     val payload: String,
-)
+    val orderingKey: String,
+    val sequenceNo: Long,
+) {
+    init {
+        require(transportId.isNotBlank()) { "transportId must not be blank" }
+        require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
+        require(sequenceNo > 0) { "sequenceNo must be positive" }
+    }
+}
 
 /** SPI implemented by a concrete Kafka, AMQP, or cloud messaging adapter. */
 interface IntegrationMessageTransport {
     val transportId: String
 
-    /** Returns only after the broker has acknowledged accepting the message. */
+    /**
+     * Returns only after the broker has acknowledged accepting the message. Implementations must
+     * use [IntegrationMessageEnvelope.orderingKey] as their partition or routing key when the
+     * target supports ordered partitions.
+     */
     fun publish(envelope: IntegrationMessageEnvelope)
 }

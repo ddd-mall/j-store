@@ -79,45 +79,10 @@ class OutboxCleanerPropertyTest :
                     createdAt = ts,
                     updatedAt = ts,
                     retryCount = rc,
+                    orderingKey = OutboxOrderingKeys.domain(aggType, aggId),
+                    sequenceNo = 1,
                 )
             }
-
-        /**
-         * Feature: transactional-outbox, Property 7: 重试资格查询
-         *
-         * Validates: Requirements 3.2
-         */
-        test("Property 7: findPendingAndRetryable returns only eligible entries") {
-            checkAll(
-                PropTestConfig(iterations = 20),
-                Arb.list(arbOutboxEntry(), 1..20),
-                Arb.int(1..10),
-            ) { entries, maxRetryCount ->
-                // Compute expected eligible entries
-                val eligible = entries.filter { entry ->
-                    entry.status == OutboxEntryStatus.PENDING ||
-                        (entry.status == OutboxEntryStatus.FAILED &&
-                            entry.retryCount < maxRetryCount)
-                }
-
-                val mockRepo =
-                    mock<OutboxEntryRepository> {
-                        on { findPendingAndRetryable(eq(maxRetryCount), any()) } doReturn eligible
-                    }
-
-                val result = mockRepo.findPendingAndRetryable(maxRetryCount, 100)
-
-                // Verify no PUBLISHED or DEAD_LETTER entries are returned
-                result.forEach { entry ->
-                    val isEligible =
-                        entry.status == OutboxEntryStatus.PENDING ||
-                            (entry.status == OutboxEntryStatus.FAILED &&
-                                entry.retryCount < maxRetryCount)
-                    isEligible shouldBe true
-                }
-                result.size shouldBe eligible.size
-            }
-        }
 
         /**
          * Feature: transactional-outbox, Property 8: 清理仅删除符合条件的已发布条目

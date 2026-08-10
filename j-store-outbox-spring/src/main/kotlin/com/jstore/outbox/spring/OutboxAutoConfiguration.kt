@@ -113,6 +113,10 @@ class OutboxAutoConfiguration {
     }
 
     @Bean
+    fun outboxStreamSequenceAllocator(entityManager: EntityManager): OutboxStreamSequenceAllocator =
+        PostgresOutboxStreamSequenceAllocator(entityManager)
+
+    @Bean
     fun messageConsumptionRepository(entityManager: EntityManager): MessageConsumptionRepository {
         return MessageConsumptionRepositoryImpl(entityManager)
     }
@@ -123,12 +127,14 @@ class OutboxAutoConfiguration {
         eventSerializer: EventSerializer,
         snowFlakSequence: SnowFlakSequence,
         eventTypeRegistry: EventTypeRegistry,
+        outboxStreamSequenceAllocator: OutboxStreamSequenceAllocator,
     ): DomainEventPublisher {
         return OutboxEventPublisher(
             outboxEntryRepository,
             eventSerializer,
             snowFlakSequence,
             eventTypeRegistry,
+            outboxStreamSequenceAllocator,
         )
     }
 
@@ -143,6 +149,7 @@ class OutboxAutoConfiguration {
         snowFlakSequence: SnowFlakSequence,
         integrationMessageTypeRegistry: IntegrationMessageTypeRegistry,
         integrationTransportPlanner: IntegrationTransportPlanner,
+        outboxStreamSequenceAllocator: OutboxStreamSequenceAllocator,
     ): IntegrationMessagePublisher =
         OutboxIntegrationMessagePublisher(
             outboxEntryRepository,
@@ -150,6 +157,7 @@ class OutboxAutoConfiguration {
             snowFlakSequence,
             integrationMessageTypeRegistry,
             integrationTransportPlanner,
+            outboxStreamSequenceAllocator,
         )
 
     @Bean
@@ -264,12 +272,14 @@ class OutboxAutoConfiguration {
         schedulerExecutionState: SchedulerExecutionState,
         observabilityProperties: OutboxObservabilityProperties,
         properties: OutboxProperties,
+        messagingProperties: MessagingProperties,
     ): OutboxOperationalHealth =
         OutboxOperationalHealth(
             outboxEntryRepository,
             schedulerExecutionState,
             observabilityProperties,
             properties.maxRetryCount,
+            configuredTransportIds = messagingProperties.targets + OutboxTransportIds.LOCAL_DOMAIN,
         )
 
     @Bean
@@ -278,6 +288,7 @@ class OutboxAutoConfiguration {
         outboxEntryRepository: OutboxEntryRepository,
         outboxOperationalHealth: OutboxOperationalHealth,
         schedulerExecutionState: SchedulerExecutionState,
+        messagingProperties: MessagingProperties,
     ): OutboxMonitor {
         val meterRegistry = meterRegistryProvider.getIfAvailable() ?: return NoopOutboxMonitor
         return MicrometerOutboxMonitor(
@@ -285,6 +296,7 @@ class OutboxAutoConfiguration {
             outboxEntryRepository,
             outboxOperationalHealth,
             schedulerExecutionState,
+            messagingProperties.targets + OutboxTransportIds.LOCAL_DOMAIN,
         )
     }
 

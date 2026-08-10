@@ -108,6 +108,7 @@ class OutboxEventPublisherPropertyTest :
                         realSerializer,
                         SnowFlakSequence(1, 1),
                         eventTypeRegistry,
+                        OutboxStreamSequenceAllocator { _, _ -> 1 },
                     )
                 publisher.publishEvent(event)
 

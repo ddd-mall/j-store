@@ -32,7 +32,7 @@ class IntegrationMessagingModelTest :
         test("multiple transports plan independent deliveries and remove duplicates") {
             IntegrationTransportPlanner(listOf("local", "kafka", "kafka"))
                 .targets()
-                .shouldContainExactly("local", "kafka")
+                .shouldContainExactly("kafka", "local")
         }
 
         test("integration metadata rejects unstable routing and identity fields") {
@@ -134,4 +134,6 @@ private fun entry(transportId: String) =
         messageKind = OutboxMessageKind.INTEGRATION_EVENT,
         deliveryTarget = OutboxDeliveryTarget.BROKER,
         transportId = transportId,
+        orderingKey = "5:Order:1:1",
+        sequenceNo = 1,
     )

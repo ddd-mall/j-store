@@ -20,11 +20,22 @@
 - OTM-R10：现有 `jstore.messaging.mode=local|broker|hybrid` 配置被新的 transport 目标配置破坏性替代；本地默认行为保持不变。
 - OTM-R11：既有 Outbox 数据通过新增 Flyway migration 回填 `transport_id`；不得修改既有 migration。
 - OTM-R12：Outbox 运维 API、认证授权、事件/消息 payload、名称与版本保持不变。
+- OTM-R13：每条 Outbox 记录必须持久化稳定 `orderingKey` 和同一
+  `(transportId, orderingKey)` 内严格单调的 `sequenceNo`；序号必须在业务事务内由数据库原子分配，
+  不得用墙钟时间或跨节点 ID 推断业务顺序。
+- OTM-R14：relay 只允许领取同一 `(transportId, orderingKey)` 流中最早的未完成记录。
+  重试或死信必须阻塞本流后继记录，但不得阻塞其它 transport 或其它 ordering stream。
+- OTM-R15：死信必须持续阻塞其 ordering stream，且只能通过带操作者、原因和审计记录的重入队恢复；
+  系统不得自动或人工静默跳过失败消息，否则下游无法区分授权丢弃与传输缺口。
+- OTM-R16：发送给 Broker 的 envelope 必须包含 `transportId`、`orderingKey` 和 `sequenceNo`，使 adapter
+  能按 ordering key 分区，并使远端消费者能够拒绝或暂存序号缺口。
 
 ## 质量目标
 
 - 可维护性：消息契约、Outbox 核心、Spring/JPA 实现和具体 transport adapter 依赖单向、职责独立。
 - 可靠性：切换部署配置不会改变已持久化记录的目标；失败不会静默降级或丢失消息。
+- 顺序性：重试、进程崩溃和并发 relay 不得打破同一 transport、同一 ordering stream 的顺序；
+  不同流保持故障隔离和并行能力。
 - 可扩展性：新增 Kafka/RabbitMQ adapter 不需要修改核心路由器或业务模块。
 - 可观测性：指标和健康信息能够按 transport ID 区分投递目标。
 
