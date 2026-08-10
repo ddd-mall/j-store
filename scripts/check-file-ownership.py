@@ -24,7 +24,13 @@ def repository_files() -> list[str]:
         check=True,
         capture_output=True,
     )
-    return sorted(path.decode("utf-8") for path in result.stdout.split(b"\0") if path)
+    return sorted(
+        relative_path
+        for path in result.stdout.split(b"\0")
+        if path
+        for relative_path in (path.decode("utf-8"),)
+        if (REPO_ROOT / relative_path).is_file()
+    )
 
 
 def main() -> int:

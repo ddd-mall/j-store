@@ -6,11 +6,11 @@ plugins {
 repositories { mavenCentral() }
 
 dependencies {
+    implementation("org.springframework:spring-context")
     implementation(project(":j-store-payment-domain"))
     implementation(project(":j-store-payment-application"))
     implementation(project(":j-store-payment-infrastructure"))
     implementation(project(":j-store-common-core"))
-    implementation(project(":j-store-common-spring"))
     implementation(project(":j-store-integration-contracts"))
     implementation(project(":j-store-shop-application"))
     implementation(project(":j-store-authentication-spring-sdk"))

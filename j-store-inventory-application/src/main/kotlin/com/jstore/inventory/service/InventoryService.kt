@@ -18,7 +18,6 @@ package com.jstore.inventory.service
 
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
@@ -39,6 +38,7 @@ import com.jstore.inventory.domain.StockReservationId
 import com.jstore.inventory.domain.StockReservationRepository
 import com.jstore.inventory.domain.event.StockReservationFailedEvent
 import com.jstore.inventory.domain.event.StockReservedEvent
+import com.jstore.messaging.IntegrationMessageHandler
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant

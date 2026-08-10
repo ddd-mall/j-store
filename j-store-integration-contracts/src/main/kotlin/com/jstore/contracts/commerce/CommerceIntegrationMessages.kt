@@ -16,10 +16,10 @@
  */
 package com.jstore.contracts.commerce
 
-import com.jstore.common.framework.event.outbox.IntegrationMessageType
-import com.jstore.common.framework.messaging.IntegrationCommand
-import com.jstore.common.framework.messaging.IntegrationEvent
-import com.jstore.common.framework.messaging.stableIntegrationMessageId
+import com.jstore.messaging.IntegrationCommand
+import com.jstore.messaging.IntegrationEvent
+import com.jstore.messaging.IntegrationMessageType
+import com.jstore.messaging.stableIntegrationMessageId
 import java.time.Instant
 
 abstract class CommerceIntegrationCommand(

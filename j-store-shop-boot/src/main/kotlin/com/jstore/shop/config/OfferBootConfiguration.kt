@@ -17,10 +17,10 @@
 package com.jstore.shop.config
 
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.framework.messaging.IntegrationMessage
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.contracts.commerce.AuthorizeSaleCommand
 import com.jstore.contracts.commerce.ReleaseSaleAuthorizationCommand
+import com.jstore.messaging.IntegrationMessage
+import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.shop.api.OfferSnapshotQueryService
 import com.jstore.shop.domain.offer.SaleAuthorizationRepository
 import com.jstore.shop.domain.offer.SalesOfferGuard

@@ -19,13 +19,13 @@ package com.jstore.shop.service
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.publishPendingEvents
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.common.utils.onFailure
 import com.jstore.contracts.commerce.AuthorizeSaleCommand
 import com.jstore.contracts.commerce.ReleaseSaleAuthorizationCommand
+import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.shop.api.OfferSnapshotInfo
 import com.jstore.shop.api.OfferSnapshotQueryService
 import com.jstore.shop.domain.offer.MerchantId

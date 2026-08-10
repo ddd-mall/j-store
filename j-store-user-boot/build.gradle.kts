@@ -6,12 +6,12 @@ plugins {
 repositories { mavenCentral() }
 
 dependencies {
+    implementation("org.springframework:spring-context")
     implementation(project(":j-store-user-domain"))
     implementation(project(":j-store-user-api"))
     implementation(project(":j-store-user-application"))
     implementation(project(":j-store-user-infrastructure"))
     implementation(project(":j-store-common-core"))
-    implementation(project(":j-store-common-spring"))
     implementation(project(":j-store-authentication-spring-sdk"))
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.web)

@@ -16,12 +16,12 @@
  */
 package com.jstore.translator
 
-import com.jstore.common.framework.messaging.IntegrationMessage
-import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.common.properties.Price
 import com.jstore.contracts.commerce.AuthorizeSaleCommand
 import com.jstore.contracts.commerce.CreatePaymentForOrderCommand
 import com.jstore.contracts.commerce.ReserveInventoryCommand
+import com.jstore.messaging.IntegrationMessage
+import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.SaleAuthorizationRef

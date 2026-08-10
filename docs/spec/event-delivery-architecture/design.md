@@ -4,24 +4,24 @@
 
 1. 将原 `DomainEventBus` 破坏性重命名为 `LocalDomainEventBus`，保留同步、本进程、listener 与 relay delivery transaction 同事务的语义。
 2. 新增与领域事件无继承关系的 `IntegrationMessage`、`IntegrationEvent`、`IntegrationCommand`，避免把领域类型直接变成远程契约。
-3. 新增 `IntegrationMessagePublisher`。它根据 `IntegrationMessagingMode` 规划 LOCAL/BROKER 目标，并为每个目标写入独立 Outbox 记录。
+3. `IntegrationMessagePublisher` 根据 `jstore.messaging.targets` 中的稳定 transport ID 规划目标，并为每个目标写入独立 Outbox 记录。
 4. `OutboxPublisher` 不再反序列化并直接依赖领域总线，而是调用 `OutboxDeliveryRouter`。Router 要求每条记录恰好匹配一个 `OutboxDeliveryChannel`。
-5. 本地领域事件通道负责领域事件反序列化和 `LocalDomainEventBus` 调用；本地集成通道负责集成消息反序列化和 handler 调用；Broker 通道把原始 envelope 交给 `BrokerIntegrationMessageTransport`。
+5. 本地领域事件通道负责领域事件反序列化和 `LocalDomainEventBus` 调用；本地集成通道负责集成消息反序列化和 handler 调用；外部通道把原始 envelope 交给匹配 ID 的 `IntegrationMessageTransport`。
 6. 集成消息 handler 使用稳定 handler ID。消费记录继续使用现有数据库唯一键，因此 local 模式与将来的 Broker consumer adapter 可共享幂等模型。
-7. hybrid 模式通过两条 Outbox 记录实现目标级独立状态，不使用一个 relay 调用串行发送两个不可原子提交的目标。
+7. 多 transport 配置通过多条 Outbox 记录实现目标级独立状态，不使用一个 relay 调用串行发送多个不可原子提交的目标。
 
 ## 核心模型
 
 ```text
-DomainEventPublisher -> outbox(kind=DOMAIN_EVENT,target=LOCAL_DOMAIN)
+DomainEventPublisher -> outbox(kind=DOMAIN_EVENT,transportId=local-domain)
                                       |
                                       v
                               LocalDomainEventBus
 
-IntegrationMessagePublisher -> publication plan
-  local  -> outbox(kind=INTEGRATION_*,target=LOCAL_INTEGRATION)
-  broker -> outbox(kind=INTEGRATION_*,target=BROKER)
-  hybrid -> 两条独立记录
+IntegrationMessagePublisher -> configured transport IDs
+  local    -> outbox(kind=INTEGRATION_*,transportId=local)
+  kafka    -> outbox(kind=INTEGRATION_*,transportId=kafka)
+  rabbitmq -> outbox(kind=INTEGRATION_*,transportId=rabbitmq)
 
 OutboxPublisher -> OutboxDeliveryRouter -> exactly one OutboxDeliveryChannel
 ```
@@ -49,10 +49,10 @@ OutboxPublisher -> OutboxDeliveryRouter -> exactly one OutboxDeliveryChannel
 
 ## Spring 装配
 
-- `jstore.messaging.mode` 默认 `local`。
-- local transport 由 common-spring 提供。
-- broker/hybrid 使用 `ObjectProvider<BrokerIntegrationMessageTransport>` 校验；缺失时启动失败。
-- Broker 适配器位于未来独立 infrastructure 模块，不进入 common-core 或领域模块。
+- `jstore.messaging.targets` 默认 `local`，可配置一个或多个逗号分隔 ID。
+- local transport 由 `j-store-messaging-local-spring` 提供。
+- `j-store-outbox-spring` 启动时校验每个目标恰好存在一个 channel/transport；缺失或重复时启动失败。
+- Broker 适配器位于独立 infrastructure 模块，只依赖中立 SPI，不进入 common-core 或领域模块。
 
 ## 迁移策略
 

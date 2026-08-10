@@ -17,11 +17,11 @@
 package com.jstore.fulfillment.service
 
 import com.jstore.common.errors.BusinessErrorException
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.utils.getOrThrow
 import com.jstore.contracts.commerce.CreateFulfillmentForOrderCommand
 import com.jstore.fulfillment.domain.FulfillmentItem
 import com.jstore.fulfillment.domain.ShippingRecipient
+import com.jstore.messaging.IntegrationMessageHandler
 
 class CreateFulfillmentForOrderCommandHandler(private val fulfillments: FulfillmentUseCase) :
     IntegrationMessageHandler<CreateFulfillmentForOrderCommand> {

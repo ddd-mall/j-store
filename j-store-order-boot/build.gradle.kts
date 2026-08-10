@@ -8,13 +8,14 @@ repositories {
 }
 
 dependencies {
+    implementation("org.springframework:spring-context")
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
     implementation(project(":j-store-order-domain"))
     implementation(project(":j-store-order-application"))
     implementation(project(":j-store-order-infrastructure"))
     implementation(project(":j-store-common-core"))
-    implementation(project(":j-store-common-spring"))
+    implementation(project(":j-store-messaging-core"))
     implementation(project(":j-store-integration-contracts"))
     implementation(project(":j-store-goods-api"))
     implementation(project(":j-store-shop-api"))

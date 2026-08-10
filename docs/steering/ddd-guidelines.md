@@ -26,9 +26,13 @@ Each bounded context is split across Gradle modules:
 | `j-store-{context}-infrastructure` | Infrastructure | `j-store-order-infrastructure` |
 | `j-store-{context}-boot` | Deployment/composition (controllers, transactions, wiring) | `j-store-order-boot` |
 | `j-store-common-core` | Shared domain framework | Framework base types (no Spring) |
-| `j-store-common-spring` | Shared Spring integration | Spring-specific utilities |
+| `j-store-common-spring` | Shared Spring integration | 通用地理地址等非消息工具 |
+| `j-store-messaging-core` | Messaging ports | Framework-neutral integration contracts and transport SPI |
+| `j-store-outbox-core` | Reliable delivery core | Outbox model, repository and routing ports (no Spring/JPA) |
+| `j-store-messaging-local-spring` | Local messaging adapter | In-process Spring domain/integration buses |
+| `j-store-outbox-spring` | Outbox runtime adapter | Spring Boot/JPA relay, persistence, scheduling and observability |
 
-Dependency direction: `boot → application → domain → common-core` and `boot → infrastructure → domain`. Domain/application modules must NOT depend on infrastructure or boot modules. 每个有业务实现的有界上下文统一使用四模块形态；公共发布语言可保留独立的 `-api` 模块。
+Dependency direction: `boot → application → domain → common-core` and `boot → infrastructure → domain`. Application modules that publish or consume integration messages may depend on `messaging-core`; only composition/infrastructure modules may depend on `outbox-spring` or concrete transport adapters. `outbox-spring → outbox-core → messaging-core` is one-way. Domain/application modules must NOT depend on infrastructure or boot modules. 每个有业务实现的有界上下文统一使用四模块形态；公共发布语言可保留独立的 `-api` 模块。
 
 ## Package Structure Within Modules
 

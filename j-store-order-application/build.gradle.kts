@@ -10,6 +10,7 @@ dependencies {
     api(libs.kotlin.stdlib)
     api(project(":j-store-order-domain"))
     implementation(project(":j-store-common-core"))
+    implementation(project(":j-store-messaging-core"))
     implementation(project(":j-store-integration-contracts"))
 
     testImplementation(libs.mockito)

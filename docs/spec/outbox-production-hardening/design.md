@@ -7,7 +7,7 @@
 3. 同聚合顺序通过 claim 查询中的前序屏障实现：候选记录不存在同聚合、创建顺序更早且状态非 PUBLISHED 的记录。以 `(created_at, id)` 作为确定性顺序。
 4. 每轮最多 claim `min(batchSize, maxInFlightPerPoll)` 条；默认小批预取。处理单条前续租，必要时可由配置的 heartbeat 周期继续扩展。
 5. requeue 重置 `retry_count=0`，清除租约/错误并记录审计。审计与状态变更同事务。
-6. 运维 API 放在 boot 接口层；common-spring 提供服务、查询模型和持久化。采用 `@RequireLogin` + 配置化管理员 user ID allowlist，避免引入项目尚不存在的 RBAC 框架。
+6. 运维 API 放在 boot 接口层；outbox-spring 提供服务、查询模型和持久化。采用 `@RequireLogin` + 配置化管理员 user ID allowlist，避免引入项目尚不存在的 RBAC 框架。
 
 ## 数据变化
 
@@ -38,4 +38,3 @@
 ## 验证
 
 使用 embedded PostgreSQL 启动真实数据库并由 Flyway 执行生产 migrations；并发测试使用独立事务/线程。故障测试通过领取后不提交结果模拟进程退出，再推进租约到期。Boot MVC 测试验证认证、授权与契约。
-

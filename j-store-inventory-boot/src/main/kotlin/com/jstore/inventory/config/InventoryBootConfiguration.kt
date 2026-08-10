@@ -17,8 +17,6 @@
 package com.jstore.inventory.config
 
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.framework.messaging.IntegrationMessage
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.contracts.commerce.ConfirmInventoryCommand
 import com.jstore.contracts.commerce.PhysicalStockChangedIntegrationEvent
 import com.jstore.contracts.commerce.ReleaseInventoryCommand
@@ -31,6 +29,8 @@ import com.jstore.inventory.service.InventoryService
 import com.jstore.inventory.service.PhysicalStockChangedHandler
 import com.jstore.inventory.service.ReleaseInventoryCommandHandler
 import com.jstore.inventory.service.ReserveInventoryCommandHandler
+import com.jstore.messaging.IntegrationMessage
+import com.jstore.messaging.IntegrationMessageHandler
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.transaction.PlatformTransactionManager

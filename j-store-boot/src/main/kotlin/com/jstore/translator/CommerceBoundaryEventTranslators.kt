@@ -17,11 +17,11 @@
 package com.jstore.translator
 
 import com.jstore.common.framework.event.DomainEventListener
-import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.contracts.commerce.*
 import com.jstore.fulfillment.domain.event.FulfillmentPreparedEvent
 import com.jstore.fulfillment.domain.event.ShipmentDeliveredEvent
 import com.jstore.fulfillment.domain.event.ShipmentDispatchedEvent
+import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.domain.aftersale.event.AfterSaleRefundRequestedEvent
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.event.OrderCompletedEvent

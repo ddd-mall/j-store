@@ -25,13 +25,13 @@ import com.jstore.accounting.service.command.RecordOrderPaidCMD
 import com.jstore.accounting.service.command.RecordOrderRefundApprovedCMD
 import com.jstore.accounting.service.command.RecordSettlementPaidCMD
 import com.jstore.common.framework.event.DomainEventListener
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.contracts.commerce.OrderCompletedIntegrationEvent
 import com.jstore.contracts.commerce.PaymentCapturedIntegrationEvent
 import com.jstore.contracts.commerce.PaymentRefundSucceededIntegrationEvent
+import com.jstore.messaging.IntegrationMessageHandler
 import java.time.LocalDate
 import java.time.ZoneOffset
 

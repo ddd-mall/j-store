@@ -25,6 +25,7 @@ class OrderModuleBoundaryTests(unittest.TestCase):
                 "j-store-order-domain",
                 "j-store-common-core",
                 "j-store-integration-contracts",
+                "j-store-messaging-core",
             },
             "j-store-order-infrastructure": {
                 "j-store-order-domain",

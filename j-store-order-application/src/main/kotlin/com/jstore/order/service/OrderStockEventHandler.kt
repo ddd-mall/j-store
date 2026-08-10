@@ -16,11 +16,11 @@
  */
 package com.jstore.order.service
 
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.logging.Logger
 import com.jstore.common.logging.LoggerFactory
 import com.jstore.common.utils.onFailure
 import com.jstore.contracts.commerce.InventoryReservedIntegrationEvent
+import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.order.domain.order.OrderId
 
 /** 订单应用层事件处理器：监听库存确认成功事件，将订单转为待支付 */

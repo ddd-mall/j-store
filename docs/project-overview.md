@@ -12,7 +12,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - Spring Boot 3.5.16，Spring Data JPA，PostgreSQL，Redis
 - Gradle Kotlin DSL，依赖版本集中在 `gradle/libs.versions.toml`
 - 测试栈包含 JUnit 5、Kotlin test、Kotest、Kotest property、Mockito、Spring Boot Test
-- `j-store-common-spring` 和部分 infrastructure/boot 集成测试使用嵌入式 PostgreSQL
+- `j-store-outbox-spring` 和部分 infrastructure/boot 集成测试使用嵌入式 PostgreSQL
 - `j-store-boot` 仍包含少量 Java 代码，主要是订单过期定时任务相关实现
 
 ## Gradle 模块
@@ -20,8 +20,12 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 当前 `settings.gradle.kts` 注册了这些模块：
 
 - `j-store-common-core`: 不依赖 Spring 的共享领域基础类型、错误、Result、领域事件、地理地址、日志、工具类。
-- `j-store-common-spring`: Spring/JPA 集成、领域事件监听注册、Transactional Outbox、事件消费记录、地理地址服务代理。
-- `j-store-integration-contracts`: 跨有界上下文的版本化集成命令/事件契约；只依赖 `common-core`，不承载领域对象或基础设施实现。
+- `j-store-common-spring`: 仅保留通用 Spring 地理地址服务实现，不承载消息或 Outbox 基础设施。
+- `j-store-messaging-core`: 框架无关的集成消息、handler、publisher、envelope 与 transport SPI。
+- `j-store-outbox-core`: 框架无关的 Outbox 记录、仓储端口、目标规划和按 `transportId` 的路由 SPI。
+- `j-store-messaging-local-spring`: 进程内领域事件与集成消息总线的 Spring 实现。
+- `j-store-outbox-spring`: Transactional Outbox 的 Jackson/JPA、relay、调度、死信、监控和 Boot 自动配置。
+- `j-store-integration-contracts`: 跨有界上下文的版本化集成命令/事件契约；依赖 `messaging-core`，不承载领域对象或基础设施实现。
 - `j-store-order-domain`: 纯订单/售后领域模型、仓储与 ACL 端口；只依赖 `common-core`。
 - `j-store-order-application`: 无框架的订单/售后用例编排、用例端口和集成消息 handler。
 - `j-store-order-infrastructure`: 订单/售后 JPA、PostgreSQL 并发控制及 Catalog、Offer 查询 ACL 适配器。
@@ -54,7 +58,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - 店铺：商户、商户成员、角色权限、成员管理用例和其它上下文复用的商户授权服务。
 - 支付与履约：支付单、退款、履约单的领域模型、集成消息处理、JPA/Outbox 与事务装配。
 - 会计：账户、会计期间、分录、结算单等领域模型、JPA 仓储实现与事务装配。
-- 公共事件基础设施：进程内领域事件监听、版本化集成消息、按 `local`/`broker`/`hybrid` 部署模式规划的 Outbox 投递目标、事件消费幂等记录及监控。
+- 事件基础设施：进程内领域事件监听、版本化集成消息，以及按一个或多个稳定 `transportId`（如 `local`、`kafka`、`rabbitmq`）规划的 Outbox 投递、消费幂等和监控。
 - 接口层：各上下文 `*-boot` 持有自己的 Controller 与 Spring 配置，根 `j-store-boot` 负责组合运行时。
 
 ## 架构边界
@@ -82,7 +86,7 @@ boot/interface -> application -> domain -> common-core
 - 仓储接口放领域模块，仓储实现和 PO 放 infrastructure 模块。
 - 应用服务只编排用例，业务规则落在聚合、实体、值对象或领域服务中。
 - 领域事件由聚合产生；应用用例保存聚合后写入 Outbox，二者由 boot 的事务装饰器纳入同一事务。
-- PO/JPA Repository 只出现在 infrastructure/common-spring/boot 等基础设施边界内。
+- PO/JPA Repository 只出现在 infrastructure/outbox-spring/boot 等基础设施边界内。
 
 ## 数据库与运行时
 
@@ -114,7 +118,8 @@ boot/interface -> application -> domain -> common-core
 ./gradlew :j-store-inventory-domain:test :j-store-inventory-application:test :j-store-inventory-infrastructure:test
 ./gradlew :j-store-warehouse-domain:test :j-store-warehouse-application:test :j-store-warehouse-infrastructure:test
 ./gradlew :j-store-accounting-domain:test :j-store-accounting-application:test :j-store-accounting-boot:test
-./gradlew :j-store-common-spring:test
+./gradlew :j-store-messaging-core:test :j-store-outbox-core:test
+./gradlew :j-store-messaging-local-spring:test :j-store-outbox-spring:test
 ./gradlew :j-store-authentication-spring-sdk:test
 ./gradlew :j-store-boot:bootJar
 ```

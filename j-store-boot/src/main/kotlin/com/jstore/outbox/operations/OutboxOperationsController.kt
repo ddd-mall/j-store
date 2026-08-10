@@ -18,7 +18,7 @@ package com.jstore.outbox.operations
 
 import com.jstore.authentication.annotation.CurrentUserId
 import com.jstore.authentication.annotation.RequireLogin
-import com.jstore.common.framework.event.outbox.OutboxDeadLetterOperations
+import com.jstore.outbox.spring.OutboxDeadLetterOperations
 import com.jstore.user.domain.useraccount.UserId
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
