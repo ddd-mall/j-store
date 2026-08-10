@@ -8,7 +8,7 @@ repositories {
 
 dependencies {
     implementation(project(":j-store-common-core"))
-    implementation(project(":j-store-messaging-core"))
+    api(project(":j-store-messaging-core"))
     implementation(libs.kotlin.stdlib)
 }
 

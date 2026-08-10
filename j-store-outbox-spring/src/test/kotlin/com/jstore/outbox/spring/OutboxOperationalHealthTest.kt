@@ -93,26 +93,41 @@ class OutboxOperationalHealthTest :
                     messageKind = OutboxMessageKind.INTEGRATION_COMMAND,
                     deliveryTarget = OutboxDeliveryTarget.BROKER,
                     transportId = "kafka",
+                    orderingKey = OutboxOrderingKeys.integration("inventory.reserve", "42"),
+                    sequenceNo = 1,
                 )
             monitor.recordDelivery(kafkaEntry, true)
 
-            registry.get("jstore.outbox.oldest_ready.lag").gauge().value().shouldBeExactly(120.0)
-            registry.get("jstore.outbox.expired_locks").gauge().value().shouldBeExactly(2.0)
+            registry
+                .get("jstore.outbox.oldest_ready.lag")
+                .tag("transportId", "all")
+                .gauge()
+                .value()
+                .shouldBeExactly(120.0)
+            registry
+                .get("jstore.outbox.expired_locks")
+                .tag("transportId", "all")
+                .gauge()
+                .value()
+                .shouldBeExactly(2.0)
             registry
                 .get("jstore.outbox.alert")
                 .tag("reason", "lag")
+                .tag("transportId", "all")
                 .gauge()
                 .value()
                 .shouldBeExactly(1.0)
             registry
                 .get("jstore.outbox.alert")
                 .tag("reason", "expired_lock")
+                .tag("transportId", "all")
                 .gauge()
                 .value()
                 .shouldBeExactly(1.0)
             registry
                 .get("jstore.outbox.alert")
                 .tag("reason", "dead_letter")
+                .tag("transportId", "all")
                 .gauge()
                 .value()
                 .shouldBeExactly(1.0)
@@ -127,6 +142,65 @@ class OutboxOperationalHealthTest :
                 .tag("outcome", "published")
                 .counter()
                 .count()
+                .shouldBeExactly(1.0)
+        }
+
+        test("health and gauges isolate operational state by transport") {
+            val repository = mock<OutboxEntryRepository>()
+            whenever(repository.findTransportIds()).thenReturn(setOf("local", "kafka"))
+            whenever(repository.findOldestReadyAt(now, 5, "local")).thenReturn(now.minusSeconds(30))
+            whenever(repository.findOldestReadyAt(now, 5, "kafka"))
+                .thenReturn(now.minusSeconds(301))
+            whenever(repository.countExpiredLocks(now, "local")).thenReturn(0)
+            whenever(repository.countExpiredLocks(now, "kafka")).thenReturn(2)
+            whenever(repository.countByStatus(OutboxEntryStatus.DEAD_LETTER, "local")).thenReturn(0)
+            whenever(repository.countByStatus(OutboxEntryStatus.DEAD_LETTER, "kafka")).thenReturn(4)
+            OutboxEntryStatus.entries.forEach { status ->
+                whenever(repository.countByStatus(status, "local")).thenReturn(0)
+                whenever(repository.countByStatus(status, "kafka"))
+                    .thenReturn(if (status == OutboxEntryStatus.DEAD_LETTER) 4 else 0)
+            }
+            val state = SchedulerExecutionState().apply { recordSuccess(now) }
+            val health =
+                OutboxOperationalHealth(
+                    repository,
+                    state,
+                    OutboxObservabilityProperties(Duration.ofSeconds(60), 1, 3, 3),
+                    5,
+                    clock,
+                    setOf("local", "kafka"),
+                )
+
+            val snapshot = health.snapshot()
+            snapshot.transports.getValue("local").status shouldBe OutboxOperationalStatus.HEALTHY
+            snapshot.transports.getValue("kafka").status shouldBe OutboxOperationalStatus.DEGRADED
+
+            val registry = SimpleMeterRegistry()
+            MicrometerOutboxMonitor(
+                registry,
+                repository,
+                health,
+                state,
+                setOf("local", "kafka"),
+            )
+            registry
+                .get("jstore.outbox.oldest_ready.lag")
+                .tag("transportId", "local")
+                .gauge()
+                .value()
+                .shouldBeExactly(30.0)
+            registry
+                .get("jstore.outbox.oldest_ready.lag")
+                .tag("transportId", "kafka")
+                .gauge()
+                .value()
+                .shouldBeExactly(301.0)
+            registry
+                .get("jstore.outbox.alert")
+                .tag("transportId", "kafka")
+                .tag("reason", "dead_letter")
+                .gauge()
+                .value()
                 .shouldBeExactly(1.0)
         }
     })

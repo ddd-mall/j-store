@@ -36,6 +36,7 @@ open class OutboxIntegrationMessagePublisher(
     private val sequence: SnowFlakSequence,
     private val typeRegistry: IntegrationMessageTypeRegistry,
     private val publicationPlanner: IntegrationTransportPlanner,
+    private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
 ) : IntegrationMessagePublisher {
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -69,6 +70,8 @@ open class OutboxIntegrationMessagePublisher(
             }
 
         publicationPlanner.targets().forEach { transportId ->
+            val orderingKey =
+                OutboxOrderingKeys.integration(message.destination, message.partitionKey)
             repository.save(
                 OutboxEntry(
                     id = sequence.nextId().toString(),
@@ -96,6 +99,8 @@ open class OutboxIntegrationMessagePublisher(
                     correlationId = message.correlationId,
                     causationId = message.causationId,
                     tenantId = message.tenantId,
+                    orderingKey = orderingKey,
+                    sequenceNo = streamSequenceAllocator.nextSequence(transportId, orderingKey),
                 )
             )
         }

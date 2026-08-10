@@ -26,7 +26,47 @@ fun interface MessageConsumptionRepository {
         messageName: String,
         messageVersion: Int,
     ): Boolean
+
+    fun tryStartOrdered(
+        consumerId: String,
+        messageId: String,
+        messageName: String,
+        messageVersion: Int,
+        deliveryOrder: MessageDeliveryOrder,
+    ): Boolean =
+        throw UnsupportedOperationException(
+            "Ordered delivery requires a sequence-aware consumption repository"
+        )
 }
+
+data class MessageDeliveryOrder(
+    val transportId: String,
+    val orderingKey: String,
+    val sequenceNo: Long,
+) {
+    init {
+        require(transportId.isNotBlank()) { "transportId must not be blank" }
+        require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
+        require(sequenceNo > 0) { "sequenceNo must be positive" }
+    }
+}
+
+object BuiltInMessageConsumerIds {
+    const val LOCAL_INTEGRATION_BUS = "jstore.local-integration-bus"
+}
+
+class MessageSequenceGapException(
+    consumerId: String,
+    transportId: String,
+    orderingKey: String,
+    expected: Long,
+    actual: Long,
+) :
+    IllegalStateException(
+        "Message sequence gap: consumerId=$consumerId, transportId=$transportId, " +
+            "orderingKey=$orderingKey, " +
+            "expected=$expected, actual=$actual"
+    )
 
 fun MessageConsumptionRepository.tryStart(consumerId: String, event: DomainEvent): Boolean =
     tryStart(

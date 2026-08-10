@@ -93,6 +93,18 @@ data class OutboxOperationalSnapshot(
     val expiredLockAlert: Boolean,
     val deadLetterAlert: Boolean,
     val scheduler: SchedulerExecutionSnapshot,
+    val transports: Map<String, OutboxTransportOperationalSnapshot> = emptyMap(),
+)
+
+data class OutboxTransportOperationalSnapshot(
+    val transportId: String,
+    val status: OutboxOperationalStatus,
+    val oldestReadyLag: Duration,
+    val expiredLockCount: Long,
+    val deadLetterCount: Long,
+    val lagAlert: Boolean,
+    val expiredLockAlert: Boolean,
+    val deadLetterAlert: Boolean,
 )
 
 class OutboxOperationalHealth(
@@ -101,6 +113,7 @@ class OutboxOperationalHealth(
     private val properties: OutboxObservabilityProperties,
     private val maxRetryCount: Int,
     private val clock: Clock = Clock.systemUTC(),
+    private val configuredTransportIds: Set<String> = emptySet(),
 ) {
     fun snapshot(): OutboxOperationalSnapshot {
         val now = clock.instant()
@@ -111,6 +124,11 @@ class OutboxOperationalHealth(
         val expiredLocks = repository.countExpiredLocks(now)
         val deadLetters = repository.countByStatus(OutboxEntryStatus.DEAD_LETTER)
         val scheduler = schedulerState.snapshot()
+        val transports =
+            (configuredTransportIds + repository.findTransportIds()).sorted().associateWith {
+                transportId ->
+                transportSnapshot(transportId, now, scheduler)
+            }
         val lagAlert = lag >= properties.lagThreshold
         val expiredLockAlert = expiredLocks >= properties.expiredLockThreshold
         val deadLetterAlert = deadLetters >= properties.deadLetterThreshold
@@ -136,6 +154,45 @@ class OutboxOperationalHealth(
             expiredLockAlert,
             deadLetterAlert,
             scheduler,
+            transports,
+        )
+    }
+
+    private fun transportSnapshot(
+        transportId: String,
+        now: Instant,
+        scheduler: SchedulerExecutionSnapshot,
+    ): OutboxTransportOperationalSnapshot {
+        val oldestReadyAt = repository.findOldestReadyAt(now, maxRetryCount, transportId)
+        val lag =
+            oldestReadyAt?.let { Duration.between(it, now).coerceAtLeast(Duration.ZERO) }
+                ?: Duration.ZERO
+        val expiredLocks = repository.countExpiredLocks(now, transportId)
+        val deadLetters = repository.countByStatus(OutboxEntryStatus.DEAD_LETTER, transportId)
+        val lagAlert = lag >= properties.lagThreshold
+        val expiredLockAlert = expiredLocks >= properties.expiredLockThreshold
+        val deadLetterAlert = deadLetters >= properties.deadLetterThreshold
+        val status =
+            when {
+                scheduler.consecutiveFailures >= properties.schedulerFailureThreshold ->
+                    OutboxOperationalStatus.FAILED
+                scheduler.lastSuccessAt == null && scheduler.lastFailureAt == null ->
+                    OutboxOperationalStatus.NOT_RUN
+                scheduler.consecutiveFailures > 0 ||
+                    lagAlert ||
+                    expiredLockAlert ||
+                    deadLetterAlert -> OutboxOperationalStatus.DEGRADED
+                else -> OutboxOperationalStatus.HEALTHY
+            }
+        return OutboxTransportOperationalSnapshot(
+            transportId,
+            status,
+            lag,
+            expiredLocks,
+            deadLetters,
+            lagAlert,
+            expiredLockAlert,
+            deadLetterAlert,
         )
     }
 }

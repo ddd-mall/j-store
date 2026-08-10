@@ -27,8 +27,6 @@ interface OutboxEntryRepository {
 
     fun save(entry: OutboxEntry): OutboxEntry
 
-    fun findPendingAndRetryable(maxRetryCount: Int, batchSize: Int): List<OutboxEntry>
-
     fun claimPendingAndRetryable(
         maxRetryCount: Int,
         batchSize: Int,
@@ -44,13 +42,19 @@ interface OutboxEntryRepository {
 
     fun findDeadLetters(batchSize: Int): List<OutboxEntry>
 
-    fun requeueDeadLetters(ids: Collection<String>, nextAttemptAt: Instant): Int
-
     fun countByStatus(status: OutboxEntryStatus): Long
+
+    fun countByStatus(status: OutboxEntryStatus, transportId: String): Long
 
     fun findOldestReadyAt(now: Instant, maxRetryCount: Int): Instant?
 
+    fun findOldestReadyAt(now: Instant, maxRetryCount: Int, transportId: String): Instant?
+
     fun countExpiredLocks(now: Instant): Long
+
+    fun countExpiredLocks(now: Instant, transportId: String): Long
+
+    fun findTransportIds(): Set<String>
 
     fun deletePublishedBefore(before: Instant, batchSize: Int): Int
 }

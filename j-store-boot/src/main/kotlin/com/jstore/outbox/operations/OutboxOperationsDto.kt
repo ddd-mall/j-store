@@ -59,6 +59,9 @@ data class DeadLetterSummaryResponse(
     val updatedAt: Instant,
     val retryCount: Int,
     val lastError: String?,
+    val transportId: String,
+    val orderingKey: String,
+    val sequenceNo: Long,
 ) {
     companion object {
         fun from(entry: OutboxDeadLetterSummary) =
@@ -74,6 +77,9 @@ data class DeadLetterSummaryResponse(
                 updatedAt = entry.updatedAt,
                 retryCount = entry.retryCount,
                 lastError = entry.lastError,
+                transportId = entry.transportId,
+                orderingKey = entry.orderingKey,
+                sequenceNo = entry.sequenceNo,
             )
     }
 }

@@ -33,7 +33,8 @@ class OutboxDeliveryRouter(private val channels: List<OutboxDeliveryChannel>) {
 }
 
 class IntegrationTransportPlanner(targets: Collection<String>) {
-    private val configuredTargets = targets.map(String::trim).filter(String::isNotEmpty).distinct()
+    private val configuredTargets =
+        targets.map(String::trim).filter(String::isNotEmpty).distinct().sorted()
 
     init {
         require(configuredTargets.isNotEmpty()) {

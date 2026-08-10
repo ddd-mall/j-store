@@ -45,6 +45,8 @@ class LocalDomainEventDeliveryChannelTest :
                     createdAt = Instant.parse("2026-08-05T00:00:00Z"),
                     updatedAt = Instant.parse("2026-08-05T00:00:00Z"),
                     eventVersion = 3,
+                    orderingKey = OutboxOrderingKeys.domain("Order", "1"),
+                    sequenceNo = 1,
                 )
 
             channel.deliver(entry)

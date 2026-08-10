@@ -22,7 +22,6 @@ import com.jstore.outbox.OutboxEntryStatus
 import com.jstore.outbox.spring.*
 import jakarta.persistence.EntityManager
 import java.time.Instant
-import org.springframework.data.domain.PageRequest
 import org.springframework.transaction.annotation.Transactional
 
 open class OutboxEntryRepositoryImpl(
@@ -34,16 +33,6 @@ open class OutboxEntryRepositoryImpl(
         val po = Converter.toPO(entry)
         val saved = jpaRepository.save(po)
         return Converter.toDomain(saved)
-    }
-
-    override fun findPendingAndRetryable(maxRetryCount: Int, batchSize: Int): List<OutboxEntry> {
-        return jpaRepository
-            .findPendingAndRetryable(
-                maxRetryCount,
-                Instant.now(),
-                PageRequest.of(0, batchSize),
-            )
-            .map(Converter::toDomain)
     }
 
     @Transactional
@@ -81,10 +70,10 @@ open class OutboxEntryRepositoryImpl(
                           AND NOT EXISTS (
                             SELECT 1
                             FROM outbox_entry predecessor
-                            WHERE predecessor.aggregate_type = e.aggregate_type
-                              AND predecessor.aggregate_id = e.aggregate_id
+                            WHERE predecessor.transport_id = e.transport_id
+                              AND predecessor.ordering_key = e.ordering_key
                               AND predecessor.status <> 'PUBLISHED'
-                              AND (predecessor.created_at, predecessor.id) < (e.created_at, e.id)
+                              AND predecessor.sequence_no < e.sequence_no
                           )
                         ORDER BY e.created_at ASC, e.id ASC
                         FOR UPDATE SKIP LOCKED
@@ -263,39 +252,6 @@ open class OutboxEntryRepositoryImpl(
         return (deadLetters as List<OutboxEntryPO>).map(Converter::toDomain)
     }
 
-    @Transactional
-    open override fun requeueDeadLetters(ids: Collection<String>, nextAttemptAt: Instant): Int {
-        if (ids.isEmpty()) {
-            return 0
-        }
-        val updated =
-            entityManager
-                .createQuery(
-                    """
-                    UPDATE OutboxEntryPO e
-                    SET e.status = :failed,
-                        e.retryCount = 0,
-                        e.nextAttemptAt = :nextAttemptAt,
-                        e.lockedBy = NULL,
-                        e.lockedAt = NULL,
-                        e.lockedUntil = NULL,
-                        e.lastError = NULL,
-                        e.updatedAt = :now
-                    WHERE e.status = :deadLetter
-                      AND e.id IN :ids
-                    """
-                        .trimIndent()
-                )
-                .setParameter("failed", OutboxEntryStatus.FAILED)
-                .setParameter("deadLetter", OutboxEntryStatus.DEAD_LETTER)
-                .setParameter("nextAttemptAt", nextAttemptAt)
-                .setParameter("now", Instant.now())
-                .setParameter("ids", ids)
-                .executeUpdate()
-        entityManager.clear()
-        return updated
-    }
-
     override fun countByStatus(status: OutboxEntryStatus): Long {
         return entityManager
             .createQuery(
@@ -306,6 +262,18 @@ open class OutboxEntryRepositoryImpl(
             .singleResult
             .toLong()
     }
+
+    override fun countByStatus(status: OutboxEntryStatus, transportId: String): Long =
+        entityManager
+            .createQuery(
+                "SELECT COUNT(e) FROM OutboxEntryPO e " +
+                    "WHERE e.status = :status AND e.transportId = :transportId",
+                java.lang.Long::class.java,
+            )
+            .setParameter("status", status)
+            .setParameter("transportId", transportId)
+            .singleResult
+            .toLong()
 
     override fun findDeadLetters(page: Int, size: Int): OutboxDeadLetterPage {
         require(page >= 1) { "page must be greater than or equal to 1" }
@@ -333,6 +301,9 @@ open class OutboxEntryRepositoryImpl(
                         e.updatedAt,
                         e.retryCount,
                         e.lastError,
+                        e.transportId,
+                        e.orderingKey,
+                        e.sequenceNo,
                     )
                 }
         return OutboxDeadLetterPage(
@@ -419,6 +390,31 @@ open class OutboxEntryRepositoryImpl(
             .setParameter("now", now)
             .singleResult
 
+    override fun findOldestReadyAt(
+        now: Instant,
+        maxRetryCount: Int,
+        transportId: String,
+    ): Instant? =
+        entityManager
+            .createQuery(
+                """
+                SELECT MIN(e.createdAt) FROM OutboxEntryPO e
+                WHERE e.transportId = :transportId
+                  AND (e.status = :pending
+                   OR (e.status = :failed AND e.retryCount < :maxRetryCount AND e.nextAttemptAt <= :now)
+                   OR (e.status = :inProgress AND e.retryCount < :maxRetryCount AND e.lockedUntil < :now))
+                """
+                    .trimIndent(),
+                Instant::class.java,
+            )
+            .setParameter("transportId", transportId)
+            .setParameter("pending", OutboxEntryStatus.PENDING)
+            .setParameter("failed", OutboxEntryStatus.FAILED)
+            .setParameter("inProgress", OutboxEntryStatus.IN_PROGRESS)
+            .setParameter("maxRetryCount", maxRetryCount)
+            .setParameter("now", now)
+            .singleResult
+
     override fun countExpiredLocks(now: Instant): Long =
         entityManager
             .createQuery(
@@ -429,6 +425,29 @@ open class OutboxEntryRepositoryImpl(
             .setParameter("now", now)
             .singleResult
             .toLong()
+
+    override fun countExpiredLocks(now: Instant, transportId: String): Long =
+        entityManager
+            .createQuery(
+                "SELECT COUNT(e) FROM OutboxEntryPO e " +
+                    "WHERE e.status = :status AND e.lockedUntil < :now " +
+                    "AND e.transportId = :transportId",
+                java.lang.Long::class.java,
+            )
+            .setParameter("status", OutboxEntryStatus.IN_PROGRESS)
+            .setParameter("now", now)
+            .setParameter("transportId", transportId)
+            .singleResult
+            .toLong()
+
+    override fun findTransportIds(): Set<String> =
+        entityManager
+            .createQuery(
+                "SELECT DISTINCT e.transportId FROM OutboxEntryPO e ORDER BY e.transportId",
+                String::class.java,
+            )
+            .resultList
+            .toSet()
 
     private object Converter {
         fun toPO(entry: OutboxEntry) =
@@ -460,6 +479,8 @@ open class OutboxEntryRepositoryImpl(
                 correlationId = entry.correlationId,
                 causationId = entry.causationId,
                 tenantId = entry.tenantId,
+                orderingKey = entry.orderingKey,
+                sequenceNo = entry.sequenceNo,
             )
 
         fun toDomain(po: OutboxEntryPO) =
@@ -491,6 +512,8 @@ open class OutboxEntryRepositoryImpl(
                 correlationId = po.correlationId.ifBlank { po.eventId.ifBlank { po.id } },
                 causationId = po.causationId,
                 tenantId = po.tenantId,
+                orderingKey = po.orderingKey,
+                sequenceNo = po.sequenceNo,
             )
     }
 }

@@ -16,7 +16,10 @@
  */
 package com.jstore.outbox
 
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.time.Instant
+import java.util.HexFormat
 
 /** Outbox 条目领域模型，表示一条待发布的领域事件记录。 */
 data class OutboxEntry(
@@ -48,6 +51,10 @@ data class OutboxEntry(
     val correlationId: String = eventId,
     val causationId: String? = null,
     val tenantId: String? = null,
+    /** Stable stream identity within one transport. */
+    val orderingKey: String,
+    /** Strictly increasing position within (transportId, orderingKey). */
+    val sequenceNo: Long,
 ) {
     init {
         require(id.isNotBlank()) { "Outbox entry ID must not be blank" }
@@ -61,6 +68,8 @@ data class OutboxEntry(
         require(transportId.isNotBlank()) { "Outbox transport ID must not be blank" }
         require(partitionKey.isNotBlank()) { "Outbox partition key must not be blank" }
         require(correlationId.isNotBlank()) { "Outbox correlation ID must not be blank" }
+        require(orderingKey.isNotBlank()) { "Outbox ordering key must not be blank" }
+        require(sequenceNo > 0) { "Outbox sequence number must be positive" }
         require(retryCount >= 0) { "Outbox retry count must not be negative" }
         require(lockToken >= 0) { "Outbox lock token must not be negative" }
 
@@ -126,4 +135,22 @@ object OutboxTransportIds {
     const val LOCAL_DOMAIN = "local-domain"
     const val LOCAL = "local"
     const val LEGACY_BROKER = "broker"
+}
+
+object OutboxOrderingKeys {
+    fun domain(aggregateType: String, aggregateId: String): String =
+        scoped(aggregateType, aggregateId)
+
+    fun integration(destination: String, partitionKey: String): String =
+        scoped(destination, partitionKey)
+
+    private fun scoped(scope: String, key: String): String {
+        require(scope.isNotBlank()) { "Ordering scope must not be blank" }
+        require(key.isNotBlank()) { "Ordering key component must not be blank" }
+        val scopeBytes = scope.toByteArray(StandardCharsets.UTF_8)
+        val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
+        val canonical =
+            "${scopeBytes.size}:$scope:${keyBytes.size}:$key".toByteArray(StandardCharsets.UTF_8)
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical))
+    }
 }

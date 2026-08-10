@@ -68,6 +68,8 @@ class OutboxPublisherPropertyTest :
                     createdAt = ts,
                     updatedAt = ts,
                     retryCount = retryCount,
+                    orderingKey = OutboxOrderingKeys.domain(aggType, aggId),
+                    sequenceNo = 1,
                 )
             }
 
@@ -185,6 +187,8 @@ class OutboxPublisherPropertyTest :
                             createdAt = Instant.ofEpochSecond(1_000_000L + i),
                             updatedAt = Instant.ofEpochSecond(1_000_000L + i),
                             retryCount = 0,
+                            orderingKey = OutboxOrderingKeys.domain("Order", "$i"),
+                            sequenceNo = i.toLong() + 1,
                         )
                     }
                 // Simulate repository returning at most batchSize entries
@@ -242,6 +246,8 @@ class OutboxPublisherPropertyTest :
                         createdAt = Instant.ofEpochSecond(1_000_000L),
                         updatedAt = Instant.ofEpochSecond(1_000_000L),
                         retryCount = retryCount,
+                        orderingKey = OutboxOrderingKeys.domain("Order", "1"),
+                        sequenceNo = 1,
                     )
 
                 val savedEntries = mutableListOf<OutboxEntry>()

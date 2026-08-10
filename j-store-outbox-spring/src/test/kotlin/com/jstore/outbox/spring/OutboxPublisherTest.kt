@@ -70,6 +70,8 @@ class OutboxPublisherTest :
                 createdAt = Instant.parse("2025-01-01T00:00:00Z"),
                 updatedAt = Instant.parse("2025-01-01T00:00:00Z"),
                 retryCount = retryCount,
+                orderingKey = OutboxOrderingKeys.domain("Order", "42"),
+                sequenceNo = 1,
             )
 
         test("poll, deliver, and update status to PUBLISHED on success") {

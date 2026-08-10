@@ -16,7 +16,10 @@
  */
 package com.jstore.outbox.spring.persistence
 
+import com.jstore.messaging.BuiltInMessageConsumerIds
 import com.jstore.messaging.MessageConsumptionRepository
+import com.jstore.messaging.MessageDeliveryOrder
+import com.jstore.messaging.MessageSequenceGapException
 import jakarta.persistence.EntityManager
 import java.time.Instant
 import org.springframework.transaction.annotation.Propagation
@@ -50,4 +53,118 @@ open class MessageConsumptionRepositoryImpl(private val entityManager: EntityMan
                 .executeUpdate()
         return inserted == 1
     }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    open override fun tryStartOrdered(
+        consumerId: String,
+        messageId: String,
+        messageName: String,
+        messageVersion: Int,
+        deliveryOrder: MessageDeliveryOrder,
+    ): Boolean {
+        val now = Instant.now()
+        entityManager
+            .createNativeQuery(
+                """
+                INSERT INTO message_stream_consumption
+                    (consumer_id, transport_id, ordering_key, last_sequence_no, updated_at)
+                VALUES (:consumerId, :transportId, :orderingKey, 0, :now)
+                ON CONFLICT (consumer_id, transport_id, ordering_key) DO NOTHING
+                """
+                    .trimIndent()
+            )
+            .setParameter("consumerId", consumerId)
+            .setParameter("transportId", deliveryOrder.transportId)
+            .setParameter("orderingKey", deliveryOrder.orderingKey)
+            .setParameter("now", now)
+            .executeUpdate()
+        val lastSequence =
+            (entityManager
+                    .createNativeQuery(
+                        """
+                        SELECT last_sequence_no
+                        FROM message_stream_consumption
+                        WHERE consumer_id = :consumerId
+                          AND transport_id = :transportId
+                          AND ordering_key = :orderingKey
+                        FOR UPDATE
+                        """
+                            .trimIndent()
+                    )
+                    .setParameter("consumerId", consumerId)
+                    .setParameter("transportId", deliveryOrder.transportId)
+                    .setParameter("orderingKey", deliveryOrder.orderingKey)
+                    .singleResult as Number)
+                .toLong()
+        val expected = lastSequence + 1
+        if (deliveryOrder.sequenceNo <= lastSequence) {
+            return false
+        }
+        if (deliveryOrder.sequenceNo != expected) {
+            throw MessageSequenceGapException(
+                consumerId,
+                deliveryOrder.transportId,
+                deliveryOrder.orderingKey,
+                expected,
+                deliveryOrder.sequenceNo,
+            )
+        }
+        val accepted = tryStart(consumerId, messageId, messageName, messageVersion)
+        val lastAcceptedSequence =
+            if (consumerId == BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS) {
+                localOutboxPublishedPrefixEnd(deliveryOrder)
+            } else {
+                deliveryOrder.sequenceNo
+            }
+        entityManager
+            .createNativeQuery(
+                """
+                UPDATE message_stream_consumption
+                SET last_sequence_no = :sequenceNo, updated_at = :now
+                WHERE consumer_id = :consumerId
+                  AND transport_id = :transportId
+                  AND ordering_key = :orderingKey
+                """
+                    .trimIndent()
+            )
+            .setParameter("sequenceNo", lastAcceptedSequence)
+            .setParameter("now", now)
+            .setParameter("consumerId", consumerId)
+            .setParameter("transportId", deliveryOrder.transportId)
+            .setParameter("orderingKey", deliveryOrder.orderingKey)
+            .executeUpdate()
+        return accepted
+    }
+
+    private fun localOutboxPublishedPrefixEnd(deliveryOrder: MessageDeliveryOrder): Long =
+        (entityManager
+                .createNativeQuery(
+                    """
+                    SELECT COALESCE(
+                        (
+                            SELECT COALESCE(
+                                MIN(entry.sequence_no) FILTER (
+                                    WHERE entry.sequence_no > :sequenceNo
+                                      AND entry.status <> 'PUBLISHED'
+                                ) - 1,
+                                position.last_sequence_no
+                            )
+                            FROM outbox_stream_position position
+                            LEFT JOIN outbox_entry entry
+                              ON entry.transport_id = position.transport_id
+                             AND entry.ordering_key = position.ordering_key
+                            WHERE position.transport_id = :transportId
+                              AND position.ordering_key = :orderingKey
+                            GROUP BY position.last_sequence_no
+                        ),
+                        :sequenceNo
+                    )
+                    """
+                        .trimIndent()
+                )
+                .setParameter("transportId", deliveryOrder.transportId)
+                .setParameter("orderingKey", deliveryOrder.orderingKey)
+                .setParameter("sequenceNo", deliveryOrder.sequenceNo)
+                .singleResult as Number)
+            .toLong()
 }

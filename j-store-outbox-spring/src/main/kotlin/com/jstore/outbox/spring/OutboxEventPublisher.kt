@@ -35,6 +35,7 @@ open class OutboxEventPublisher(
     private val eventSerializer: EventSerializer,
     private val snowFlakSequence: SnowFlakSequence,
     private val eventTypeRegistry: EventTypeRegistry = InMemoryEventTypeRegistry(),
+    private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
 ) : DomainEventPublisher {
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -75,6 +76,13 @@ open class OutboxEventPublisher(
                 updatedAt = now,
                 occurredAt = metadata.occurredAt,
                 retryCount = 0,
+                orderingKey =
+                    OutboxOrderingKeys.domain(metadata.aggregateType, metadata.aggregateId),
+                sequenceNo =
+                    streamSequenceAllocator.nextSequence(
+                        OutboxTransportIds.LOCAL_DOMAIN,
+                        OutboxOrderingKeys.domain(metadata.aggregateType, metadata.aggregateId),
+                    ),
             )
         outboxEntryRepository.save(entry)
     }
