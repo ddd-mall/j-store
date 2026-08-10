@@ -20,6 +20,7 @@ libphonenumber = "9.0.36"
 redisson = "3.52.0"
 jjwt = "0.13.0"
 spring-security = "7.1.0"
+embedded-redis = "1.4.3"
 
 openai-version = "4.50.0"
 dashscope-sdk-java = "2.22.5"
@@ -93,6 +94,7 @@ jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
 jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
 jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
 spring-security-crypto = { module = "org.springframework.security:spring-security-crypto", version.ref = "spring-security" }
+embedded-redis = { module = "com.github.codemonstur:embedded-redis", version.ref = "embedded-redis" }
 money-api = {group = "javax.money", name = "money-api", version = "1.1" }
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
