@@ -17,7 +17,6 @@
 package com.jstore.order.config
 
 import com.jstore.common.framework.event.*
-import com.jstore.common.framework.messaging.MessageConsumptionRepository
 import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.goods.api.GoodsSnapshotQueryService
@@ -47,8 +46,6 @@ import com.jstore.order.service.SaleAuthorizationFailedOrderHandler
 import com.jstore.order.service.SaleAuthorizedOrderHandler
 import com.jstore.shop.api.OfferSnapshotQueryService
 import com.jstore.user.api.UserProfileQueryService
-import org.springframework.context.ApplicationEventPublisher
-import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -169,34 +166,4 @@ class OrderBootConfiguration {
         transactionManager: PlatformTransactionManager,
     ): AfterSaleUseCase =
         TransactionalAfterSaleUseCase(afterSaleApplicationService, transactionManager)
-
-    @Bean
-    fun springDomainEventListenerRegistry(
-        applicationContext: ConfigurableApplicationContext,
-        messageConsumptionRepository: MessageConsumptionRepository,
-    ): SpringDomainEventListenerRegistry {
-        return SpringDomainEventListenerRegistry(
-            applicationContext,
-            messageConsumptionRepository,
-        )
-    }
-
-    @Bean
-    fun localDomainEventBus(
-        springDomainEventRegistry: SpringDomainEventListenerRegistry,
-        applicationEventPublisher: ApplicationEventPublisher,
-    ): LocalDomainEventBus {
-        return SpringLocalDomainEventBus(springDomainEventRegistry, applicationEventPublisher)
-    }
-
-    @Bean
-    fun springDomainEventListenerRegistrationMachine(
-        localDomainEventBus: LocalDomainEventBus,
-        domainEventListeners: List<DomainEventListener<*>>,
-    ): SpringDomainEventListenerRegistrationMachine {
-        return SpringDomainEventListenerRegistrationMachine(
-            localDomainEventBus,
-            domainEventListeners,
-        )
-    }
 }

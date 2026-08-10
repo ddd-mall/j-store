@@ -16,10 +16,10 @@
  */
 package com.jstore.order.service
 
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.utils.onFailure
 import com.jstore.contracts.commerce.SaleAuthorizationFailedIntegrationEvent
 import com.jstore.contracts.commerce.SaleAuthorizedIntegrationEvent
+import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.SaleAuthorizationRef
 

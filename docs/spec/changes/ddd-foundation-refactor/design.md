@@ -40,6 +40,6 @@ AggregateRepository<ID, A : AggregateRoot<ID>>
 ## 验证
 
 - common-core 单元测试覆盖 ID 相等、事件封装、成功确认和失败保留。
-- common-spring 测试覆盖事件注册、序列化、幂等消费与 Outbox 状态校验。
+- messaging-local-spring 与 outbox-spring 测试覆盖事件注册、序列化、幂等消费与 Outbox 状态校验。
 - 所有受影响 domain/application/infrastructure/boot 模块编译并运行测试。
 - 最终执行仓库质量门禁。

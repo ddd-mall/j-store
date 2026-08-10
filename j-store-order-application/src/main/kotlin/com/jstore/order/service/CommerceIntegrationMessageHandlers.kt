@@ -17,10 +17,10 @@
 package com.jstore.order.service
 
 import com.jstore.common.errors.BusinessErrorException
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.getOrThrow
 import com.jstore.contracts.commerce.*
+import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.order.domain.aftersale.AfterSaleId
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.SuccessfulRefundItem

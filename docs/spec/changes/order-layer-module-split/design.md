@@ -55,7 +55,7 @@ Controller / IntegrationMessageHandler
 
 | 能力 | 本次状态 | 说明 |
 |---|---|---|
-| 模块化单体 | 就绪 | 根 `j-store-boot` 依赖 `j-store-order-boot`，使用 `jstore.messaging.mode=local` 组合运行。 |
+| 模块化单体 | 就绪 | 根 `j-store-boot` 依赖 `j-store-order-boot`，使用 `jstore.messaging.targets=local` 组合运行。 |
 | 订单独立编译/装配边界 | 就绪 | domain/application/infrastructure/boot 已物理隔离；Controller 和事务装饰器可被独立启动器复用。 |
 | 聚合与 Outbox 原子提交 | 就绪 | 用例级 Spring 事务覆盖仓储写入和 Outbox 发布，失败整体回滚。 |
 | 微服务集群运行 | 尚未就绪 | 仍缺订单独立 `SpringBootApplication`、独立配置/迁移交付物，以及唯一的 Broker 出站适配器和对应入站 consumer。现有 `broker`/`hybrid` 模式在缺少 Transport 时会正确快速失败，不应视为已交付集群能力。 |

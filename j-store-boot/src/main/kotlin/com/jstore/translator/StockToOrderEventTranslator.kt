@@ -17,11 +17,11 @@
 package com.jstore.translator
 
 import com.jstore.common.framework.event.DomainEventListener
-import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.contracts.commerce.InventoryReservationFailedIntegrationEvent
 import com.jstore.contracts.commerce.InventoryReservedIntegrationEvent
 import com.jstore.inventory.domain.event.StockReservationFailedEvent
 import com.jstore.inventory.domain.event.StockReservedEvent
+import com.jstore.messaging.IntegrationMessagePublisher
 import org.springframework.stereotype.Component
 
 /**

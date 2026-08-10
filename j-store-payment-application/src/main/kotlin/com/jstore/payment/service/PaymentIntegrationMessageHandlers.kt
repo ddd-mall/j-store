@@ -17,11 +17,11 @@
 package com.jstore.payment.service
 
 import com.jstore.common.errors.BusinessErrorException
-import com.jstore.common.framework.messaging.IntegrationMessageHandler
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.getOrThrow
 import com.jstore.contracts.commerce.CreatePaymentForOrderCommand
 import com.jstore.contracts.commerce.RequestPaymentRefundCommand
+import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.payment.domain.payment.PaymentRefundItem
 
 class CreatePaymentForOrderCommandHandler(private val payments: PaymentUseCase) :

@@ -53,7 +53,7 @@ inclusion: always
 ./gradlew test
 ```
 
-涉及数据库、迁移、JPA Repository、Outbox 或 Spring 装配时，必须运行对应 infrastructure/common-spring/boot 相关测试。
+涉及数据库、迁移、JPA Repository、Outbox 或 Spring 装配时，必须运行对应 infrastructure/outbox-spring/boot 相关测试。
 
 ## 完成标准
 

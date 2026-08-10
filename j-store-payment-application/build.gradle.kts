@@ -6,6 +6,7 @@ dependencies {
     api(libs.kotlin.stdlib)
     api(project(":j-store-payment-domain"))
     implementation(project(":j-store-common-core"))
+    implementation(project(":j-store-messaging-core"))
     implementation(project(":j-store-integration-contracts"))
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotest.runner.junit5)

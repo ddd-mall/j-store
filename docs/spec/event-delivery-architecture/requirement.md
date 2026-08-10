@@ -35,7 +35,7 @@
 - Spring 装配测试验证默认 local、缺失 Broker Transport 的 fail-fast 和显式 Transport 注入。
 - PostgreSQL 集成测试验证新增字段持久化及既有 claim/fencing/顺序行为。
 - Boot 测试验证当前跨上下文核心链路已使用集成消息适配器装配。
-- 交付前运行 `:j-store-common-core:test`、`:j-store-common-spring:test`、受影响业务模块测试、`:j-store-boot:test` 和 `scripts/quality-gate.sh`。
+- 交付前运行 `:j-store-common-core:test`、`:j-store-messaging-core:test`、`:j-store-outbox-core:test`、`:j-store-messaging-local-spring:test`、`:j-store-outbox-spring:test`、受影响业务模块测试、`:j-store-boot:test` 和 `scripts/quality-gate.sh`。
 
 ## 非范围
 

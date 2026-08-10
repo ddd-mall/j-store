@@ -10,6 +10,14 @@ include("j-store-common-core")
 
 include("j-store-common-spring")
 
+include("j-store-messaging-core")
+
+include("j-store-outbox-core")
+
+include("j-store-messaging-local-spring")
+
+include("j-store-outbox-spring")
+
 include("j-store-integration-contracts")
 
 include("j-store-order-domain")

@@ -17,8 +17,8 @@
 package com.jstore.translator
 
 import com.jstore.common.framework.event.DomainEventListener
-import com.jstore.common.framework.messaging.IntegrationMessagePublisher
 import com.jstore.contracts.commerce.*
+import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.event.OrderCancelledEvent
