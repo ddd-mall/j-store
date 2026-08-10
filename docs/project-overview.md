@@ -13,6 +13,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - Gradle Kotlin DSL，依赖版本集中在 `gradle/libs.versions.toml`
 - 测试栈包含 JUnit 5、Kotlin test、Kotest、Kotest property、Mockito、Spring Boot Test
 - `j-store-outbox-spring` 和部分 infrastructure/boot 集成测试使用嵌入式 PostgreSQL
+- `j-store-user-infrastructure` 的 Redis 集成测试使用测试依赖携带的嵌入式 Redis，不要求本机预装服务
 - `j-store-boot` 仍包含少量 Java 代码，主要是订单过期定时任务相关实现
 
 ## Gradle 模块
