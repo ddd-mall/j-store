@@ -45,11 +45,11 @@ class UserBootConfiguration {
 
     @Bean
     fun jwtTokenProvider(
-        @Value("\${jwt.access-secret}") accessSecret: String,
-        @Value("\${jwt.refresh-secret}") refreshSecret: String,
-        @Value("\${jwt.issuer}") issuer: String,
-        @Value("\${jwt.audience}") audience: String,
-        @Value("\${jwt.key-id}") keyId: String,
+        @Value($$"${jwt.access-secret}") accessSecret: String,
+        @Value($$"${jwt.refresh-secret}") refreshSecret: String,
+        @Value($$"${jwt.issuer}") issuer: String,
+        @Value($$"${jwt.audience}") audience: String,
+        @Value($$"${jwt.key-id}") keyId: String,
     ): TokenProvider {
         return JwtTokenProvider(accessSecret, refreshSecret, issuer, audience, keyId)
     }
@@ -62,7 +62,7 @@ class UserBootConfiguration {
     @Bean
     fun phoneVerificationGateway(
         stringRedisTemplate: StringRedisTemplate,
-        @Value("\${account.phone-verification.hmac-secret}") hmacSecret: String,
+        @Value($$"${account.phone-verification.hmac-secret}") hmacSecret: String,
     ): PhoneVerificationGateway = RedisPhoneVerificationGateway(stringRedisTemplate, hmacSecret)
 
     @Bean

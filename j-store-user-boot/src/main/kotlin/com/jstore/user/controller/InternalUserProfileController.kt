@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController
 )
 class InternalUserProfileController(
     private val profileReader: UserProfileReader,
-    @param:Value("\${jstore.user-query.server.token:}") private val internalToken: String,
+    @param:Value($$"${jstore.user-query.server.token:}") private val internalToken: String,
 ) {
     init {
         require(internalToken.length >= 32) {
