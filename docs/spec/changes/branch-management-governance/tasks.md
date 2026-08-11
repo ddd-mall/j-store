@@ -10,10 +10,8 @@
 
 ## 验证证据
 
-- 分支策略按 TDD 实施：目标脚本缺失、宽松 SemVer、Dependabot 分支拒绝和一次性 bootstrap 用例均先确认失败，随后 13 个分支策略场景全部通过；tooling 共 19 项通过。
-- spec-dev 契约 28 项、治理契约 20 项全部通过；`scripts/check-agent-governance.sh` 通过。
-- `scripts/check-file-ownership.py` 通过，1176 个仓库文件完成归属分类。
+- 分支策略按 TDD 实施：目标脚本缺失、宽松 SemVer、Dependabot 分支拒绝和一次性 bootstrap 用例均先确认失败，随后 13 个分支策略场景和全部 tooling 测试通过。
+- spec-dev 契约 28 项、治理契约 11 项全部通过；`scripts/check-agent-governance.sh` 通过。
+- `scripts/check-file-ownership.py` 通过，961 个仓库文件完成归属分类。
 - workflow YAML 和 ruleset JSON 解析通过，`git diff --check` 通过。
-- Ubuntu/WSL 使用 `/usr/share/java/jdk-25.0.1`：`spotlessCheck licensee` 构建成功，50 个 JVM 模块的许可证任务通过。
-- Ubuntu/WSL：`test verifyLicenseArtifacts` 构建成功，193 个任务完成或复用，53 个 JAR 制品许可证验证通过。
-- 统一 `scripts/quality-gate.sh` 已运行并推进到全仓测试，但首次工具等待在 30 分钟上限处结束；底层进程继续完成。为取得确定性退出码，随后分别复核全部阶段并全部通过。
+- Windows JDK 25 执行 `spotlessCheck licensee test verifyLicenseArtifacts` 构建成功：117 个任务通过，22 个 JVM 模块完成依赖许可证审计，24 个 JAR 制品许可证验证通过。
