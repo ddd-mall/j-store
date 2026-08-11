@@ -73,6 +73,9 @@ public class JobDispatcher {
                                     log.info(e.getMessage());
                                 }
                                 try {
+                                    // Deliberate bounded backoff for this long-lived dispatcher
+                                    // loop.
+                                    //noinspection BusyWait
                                     Thread.sleep(YIELD_SLEEP_MS);
                                 } catch (InterruptedException e) {
                                     Thread.currentThread().interrupt();

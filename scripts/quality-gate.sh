@@ -4,6 +4,15 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+if command -v python3 >/dev/null 2>&1; then
+  python_bin="python3"
+elif command -v python >/dev/null 2>&1; then
+  python_bin="python"
+else
+  printf '%s\n' 'FAIL: Python 3 is required to run the quality gate.' >&2
+  exit 1
+fi
+
 printf '%s\n' '[1/6] Repository governance'
 ./scripts/check-agent-governance.sh
 
@@ -15,16 +24,16 @@ if command -v uv >/dev/null 2>&1; then
   UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
     python -m unittest discover -s tests/governance -p 'test_*.py'
 else
-  python3 -c 'import jsonschema' 2>/dev/null || {
+  "$python_bin" -c 'import jsonschema' 2>/dev/null || {
     printf '%s\n' 'FAIL: install requirements-quality.txt or install uv to run specification tests.' >&2
     exit 1
   }
-  python3 -m unittest discover -s tests/skills/spec-dev -p 'test_*.py'
-  python3 -m unittest discover -s tests/governance -p 'test_*.py'
+  "$python_bin" -m unittest discover -s tests/skills/spec-dev -p 'test_*.py'
+  "$python_bin" -m unittest discover -s tests/governance -p 'test_*.py'
 fi
 
 printf '%s\n' '[3/6] Source ownership and formatting'
-python3 scripts/check-file-ownership.py
+"$python_bin" scripts/check-file-ownership.py
 ./gradlew spotlessCheck --no-daemon --console=plain
 
 printf '%s\n' '[4/6] Dependency license audit'

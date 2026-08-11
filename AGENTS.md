@@ -9,6 +9,7 @@
 3. 新功能或行为修复阅读 `docs/steering/tdd-guidelines.md`。
 4. agent 编排、自动维护、评审、发布和生产相关工作阅读 `docs/steering/agent-governance.md`。
 5. 有适用规格时，以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为产品意图来源。
+6. 分支、PR、发布或热修复工作阅读 `docs/operations/branch-management.md`。
 
 ## 权威来源与冲突处理
 
