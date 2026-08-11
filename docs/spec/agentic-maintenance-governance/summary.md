@@ -6,7 +6,7 @@
 - 新增 Maintenance Orchestrator、Product Steward、Quality Gate、Security & Supply-chain、SRE / Incident、Release & Migration 六种治理 agent。
 - 将 PostgreSQL、Redis 和 JWT 本地配置改为环境变量，添加安全的 `.env.example`，清理当前工作树中的旧地址和已知凭据。
 - 新增统一 `scripts/quality-gate.sh`、治理合同脚本与测试。
-- 新增 GitHub 质量/安全 workflows、Dependabot、CODEOWNERS、PR 模板和 Copilot 指令。
+- 新增 GitHub 质量/安全 workflows、Dependabot、CODEOWNERS、PR 模板和 Copilot 指令。Dependabot 属于当时交付事实，后续因依赖兼容性风险已由分支治理变更明确移除，当前行为以 `docs/spec/changes/branch-management-governance/` 为准。
 - 修复 agent 引用路径、技术栈文档和 Docker Java 运行时漂移。
 
 ## 验收追踪
@@ -25,7 +25,7 @@ PASS: 2 governance contract tests
 PASS: Gradle regression tests, BUILD SUCCESSFUL, 84 tasks
 ```
 
-此外通过 `git diff --check`、shell 语法检查和 GitHub/Dependabot YAML 解析检查。
+此外当时通过 `git diff --check`、shell 语法检查和 GitHub/Dependabot YAML 解析检查；该 Dependabot 证据仅描述历史候选，不代表当前仍启用。
 
 ## 外部启用事项
 

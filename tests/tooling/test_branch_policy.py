@@ -10,19 +10,22 @@ POLICY_SCRIPT = REPOSITORY_ROOT / "scripts" / "check-branch-policy.py"
 
 class BranchPolicyTest(unittest.TestCase):
     def run_policy(
-        self, base: str, head: str, title: str
+        self, base: str, head: str, title: str, bootstrap: bool = False
     ) -> subprocess.CompletedProcess[str]:
+        arguments = [
+            sys.executable,
+            str(POLICY_SCRIPT),
+            "--base",
+            base,
+            "--head",
+            head,
+            "--title",
+            title,
+        ]
+        if bootstrap:
+            arguments.append("--bootstrap")
         return subprocess.run(
-            [
-                sys.executable,
-                str(POLICY_SCRIPT),
-                "--base",
-                base,
-                "--head",
-                head,
-                "--title",
-                title,
-            ],
+            arguments,
             cwd=REPOSITORY_ROOT,
             capture_output=True,
             text=True,
@@ -48,8 +51,8 @@ class BranchPolicyTest(unittest.TestCase):
             "develop", "codex/outbox-transport-modules", "refactor(outbox): split transports"
         )
 
-    def test_dependabot_branch_targets_develop(self) -> None:
-        self.assert_allowed(
+    def test_dependabot_branch_is_rejected(self) -> None:
+        self.assert_rejected(
             "develop", "dependabot/gradle/kotlin-2.3.0", "deps: update Kotlin to 2.3.0"
         )
 
@@ -67,6 +70,17 @@ class BranchPolicyTest(unittest.TestCase):
         self.assert_allowed(
             "master", "hotfix/v1.2.4", "fix(release): restore payment callback"
         )
+
+    def test_governance_branch_can_bootstrap_master_once(self) -> None:
+        result = self.run_policy(
+            "master",
+            "codex/branch-management-governance",
+            "ci(governance): initialize branch management",
+            bootstrap=True,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("PASS", result.stdout)
 
     def test_feature_branch_cannot_target_master(self) -> None:
         self.assert_rejected(

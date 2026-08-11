@@ -18,8 +18,8 @@ SHORT_LIVED_PREFIXES = (
     "chore",
     "revert",
     "codex",
-    "dependabot",
 )
+BOOTSTRAP_BRANCH = "codex/branch-management-governance"
 SLUG = r"[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*"
 SHORT_LIVED_BRANCH = re.compile(
     rf"^(?:{'|'.join(SHORT_LIVED_PREFIXES)})/{SLUG}$"
@@ -39,7 +39,7 @@ PULL_REQUEST_TITLE = re.compile(
 )
 
 
-def validate(base: str, head: str, title: str) -> list[str]:
+def validate(base: str, head: str, title: str, bootstrap: bool = False) -> list[str]:
     errors: list[str] = []
 
     if base == "develop":
@@ -49,7 +49,8 @@ def validate(base: str, head: str, title: str) -> list[str]:
                 f"branch with one of these prefixes: {', '.join(SHORT_LIVED_PREFIXES)}"
             )
     elif base == "master":
-        if not MASTER_SOURCE_BRANCH.fullmatch(head):
+        is_governance_bootstrap = bootstrap and head == BOOTSTRAP_BRANCH
+        if not is_governance_bootstrap and not MASTER_SOURCE_BRANCH.fullmatch(head):
             errors.append(
                 "PRs into master must come from release/v<semver> or hotfix/v<semver>"
             )
@@ -70,9 +71,16 @@ def main() -> int:
     parser.add_argument("--base", required=True, help="pull request base branch")
     parser.add_argument("--head", required=True, help="pull request head branch")
     parser.add_argument("--title", required=True, help="pull request title")
+    parser.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help="allow the one-time governance bootstrap branch when the base has no policy",
+    )
     arguments = parser.parse_args()
 
-    errors = validate(arguments.base, arguments.head, arguments.title)
+    errors = validate(
+        arguments.base, arguments.head, arguments.title, bootstrap=arguments.bootstrap
+    )
     if errors:
         for error in errors:
             print(f"FAIL: {error}", file=sys.stderr)

@@ -6,7 +6,7 @@
 
 | 周期 | 角色 | 任务 | 允许输出 |
 |---|---|---|---|
-| 每个工作日 | Maintenance Orchestrator | 分诊新 issue、失败 CI 和 Dependabot PR，去重并路由 | issue 评论、任务状态，不改业务代码 |
+| 每个工作日 | Maintenance Orchestrator | 分诊新 issue、失败 CI 和人工提出的依赖升级请求，去重并路由 | issue 评论、任务状态，不改业务代码或自动创建升级 PR |
 | 每周 | Product Steward | 抽查活跃规格与最近合并变更的验收覆盖和术语漂移 | drift report 或 issue |
 | 每周 | Security & Supply-chain | 汇总 Semgrep、OSV Scanner、Gitleaks 和预发布依赖 | 风险报告、独立修复 PR |
 | 每周 | Quality Gate | 分析定时全量测试失败，归类环境/实现/规格问题 | 失败报告，不修改候选 |
