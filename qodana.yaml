@@ -23,8 +23,7 @@ profile:
 #    paths:
 #      - <path/where/not/run/inspection>
 
-jdk:
-  version: "25"
+projectJDK: "25"
 
 #Execute shell command before Qodana execution (Applied in CI/CD pipeline)
 #bootstrap: sh ./prepare-qodana.sh

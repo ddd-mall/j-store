@@ -18,8 +18,8 @@ class QodanaConfigurationContractTest(unittest.TestCase):
     def test_qodana_uses_jdk_25_and_rejects_any_problem(self) -> None:
         configuration = (REPO_ROOT / "qodana.yaml").read_text(encoding="utf-8")
 
-        self.assertIn('jdk:\n  version: "25"', configuration)
-        self.assertNotIn("projectJDK:", configuration)
+        self.assertIn('projectJDK: "25"', configuration)
+        self.assertNotIn("\njdk:", configuration)
         self.assertIn(
             "failureConditions:\n  severityThresholds:\n    any: 0",
             configuration,
