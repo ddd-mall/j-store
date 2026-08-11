@@ -32,8 +32,8 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
-          # When pr-mode is set to true, Qodana analyzes only the files that have been changed
-          pr-mode: false
+          # Pull requests report only findings introduced by their changed files.
+          pr-mode: true
           use-caches: true
           post-pr-comment: true
           use-annotations: true

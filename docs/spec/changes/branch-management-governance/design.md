@@ -14,6 +14,8 @@
 
 `quality.yml`、`security.yml` 与 Qodana 的 push 触发分支统一为 `master` 和 `develop`。Ruleset 模板要求分支策略、质量和安全检查成功，禁止删除和非快进推送，并要求通过 PR 和解决 review thread。
 
+Qodana 使用与项目一致的 JDK 25。PR 模式只分析改动文件，并以零容忍阈值阻止任何适用的新问题；长期分支 push 仍执行全量扫描。启用门禁前先修复或以带理由的局部抑制处理现有告警，不通过提高全局阈值把技术债固化为可接受基线。
+
 ## 审查与合并
 
 当前只有一个明确仓库所有者，因此 ruleset 的审批数量保持为 0，以免形成无法解除的治理死锁；这不表示允许自动合并，所有合并仍由人工决定。增加独立维护者后，应把 `master` 和 `develop` 的 `required_approving_review_count` 提升为 1，并启用最后推送者之外的批准。

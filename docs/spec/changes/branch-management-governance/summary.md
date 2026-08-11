@@ -9,18 +9,20 @@
 - 发布证据工作流拒绝不属于远端 `master` 历史的标签。
 - 补齐日常开发、发布、热修复、回灌、revert、清理、agent 权限和首次启用操作手册。
 - 首次 bootstrap 仅允许固定治理分支进入尚无策略的 `master`，基准分支出现检查器后例外自动关闭。
+- Qodana 对齐 JDK 25，PR 只分析改动文件并以零新增问题作为失败阈值；启用门禁前的 8 个既有告警已清理或局部说明抑制。
 
 ## 验收映射
 
 | 需求 | 主要证据 |
 |---|---|
 | BMG-R1、BMG-R5 | `master.json`、`develop.json`、治理契约测试 |
-| BMG-R2、BMG-R3、BMG-R4 | `check-branch-policy.py`、Branch Policy workflow、12 个策略测试 |
+| BMG-R2、BMG-R3、BMG-R4 | `check-branch-policy.py`、Branch Policy workflow、13 个策略测试 |
 | BMG-R6 | Dependabot 配置缺失契约、agent 治理与人工依赖升级流程 |
 | BMG-R7 | Release Evidence 的 master ancestry 校验与发布手册 |
 | BMG-R8 | `docs/operations/branch-management.md` |
 | BMG-R9 | 两份 ruleset、ruleset README 和审查升级说明 |
 | BMG-R10 | Branch Policy bootstrap 输出和策略测试 |
+| BMG-R11 | Qodana 配置契约、JDK 25、PR 增量模式、零容忍阈值和既有告警清理 |
 
 ## 远端启用边界
 

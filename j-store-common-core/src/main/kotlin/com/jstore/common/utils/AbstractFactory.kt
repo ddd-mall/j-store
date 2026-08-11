@@ -31,12 +31,11 @@ abstract class AbstractFactory<T : Any>(private val candidateClass: Collection<C
 
     private fun election(args: Array<out Any>): T {
         synchronized(lock) {
-            var constructor: Constructor<out T>? = candidateMap[getCandidateMapKey(args)]
-            constructor?.let {
+            candidateMap[getCandidateMapKey(args)]?.let {
                 try {
                     return it.newInstance(*args)
                 } catch (e: Exception) {
-                    constructor = null
+                    // Try the configured candidates below when the cached constructor is stale.
                 }
             }
             for (candidateClazz in candidateClass) {

@@ -23,7 +23,8 @@ profile:
 #    paths:
 #      - <path/where/not/run/inspection>
 
-projectJDK: "21" #(Applied in CI/CD pipeline)
+jdk:
+  version: "25"
 
 #Execute shell command before Qodana execution (Applied in CI/CD pipeline)
 #bootstrap: sh ./prepare-qodana.sh
@@ -36,10 +37,9 @@ projectJDK: "21" #(Applied in CI/CD pipeline)
 # severityThresholds - configures maximum thresholds for different problem severities
 # testCoverageThresholds - configures minimum code coverage on a whole project and newly added code
 # Code Coverage is available in Ultimate and Ultimate Plus plans
-#failureConditions:
-#  severityThresholds:
-#    any: 15
-#    critical: 5
+failureConditions:
+  severityThresholds:
+    any: 0
 #  testCoverageThresholds:
 #    fresh: 70
 #    total: 50

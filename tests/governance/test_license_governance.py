@@ -34,6 +34,8 @@ class LicenseGovernanceContractTest(unittest.TestCase):
         ).stdout.decode("utf-8").split("\0")
         for relative_path in filter(None, tracked_sources):
             path = REPO_ROOT / relative_path
+            if not path.is_file():
+                continue
             content = path.read_text(encoding="utf-8")
             if SPDX_COPYRIGHT not in content or SPDX_LICENSE not in content:
                 offenders.append(relative_path)

@@ -16,7 +16,6 @@
  */
 package com.jstore.order.config
 
-import com.jstore.com.jstore.order.config.OrderBootConfiguration
 import com.jstore.order.domain.aftersale.AfterSaleRepository
 import com.jstore.order.domain.order.OrderRepository
 import kotlin.test.assertNotNull
