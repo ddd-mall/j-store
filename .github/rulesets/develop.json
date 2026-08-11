@@ -1,11 +1,11 @@
 {
-  "name": "Protect master",
+  "name": "Protect develop",
   "target": "branch",
   "enforcement": "active",
   "bypass_actors": [],
   "conditions": {
     "ref_name": {
-      "include": ["refs/heads/master"],
+      "include": ["refs/heads/develop"],
       "exclude": []
     }
   },

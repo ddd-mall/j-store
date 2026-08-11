@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import tomllib
 import unittest
 from pathlib import Path
@@ -15,13 +16,27 @@ SPDX_LICENSE = "SPDX-License-Identifier: Apache-2.0"
 class LicenseGovernanceContractTest(unittest.TestCase):
     def test_all_java_and_kotlin_files_have_spdx_ownership(self) -> None:
         offenders: list[str] = []
-        for suffix in ("*.java", "*.kt"):
-            for path in REPO_ROOT.rglob(suffix):
-                if "build" in path.parts or ".git" in path.parts:
-                    continue
-                content = path.read_text(encoding="utf-8")
-                if SPDX_COPYRIGHT not in content or SPDX_LICENSE not in content:
-                    offenders.append(path.relative_to(REPO_ROOT).as_posix())
+        tracked_sources = subprocess.run(
+            [
+                "git",
+                "ls-files",
+                "-z",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "--",
+                "*.java",
+                "*.kt",
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout.decode("utf-8").split("\0")
+        for relative_path in filter(None, tracked_sources):
+            path = REPO_ROOT / relative_path
+            content = path.read_text(encoding="utf-8")
+            if SPDX_COPYRIGHT not in content or SPDX_LICENSE not in content:
+                offenders.append(relative_path)
 
         self.assertEqual([], sorted(offenders), f"missing SPDX ownership: {offenders}")
 
@@ -52,7 +67,7 @@ class LicenseGovernanceContractTest(unittest.TestCase):
         self.assertIn("gradle/wrapper/**", wrapper["paths"])
 
         result = subprocess.run(
-            ["python3", "scripts/check-file-ownership.py"],
+            [sys.executable, "scripts/check-file-ownership.py"],
             cwd=REPO_ROOT,
             check=False,
             capture_output=True,
@@ -60,39 +75,51 @@ class LicenseGovernanceContractTest(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
-    def test_release_evidence_and_master_ruleset_contracts_exist(self) -> None:
+    def test_release_evidence_and_protected_branch_ruleset_contracts_exist(self) -> None:
         evidence_script = REPO_ROOT / "scripts/create-release-evidence.sh"
         workflow = REPO_ROOT / ".github/workflows/release-evidence.yml"
-        ruleset_path = REPO_ROOT / ".github/rulesets/master.json"
 
         self.assertTrue(evidence_script.is_file())
         self.assertTrue(workflow.is_file())
-        ruleset = json.loads(ruleset_path.read_text(encoding="utf-8"))
 
-        self.assertEqual("branch", ruleset["target"])
-        self.assertEqual("active", ruleset["enforcement"])
-        rule_types = {rule["type"] for rule in ruleset["rules"]}
-        self.assertLessEqual(
-            {"deletion", "non_fast_forward", "pull_request", "required_status_checks"},
-            rule_types,
-        )
-        status_rule = next(
-            rule for rule in ruleset["rules"] if rule["type"] == "required_status_checks"
-        )
-        contexts = {
-            item["context"]
-            for item in status_rule["parameters"]["required_status_checks"]
+        expected_contexts = {
+            "branch-policy",
+            "quality",
+            "static-analysis",
+            "dependency-vulnerability-scan",
+            "dependency-license-audit",
+            "secret-scan",
         }
-        self.assertEqual(
-            {
-                "quality",
-                "static-analysis",
-                "dependency-vulnerability-scan",
-                "dependency-license-audit",
-                "secret-scan",
-            },
-            contexts,
-        )
+        for branch in ("master", "develop"):
+            ruleset_path = REPO_ROOT / f".github/rulesets/{branch}.json"
+            ruleset = json.loads(ruleset_path.read_text(encoding="utf-8"))
+
+            self.assertEqual("branch", ruleset["target"])
+            self.assertEqual("active", ruleset["enforcement"])
+            self.assertEqual(
+                [f"refs/heads/{branch}"],
+                ruleset["conditions"]["ref_name"]["include"],
+            )
+            rule_types = {rule["type"] for rule in ruleset["rules"]}
+            self.assertLessEqual(
+                {
+                    "deletion",
+                    "non_fast_forward",
+                    "pull_request",
+                    "required_status_checks",
+                },
+                rule_types,
+            )
+            status_rule = next(
+                rule
+                for rule in ruleset["rules"]
+                if rule["type"] == "required_status_checks"
+            )
+            contexts = {
+                item["context"]
+                for item in status_rule["parameters"]["required_status_checks"]
+            }
+            self.assertEqual(expected_contexts, contexts)
 
     def test_quality_workflow_fetches_spotless_ratchet_reference(self) -> None:
         build_script = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")

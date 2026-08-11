@@ -1,0 +1,49 @@
+name: Branch Policy
+
+on:
+  pull_request:
+    branches: [develop, master]
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  branch-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Load policy from the trusted base revision
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          policy_path="scripts/check-branch-policy.py"
+          trusted_policy="$RUNNER_TEMP/check-branch-policy.py"
+          if git cat-file -e "${PR_BASE_SHA}:${policy_path}" 2>/dev/null; then
+            git show "${PR_BASE_SHA}:${policy_path}" > "$trusted_policy"
+          else
+            cp "$policy_path" "$trusted_policy"
+            printf '%s\n' 'Bootstrap mode: the base revision does not contain the policy yet.'
+          fi
+
+      - name: Validate branch direction, name and pull request title
+        env:
+          PR_BASE_REF: ${{ github.base_ref }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: >-
+          python "$RUNNER_TEMP/check-branch-policy.py"
+          --base "$PR_BASE_REF"
+          --head "$PR_HEAD_REF"
+          --title "$PR_TITLE"

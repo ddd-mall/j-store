@@ -42,16 +42,21 @@ required_files=(
   LICENSE
   THIRD_PARTY.md
   docs/steering/agent-governance.md
+  docs/operations/branch-management.md
   docs/operations/release-evidence.md
   .env.example
   config/licenses/file-ownership.toml
   requirements-security.txt
   .github/CODEOWNERS
   .github/workflows/quality.yml
+  .github/workflows/branch-policy.yml
   .github/workflows/release-evidence.yml
   .github/workflows/security.yml
   .github/rulesets/master.json
+  .github/rulesets/develop.json
+  .github/rulesets/README.md
   .github/dependabot.yml
+  scripts/check-branch-policy.py
   .codex/agents/maintenance-orchestrator.toml
   .codex/agents/product-steward.toml
   .codex/agents/quality-gate.toml
@@ -111,8 +116,31 @@ search_quietly 'gitleaks.*git' .github/workflows/security.yml || \
   fail "security workflow is missing Gitleaks CLI history scanning"
 search_quietly 'attest-build-provenance' .github/workflows/release-evidence.yml || \
   fail "release evidence workflow is missing artifact provenance attestation"
-search_quietly 'required_status_checks' .github/rulesets/master.json || \
-  fail "master ruleset is missing required status checks"
+search_quietly 'merge-base --is-ancestor' .github/workflows/release-evidence.yml || \
+  fail "release evidence workflow does not require tags to belong to master history"
+
+for workflow in .github/workflows/quality.yml .github/workflows/security.yml; do
+  search_quietly 'branches: \[develop, master\]' "$workflow" || \
+    fail "$workflow does not run for both protected long-lived branches"
+done
+
+if search_quietly 'feature-initial|branches: \[main, master\]' .github/workflows; then
+  fail "GitHub workflows still reference a retired integration branch"
+fi
+
+for ruleset in .github/rulesets/master.json .github/rulesets/develop.json; do
+  search_quietly 'required_status_checks' "$ruleset" || \
+    fail "$ruleset is missing required status checks"
+  for context in branch-policy quality static-analysis dependency-vulnerability-scan dependency-license-audit secret-scan; do
+    search_quietly "\"context\": \"$context\"" "$ruleset" || \
+      fail "$ruleset is missing required check: $context"
+  done
+done
+
+target_branch_count="$(grep -c 'target-branch: develop' .github/dependabot.yml || true)"
+if [[ "$target_branch_count" -ne 2 ]]; then
+  fail "all Dependabot ecosystems must target develop"
+fi
 
 if ((failures > 0)); then
   printf '%d governance check(s) failed.\n' "$failures" >&2

@@ -34,6 +34,7 @@
 
 ### 自动化运维
 
+- [docs/operations/branch-management.md](docs/operations/branch-management.md)：长期分支、短分支、PR、发布、热修复、回灌、恢复和远端 ruleset 启用流程。
 - [docs/operations/agent-automation-runbook.md](docs/operations/agent-automation-runbook.md)：建议的周期任务、触发器、输出和人工接管规则。
 
 ## 权威来源与冲突处理

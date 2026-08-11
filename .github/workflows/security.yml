@@ -3,7 +3,7 @@ name: Security Gate
 on:
   pull_request:
   push:
-    branches: [main, master]
+    branches: [develop, master]
   schedule:
     - cron: "30 18 * * 1"
   workflow_dispatch:
