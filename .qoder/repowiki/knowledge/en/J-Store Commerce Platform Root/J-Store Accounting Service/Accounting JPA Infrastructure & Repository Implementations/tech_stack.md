@@ -1,0 +1,1 @@
+Kotlin JVM with Spring Boot 3.x, Spring Data JPA, Hibernate, PostgreSQL runtime driver, and H2 for tests; built with Gradle Kotlin DSL (`build.gradle.kts`) targeting JVM 25; JPA entity generation enabled via `kotlin.plugin.jpa`; testing uses JUnit 5 + Kotest.

@@ -1,0 +1,1 @@
+Run with `gradle bootRun` after setting `spring.profiles.active=local` (default in application.properties); tests use io.zonky.test embedded-postgres so no external DB is needed. Docker build expects a pre-built jar at build/libs/*.jar. Flyway baseline is set to 20260507 with validate-on-migrate enabled.

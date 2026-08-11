@@ -1,1 +1,0 @@
-A Spring Boot auto-configured authentication SDK that intercepts requests, validates Bearer tokens via TokenProvider/TokenStore, exposes the authenticated UserId through a ThreadLocal context, and provides annotations for per-endpoint access control.

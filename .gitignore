@@ -41,6 +41,10 @@ out/
 
 .gradle-home
 
+### JVM crash diagnostics ###
+hs_err_pid*.log
+replay_pid*.log
+
 ### Local secrets ###
 .env
 .env.*

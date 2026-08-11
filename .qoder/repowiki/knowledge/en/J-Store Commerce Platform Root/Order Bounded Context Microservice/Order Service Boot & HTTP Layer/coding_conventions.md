@@ -1,0 +1,6 @@
+- Controllers declare request/response data classes locally inside the controller class and map them to/from domain commands/entities using private extension functions.
+- HTTP error handling goes through `Result<T, BusinessError>.fold(...)` which maps success to `ResponseEntity.ok` and failure to a status-coded `ErrorResponse` body.
+- Authentication is enforced at the controller level via the `@RequireLogin` annotation and user identity injected through `@CurrentUserId UserId` parameters.
+- Transactional boundaries are implemented by wrapping framework-free application services in `Transactional*UseCase` classes that delegate read operations through a read-only `TransactionTemplate` and write operations through a write `TransactionTemplate`.
+- Bean assembly is centralized in `OrderBootConfiguration` with explicit `@Bean` factory methods; transactional use cases are registered with `@Primary` so callers inject the interface without caring about the wrapper.
+- Idempotency is enforced by requiring an `Idempotency-Key` request header on mutating after-sale endpoints.

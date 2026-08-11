@@ -1,0 +1,1 @@
+Tests run on JUnit Platform (`tasks.test { useJUnitPlatform() }`). The module requires JDK 25 (`kotlin { jvmToolchain(25) }`). No special build steps beyond standard Gradle `./gradlew :j-store-goods-application:test`.

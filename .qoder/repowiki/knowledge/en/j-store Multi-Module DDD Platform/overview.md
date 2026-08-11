@@ -1,1 +1,0 @@
-Gradle multi-module Kotlin/Java project implementing a Spring Boot-based e-commerce platform organized by DDD bounded contexts (order, goods, user, accounting, shop) with shared domain and infrastructure layers.

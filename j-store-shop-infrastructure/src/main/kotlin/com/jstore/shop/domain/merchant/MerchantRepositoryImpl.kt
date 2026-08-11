@@ -20,6 +20,7 @@ import com.jstore.shop.domain.merchant.persistence.MerchantMembershipPOJpaReposi
 import com.jstore.shop.domain.merchant.persistence.MerchantPO
 import com.jstore.shop.domain.merchant.persistence.MerchantPOJpaRepository
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 @Repository
@@ -27,7 +28,7 @@ class MerchantRepositoryImpl(
     private val jpaRepository: MerchantPOJpaRepository,
     private val membershipJpaRepository: MerchantMembershipPOJpaRepository,
 ) : MerchantRepository {
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun createWithOwner(
         merchant: Merchant,
         ownerMembership: MerchantMembership,
@@ -39,7 +40,7 @@ class MerchantRepositoryImpl(
         return Converter.toDomain(saved)
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: Merchant): Merchant =
         Converter.toDomain(jpaRepository.save(Converter.toPO(entity)))
 

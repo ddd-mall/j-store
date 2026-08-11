@@ -1,0 +1,6 @@
+- Every use-case method returns `Result<T, BusinessError>` and propagates failures through `Failure(...)` / `Success(...)` wrappers rather than throwing exceptions.
+- Aggregate mutations follow a fixed three-step sequence: `repository.findById` → invoke domain method on the aggregate → `repository.save` → `aggregate.publishPendingEvents(domainEventPublisher)`.
+- External integrations are wired as thin `IntegrationMessageHandler<T>` classes that translate contract messages into use-case calls and unwrap results with `.expect(...)`.
+- Idempotent commands compute a SHA-256 digest over `(type|id|actor|payload)` and check `afterSaleRepository.findReceipt` before executing, returning `IDEMPOTENCY_CONFLICT` on mismatch.
+- Command objects are validated upfront via `cmd.validate()` and short-circuit with early return on `Failure` before any domain interaction.
+- Mutating after-sale operations are funneled through private `mutate`, `decide`, and `recordExternal` helpers so repository save and event publishing are centralized.

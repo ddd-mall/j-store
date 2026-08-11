@@ -17,6 +17,7 @@
 package com.jstore.common.utils
 
 import java.io.Serializable
+import java.util.concurrent.CancellationException
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -52,30 +53,20 @@ object Results {
     fun <T, E> err(error: E): Result<T, E> = Failure(error) as Result<T, E>
 }
 
-class ResultUnwrapException(message: String) : IllegalStateException(message)
-
-/** Rust: `unwrap()` — panics with error context on Failure. */
-fun <T, E> Result<T, E>.getOrThrow(): T =
-    when (this) {
+/**
+ * Returns the success value or throws the exception explicitly produced from the failure value.
+ * Generic errors are never stringified or silently converted to an untyped exception.
+ */
+@OptIn(ExperimentalContracts::class)
+inline fun <T, E> Result<T, E>.getOrThrow(errorMapper: (E) -> Throwable): T {
+    contract {
+        callsInPlace(errorMapper, InvocationKind.AT_MOST_ONCE)
+    }
+    return when (this) {
         is Success -> value
-        is Failure ->
-            throw ResultUnwrapException("called Result::unwrap() on a Failure value: $error")
+        is Failure -> throw errorMapper(error)
     }
-
-/** Rust: `unwrap_err()` — panics with value context on Success. */
-fun <T, E> Result<T, E>.getErrorOrThrow(): E =
-    when (this) {
-        is Success ->
-            throw ResultUnwrapException("called Result::unwrap_err() on a Success value: $value")
-        is Failure -> error
-    }
-
-/** Rust: `expect(msg)` — panics with a custom message on Failure. */
-fun <T, E> Result<T, E>.expect(message: String): T =
-    when (this) {
-        is Success -> value
-        is Failure -> throw ResultUnwrapException("$message: $error")
-    }
+}
 
 /** Rust: `unwrap_or(default)` — returns default on Failure, never throws. */
 fun <T, E> Result<T, E>.getOrDefault(default: @UnsafeVariance T): T =
@@ -244,6 +235,7 @@ inline fun <R> resultOf(block: () -> R): Result<R, Exception> {
     return try {
         Success(block())
     } catch (e: Exception) {
+        rethrowCancellationOrInterruption(e)
         Failure(e)
     }
 }
@@ -253,7 +245,19 @@ inline fun <T, R> T.runResultOf(block: T.() -> R): Result<R, Exception> {
     return try {
         Success(block())
     } catch (e: Exception) {
+        rethrowCancellationOrInterruption(e)
         Failure(e)
+    }
+}
+
+@PublishedApi
+internal fun rethrowCancellationOrInterruption(exception: Exception) {
+    when (exception) {
+        is CancellationException -> throw exception
+        is InterruptedException -> {
+            Thread.currentThread().interrupt()
+            throw exception
+        }
     }
 }
 

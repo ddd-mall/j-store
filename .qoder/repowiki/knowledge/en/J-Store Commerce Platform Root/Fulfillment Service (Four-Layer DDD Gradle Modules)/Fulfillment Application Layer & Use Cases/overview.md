@@ -1,0 +1,1 @@
+Application-layer orchestration for fulfillment orders, exposing a FulfillmentUseCase interface implemented by FulfillmentApplicationService and an integration message handler that translates inbound commands into domain mutations.

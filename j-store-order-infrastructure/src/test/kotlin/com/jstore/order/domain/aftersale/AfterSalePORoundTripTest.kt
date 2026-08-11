@@ -16,7 +16,6 @@
  */
 package com.jstore.order.domain.aftersale
 
-import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.aftersale.persistence.*
@@ -24,11 +23,9 @@ import com.jstore.order.domain.order.FulfillmentStatus
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderItemId
 import java.time.LocalDateTime
-import java.util.LinkedList
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
-import org.springframework.transaction.PlatformTransactionManager
 
 class AfterSalePORoundTripTest {
     @Test
@@ -38,9 +35,7 @@ class AfterSalePORoundTripTest {
                 mock(AfterSalePOJpaRepository::class.java),
                 mock(AfterSaleCapacityPOJpaRepository::class.java),
                 mock(AfterSaleCommandReceiptPOJpaRepository::class.java),
-                mock(DomainEventPublisher::class.java),
                 SnowFlakSequence(1, 1),
-                mock(PlatformTransactionManager::class.java),
             )
         val now = LocalDateTime.of(2026, 8, 3, 10, 0)
         val goods = GoodsSnapshot(91, 81, "商品", "红色")
@@ -75,7 +70,6 @@ class AfterSalePORoundTripTest {
                 createTime = now.minusDays(1),
                 _updateTime = now,
                 version = 7,
-                domainEventQueue = LinkedList(),
             )
 
         val restored = repository.toDomain(repository.toPO(source))

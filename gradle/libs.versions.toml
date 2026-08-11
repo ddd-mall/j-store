@@ -16,9 +16,11 @@ junit = "6.1.2"
 mockito = "5.23.0"
 mockito-kotlin = "6.3.0"
 lombok = "1.18.36"
+libphonenumber = "9.0.36"
 redisson = "3.52.0"
 jjwt = "0.13.0"
 spring-security = "7.1.0"
+embedded-redis = "1.4.3"
 
 openai-version = "4.50.0"
 dashscope-sdk-java = "2.22.5"
@@ -85,12 +87,14 @@ jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-dat
 netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version = "3.19.0" }
+libphonenumber = { module = "com.googlecode.libphonenumber:libphonenumber", version.ref = "libphonenumber" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 redisson-spring-boot-starter = { module = "org.redisson:redisson-spring-boot-starter", version.ref = "redisson" }
 jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
 jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
 jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
 spring-security-crypto = { module = "org.springframework.security:spring-security-crypto", version.ref = "spring-security" }
+embedded-redis = { module = "com.github.codemonstur:embedded-redis", version.ref = "embedded-redis" }
 money-api = {group = "javax.money", name = "money-api", version = "1.1" }
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }

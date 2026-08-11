@@ -1,0 +1,1 @@
+Kotlin JVM toolchain 25 across all subprojects; Spring Boot + Spring Data JPA + Spring Data Redis for infrastructure; BCrypt for password hashing; jjwt (HS256) for access/refresh token signing; PostgreSQL via JPA with embedded Postgres for tests; Kotest property-based testing used in both domain and infrastructure layers.

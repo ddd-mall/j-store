@@ -1,1 +1,0 @@
-PostgreSQL 16 Alpine image with native `docker-entrypoint-initdb.d` auto-initialization; all schema changes are plain SQL DDL/DML without any migration tooling.

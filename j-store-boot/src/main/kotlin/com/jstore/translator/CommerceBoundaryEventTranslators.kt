@@ -17,220 +17,232 @@
 package com.jstore.translator
 
 import com.jstore.common.framework.event.DomainEventListener
-import com.jstore.common.utils.getOrThrow
-import com.jstore.fulfillment.domain.FulfillmentItem
-import com.jstore.fulfillment.domain.ShippingRecipient
+import com.jstore.contracts.commerce.*
 import com.jstore.fulfillment.domain.event.FulfillmentPreparedEvent
 import com.jstore.fulfillment.domain.event.ShipmentDeliveredEvent
 import com.jstore.fulfillment.domain.event.ShipmentDispatchedEvent
-import com.jstore.fulfillment.service.FulfillmentApplicationService
-import com.jstore.fulfillment.service.FulfillmentRequest
-import com.jstore.order.domain.aftersale.AfterSaleId
+import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.domain.aftersale.event.AfterSaleRefundRequestedEvent
-import com.jstore.order.domain.aftersale.event.AfterSaleRefundSucceededEvent
-import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
-import com.jstore.order.domain.order.SuccessfulRefundItem
-import com.jstore.order.domain.order.event.OrderCreatedEvent
+import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
-import com.jstore.order.service.AfterSaleApplicationService
-import com.jstore.order.service.OrderService
-import com.jstore.payment.domain.payment.PaymentRefundItem
+import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
 import com.jstore.payment.domain.payment.event.PaymentCapturedEvent
 import com.jstore.payment.domain.payment.event.PaymentRefundFailedEvent
 import com.jstore.payment.domain.payment.event.PaymentRefundSucceededEvent
-import com.jstore.payment.service.PaymentApplicationService
-import com.jstore.payment.service.PaymentOrderRequest
-import com.jstore.payment.service.PaymentRefundRequest
 import org.springframework.stereotype.Component
 
 @Component
-class OrderCreatedToPaymentTranslator(private val payments: PaymentApplicationService) :
-    DomainEventListener<OrderCreatedEvent> {
-    override fun listenerId() = "translator.order-created.to-payment-order.v1"
+class OrderStockConfirmedToPaymentTranslator(private val publisher: IntegrationMessagePublisher) :
+    DomainEventListener<OrderStockConfirmedEvent> {
+    override fun listenerId() = "translator.order-stock-confirmed.to-payment-order.v3"
 
-    override fun onDomainEvent(event: OrderCreatedEvent) {
-        payments
-            .createForOrder(
-                PaymentOrderRequest(
-                    event.orderId.value,
-                    event.merchantId.value,
-                    event.payableAmount,
-                    event.currency,
-                )
+    override fun onDomainEvent(event: OrderStockConfirmedEvent) {
+        publisher.publish(
+            CreatePaymentForOrderCommand(
+                orderId = event.orderId.value,
+                merchantId = event.merchantId.value,
+                payableAmountFen = event.payableAmount.fen,
+                currency = event.currency,
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
             )
-            .getOrThrow()
+        )
     }
 }
 
 @Component
-class PaymentCapturedToOrderTranslator(private val orders: OrderService) :
+class PaymentCapturedIntegrationTranslator(private val publisher: IntegrationMessagePublisher) :
     DomainEventListener<PaymentCapturedEvent> {
-    override fun listenerId() = "translator.payment-captured.to-order.v1"
+    override fun listenerId() = "translator.payment-captured.to-integration.v2"
 
     override fun onDomainEvent(event: PaymentCapturedEvent) {
-        orders
-            .recordPaymentCaptured(
-                OrderId(event.orderId),
-                event.paymentId.value.toString(),
-                event.amount,
-                event.currency,
-                event.occurredAt,
+        publisher.publish(
+            PaymentCapturedIntegrationEvent(
+                paymentId = event.paymentId.value,
+                orderId = event.orderId,
+                merchantId = event.merchantId,
+                providerTransactionId = event.providerTransactionId,
+                amountFen = event.amount.fen,
+                currency = event.currency,
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
             )
-            .getOrThrow()
+        )
     }
 }
 
 @Component
 class OrderPaidToFulfillmentTranslator(
     private val orders: OrderRepository,
-    private val fulfillments: FulfillmentApplicationService,
+    private val publisher: IntegrationMessagePublisher,
 ) : DomainEventListener<OrderPaidEvent> {
-    override fun listenerId() = "translator.order-paid.to-fulfillment.v1"
+    override fun listenerId() = "translator.order-paid.to-fulfillment.v2"
 
     override fun onDomainEvent(event: OrderPaidEvent) {
-        val order =
-            requireNotNull(orders.findById(event.orderId)) {
-                "Order ${event.orderId.value} not found"
-            }
+        val order = requireNotNull(orders.findById(event.orderId))
         val recipient = order.recipientInfo
-        fulfillments
-            .createForOrder(
-                FulfillmentRequest(
-                    orderId = order.id.value,
-                    merchantId = order.merchantId.value,
-                    recipient =
-                        ShippingRecipient(
-                            name = recipient.name,
-                            phone = recipient.contractInfo.phoneNumber?.value,
-                            email = recipient.contractInfo.email,
-                            countryCode = recipient.shippingAddress.countryCode.value,
-                            districtCode = recipient.shippingAddress.getLeafCode(),
-                            detailAddress = recipient.shippingDetailAddress,
-                        ),
-                    items = order.items.map { FulfillmentItem(it.id.value, it.skuId, it.quantity) },
-                )
+        publisher.publish(
+            CreateFulfillmentForOrderCommand(
+                orderId = order.id.value,
+                merchantId = order.merchantId.value,
+                recipient =
+                    ContractRecipient(
+                        recipient.name,
+                        recipient.contractInfo.phoneNumber?.value,
+                        recipient.contractInfo.email,
+                        recipient.shippingAddress.countryCode.value,
+                        recipient.shippingAddress.getLeafCode(),
+                        recipient.shippingDetailAddress,
+                    ),
+                items =
+                    order.items.map {
+                        ContractItem(
+                            skuId = it.skuId,
+                            quantity = it.quantity,
+                            orderItemId = it.id.value,
+                        )
+                    },
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
             )
-            .getOrThrow()
+        )
     }
 }
 
 @Component
-class FulfillmentPreparedToOrderTranslator(private val orders: OrderService) :
+class FulfillmentPreparedIntegrationTranslator(private val publisher: IntegrationMessagePublisher) :
     DomainEventListener<FulfillmentPreparedEvent> {
-    override fun listenerId() = "translator.fulfillment-prepared.to-order.v1"
+    override fun listenerId() = "translator.fulfillment-prepared.to-integration.v2"
 
-    override fun onDomainEvent(event: FulfillmentPreparedEvent) {
-        orders
-            .recordFulfillmentPrepared(OrderId(event.orderId), event.fulfillmentId.value.toString())
-            .getOrThrow()
-    }
+    override fun onDomainEvent(event: FulfillmentPreparedEvent) =
+        publisher.publish(
+            FulfillmentPreparedIntegrationEvent(
+                event.fulfillmentId.value,
+                event.orderId,
+                event.eventId,
+                event.occurredAt,
+            )
+        )
 }
 
 @Component
-class ShipmentDispatchedToOrderTranslator(private val orders: OrderService) :
+class ShipmentDispatchedIntegrationTranslator(private val publisher: IntegrationMessagePublisher) :
     DomainEventListener<ShipmentDispatchedEvent> {
-    override fun listenerId() = "translator.shipment-dispatched.to-order.v1"
+    override fun listenerId() = "translator.fulfillment-dispatched.to-integration.v2"
 
-    override fun onDomainEvent(event: ShipmentDispatchedEvent) {
-        orders
-            .recordShipmentDispatched(OrderId(event.orderId), event.fulfillmentId.value.toString())
-            .getOrThrow()
-    }
+    override fun onDomainEvent(event: ShipmentDispatchedEvent) =
+        publisher.publish(
+            FulfillmentDispatchedIntegrationEvent(
+                event.fulfillmentId.value,
+                event.orderId,
+                event.eventId,
+                event.occurredAt,
+            )
+        )
 }
 
 @Component
-class ShipmentDeliveredToOrderTranslator(private val orders: OrderService) :
+class ShipmentDeliveredIntegrationTranslator(private val publisher: IntegrationMessagePublisher) :
     DomainEventListener<ShipmentDeliveredEvent> {
-    override fun listenerId() = "translator.shipment-delivered.to-order.v1"
+    override fun listenerId() = "translator.fulfillment-delivered.to-integration.v2"
 
-    override fun onDomainEvent(event: ShipmentDeliveredEvent) {
-        orders
-            .recordShipmentDelivered(OrderId(event.orderId), event.fulfillmentId.value.toString())
-            .getOrThrow()
-        orders.completeOrder(OrderId(event.orderId)).getOrThrow()
-    }
+    override fun onDomainEvent(event: ShipmentDeliveredEvent) =
+        publisher.publish(
+            FulfillmentDeliveredIntegrationEvent(
+                event.fulfillmentId.value,
+                event.orderId,
+                event.eventId,
+                event.occurredAt,
+            )
+        )
 }
 
 @Component
-class AfterSaleRefundRequestedToPaymentTranslator(private val payments: PaymentApplicationService) :
-    DomainEventListener<AfterSaleRefundRequestedEvent> {
-    override fun listenerId() = "translator.after-sale-refund-requested.to-payment.v1"
+class AfterSaleRefundRequestedToPaymentTranslator(
+    private val publisher: IntegrationMessagePublisher
+) : DomainEventListener<AfterSaleRefundRequestedEvent> {
+    override fun listenerId() = "translator.after-sale-refund-requested.to-payment.v2"
 
     override fun onDomainEvent(event: AfterSaleRefundRequestedEvent) {
-        payments
-            .requestRefund(
-                PaymentRefundRequest(
-                    orderId = event.orderId.value,
-                    afterSaleId = event.afterSaleId.value,
-                    items =
-                        event.items.map {
-                            PaymentRefundItem(
-                                it.orderItemId.value,
-                                it.skuId,
-                                it.quantity,
-                                it.amount,
-                            )
-                        },
-                    amount = event.amount,
-                )
-            )
-            .getOrThrow()
-    }
-}
-
-@Component
-class PaymentRefundSucceededToAfterSaleTranslator(
-    private val afterSales: AfterSaleApplicationService
-) : DomainEventListener<PaymentRefundSucceededEvent> {
-    override fun listenerId() = "translator.payment-refund-succeeded.to-after-sale.v1"
-
-    override fun onDomainEvent(event: PaymentRefundSucceededEvent) {
-        afterSales
-            .recordRefundSucceeded(
-                AfterSaleId(event.afterSaleId),
-                event.refundId.value.toString(),
-                event.occurredAt,
-            )
-            .getOrThrow()
-    }
-}
-
-@Component
-class PaymentRefundFailedToAfterSaleTranslator(
-    private val afterSales: AfterSaleApplicationService
-) : DomainEventListener<PaymentRefundFailedEvent> {
-    override fun listenerId() = "translator.payment-refund-failed.to-after-sale.v1"
-
-    override fun onDomainEvent(event: PaymentRefundFailedEvent) {
-        afterSales
-            .recordRefundFailed(
-                AfterSaleId(event.afterSaleId),
-                event.refundId.value.toString(),
-                event.reason,
-                event.occurredAt,
-            )
-            .getOrThrow()
-    }
-}
-
-@Component
-class AfterSaleRefundSucceededToOrderTranslator(private val orders: OrderService) :
-    DomainEventListener<AfterSaleRefundSucceededEvent> {
-    override fun listenerId() = "translator.after-sale-refund-succeeded.to-order.v1"
-
-    override fun onDomainEvent(event: AfterSaleRefundSucceededEvent) {
-        orders
-            .recordRefundSucceeded(
-                orderId = event.orderId,
-                refundId = event.refundId,
-                afterSaleId = event.afterSaleId,
+        publisher.publish(
+            RequestPaymentRefundCommand(
+                orderId = event.orderId.value,
+                afterSaleId = event.afterSaleId.value,
                 items =
                     event.items.map {
-                        SuccessfulRefundItem(it.orderItemId, it.quantity, it.amount)
+                        ContractRefundItem(
+                            it.orderItemId.value,
+                            it.skuId,
+                            it.quantity,
+                            it.amount.fen,
+                        )
                     },
-                occurredAt = event.occurredAt,
+                amountFen = event.amount.fen,
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
             )
-            .getOrThrow()
+        )
     }
+}
+
+@Component
+class PaymentRefundSucceededIntegrationTranslator(
+    private val publisher: IntegrationMessagePublisher
+) : DomainEventListener<PaymentRefundSucceededEvent> {
+    override fun listenerId() = "translator.payment-refund-succeeded.to-integration.v2"
+
+    override fun onDomainEvent(event: PaymentRefundSucceededEvent) {
+        publisher.publish(
+            PaymentRefundSucceededIntegrationEvent(
+                event.paymentId.value,
+                event.refundId.value,
+                event.orderId,
+                event.afterSaleId,
+                event.merchantId,
+                event.providerRefundId,
+                event.items.map {
+                    ContractRefundItem(it.orderItemId, it.skuId, it.quantity, it.amount.fen)
+                },
+                event.amount.fen,
+                event.currency,
+                event.eventId,
+                event.occurredAt,
+            )
+        )
+    }
+}
+
+@Component
+class PaymentRefundFailedIntegrationTranslator(private val publisher: IntegrationMessagePublisher) :
+    DomainEventListener<PaymentRefundFailedEvent> {
+    override fun listenerId() = "translator.payment-refund-failed.to-integration.v2"
+
+    override fun onDomainEvent(event: PaymentRefundFailedEvent) =
+        publisher.publish(
+            PaymentRefundFailedIntegrationEvent(
+                event.paymentId.value,
+                event.refundId.value,
+                event.orderId,
+                event.afterSaleId,
+                event.reason,
+                event.eventId,
+                event.occurredAt,
+            )
+        )
+}
+
+@Component
+class OrderCompletedIntegrationTranslator(private val publisher: IntegrationMessagePublisher) :
+    DomainEventListener<OrderCompletedEvent> {
+    override fun listenerId() = "translator.order-completed.to-integration.v1"
+
+    override fun onDomainEvent(event: OrderCompletedEvent) =
+        publisher.publish(
+            OrderCompletedIntegrationEvent(
+                event.orderId.value,
+                event.eventId,
+                event.occurredAt,
+            )
+        )
 }

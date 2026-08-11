@@ -1,0 +1,1 @@
+Kotlin JVM (toolchain 25), built with Gradle Kotlin DSL; tests run via Kotest JUnit5 runner with Mockito and mockito-kotlin for mocking collaborators.

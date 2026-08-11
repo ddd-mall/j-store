@@ -1,0 +1,1 @@
+Spring Boot application that assembles the j-store order domain with payment, fulfillment, goods, user, shop, accounting, and common modules into a single deployable service exposing REST APIs, scheduled timer jobs, and transactional outbox event publishing.

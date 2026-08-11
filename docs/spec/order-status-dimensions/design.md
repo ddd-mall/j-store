@@ -1,5 +1,7 @@
 # 设计文档：订单状态多维化
 
+> DDD 基座 API 已由 `docs/spec/changes/ddd-foundation-refactor/` 破坏性替换；下文代码示例中的聚合根、仓储与领域事件类型应以该规格和当前代码为准。
+
 ## 概述
 
 本设计在现有订单聚合边界内，以 `TradeStatus`、`PaymentStatus`、`FulfillmentStatus`、`AfterSaleStatus` 直接替换 `OrderStatus`，并由聚合根统一校验四维状态与订单行项状态之间的不变量。方案遵循 `docs/steering/ddd-guidelines.md` 的聚合封装、领域错误、仓储转换及事件约束，以及 `docs/steering/tdd-guidelines.md` 的测试先行和分层验证要求；不拆分新聚合，不改变应用服务用例、URL、请求体或既有领域事件契约。
@@ -261,8 +263,6 @@ var afterSaleStatus: AfterSaleStatus = AfterSaleStatus.NONE
 data class OrderResponse(
     val id: Long,
     val buyerUid: Long,
-    val buyerPhone: String?,
-    val buyerName: String?,
     val tradeStatus: String,
     val paymentStatus: String,
     val fulfillmentStatus: String,
@@ -275,7 +275,7 @@ data class OrderResponse(
 )
 ```
 
-`Order.toOrderResponse()` 分别使用四个枚举的 `.name`，彻底删除订单级 `status`；`OrderItemResponse.status` 继续返回行项状态名称。详情、分页及创建响应均复用该转换函数。
+`Order.toOrderResponse()` 分别使用四个枚举的 `.name`，彻底删除订单级 `status`；`OrderItemResponse.status` 继续返回行项状态名称。详情、分页及创建响应均复用该转换函数。账号昵称和已验证手机号按 `user-profile-query` 规格仅保留为交易内部快照，不进入公开响应。
 
 ## 数据模型
 
@@ -341,8 +341,6 @@ CREATE INDEX idx_orders_after_sale_status_create_time
 {
   "id": 10001,
   "buyerUid": 20001,
-  "buyerPhone": null,
-  "buyerName": null,
   "tradeStatus": "ACTIVE",
   "paymentStatus": "PARTIALLY_REFUNDED",
   "fulfillmentStatus": "DELIVERED",

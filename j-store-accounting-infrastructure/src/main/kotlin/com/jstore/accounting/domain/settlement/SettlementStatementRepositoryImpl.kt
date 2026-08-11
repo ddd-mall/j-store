@@ -22,11 +22,14 @@ import com.jstore.accounting.domain.settlement.persistence.SettlementStatementPO
 import com.jstore.common.properties.Price
 import java.util.concurrent.atomic.AtomicLong
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class SettlementStatementRepositoryImpl(
     private val jpaRepository: SettlementStatementPOJpaRepository
 ) : SettlementStatementRepository {
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: SettlementStatement): SettlementStatement {
         val saved = jpaRepository.save(Converter.toPO(entity))
         return Converter.toDomain(saved)

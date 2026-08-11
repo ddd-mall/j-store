@@ -20,9 +20,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.annotation.CurrentUserId
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.spring.AuthenticationInterceptor
-import com.jstore.common.framework.event.outbox.DeadLetterRequeueResult
-import com.jstore.common.framework.event.outbox.OutboxDeadLetterOperations
-import com.jstore.common.framework.event.outbox.OutboxDeadLetterPage
+import com.jstore.outbox.spring.DeadLetterRequeueResult
+import com.jstore.outbox.spring.OutboxDeadLetterOperations
+import com.jstore.outbox.spring.OutboxDeadLetterPage
 import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId

@@ -1,0 +1,1 @@
+Tests run under JUnit Platform (`tasks.test { useJUnitPlatform() }`) and require an embedded PostgreSQL instance provided by `io.zonky.test:embedded-postgres:2.1.0`. The project uses Gradle version catalogs via `alias(libs.plugins.*)` and compiles against JVM 25.

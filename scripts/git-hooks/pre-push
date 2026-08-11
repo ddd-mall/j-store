@@ -1,0 +1,85 @@
+#!/bin/sh
+
+set -eu
+
+zero_sha=0000000000000000000000000000000000000000
+repository_root=$(git rev-parse --show-toplevel)
+git_directory=$(git rev-parse --git-dir)
+
+case "$git_directory" in
+    /*) ;;
+    *) git_directory="$repository_root/$git_directory" ;;
+esac
+
+raw_file="$git_directory/spotless-pre-push-raw.$$"
+target_file="$git_directory/spotless-pre-push-files.$$"
+
+cleanup() {
+    rm -f "$raw_file" "$target_file"
+}
+
+trap cleanup EXIT HUP INT TERM
+: > "$raw_file"
+
+empty_tree=$(git hash-object -t tree /dev/null)
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    local_sha=$(printf '%s' "$local_sha" | tr -d '\r')
+    remote_sha=$(printf '%s' "$remote_sha" | tr -d '\r')
+
+    if [ -z "${local_sha:-}" ] || [ "$local_sha" = "$zero_sha" ]; then
+        continue
+    fi
+
+    base_sha=$remote_sha
+    if [ "$remote_sha" = "$zero_sha" ] || ! git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+        base_sha=
+        if git rev-parse --verify --quiet refs/remotes/origin/master >/dev/null; then
+            base_sha=$(git merge-base "$local_sha" refs/remotes/origin/master || true)
+        fi
+        if [ -z "$base_sha" ]; then
+            base_sha=$empty_tree
+        fi
+    fi
+
+    git diff --name-only --diff-filter=ACMR "$base_sha" "$local_sha" -- \
+        '*.java' '*.kt' '*.gradle.kts' >> "$raw_file"
+done
+
+sort -u "$raw_file" | while IFS= read -r path; do
+    case "$path" in
+        *.java|*.kt|*.gradle.kts)
+            if [ -f "$repository_root/$path" ]; then
+                printf '%s\n' "$path"
+            fi
+            ;;
+    esac
+done > "$target_file"
+
+if [ ! -s "$target_file" ]; then
+    echo "No pushed Kotlin/Java files; skipping Spotless."
+    exit 0
+fi
+
+echo "Spotless will check only these pushed files:"
+sed 's/^/  /' "$target_file"
+
+if [ "${SPOTLESS_PRE_PUSH_DRY_RUN:-0}" = "1" ]; then
+    exit 0
+fi
+
+cd "$repository_root"
+if [ -n "${SPOTLESS_PRE_PUSH_GRADLE:-}" ]; then
+    gradle_executor=$SPOTLESS_PRE_PUSH_GRADLE
+elif [ -x ./gradlew ]; then
+    gradle_executor=./gradlew
+else
+    gradle_executor=./gradlew.bat
+fi
+
+if ! "$gradle_executor" spotlessCheck "-PspotlessFilesFile=$target_file"; then
+    echo >&2 "Spotless found problems in pushed files; running a targeted spotlessApply."
+    "$gradle_executor" spotlessApply "-PspotlessFilesFile=$target_file"
+    echo >&2 "Commit the formatting changes and push again."
+    exit 1
+fi

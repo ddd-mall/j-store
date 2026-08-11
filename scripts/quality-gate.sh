@@ -23,6 +23,8 @@ if command -v uv >/dev/null 2>&1; then
     python -m unittest discover -s tests/skills/spec-dev -p 'test_*.py'
   UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
     python -m unittest discover -s tests/governance -p 'test_*.py'
+  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
+    python -m unittest discover -s tests/tooling -p 'test_*.py'
 else
   "$python_bin" -c 'import jsonschema' 2>/dev/null || {
     printf '%s\n' 'FAIL: install requirements-quality.txt or install uv to run specification tests.' >&2
@@ -30,6 +32,7 @@ else
   }
   "$python_bin" -m unittest discover -s tests/skills/spec-dev -p 'test_*.py'
   "$python_bin" -m unittest discover -s tests/governance -p 'test_*.py'
+  "$python_bin" -m unittest discover -s tests/tooling -p 'test_*.py'
 fi
 
 printf '%s\n' '[3/6] Source ownership and formatting'

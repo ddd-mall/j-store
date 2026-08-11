@@ -16,9 +16,9 @@
  */
 package com.jstore.outbox.operations
 
-import com.jstore.common.framework.event.outbox.DeadLetterRequeueResult
-import com.jstore.common.framework.event.outbox.OutboxDeadLetterPage
-import com.jstore.common.framework.event.outbox.OutboxDeadLetterSummary
+import com.jstore.outbox.spring.DeadLetterRequeueResult
+import com.jstore.outbox.spring.OutboxDeadLetterPage
+import com.jstore.outbox.spring.OutboxDeadLetterSummary
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.Size
@@ -59,6 +59,9 @@ data class DeadLetterSummaryResponse(
     val updatedAt: Instant,
     val retryCount: Int,
     val lastError: String?,
+    val transportId: String,
+    val orderingKey: String,
+    val sequenceNo: Long,
 ) {
     companion object {
         fun from(entry: OutboxDeadLetterSummary) =
@@ -74,6 +77,9 @@ data class DeadLetterSummaryResponse(
                 updatedAt = entry.updatedAt,
                 retryCount = entry.retryCount,
                 lastError = entry.lastError,
+                transportId = entry.transportId,
+                orderingKey = entry.orderingKey,
+                sequenceNo = entry.sequenceNo,
             )
     }
 }

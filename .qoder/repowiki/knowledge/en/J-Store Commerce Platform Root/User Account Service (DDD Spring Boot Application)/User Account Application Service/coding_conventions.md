@@ -1,0 +1,4 @@
+- Application methods return `Result<T, BusinessError>` wrapping either `Success` or `Failure` instead of throwing exceptions, with error codes defined in `UserAccountErrors`.
+- Domain aggregate mutations are performed by calling methods on the loaded entity followed by `repository.save` and then `publishPendingEvents(domainEventPublisher)` to persist and emit events in one transaction-like step.
+- External capabilities (password hashing, token provider/store, phone verification, login guard, event publisher) are injected via constructor parameters so the service remains testable and decoupled from infrastructure.
+- Read adapters like `UserProfileReader` translate domain types into API DTOs at the boundary, keeping domain models out of the public contract.

@@ -16,7 +16,6 @@
  */
 package com.jstore.goods.domain.commodity
 
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.json.JsonUtils
 import com.jstore.goods.domain.commodity.persistence.SkuPO
 import com.jstore.goods.domain.commodity.persistence.SpuPO
@@ -47,7 +46,6 @@ class SpuPOSourceSpuIdRoundTripPropertyTest :
                 spuId = spuId,
                 skuName = sku.skuName,
                 attributes = JsonUtils.toJsonString(sku.attributes),
-                price = sku.price.toBigDecimal(),
                 merchantCode = sku.merchantCode,
                 barcode = sku.barcode,
             )
@@ -59,7 +57,6 @@ class SpuPOSourceSpuIdRoundTripPropertyTest :
                 id = SkuId(po.id),
                 skuName = po.skuName,
                 attributes = attrs,
-                price = Price.fromBigDecimal(po.price),
                 merchantCode = po.merchantCode,
                 barcode = po.barcode,
             )
@@ -110,7 +107,6 @@ class SpuPOSourceSpuIdRoundTripPropertyTest :
                     id = SkuId(skuIdVal),
                     skuName = skuName,
                     attributes = attrs,
-                    price = Price.ofFen(priceFen),
                 )
             }
 
@@ -123,8 +119,8 @@ class SpuPOSourceSpuIdRoundTripPropertyTest :
         val statusArb: Arb<CommodityStatus> =
             Arb.of(
                 CommodityStatus.DRAFT,
-                CommodityStatus.OFF_SALE,
-                CommodityStatus.ON_SALE,
+                CommodityStatus.ARCHIVED,
+                CommodityStatus.PUBLISHED,
             )
 
         val spuArb: Arb<Spu> =

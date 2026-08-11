@@ -12,7 +12,7 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
-    api(project(":j-store-goods"))
+    api(project(":j-store-goods-domain"))
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.data.commons)
@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
 
     runtimeOnly(libs.postgresql)
     testImplementation(libs.kotlin.test)

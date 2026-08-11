@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/j-store-logo-dark.svg">
+    <img src="assets/j-store-logo.svg" alt="J-Store logo" width="160">
+  </picture>
+</p>
+
 # j-store
 
 j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring Data JPA、PostgreSQL 和 Redis。项目结构、模块边界与测试入口见 [`docs/project-overview.md`](docs/project-overview.md)。
@@ -11,13 +18,15 @@ Java、Kotlin 和 Gradle Kotlin DSL 代码统一由 Spotless 格式化：Java �
 ./gradlew spotlessCheck
 ```
 
-如需启用仓库提供的 pre-push hook，可执行：
+如需启用仓库提供的 Spotless Git hooks，可执行：
 
 ```bash
-./gradlew spotlessInstallGitPrePushHook
+./gradlew installSpotlessGitHooks
 ```
 
-hook 会在推送前检查格式；发现问题时会自动格式化并终止本次推送，确认并提交格式化结果后再重新推送。
+`pre-commit` hook 只格式化已暂存的 Kotlin、Java 与 Gradle Kotlin 文件，并将格式化结果重新暂存到当前 commit。如果目标文件同时包含未暂存修改，hook 会终止提交，避免意外提交这些修改。
+
+`pre-push` hook 保留为后备检查，只检查本次待推送提交中新增或修改的目标文件；纯文档或其他非源码操作会跳过 Spotless。完整仓库检查仍可通过 `./gradlew spotlessCheck` 执行。
 
 Spotless 同时检查所有 Java、Kotlin 源码的 Apache-2.0 许可证声明。新增源码缺少声明时，运行
 `spotlessApply` 会根据 [`config/spotless/license-header.txt`](config/spotless/license-header.txt) 自动补充。
@@ -49,6 +58,32 @@ docker compose --env-file .env -f docker-compose.postgres.yml ps
 
 运行 Spring Boot local profile 前，将 `.env` 中对应的 `JSTORE_*` 变量导入启动进程。IDE 用户可在本地 Run Configuration 中配置；不要把值写入受版本控制的 properties 文件。
 
+模块化单体默认使用进程内用户资料查询，不开放内部 HTTP 端点：
+
+```properties
+jstore.user-query.mode=local
+jstore.user-query.server.enabled=false
+```
+
+拆分为微服务时，User 服务启用内部查询端点：
+
+```properties
+jstore.user-query.server.enabled=true
+jstore.user-query.server.token=${JSTORE_USER_QUERY_TOKEN}
+```
+
+Order、Shop 等消费服务切换为远程客户端：
+
+```properties
+jstore.user-query.mode=remote
+jstore.user-query.remote.base-url=${JSTORE_USER_SERVICE_URL}
+jstore.user-query.remote.token=${JSTORE_USER_QUERY_TOKEN}
+jstore.user-query.remote.connect-timeout=2s
+jstore.user-query.remote.read-timeout=3s
+```
+
+`JSTORE_USER_QUERY_TOKEN` 必须是至少 32 字符的独立随机凭证，不得提交到仓库。生产集群还应使用 mTLS、NetworkPolicy 或服务网格策略限制内部端点的网络访问。
+
 停止服务：
 
 ```bash
@@ -73,7 +108,7 @@ docker compose --env-file .env -f docker-compose.postgres.yml down -v
 
 ```bash
 ./gradlew :j-store-order:test
-./gradlew :j-store-goods:test
+./gradlew :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
 ```
 
 ## 安全提示

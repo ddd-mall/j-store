@@ -1,0 +1,1 @@
+Tests run under JUnit Platform (`useJUnitPlatform()`) and require an embedded PostgreSQL instance provided by the `io.zonky.test:embedded-postgres` dependency; no external DB setup is needed for tests.

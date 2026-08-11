@@ -1,0 +1,1 @@
+Application-layer orchestration that exposes stable OrderUseCase and AfterSaleUseCase ports, coordinates domain aggregates through repositories, enforces idempotency, and adapts external integration events into use-case calls.

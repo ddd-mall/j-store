@@ -16,10 +16,10 @@
  */
 package com.jstore.order.domain.order
 
-import com.jstore.common.framework.Page
-import com.jstore.common.framework.SortedPage
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.properties.Price
+import com.jstore.common.query.Page
+import com.jstore.common.query.SortedPage
 import com.jstore.order.domain.order.persistence.OrderItemPO
 import com.jstore.order.domain.order.persistence.OrderPO
 import com.jstore.order.domain.order.persistence.OrderPOJpaRepository
@@ -27,15 +27,19 @@ import com.jstore.order.domain.order.persistence.RecipientInfoPO
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : OrderRepository {
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun add(order: Order) {
         val po = Converter.toPO(order)
         jpaRepository.save(po)
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: Order): Order {
         val po = Converter.toPO(entity)
         val saved = jpaRepository.save(po)
@@ -55,9 +59,9 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
             PageRequest.of(currentPage - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime"))
         val page = jpaRepository.findByBuyerUid(uid, pageable)
         return SortedPage(
-            current = currentPage,
-            size = page.totalElements.toInt(),
-            record = page.content.map { Converter.toDomain(it) },
+            currentPage = currentPage,
+            totalElements = page.totalElements.toInt(),
+            records = page.content.map { Converter.toDomain(it) },
         )
     }
 
@@ -74,6 +78,8 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                     districtCode = si.shippingAddress.getLeafCode(),
                     shippingAddress = si.shippingAddress,
                     detailAddress = si.shippingDetailAddress,
+                    postalCode = si.postalCode,
+                    customsFields = si.customsFields.ifEmpty { null },
                 )
             return OrderPO(
                 id = order.id.value,
@@ -85,6 +91,11 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 tradeStatus = order.tradeStatus,
                 paymentStatus = order.paymentStatus,
                 fulfillmentStatus = order.fulfillmentStatus,
+                commitmentStatus = order.commitmentStatus,
+                saleAuthorizationIds =
+                    order.saleAuthorizations.joinToString(";") {
+                        "${it.authorizationId}|${it.offerId}|${it.expiresAt.toEpochMilli()}"
+                    },
                 currency = order.amountSnapshot.currency,
                 itemsSubtotal = order.amountSnapshot.itemsSubtotal.toBigDecimal(),
                 discountAmount = order.amountSnapshot.discountAmount.toBigDecimal(),
@@ -119,6 +130,11 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
             return OrderItemPO(
                 id = item.id.value,
                 orderId = orderId,
+                offerId = item.offerId,
+                storeId = item.storeId,
+                offerVersion = item.offerVersion,
+                fulfillmentNodeId = item.fulfillmentNodeId,
+                channelId = item.channelId,
                 skuId = item.skuId,
                 spuId = item.spuId,
                 goodsName = item.goodsName,
@@ -152,6 +168,8 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                     contractInfo = contractInfo,
                     shippingAddress = address,
                     shippingDetailAddress = recipientInfoPo.detailAddress,
+                    postalCode = recipientInfoPo.postalCode,
+                    customsFields = recipientInfoPo.customsFields ?: emptyMap(),
                 )
 
             return OrderImpl(
@@ -168,6 +186,21 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 _tradeStatus = po.tradeStatus,
                 _paymentStatus = po.paymentStatus,
                 _fulfillmentStatus = po.fulfillmentStatus,
+                _commitmentStatus = po.commitmentStatus,
+                _saleAuthorizations =
+                    po.saleAuthorizationIds
+                        .split(';')
+                        .filter(String::isNotBlank)
+                        .map {
+                            val parts = it.split('|')
+                            require(parts.size == 3)
+                            SaleAuthorizationRef(
+                                parts[0],
+                                parts[1].toLong(),
+                                java.time.Instant.ofEpochMilli(parts[2].toLong()),
+                            )
+                        }
+                        .toMutableList(),
                 amountSnapshot =
                     OrderAmountSnapshot(
                         currency = po.currency,
@@ -204,6 +237,13 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 id = OrderItemId(po.id),
                 skuId = po.skuId,
                 spuId = po.spuId,
+                // Rows written before the Offer boundary was introduced have no offer columns.
+                // The migration backfills them; these fallbacks also keep history readers safe.
+                offerId = po.offerId.takeIf { it > 0 } ?: po.skuId,
+                storeId = po.storeId.takeIf { it > 0 } ?: 1,
+                offerVersion = po.offerVersion.coerceAtLeast(1),
+                fulfillmentNodeId = po.fulfillmentNodeId,
+                channelId = po.channelId,
                 goodsName = po.goodsName,
                 skuDescription = po.skuDescription,
                 quantity = po.quantity,

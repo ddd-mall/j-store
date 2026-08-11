@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: accounting_infrastructure
-title: Accounting Infrastructure — JPA Persistence Layer
-scope:
-    - j-store-accounting-infrastructure/
-source_files: []
-depends_on: []
-related_to:
-    - path: infrastructure

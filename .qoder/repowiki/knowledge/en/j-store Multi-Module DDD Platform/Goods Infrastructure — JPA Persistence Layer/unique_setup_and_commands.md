@@ -1,1 +1,0 @@
-Tests run via Gradle's `test` task which uses JUnit Platform; property-based tests rely on `kotest.property` generators. The module targets JVM 25 via `kotlin.jvmToolchain(25)` in `build.gradle.kts`. No special bootstrap scripts are present — standard Gradle `./gradlew test` or `./gradlew build` applies.

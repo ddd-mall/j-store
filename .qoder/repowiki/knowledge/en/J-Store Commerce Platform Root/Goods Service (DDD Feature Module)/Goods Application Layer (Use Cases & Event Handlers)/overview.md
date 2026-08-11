@@ -1,0 +1,1 @@
+Application-layer orchestration for the Goods domain, exposing Commodity and Inventory use cases plus integration event handlers that translate external commands into domain operations.

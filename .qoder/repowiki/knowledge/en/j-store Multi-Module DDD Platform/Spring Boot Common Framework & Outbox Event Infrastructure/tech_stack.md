@@ -1,1 +1,0 @@
-Kotlin with Spring Boot (via `kotlin.plugin.spring`), Spring Data JPA for persistence, Micrometer for metrics, Jackson for event serialization, Seata for distributed transactions, FastExcel for XLSX processing, Kotest + JUnit 5 for testing, and Embedded PostgreSQL for integration tests.

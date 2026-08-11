@@ -16,17 +16,19 @@
  */
 package com.jstore.goods.domain.commodity
 
-import com.jstore.common.properties.Price
 import com.jstore.common.utils.json.JsonUtils
 import com.jstore.goods.domain.commodity.persistence.SpuSnapshotPO
 import com.jstore.goods.domain.commodity.persistence.SpuSnapshotPOJpaRepository
 import com.jstore.goods.domain.commodity.snapshot.*
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepository) :
     SpuSnapshotRepository {
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: SpuSnapshot): SpuSnapshot {
         val po = Converter.toPO(entity)
         jpaRepository.save(po)
@@ -70,7 +72,6 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
                 "skuId" to sku.skuId.value,
                 "skuName" to sku.skuName,
                 "attributes" to sku.attributes.map { mapOf("key" to it.key, "value" to it.value) },
-                "price" to sku.price.fen,
                 "merchantCode" to sku.merchantCode,
                 "barcode" to sku.barcode,
             )
@@ -95,14 +96,12 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
             val skuId = (map["skuId"] as Number).toLong()
             val skuName = map["skuName"] as String
             val attrList = map["attributes"] as List<Map<String, String>>
-            val price = (map["price"] as Number).toLong()
             val merchantCode = map["merchantCode"] as? String
             val barcode = map["barcode"] as? String
             return SkuSnapshot(
                 skuId = SkuId(skuId),
                 skuName = skuName,
                 attributes = attrList.map { Attribute(it["key"]!!, it["value"]!!) },
-                price = Price.ofFen(price),
                 merchantCode = merchantCode,
                 barcode = barcode,
             )

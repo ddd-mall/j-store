@@ -1,1 +1,0 @@
-Centralized documentation for the j-store project covering DDD design templates, agent prompts, requirement specs, Spring Modulith guides, and cross-context design artifacts organized by topic.

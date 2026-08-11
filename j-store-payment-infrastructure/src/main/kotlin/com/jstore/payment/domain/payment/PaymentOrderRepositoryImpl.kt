@@ -22,10 +22,13 @@ import com.jstore.payment.domain.payment.persistence.PaymentOrderPOJpaRepository
 import com.jstore.payment.domain.payment.persistence.PaymentRefundItemPO
 import com.jstore.payment.domain.payment.persistence.PaymentRefundPO
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class PaymentOrderRepositoryImpl(private val jpaRepository: PaymentOrderPOJpaRepository) :
     PaymentOrderRepository {
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: PaymentOrder): PaymentOrder =
         toDomain(jpaRepository.save(toPO(entity)))
 

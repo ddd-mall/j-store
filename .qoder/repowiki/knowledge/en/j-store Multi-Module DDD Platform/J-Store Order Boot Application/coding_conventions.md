@@ -1,6 +1,0 @@
-- Each domain module exposes a `*BootConfiguration.kt` class annotated with `@Configuration` that declares all beans via `@Bean` functions rather than constructor injection annotations, making wiring explicit and easy to override in tests.
-- Domain factories (e.g., `OrderFactoryImpl`, `SpuFactoryImpl`, `UserAccountFactoryImpl`) are constructed with a shared `SnowFlakSequence` bean injected at configuration time instead of inline instantiation.
-- Cross-context integration is expressed through ACL interfaces (e.g., `GoodsService`, `AfterSaleMerchantResolver`) implemented in the boot layer and wired in the corresponding `*BootConfiguration`.
-- Configuration properties are declared as data classes annotated with `@EnableConfigurationProperties` (e.g., `OrderMerchantProperties`) and consumed via constructor parameters in `@Bean` methods.
-- Database changes follow Flyway conventions with versioned migration files under `db/migration/` named `V<YYYYMMDD>__<description>.sql`, plus an initial seed script under `db/init/`.
-- Tests are written in Kotlin under `src/test/kotlin` mirroring the main package structure and rely on `@SpringBootTest` with embedded Postgres rather than external test containers.

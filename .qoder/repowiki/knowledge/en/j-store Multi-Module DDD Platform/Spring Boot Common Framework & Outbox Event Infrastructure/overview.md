@@ -1,1 +1,0 @@
-Spring Boot integration layer providing a domain event bus with listener registration, an outbox pattern implementation for reliable async event publishing, and a geo-address service proxy with Chinese address support.

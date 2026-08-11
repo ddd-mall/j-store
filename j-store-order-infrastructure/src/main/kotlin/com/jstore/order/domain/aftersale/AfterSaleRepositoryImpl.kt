@@ -17,42 +17,25 @@
 package com.jstore.order.domain.aftersale
 
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.*
 import com.jstore.order.domain.aftersale.persistence.*
 import com.jstore.order.domain.order.*
-import java.util.LinkedList
-import org.springframework.dao.DataIntegrityViolationException
-import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Repository
-import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.support.TransactionTemplate
 
 @Repository
 class AfterSaleRepositoryImpl(
     private val roots: AfterSalePOJpaRepository,
     private val capacities: AfterSaleCapacityPOJpaRepository,
     private val receipts: AfterSaleCommandReceiptPOJpaRepository,
-    private val publisher: DomainEventPublisher,
     private val sequence: SnowFlakSequence,
-    transactionManager: PlatformTransactionManager,
 ) : AfterSaleRepository {
-    private val transaction = TransactionTemplate(transactionManager)
-    private val receiptRecovery =
-        TransactionTemplate(transactionManager).apply {
-            propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
-            isReadOnly = true
-        }
-
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: AfterSale): AfterSale {
-        val saved = roots.save(toPO(entity)).let(::toDomain)
-        publish(entity)
-        return saved
+        return roots.save(toPO(entity)).let(::toDomain)
     }
 
     override fun findById(id: AfterSaleId) = roots.findById(id.value).orElse(null)?.let(::toDomain)
@@ -73,154 +56,147 @@ class AfterSaleRepositoryImpl(
             )
         }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun createWithAllocation(
         afterSale: AfterSale,
         ceilings: List<RefundCapacityCeiling>,
         receipt: AfterSaleCommandReceipt,
-    ): Result<AfterSale, BusinessError> =
-        execute(receipt) {
-            val itemIds = afterSale.items.map { it.orderItemId.value }.sorted()
-            if (ceilings.map { it.orderItemId.value }.sorted() != itemIds) {
-                abort(AfterSaleErrors.CONCURRENT_MODIFICATION)
-            }
-            ceilings
-                .sortedBy { it.orderItemId.value }
-                .forEach { ceiling ->
-                    capacities.initialize(
-                        ceiling.orderItemId.value,
-                        ceiling.orderId.value,
-                        ceiling.quantity,
-                        ceiling.amount.toBigDecimal(),
-                    )
-                }
-            val locked = capacities.lockAll(itemIds).associateBy { it.orderItemId }
-            ceilings.forEach { verifyCeiling(it, locked[it.orderItemId.value]) }
-            afterSale.items
-                .sortedBy { it.orderItemId.value }
-                .forEach { item ->
-                    val capacity =
-                        locked[item.orderItemId.value]
-                            ?: abort(AfterSaleErrors.CONCURRENT_MODIFICATION)
-                    val quantityAfter =
-                        capacity.requestedQuantity +
-                            capacity.approvedQuantity +
-                            item.requestedQuantity
-                    val amountAfter =
-                        capacity.requestedAmount +
-                            capacity.approvedAmount +
-                            item.requestedAmount.toBigDecimal()
-                    if (
-                        quantityAfter > capacity.quantityCeiling ||
-                            amountAfter > capacity.amountCeiling
-                    ) {
-                        abort(AfterSaleErrors.CAPACITY_EXCEEDED)
-                    }
-                    capacity.requestedQuantity += item.requestedQuantity
-                    capacity.requestedAmount += item.requestedAmount.toBigDecimal()
-                    capacities.save(capacity)
-                }
-            roots.save(toPO(afterSale))
-            saveReceipt(receipt)
-            publish(afterSale)
-            afterSale
+    ): Result<AfterSale, BusinessError> {
+        val itemIds = afterSale.items.map { it.orderItemId.value }.sorted()
+        if (ceilings.map { it.orderItemId.value }.sorted() != itemIds) {
+            return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
         }
+        val expectedByItem = ceilings.associateBy { it.orderItemId.value }
+        capacities.findAllById(itemIds).forEach { actual ->
+            val expected =
+                expectedByItem[actual.orderItemId]
+                    ?: return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+            verifyCeiling(expected, actual)?.let {
+                return Failure(it)
+            }
+        }
+        ceilings
+            .sortedBy { it.orderItemId.value }
+            .forEach { ceiling ->
+                capacities.initialize(
+                    ceiling.orderItemId.value,
+                    ceiling.orderId.value,
+                    ceiling.quantity,
+                    ceiling.amount.toBigDecimal(),
+                )
+            }
+        val locked = capacities.lockAll(itemIds).associateBy { it.orderItemId }
+        ceilings.forEach { expected ->
+            verifyCeiling(expected, locked[expected.orderItemId.value])?.let {
+                return Failure(it)
+            }
+        }
+        afterSale.items.forEach { item ->
+            val capacity =
+                locked[item.orderItemId.value]
+                    ?: return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+            val quantityAfter =
+                capacity.requestedQuantity + capacity.approvedQuantity + item.requestedQuantity
+            val amountAfter =
+                capacity.requestedAmount +
+                    capacity.approvedAmount +
+                    item.requestedAmount.toBigDecimal()
+            if (quantityAfter > capacity.quantityCeiling || amountAfter > capacity.amountCeiling) {
+                return Failure(AfterSaleErrors.CAPACITY_EXCEEDED)
+            }
+        }
+        claimReceipt(receipt)?.let {
+            return it
+        }
+        afterSale.items
+            .sortedBy { it.orderItemId.value }
+            .forEach { item ->
+                val capacity = requireNotNull(locked[item.orderItemId.value])
+                capacity.requestedQuantity += item.requestedQuantity
+                capacity.requestedAmount += item.requestedAmount.toBigDecimal()
+                capacities.save(capacity)
+            }
+        roots.save(toPO(afterSale))
+        return Success(afterSale)
+    }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun saveDecision(
         afterSale: AfterSale,
         allocationAction: AllocationAction,
         receipt: AfterSaleCommandReceipt,
-    ): Result<AfterSale, BusinessError> =
-        execute(receipt) {
-            val persisted =
-                roots.findByIdForUpdate(afterSale.id.value) ?: abort(AfterSaleErrors.NOT_FOUND)
-            if (persisted.version != afterSale.version)
-                abort(AfterSaleErrors.CONCURRENT_MODIFICATION)
-            val locked =
-                capacities
-                    .lockAll(afterSale.items.map { it.orderItemId.value }.sorted())
-                    .associateBy { it.orderItemId }
-            afterSale.items
-                .sortedBy { it.orderItemId.value }
-                .forEach { item ->
-                    val capacity =
-                        locked[item.orderItemId.value]
-                            ?: abort(AfterSaleErrors.CONCURRENT_MODIFICATION)
-                    if (
-                        capacity.requestedQuantity < item.requestedQuantity ||
-                            capacity.requestedAmount < item.requestedAmount.toBigDecimal()
-                    ) {
-                        abort(AfterSaleErrors.CONCURRENT_MODIFICATION)
-                    }
-                    capacity.requestedQuantity -= item.requestedQuantity
-                    capacity.requestedAmount -= item.requestedAmount.toBigDecimal()
-                    if (allocationAction == AllocationAction.APPROVE) {
-                        capacity.approvedQuantity += item.requestedQuantity
-                        capacity.approvedAmount += item.requestedAmount.toBigDecimal()
-                    }
-                    capacities.save(capacity)
-                }
-            roots.save(toPO(afterSale))
-            saveReceipt(receipt)
-            publish(afterSale)
-            afterSale
+    ): Result<AfterSale, BusinessError> {
+        val persisted =
+            roots.findByIdForUpdate(afterSale.id.value) ?: return Failure(AfterSaleErrors.NOT_FOUND)
+        if (persisted.version != afterSale.version)
+            return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+        val locked =
+            capacities.lockAll(afterSale.items.map { it.orderItemId.value }.sorted()).associateBy {
+                it.orderItemId
+            }
+        afterSale.items.forEach { item ->
+            val capacity =
+                locked[item.orderItemId.value]
+                    ?: return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+            if (
+                capacity.requestedQuantity < item.requestedQuantity ||
+                    capacity.requestedAmount < item.requestedAmount.toBigDecimal()
+            ) {
+                return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+            }
         }
+        claimReceipt(receipt)?.let {
+            return it
+        }
+        afterSale.items
+            .sortedBy { it.orderItemId.value }
+            .forEach { item ->
+                val capacity = requireNotNull(locked[item.orderItemId.value])
+                capacity.requestedQuantity -= item.requestedQuantity
+                capacity.requestedAmount -= item.requestedAmount.toBigDecimal()
+                if (allocationAction == AllocationAction.APPROVE) {
+                    capacity.approvedQuantity += item.requestedQuantity
+                    capacity.approvedAmount += item.requestedAmount.toBigDecimal()
+                }
+                capacities.save(capacity)
+            }
+        roots.save(toPO(afterSale))
+        return Success(afterSale)
+    }
 
-    private fun verifyCeiling(expected: RefundCapacityCeiling, actual: AfterSaleCapacityPO?) {
-        actual ?: abort(AfterSaleErrors.CONCURRENT_MODIFICATION)
-        if (
+    private fun verifyCeiling(
+        expected: RefundCapacityCeiling,
+        actual: AfterSaleCapacityPO?,
+    ): BusinessError? {
+        actual ?: return AfterSaleErrors.CONCURRENT_MODIFICATION
+        return if (
             actual.orderId != expected.orderId.value ||
                 actual.quantityCeiling != expected.quantity ||
                 actual.amountCeiling.compareTo(expected.amount.toBigDecimal()) != 0
         )
-            abort(AfterSaleErrors.CAPACITY_EXCEEDED)
+            AfterSaleErrors.CAPACITY_EXCEEDED
+        else null
     }
 
-    private fun execute(
-        receipt: AfterSaleCommandReceipt,
-        work: () -> AfterSale,
-    ): Result<AfterSale, BusinessError> =
-        try {
-            Success(requireNotNull(transaction.execute { work() }))
-        } catch (failure: RepositoryAbort) {
-            Failure(failure.error)
-        } catch (failure: DataIntegrityViolationException) {
-            recoverReceipt(receipt) ?: Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
-        } catch (failure: ObjectOptimisticLockingFailureException) {
-            Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
-        }
-
-    private fun recoverReceipt(
-        expected: AfterSaleCommandReceipt
-    ): Result<AfterSale, BusinessError>? = receiptRecovery.execute {
-        val actual =
-            findReceipt(expected.actorId, expected.type, expected.key) ?: return@execute null
-        if (actual.requestHash != expected.requestHash)
-            Failure(AfterSaleErrors.IDEMPOTENCY_CONFLICT)
-        else findById(actual.afterSaleId)?.let(::Success) ?: Failure(AfterSaleErrors.NOT_FOUND)
-    }
-
-    private fun abort(error: BusinessError): Nothing = throw RepositoryAbort(error)
-
-    private class RepositoryAbort(val error: BusinessError) : RuntimeException()
-
-    private fun saveReceipt(r: AfterSaleCommandReceipt) =
-        receipts.saveAndFlush(
-            AfterSaleCommandReceiptPO(
+    private fun claimReceipt(expected: AfterSaleCommandReceipt): Result<AfterSale, BusinessError>? {
+        val inserted =
+            receipts.tryInsert(
                 sequence.nextId(),
-                r.actorId,
-                r.type.name,
-                r.key,
-                r.requestHash,
-                r.afterSaleId.value,
-                r.resultStatus.name,
-                r.createdAt,
+                expected.actorId,
+                expected.type.name,
+                expected.key,
+                expected.requestHash,
+                expected.afterSaleId.value,
+                expected.resultStatus.name,
+                expected.createdAt,
             )
-        )
-
-    private fun publish(a: AfterSale) {
-        val events = a.domainEventQueue.toList()
-        events.forEach(publisher::publishEvent)
-        repeat(events.size) { a.domainEventQueue.poll() }
+        if (inserted == 1) return null
+        val actual =
+            findReceipt(expected.actorId, expected.type, expected.key)
+                ?: return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+        if (actual.requestHash != expected.requestHash)
+            return Failure(AfterSaleErrors.IDEMPOTENCY_CONFLICT)
+        return findById(actual.afterSaleId)?.let(::Success) ?: Failure(AfterSaleErrors.NOT_FOUND)
     }
 
     internal fun toPO(a: AfterSale) =
@@ -309,6 +285,5 @@ class AfterSaleRepositoryImpl(
             createTime = p.createTime,
             _updateTime = p.updateTime,
             version = p.version,
-            domainEventQueue = LinkedList(),
         )
 }

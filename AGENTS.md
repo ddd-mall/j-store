@@ -5,11 +5,37 @@
 ## 开始工作前
 
 1. 阅读 `docs/project-overview.md`。
-2. Kotlin/Gradle 变更阅读 `docs/steering/ddd-guidelines.md`。
-3. 新功能或行为修复阅读 `docs/steering/tdd-guidelines.md`。
-4. agent 编排、自动维护、评审、发布和生产相关工作阅读 `docs/steering/agent-governance.md`。
-5. 有适用规格时，以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为产品意图来源。
-6. 分支、PR、发布或热修复工作阅读 `docs/operations/branch-management.md`。
+2. 领域边界、聚合、状态机或跨上下文协作变更阅读 `docs/domain-modeling.md`。
+3. Kotlin/Gradle 变更阅读 `docs/steering/ddd-guidelines.md`。
+4. 新功能或行为修复阅读 `docs/steering/tdd-guidelines.md`。
+5. agent 编排、自动维护、评审、发布和生产相关工作阅读 `docs/steering/agent-governance.md`。
+6. 有适用规格时，以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为产品意图来源。
+7. 分支、PR、发布或热修复工作阅读 `docs/operations/branch-management.md`。
+
+## 长期记忆与文档索引
+
+本文件同时承担长期记忆索引职责，只存放统一指令、文档链接和简要说明；具体内容维护在 `docs/` 下的独立文档中。
+
+### 项目理解
+
+- [docs/project-overview.md](docs/project-overview.md)：项目技术栈、模块边界、分层结构、运行与测试入口概览。
+- [docs/domain-modeling.md](docs/domain-modeling.md)：当前有界上下文、权威事实、聚合一致性边界、交易 Saga 与长期模型维护规则。
+
+### 规范约束
+
+- [docs/steering/ddd-guidelines.md](docs/steering/ddd-guidelines.md)：DDD 架构、模块依赖、领域对象、仓储、应用服务、反腐层、基础设施与禁止模式。
+- [docs/steering/tdd-guidelines.md](docs/steering/tdd-guidelines.md)：TDD 工作流、测试分层、属性测试、集成测试、回归保护与执行建议。
+- [docs/steering/agent-memory-guidelines.md](docs/steering/agent-memory-guidelines.md)：Agent 长期记忆文件组织规则。
+- [docs/steering/agent-governance.md](docs/steering/agent-governance.md)：长期自动维护的角色、权限、需求漂移、质量门禁和人工审批规则。
+
+### 需求与规格
+
+- [docs/spec/](docs/spec/)：按功能拆分的需求、设计、任务和验证文档。
+- [docs/requirement/](docs/requirement/)：业务需求与模块规划材料。
+
+### 自动化运维
+
+- [docs/operations/agent-automation-runbook.md](docs/operations/agent-automation-runbook.md)：建议的周期任务、触发器、输出和人工接管规则。
 
 ## 权威来源与冲突处理
 

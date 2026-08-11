@@ -20,10 +20,13 @@ import com.jstore.accounting.domain.account.persistence.LedgerAccountPO
 import com.jstore.accounting.domain.account.persistence.LedgerAccountPOJpaRepository
 import java.time.Instant
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class LedgerAccountRepositoryImpl(private val jpaRepository: LedgerAccountPOJpaRepository) :
     LedgerAccountRepository {
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: LedgerAccount): LedgerAccount {
         val saved = jpaRepository.save(Converter.toPO(entity))
         return Converter.toDomain(saved)

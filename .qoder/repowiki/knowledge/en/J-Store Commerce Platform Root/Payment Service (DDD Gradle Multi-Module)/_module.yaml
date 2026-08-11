@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: payment_service
+title: Payment Service (DDD Gradle Multi-Module)
+scope:
+    - j-store-payment-application/
+    - j-store-payment-domain/
+    - j-store-payment-infrastructure/
+    - j-store-payment-boot/
+source_files: []
+depends_on: []
+related_to: []

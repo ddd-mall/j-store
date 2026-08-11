@@ -16,7 +16,6 @@
  */
 package com.jstore.order.acl
 
-import com.jstore.common.properties.Price
 import com.jstore.goods.api.GoodsSkuSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotQueryService
@@ -45,7 +44,6 @@ class GoodsServiceImplTest :
                                             skuName = "Black 128G",
                                             attributes =
                                                 listOf("color" to "black", "storage" to "128G"),
-                                            price = Price.ofFen(399900),
                                         )
                                     ),
                             )
@@ -74,7 +72,6 @@ class GoodsServiceImplTest :
                         spuName = "Phone",
                         skuName = "Black 128G",
                         attributes = listOf("color" to "black", "storage" to "128G"),
-                        price = Price.ofFen(399900),
                     ),
                     GoodsInfo(
                         id = GoodsId(spuId = 1001L, skuId = 2001L),
@@ -83,7 +80,6 @@ class GoodsServiceImplTest :
                         spuName = "Phone",
                         skuName = "Black 128G",
                         attributes = listOf("color" to "black", "storage" to "128G"),
-                        price = Price.ofFen(399900),
                     ),
                 )
         }

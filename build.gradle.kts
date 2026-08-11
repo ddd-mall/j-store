@@ -151,12 +151,40 @@ tasks.register("verifyLicenseArtifacts") {
     }
 }
 
+val prePushTargetFile = providers.gradleProperty("spotlessFilesFile").orNull
+val prePushTargets = prePushTargetFile?.let { path ->
+    val targetList = rootProject.file(path)
+    require(targetList.isFile) { "Spotless target list does not exist: $targetList" }
+    targetList.readLines().filter(String::isNotBlank).map(rootProject::file).filter(File::isFile)
+}
+
+val javaSourceTrees = allprojects.map { candidate ->
+    candidate.fileTree("src") {
+        include("**/*.java")
+        exclude("**/build/**", "**/bin/**")
+    }
+}
+val kotlinSourceTrees = allprojects.map { candidate ->
+    candidate.fileTree("src") {
+        include("**/*.kt")
+        exclude("**/build/**", "**/bin/**")
+    }
+}
+val kotlinGradleFiles =
+    files(
+        allprojects.map(Project::getBuildFile).filter {
+            it.isFile && it.name.endsWith(".gradle.kts")
+        },
+        rootProject.file("settings.gradle.kts"),
+    )
+
 spotless {
-    ratchetFrom("origin/master")
+    if (prePushTargets == null) {
+        ratchetFrom("origin/master")
+    }
 
     java {
-        target("**/src/**/*.java")
-        targetExclude("**/build/**", "**/bin/**")
+        target(prePushTargets?.filter { it.extension == "java" } ?: javaSourceTrees)
         licenseHeaderFile(rootProject.file("config/spotless/license-header.txt"))
         googleJavaFormat("1.35.0").aosp()
         trimTrailingWhitespace()
@@ -164,8 +192,7 @@ spotless {
     }
 
     kotlin {
-        target("**/src/**/*.kt")
-        targetExclude("**/build/**", "**/bin/**")
+        target(prePushTargets?.filter { it.extension == "kt" } ?: kotlinSourceTrees)
         licenseHeaderFile(rootProject.file("config/spotless/license-header.txt"))
         ktfmt("0.63").kotlinlangStyle()
         trimTrailingWhitespace()
@@ -180,12 +207,31 @@ spotless {
     }
 
     kotlinGradle {
-        target("*.gradle.kts", "**/*.gradle.kts")
-        targetExclude("**/build/**", "**/bin/**")
+        target(prePushTargets?.filter { it.name.endsWith(".gradle.kts") } ?: kotlinGradleFiles)
         ktfmt("0.63").kotlinlangStyle()
         trimTrailingWhitespace()
         endWithNewline()
     }
+}
+
+val installSpotlessGitHooks by
+    tasks.registering(Copy::class) {
+        group = "Spotless"
+        description = "Installs the repository's Spotless pre-commit and pre-push hooks."
+        from(layout.projectDirectory.dir("scripts/git-hooks")) {
+            include("pre-commit", "pre-push")
+        }
+        into(layout.projectDirectory.dir(".git/hooks"))
+        outputs.upToDateWhen { false }
+        doLast {
+            listOf("pre-commit", "pre-push").forEach { hook ->
+                layout.projectDirectory.file(".git/hooks/$hook").asFile.setExecutable(true)
+            }
+        }
+    }
+
+tasks.named("spotlessInstallGitPrePushHook") {
+    finalizedBy(installSpotlessGitHooks)
 }
 
 allprojects {

@@ -1,2 +1,5 @@
 # Reviewed documentation example. Keep this scoped to the exact historical finding.
 2d3475ab73a045b213dae4f47e824c0ace1d7481:.qoder/repowiki/en/content/API Documentation/After-Sale Processing API.md:generic-api-key:466
+# Reviewed SHA-256 ordering-key fixtures. Keep these scoped to their exact historical findings.
+549fa3eb4916f6edf1b4960f6df890221bbb9943:j-store-outbox-spring/src/test/kotlin/com/jstore/outbox/spring/messaging/OutboxIntegrationMessagePublisherTest.kt:generic-api-key:48
+3631568275bb82bd2358788723b95aaea0e05754:j-store-outbox-spring/src/test/kotlin/com/jstore/outbox/spring/OutboxEventPublisherTest.kt:generic-api-key:135

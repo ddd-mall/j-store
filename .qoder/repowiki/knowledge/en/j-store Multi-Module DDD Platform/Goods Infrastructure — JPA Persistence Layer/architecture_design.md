@@ -1,5 +1,0 @@
-This module is the infrastructure layer of a DDD application, implementing repository interfaces defined in the `:j-store-goods` domain project (declared as an `api` dependency). It follows a clear separation of concerns:
-- `persistence/` package holds JPA `@Entity` PO classes (`SpuPO`, `SkuPO`, `GoodsStylePO`, `SpuSnapshotPO`) with Spring Data `JpaRepository` interfaces that expose query methods by convention.
-- Top-level `*RepositoryImpl` classes (`SpuRepositoryImpl`, `GoodsStyleRepositoryImpl`, `SpuSnapshotRepositoryImpl`) implement the domain's repository contracts, delegating to the JPA repositories and performing bidirectional conversion via an internal `Converter` object.
-- Conversion logic serializes complex domain types (e.g., `Attribute`, `Price`, nested maps) through `JsonUtils` into JSON columns in the PO layer.
-- The module depends only on the domain project (`:j-store-goods`) and Spring Boot/JPA; it has no inbound dependencies from other layers beyond the domain interfaces.

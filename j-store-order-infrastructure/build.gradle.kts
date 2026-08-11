@@ -13,8 +13,10 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
-    api(project(":j-store-order"))
+    api(project(":j-store-order-domain"))
     implementation(project(":j-store-goods-api"))
+    implementation(project(":j-store-shop-api"))
+    implementation(project(":j-store-user-api"))
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)
@@ -25,6 +27,7 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.mockito.kotlin)
     testImplementation("io.zonky.test:embedded-postgres:2.1.0")
     //    annotationProcessor(libs.spring.boot.configuration.processor)
 

@@ -3,80 +3,116 @@ schema_version: 1
 locale: en-US
 branch: feature-initial
 nodes_managed: true
-exported_at: "2026-08-03T07:39:23Z"
+exported_at: "2026-08-07T03:10:35Z"
 modules:
     "":
-        dir_name: j-store Multi-Module DDD Platform
-        title: j-store Multi-Module DDD Platform
+        dir_name: J-Store Commerce Platform Root
+        title: J-Store Commerce Platform Root
         scope:
-            - README.md
-            - AGENT.md
-            - claude-workflow.md
-            - .gitignore
-            - .gitattributes
+            - AGENTS.md
+            - SECURITY.md
+            - settings.gradle.kts
             - build.gradle.kts
             - gradle.properties
-            - settings.gradle.kts
             - gradlew.bat
+            - qodana.yaml
+            - requirements-quality.txt
+            - requirements-security.txt
+            - claude-workflow.md
+            - .editorconfig
+            - .env.example
+            - .gitattributes
+            - .gitignore
+            - .gitleaksignore
+            - README.md
             - batch_insert_200k.sql
             - docker-compose.postgres.yml
             - gradlew
             - spec-workflow.skill
         source_files: []
         children:
-            - accounting_domain
-            - accounting_infrastructure
+            - accounting_service
             - authentication_sdk
             - common_core
             - common_spring
+            - docker_infra
             - docs
-            - goods_domain
-            - goods_infrastructure
-            - infrastructure
-            - j_store_boot
-            - order_domain
-            - order_infrastructure
-            - shop_domain
-            - user_domain
-            - user_infrastructure
+            - fulfillment_service
+            - goods_service
+            - inventory_service
+            - orchestration_boot
+            - order_service
+            - payment_service
+            - shop_service
+            - tests
+            - user_service
+            - warehouse_service
         depends_on: []
         related_to: []
-    accounting_domain:
-        dir_name: Accounting Domain & Application Services
-        title: Accounting Domain & Application Services
+    accounting_service:
+        dir_name: J-Store Accounting Service
+        title: J-Store Accounting Service
         scope:
-            - j-store-accounting/
+            - j-store-accounting-application/
+            - j-store-accounting-domain/
+            - j-store-accounting-infrastructure/
+            - j-store-accounting-boot/
+        source_files: []
+        children:
+            - accounting_service/accounting_application
+            - accounting_service/accounting_boot
+            - accounting_service/accounting_domain
+            - accounting_service/accounting_infrastructure
+        depends_on: []
+        related_to: []
+    accounting_service/accounting_application:
+        dir_name: Accounting Application Services & Event Handlers
+        title: Accounting Application Services & Event Handlers
+        scope:
+            - j-store-accounting-application/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: goods_domain
-            - path: j_store_boot
-            - path: order_domain
-            - path: order_infrastructure
-    accounting_infrastructure:
-        dir_name: Accounting Infrastructure — JPA Persistence Layer
-        title: Accounting Infrastructure — JPA Persistence Layer
+        related_to: []
+    accounting_service/accounting_boot:
+        dir_name: Accounting Service Bootstrapping & Spring Configuration
+        title: Accounting Service Bootstrapping & Spring Configuration
+        scope:
+            - j-store-accounting-boot/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    accounting_service/accounting_domain:
+        dir_name: Accounting Domain Model & Application Services
+        title: Accounting Domain Model & Application Services
+        scope:
+            - j-store-accounting-domain/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    accounting_service/accounting_infrastructure:
+        dir_name: Accounting JPA Infrastructure & Repository Implementations
+        title: Accounting JPA Infrastructure & Repository Implementations
         scope:
             - j-store-accounting-infrastructure/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: infrastructure
+        related_to: []
     authentication_sdk:
-        dir_name: Spring Authentication SDK
-        title: Spring Authentication SDK
+        dir_name: Spring Authentication SDK (Bearer Token Interceptor & Context)
+        title: Spring Authentication SDK (Bearer Token Interceptor & Context)
         scope:
             - j-store-authentication-spring-sdk/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: user_infrastructure
+        related_to: []
     common_core:
-        dir_name: Common Core Library (Domain Framework, Events, Geo, Logging & Utilities)
-        title: Common Core Library (Domain Framework, Events, Geo, Logging & Utilities)
+        dir_name: J-Store Common Core Library
+        title: J-Store Common Core Library
         scope:
             - j-store-common-core/
         source_files: []
@@ -84,119 +120,350 @@ modules:
         depends_on: []
         related_to: []
     common_spring:
-        dir_name: Spring Boot Common Framework & Outbox Event Infrastructure
-        title: Spring Boot Common Framework & Outbox Event Infrastructure
+        dir_name: Spring Boot Auto-Configuration for Outbox, Domain & Integration Messaging
+        title: Spring Boot Auto-Configuration for Outbox, Domain & Integration Messaging
         scope:
             - j-store-common-spring/
         source_files: []
         children: []
         depends_on: []
         related_to: []
+    docker_infra:
+        dir_name: PostgreSQL Docker Image & Schema Initialization
+        title: PostgreSQL Docker Image & Schema Initialization
+        scope:
+            - docker/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
     docs:
-        dir_name: Project Documentation & DDD Design Artifacts
-        title: Project Documentation & DDD Design Artifacts
+        dir_name: Project Documentation & Spec Templates
+        title: Project Documentation & Spec Templates
         scope:
             - docs/
         source_files: []
         children: []
         depends_on: []
         related_to: []
-    goods_domain:
-        dir_name: Goods Domain — Commodity & Inventory Bounded Context
-        title: Goods Domain — Commodity & Inventory Bounded Context
+    fulfillment_service:
+        dir_name: Fulfillment Service (Four-Layer DDD Gradle Modules)
+        title: Fulfillment Service (Four-Layer DDD Gradle Modules)
         scope:
-            - j-store-goods/
+            - j-store-fulfillment-application/
+            - j-store-fulfillment-domain/
+            - j-store-fulfillment-infrastructure/
+            - j-store-fulfillment-boot/
+        source_files: []
+        children:
+            - fulfillment_service/application_layer
+            - fulfillment_service/boot_layer
+            - fulfillment_service/domain_layer
+            - fulfillment_service/infrastructure_layer
+        depends_on: []
+        related_to: []
+    fulfillment_service/application_layer:
+        dir_name: Fulfillment Application Layer & Use Cases
+        title: Fulfillment Application Layer & Use Cases
+        scope:
+            - j-store-fulfillment-application/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: accounting_domain
-            - path: j_store_boot
-            - path: order_domain
-            - path: order_infrastructure
-    goods_infrastructure:
-        dir_name: Goods Infrastructure — JPA Persistence Layer
-        title: Goods Infrastructure — JPA Persistence Layer
+        related_to: []
+    fulfillment_service/boot_layer:
+        dir_name: Fulfillment Boot Layer (Spring Boot Application Entry)
+        title: Fulfillment Boot Layer (Spring Boot Application Entry)
+        scope:
+            - j-store-fulfillment-boot/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    fulfillment_service/domain_layer:
+        dir_name: Fulfillment Order Domain Model
+        title: Fulfillment Order Domain Model
+        scope:
+            - j-store-fulfillment-domain/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    fulfillment_service/infrastructure_layer:
+        dir_name: Fulfillment Order JPA Persistence Layer
+        title: Fulfillment Order JPA Persistence Layer
+        scope:
+            - j-store-fulfillment-infrastructure/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    goods_service:
+        dir_name: Goods Service (DDD Feature Module)
+        title: Goods Service (DDD Feature Module)
+        scope:
+            - j-store-goods-application/
+            - j-store-goods-domain/
+            - j-store-goods-infrastructure/
+            - j-store-goods-boot/
+            - j-store-goods-api/
+        source_files: []
+        children:
+            - goods_service/goods_application
+            - goods_service/goods_boot
+            - goods_service/goods_domain
+            - goods_service/goods_infrastructure
+        depends_on: []
+        related_to: []
+    goods_service/goods_application:
+        dir_name: Goods Application Layer (Use Cases & Event Handlers)
+        title: Goods Application Layer (Use Cases & Event Handlers)
+        scope:
+            - j-store-goods-application/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    goods_service/goods_boot:
+        dir_name: Goods Boot & Transactional Use-Case Wiring
+        title: Goods Boot & Transactional Use-Case Wiring
+        scope:
+            - j-store-goods-boot/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    goods_service/goods_domain:
+        dir_name: Goods Domain Model (Commodity & Inventory)
+        title: Goods Domain Model (Commodity & Inventory)
+        scope:
+            - j-store-goods-domain/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    goods_service/goods_infrastructure:
+        dir_name: Goods Domain Persistence Infrastructure (JPA Repository Implementations)
+        title: Goods Domain Persistence Infrastructure (JPA Repository Implementations)
         scope:
             - j-store-goods-infrastructure/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: infrastructure
-    infrastructure:
-        dir_name: PostgreSQL Database Initialization & Schema Migrations
-        title: PostgreSQL Database Initialization & Schema Migrations
+        related_to: []
+    inventory_service:
+        dir_name: Inventory Service (Stock Position & Reservation)
+        title: Inventory Service (Stock Position & Reservation)
         scope:
-            - docker/
+            - j-store-inventory-domain/
+            - j-store-inventory-application/
+            - j-store-inventory-infrastructure/
+            - j-store-inventory-boot/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: accounting_infrastructure
-            - path: goods_infrastructure
-    j_store_boot:
+        related_to: []
+    orchestration_boot:
         dir_name: J-Store Order Boot Application
         title: J-Store Order Boot Application
         scope:
             - j-store-boot/
+            - j-store-admin-boot/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: accounting_domain
-            - path: goods_domain
-            - path: user_domain
-    order_domain:
-        dir_name: Order & After-Sale Domain Module
-        title: Order & After-Sale Domain Module
+        related_to: []
+    order_service:
+        dir_name: Order Bounded Context Microservice
+        title: Order Bounded Context Microservice
         scope:
-            - j-store-order/
+            - j-store-order-application/
+            - j-store-order-domain/
+            - j-store-order-infrastructure/
+            - j-store-order-boot/
+        source_files: []
+        children:
+            - order_service/application_layer
+            - order_service/boot_layer
+            - order_service/domain_layer
+            - order_service/infrastructure_layer
+        depends_on: []
+        related_to: []
+    order_service/application_layer:
+        dir_name: Order & After-Sale Application Layer
+        title: Order & After-Sale Application Layer
+        scope:
+            - j-store-order-application/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: accounting_domain
-            - path: goods_domain
-    order_infrastructure:
-        dir_name: Order Infrastructure & Persistence Layer
-        title: Order Infrastructure & Persistence Layer
+        related_to: []
+    order_service/boot_layer:
+        dir_name: Order Service Boot & HTTP Layer
+        title: Order Service Boot & HTTP Layer
+        scope:
+            - j-store-order-boot/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    order_service/domain_layer:
+        dir_name: Order & AfterSale Domain Layer
+        title: Order & AfterSale Domain Layer
+        scope:
+            - j-store-order-domain/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    order_service/infrastructure_layer:
+        dir_name: Order Service Infrastructure Layer (Persistence & External Adapters)
+        title: Order Service Infrastructure Layer (Persistence & External Adapters)
         scope:
             - j-store-order-infrastructure/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: accounting_domain
-            - path: goods_domain
-            - path: user_infrastructure
-    shop_domain:
-        dir_name: Shop Domain Module
-        title: Shop Domain Module
+        related_to: []
+    payment_service:
+        dir_name: Payment Service (DDD Gradle Multi-Module)
+        title: Payment Service (DDD Gradle Multi-Module)
         scope:
-            - j-store-shop/
+            - j-store-payment-application/
+            - j-store-payment-domain/
+            - j-store-payment-infrastructure/
+            - j-store-payment-boot/
+        source_files: []
+        children:
+            - payment_service/payment_application
+            - payment_service/payment_boot
+            - payment_service/payment_domain
+            - payment_service/payment_infrastructure
+        depends_on: []
+        related_to: []
+    payment_service/payment_application:
+        dir_name: Payment Application Orchestration Layer
+        title: Payment Application Orchestration Layer
+        scope:
+            - j-store-payment-application/
         source_files: []
         children: []
         depends_on: []
         related_to: []
-    user_domain:
-        dir_name: User Account Domain & Application Service
-        title: User Account Domain & Application Service
+    payment_service/payment_boot:
+        dir_name: Payment Bootstrapping & HTTP Entry Point
+        title: Payment Bootstrapping & HTTP Entry Point
         scope:
-            - j-store-user/
+            - j-store-payment-boot/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: j_store_boot
-    user_infrastructure:
-        dir_name: User Account Infrastructure & Persistence
-        title: User Account Infrastructure & Persistence
+        related_to: []
+    payment_service/payment_domain:
+        dir_name: Payment Order Domain Model
+        title: Payment Order Domain Model
+        scope:
+            - j-store-payment-domain/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    payment_service/payment_infrastructure:
+        dir_name: Payment Order JPA Persistence Layer
+        title: Payment Order JPA Persistence Layer
+        scope:
+            - j-store-payment-infrastructure/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    shop_service:
+        dir_name: Shop Domain Persistence Infrastructure
+        title: Shop Domain Persistence Infrastructure
+        scope:
+            - j-store-shop-infrastructure/
+        source_files: []
+        children:
+            - shop_service/shop_api
+        depends_on: []
+        related_to: []
+    shop_service/shop_api:
+        dir_name: Shop Offer Snapshot Query API
+        title: Shop Offer Snapshot Query API
+        scope:
+            - j-store-shop-api/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    tests:
+        dir_name: Repository Governance & Tooling Integration Tests
+        title: Repository Governance & Tooling Integration Tests
+        scope:
+            - tests/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    user_service:
+        dir_name: User Account Service (DDD Spring Boot Application)
+        title: User Account Service (DDD Spring Boot Application)
+        scope:
+            - j-store-user-application/
+            - j-store-user-domain/
+            - j-store-user-infrastructure/
+            - j-store-user-boot/
+        source_files: []
+        children:
+            - user_service/user_application
+            - user_service/user_boot
+            - user_service/user_domain
+            - user_service/user_infrastructure
+        depends_on: []
+        related_to: []
+    user_service/user_application:
+        dir_name: User Account Application Service
+        title: User Account Application Service
+        scope:
+            - j-store-user-application/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    user_service/user_boot:
+        dir_name: User Service Spring Boot Application
+        title: User Service Spring Boot Application
+        scope:
+            - j-store-user-boot/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    user_service/user_domain:
+        dir_name: User Account Domain Model
+        title: User Account Domain Model
+        scope:
+            - j-store-user-domain/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    user_service/user_infrastructure:
+        dir_name: User Account Infrastructure (Persistence, JWT & Redis Security)
+        title: User Account Infrastructure (Persistence, JWT & Redis Security)
         scope:
             - j-store-user-infrastructure/
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: authentication_sdk
-            - path: order_infrastructure
+        related_to: []
+    warehouse_service:
+        dir_name: Warehouse Service & Infrastructure Layer
+        title: Warehouse Service & Infrastructure Layer
+        scope:
+            - j-store-warehouse/
+            - j-store-warehouse-infrastructure/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
