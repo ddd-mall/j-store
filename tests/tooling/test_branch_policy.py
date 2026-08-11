@@ -74,7 +74,7 @@ class BranchPolicyTest(unittest.TestCase):
     def test_governance_branch_can_bootstrap_master_once(self) -> None:
         result = self.run_policy(
             "master",
-            "codex/branch-management-governance",
+            "codex/branch-management-bootstrap",
             "ci(governance): initialize branch management",
             bootstrap=True,
         )

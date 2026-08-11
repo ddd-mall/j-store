@@ -19,7 +19,7 @@ SHORT_LIVED_PREFIXES = (
     "revert",
     "codex",
 )
-BOOTSTRAP_BRANCH = "codex/branch-management-governance"
+BOOTSTRAP_BRANCH = "codex/branch-management-bootstrap"
 SLUG = r"[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*"
 SHORT_LIVED_BRANCH = re.compile(
     rf"^(?:{'|'.join(SHORT_LIVED_PREFIXES)})/{SLUG}$"

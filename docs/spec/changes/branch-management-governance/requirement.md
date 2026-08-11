@@ -15,7 +15,7 @@ j-store 需要在现有质量、安全、许可证和发布证据工作流之上
 - BMG-R7：版本标签只允许在 `master` 上人工创建；发布证据工作流不自动创建 Release、部署或迁移数据库。
 - BMG-R8：流程必须提供分支创建、PR、发布、热修复、回灌、回滚、清理和远端启用的操作手册。
 - BMG-R9：仓库只有一位可用审查者时不设置无法满足的审批数量，但仍要求 PR、required checks、review thread 解决和人工合并；具备独立审查者后将审批数量提升为 1。
-- BMG-R10：首次将治理工作流合入尚无分支策略的 `master` 时，只允许 `codex/branch-management-governance` 作为一次性 bootstrap 来源；策略落地后该例外必须自动失效。
+- BMG-R10：首次将治理工作流合入尚无分支策略的 `master` 时，只允许 `codex/branch-management-bootstrap` 作为一次性 bootstrap 来源；策略落地后该例外必须自动失效。
 
 ## 非目标
 

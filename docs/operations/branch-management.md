@@ -83,7 +83,7 @@ flowchart LR
 
 ## 首次启用与迁移
 
-1. 首次使用固定的 `codex/branch-management-governance -> master` bootstrap PR 落地策略脚本、工作流和文档；Branch Policy 仅在基准分支尚无检查器时允许这个来源，合并后例外自动失效。不要提前把尚未产生的 check context 设为 required。
+1. 首次使用固定的 `codex/branch-management-bootstrap -> master` bootstrap PR 落地策略脚本、工作流和文档；Branch Policy 仅在基准分支尚无检查器时允许这个来源，合并后例外自动失效。不要提前把尚未产生的 check context 设为 required。
 2. 仓库管理员确认集成基线后创建远端 `develop`；若现有开发候选领先于 `master`，通过一次有完整审查证据的 bootstrap PR 纳入，而不是直接把临时分支声明为长期分支。
 3. 分别创建正常和故意违规的 draft PR，确认六个 check context 名称稳定且分支方向校验符合预期。
 4. 按 [.github/rulesets/README.md](../../.github/rulesets/README.md) 应用 `develop.json` 和 `master.json`。这是远端权限变更，必须由管理员明确执行。
