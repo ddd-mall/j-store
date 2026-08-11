@@ -11,10 +11,11 @@ j-store 需要在现有质量、安全、许可证和发布证据工作流之上
 - BMG-R3：`master` 只接收符合 SemVer 命名的 `release/v*` 和 `hotfix/v*` PR；发布或热修复完成后必须通过 `master -> develop` PR 回灌。
 - BMG-R4：进入 `master` 或 `develop` 的 PR 必须通过分支方向、分支命名和 Conventional Commits 风格标题校验。
 - BMG-R5：现有质量、安全、漏洞、许可证和密钥扫描同时覆盖 `master` 与 `develop`，并作为 ruleset required checks。
-- BMG-R6：Dependabot PR 默认以 `develop` 为目标，自动化和 agent 不得自动合并或绕过 required checks。
+- BMG-R6：仓库不得配置定时依赖升级 PR。自动化只能报告可用版本；依赖升级必须由人工明确发起、逐项评估兼容性并通过 required checks。
 - BMG-R7：版本标签只允许在 `master` 上人工创建；发布证据工作流不自动创建 Release、部署或迁移数据库。
 - BMG-R8：流程必须提供分支创建、PR、发布、热修复、回灌、回滚、清理和远端启用的操作手册。
 - BMG-R9：仓库只有一位可用审查者时不设置无法满足的审批数量，但仍要求 PR、required checks、review thread 解决和人工合并；具备独立审查者后将审批数量提升为 1。
+- BMG-R10：首次将治理工作流合入尚无分支策略的 `master` 时，只允许 `codex/branch-management-governance` 作为一次性 bootstrap 来源；策略落地后该例外必须自动失效。
 
 ## 非目标
 

@@ -14,7 +14,7 @@ PASS（仓库内范围）。需求、设计、实现和本地验证证据一致�
 | Agent 职责分离 | PASS | 六个 `.codex/agents/*.toml`；合同测试验证全部加载权威治理文档 |
 | 确定性质量门禁 | PASS | `./scripts/quality-gate.sh` 退出码 0；规格测试 28 个、治理测试 2 个通过，Gradle build successful |
 | 凭据与本地配置 | PASS | 已知密码、JWT 值和私网地址不再存在于当前工作树；`.env` 被忽略，示例只含占位值 |
-| CI 与供应链 | PASS（静态） | workflow/dependabot YAML 可解析；Semgrep CE、OSV Scanner、Gitleaks CLI 和依赖 PR 已配置 |
+| CI 与供应链 | PASS（静态，历史） | 当时 workflow/dependabot YAML 可解析；Dependabot 后续因兼容性风险被移除，当前只保留 Semgrep CE、OSV Scanner、Gitleaks CLI 和人工依赖升级流程 |
 | 兼容性 | PASS | 文档和 Docker 运行时与 Kotlin 2.3、Java 25、Spring Boot 3.5.16 构建一致 |
 
 ### 审查中修复的问题

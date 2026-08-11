@@ -55,7 +55,6 @@ required_files=(
   .github/rulesets/master.json
   .github/rulesets/develop.json
   .github/rulesets/README.md
-  .github/dependabot.yml
   scripts/check-branch-policy.py
   .codex/agents/maintenance-orchestrator.toml
   .codex/agents/product-steward.toml
@@ -137,9 +136,8 @@ for ruleset in .github/rulesets/master.json .github/rulesets/develop.json; do
   done
 done
 
-target_branch_count="$(grep -c 'target-branch: develop' .github/dependabot.yml || true)"
-if [[ "$target_branch_count" -ne 2 ]]; then
-  fail "all Dependabot ecosystems must target develop"
+if [[ -e .github/dependabot.yml ]]; then
+  fail "Dependabot must remain disabled; dependency upgrades require explicit compatibility review"
 fi
 
 if ((failures > 0)); then

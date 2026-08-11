@@ -8,7 +8,7 @@
 flowchart LR
     D["develop<br/>下一版本集成"]
     M["master<br/>可发布历史"]
-    S["feature / fix / refactor / docs / codex / dependabot"]
+    S["feature / fix / refactor / docs / codex / chore"]
     R["release/vX.Y.Z"]
     H["hotfix/vX.Y.Z"]
     T["签名标签 vX.Y.Z<br/>Release Evidence"]
@@ -34,7 +34,7 @@ flowchart LR
 | `docs/<slug>`、`test/<slug>`、`build/<slug>`、`ci/<slug>`、`chore/<slug>` | `develop` | `develop` | 配套维护 |
 | `revert/<slug>` | `develop` | `develop` | 撤销尚未发布的集成变更 |
 | `codex/<slug>` | `develop` | `develop` | Codex 隔离候选；遵守相同审查规则 |
-| `dependabot/**` | GitHub | `develop` | 自动依赖候选，不自动合并 |
+| `chore/dependency-<slug>` | `develop` | `develop` | 人工发起的单依赖升级，必须附兼容性评估 |
 | `release/vX.Y.Z[-prerelease]` | `develop` | `master` | 短期发布候选，只允许版本元数据和发布修复 |
 | `hotfix/vX.Y.Z[-prerelease]` | `master` | `master` | 短期生产紧急修复 |
 
@@ -79,14 +79,14 @@ flowchart LR
 - 当前只有一位明确所有者时，ruleset 的审批数为 0，但合并仍必须由所有者人工执行。增加独立维护者后，将两个 ruleset 的审批数提升为 1，并要求最后推送者之外的批准。
 - 日常分支使用 squash merge；`release/*`、`hotfix/*`、`master -> develop` 使用 merge commit；禁用 rebase merge。
 - draft 或 14 天无更新的 PR 由维护者确认继续、拆分或关闭。合并/关闭后删除短分支；30 天无 PR 的远端短分支经所有者确认后清理。
-- Dependabot 和 agent 只能创建 PR。依赖 major、RC、里程碑版本及高风险变更必须单独评估。
+- 不启用 Dependabot 或其它定时依赖升级 PR。自动化只能报告新版本；依赖升级由人工明确发起，每个 PR 只处理一个依赖或一个不可拆分 BOM，说明兼容矩阵、迁移影响和回滚方式。major、RC、里程碑版本及高风险变更必须形成独立规格与兼容性评估。
 
 ## 首次启用与迁移
 
-1. 先落地策略脚本、工作流和文档，不立即把尚未产生的 check context 设为 required。
+1. 首次使用固定的 `codex/branch-management-governance -> master` bootstrap PR 落地策略脚本、工作流和文档；Branch Policy 仅在基准分支尚无检查器时允许这个来源，合并后例外自动失效。不要提前把尚未产生的 check context 设为 required。
 2. 仓库管理员确认集成基线后创建远端 `develop`；若现有开发候选领先于 `master`，通过一次有完整审查证据的 bootstrap PR 纳入，而不是直接把临时分支声明为长期分支。
 3. 分别创建正常和故意违规的 draft PR，确认六个 check context 名称稳定且分支方向校验符合预期。
 4. 按 [.github/rulesets/README.md](../../.github/rulesets/README.md) 应用 `develop.json` 和 `master.json`。这是远端权限变更，必须由管理员明确执行。
-5. 将默认 PR 目标改为 `develop`，确认 Dependabot 以 `develop` 为目标；迁移未合并工作后删除 `feature-initial` 等旧集成分支。
+5. 将默认 PR 目标改为 `develop`，确认仓库没有 `.github/dependabot.yml` 或其它自动依赖升级任务；迁移未合并工作后删除 `feature-initial` 等旧集成分支。
 
 远端启用后，每季度和每次 required check 更名时复核 ruleset；不得仅修改仓库内 JSON 就声称保护已生效。

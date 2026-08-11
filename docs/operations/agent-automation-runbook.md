@@ -6,7 +6,7 @@
 
 | 周期 | 角色 | 任务 | 允许输出 |
 |---|---|---|---|
-| 每个工作日 | Maintenance Orchestrator | 分诊新 issue、失败 CI 和 Dependabot PR，去重并路由 | issue 评论、任务状态，不改业务代码 |
+| 每个工作日 | Maintenance Orchestrator | 分诊新 issue、失败 CI 和人工提出的依赖升级请求，去重并路由 | issue 评论、任务状态，不改业务代码或自动创建升级 PR |
 | 每周 | Product Steward | 抽查活跃规格与最近合并变更的验收覆盖和术语漂移 | drift report 或 issue |
 | 每月 | Product Steward | 对照 `docs/domain-modeling.md` 审查最近领域代码、迁移和集成契约的权威事实、聚合边界、状态机与上下文关系漂移 | domain-model drift report 或 issue，不自动改写产品意图 |
 | 每周 | Security & Supply-chain | 汇总 Semgrep、OSV Scanner、Gitleaks 和预发布依赖 | 风险报告、独立修复 PR |
