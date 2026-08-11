@@ -41,6 +41,7 @@ open class OutboxIntegrationMessagePublisher(
 
     @Transactional(propagation = Propagation.MANDATORY)
     override fun publish(message: IntegrationMessage) {
+        val metadata = message.metadata
         val annotation =
             message::class.java.getAnnotation(IntegrationMessageType::class.java)
                 ?: throw IllegalArgumentException(
@@ -48,16 +49,17 @@ open class OutboxIntegrationMessagePublisher(
                         message::class.java.name
                 )
         require(
-            annotation.name == message.messageName && annotation.version == message.messageVersion
+            annotation.name == metadata.messageName && annotation.version == metadata.messageVersion
         ) {
             "IntegrationMessage metadata must match @IntegrationMessageType: " +
                 "class=${message::class.java.name}"
         }
         require(
-            typeRegistry.resolve(message.messageName, message.messageVersion) == message::class.java
+            typeRegistry.resolve(metadata.messageName, metadata.messageVersion) ==
+                message::class.java
         ) {
             "IntegrationMessage class must match the registered message type: " +
-                "${message.messageName}@${message.messageVersion}"
+                "${metadata.messageName}@${metadata.messageVersion}"
         }
 
         val now = Instant.now()
@@ -71,21 +73,21 @@ open class OutboxIntegrationMessagePublisher(
 
         publicationPlanner.targets().forEach { transportId ->
             val orderingKey =
-                OutboxOrderingKeys.integration(message.destination, message.partitionKey)
+                OutboxOrderingKeys.integration(message.destination, metadata.partitionKey)
             repository.save(
                 OutboxEntry(
                     id = sequence.nextId().toString(),
-                    eventId = message.messageId,
-                    eventType = message.messageName,
+                    eventId = metadata.messageId,
+                    eventType = metadata.messageName,
                     eventClassName = message::class.java.name,
-                    eventVersion = message.messageVersion,
+                    eventVersion = metadata.messageVersion,
                     payload = payload,
                     aggregateType = message.destination,
-                    aggregateId = message.partitionKey,
+                    aggregateId = metadata.partitionKey,
                     status = OutboxEntryStatus.PENDING,
                     createdAt = now,
                     updatedAt = now,
-                    occurredAt = message.occurredAt,
+                    occurredAt = metadata.occurredAt,
                     messageKind = kind,
                     deliveryTarget =
                         if (transportId == OutboxTransportIds.LOCAL) {
@@ -95,10 +97,10 @@ open class OutboxIntegrationMessagePublisher(
                         },
                     transportId = transportId,
                     destination = message.destination,
-                    partitionKey = message.partitionKey,
-                    correlationId = message.correlationId,
-                    causationId = message.causationId,
-                    tenantId = message.tenantId,
+                    partitionKey = metadata.partitionKey,
+                    correlationId = metadata.correlationId,
+                    causationId = metadata.causationId,
+                    tenantId = metadata.tenantId,
                     orderingKey = orderingKey,
                     sequenceNo = streamSequenceAllocator.nextSequence(transportId, orderingKey),
                 )
