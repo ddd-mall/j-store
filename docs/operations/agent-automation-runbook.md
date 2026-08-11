@@ -6,7 +6,7 @@
 
 | 周期 | 角色 | 任务 | 允许输出 |
 |---|---|---|---|
-| 每个工作日 | Maintenance Orchestrator | 分诊新 issue、失败 CI 和 Dependabot PR，去重并路由 | issue 评论、任务状态，不改业务代码 |
+| 每个工作日 | Maintenance Orchestrator | 分诊新 issue、失败 CI 和人工提出的依赖升级请求，去重并路由 | issue 评论、任务状态，不改业务代码或自动创建升级 PR |
 | 每周 | Product Steward | 抽查活跃规格与最近合并变更的验收覆盖和术语漂移 | drift report 或 issue |
 | 每周 | Security & Supply-chain | 汇总 Semgrep、OSV Scanner、Gitleaks 和预发布依赖 | 风险报告、独立修复 PR |
 | 每周 | Quality Gate | 分析定时全量测试失败，归类环境/实现/规格问题 | 失败报告，不修改候选 |
@@ -33,8 +33,8 @@ deduplicate existing issues/PRs, and stop when human approval is required.
 
 ## 外部启用检查单
 
-1. 在 GitHub 启用 branch protection/ruleset，并把 `Quality Gate / quality`、`Security Gate / static-analysis`、`Security Gate / dependency-vulnerability-scan`、`Security Gate / dependency-license-audit`、`Security Gate / secret-scan` 设为 required checks。
-2. 禁止 force push 和直接提交主分支。仓库存在独立审查者时再要求 CODEOWNERS 审查；只有一位所有者时仍必须通过 PR 和 required checks，由所有者人工决定是否合并。
+1. 按 [branch-management.md](branch-management.md) 的启用顺序保护 `master` 和 `develop`，并把 `Branch Policy / branch-policy`、`Quality Gate / quality`、`Security Gate / static-analysis`、`Security Gate / dependency-vulnerability-scan`、`Security Gate / dependency-license-audit`、`Security Gate / secret-scan` 设为 required checks。
+2. 禁止 force push、删除和直接提交两个长期分支。仓库存在独立审查者时再要求至少一人审批；只有一位所有者时仍必须通过 PR 和 required checks，由所有者人工决定是否合并。
 3. 为调度器使用最小权限 GitHub App；默认只授予 contents read、issues write、pull requests write。
 4. 不向 agent 提供生产密钥；运行信号必须先脱敏。
 5. 先观察两周只读报告，再逐步允许创建修复 PR。

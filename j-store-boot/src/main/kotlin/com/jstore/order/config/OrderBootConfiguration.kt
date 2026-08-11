@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.com.jstore.order.config
+package com.jstore.order.config
 
 import com.jstore.common.framework.event.*
 import com.jstore.common.geo.GeoAddressService
