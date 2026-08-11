@@ -26,6 +26,7 @@ import com.jstore.outbox.OutboxDeliveryTarget
 import com.jstore.outbox.OutboxEntryRepository
 import com.jstore.outbox.OutboxMessageKind
 import com.jstore.outbox.OutboxStreamSequenceAllocator
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -34,6 +35,7 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 
 class OutboxIntegrationMessagePublisherTest :
@@ -79,20 +81,47 @@ class OutboxIntegrationMessagePublisherTest :
             captor.allValues.map { it.orderingKey }.distinct() shouldBe listOf(orderingKey)
             captor.allValues.map { it.sequenceNo }.shouldContainExactly(11, 7)
         }
+
+        test("blank optional metadata is rejected before publication") {
+            val repository = mock<OutboxEntryRepository>()
+            val serializer = mock<IntegrationMessageSerializer>()
+            val sequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+            val registry = InMemoryIntegrationMessageTypeRegistry()
+            registry.register("test.inventory.reserve", 1, TestReserveInventoryCommand::class.java)
+            val publisher =
+                OutboxIntegrationMessagePublisher(
+                    repository,
+                    serializer,
+                    SnowFlakSequence(1, 1),
+                    registry,
+                    IntegrationTransportPlanner(listOf("local")),
+                    sequenceAllocator,
+                )
+
+            listOf(
+                    message.copy(causationId = " "),
+                    message.copy(tenantId = " "),
+                )
+                .forEach { invalidMessage ->
+                    shouldThrow<IllegalArgumentException> { publisher.publish(invalidMessage) }
+                }
+
+            verifyNoInteractions(repository, serializer, sequenceAllocator)
+        }
     })
 
 @IntegrationMessageType(name = "test.inventory.reserve", version = 1)
 data class TestReserveInventoryCommand(
     val orderId: Long,
     override val occurredAt: Instant,
+    override val causationId: String = "order-created-42",
+    override val tenantId: String = "merchant-7",
 ) : IntegrationCommand {
     override val messageId: String = "message-1"
     override val messageName: String = "test.inventory.reserve"
     override val messageVersion: Int = 1
     override val partitionKey: String = orderId.toString()
     override val correlationId: String = "checkout-42"
-    override val causationId: String = "order-created-42"
-    override val tenantId: String = "merchant-7"
     override val destination: String = "inventory.commands"
 }
 
