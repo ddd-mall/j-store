@@ -15,7 +15,7 @@
    git push origin v1.0.0
    ```
 
-3. 标签推送触发 `Release Evidence` workflow。workflow 不发布，只上传证据 artifact，并为源码归档和构建产物生成 GitHub provenance attestation。
+3. 标签推送触发 `Release Evidence` workflow。workflow 先确认标签提交属于远端 `master` 历史，再上传证据 artifact，并为源码归档和构建产物生成 GitHub provenance attestation；它不执行发布。
 4. 本地复现时，在干净工作区运行：
 
    ```bash

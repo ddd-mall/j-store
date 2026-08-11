@@ -24,8 +24,9 @@ Licensee 1.14.1 应用于所有 JVM 子项目。允许列表只包含经确认�
 
 ## GitHub 保护
 
-`.github/rulesets/master.json` 是可审计的期望配置，并通过 GitHub Rulesets API 应用。规则要求 PR、解决 review thread、禁止删除和非快进推送，并要求以下 check context：
+`.github/rulesets/master.json` 与 `.github/rulesets/develop.json` 是可审计的期望配置，并通过 GitHub Settings 或 Rulesets API 应用。规则要求 PR、解决 review thread、禁止删除和非快进推送，并要求以下 check context：
 
+- `branch-policy`
 - `quality`
 - `static-analysis`
 - `dependency-vulnerability-scan`
