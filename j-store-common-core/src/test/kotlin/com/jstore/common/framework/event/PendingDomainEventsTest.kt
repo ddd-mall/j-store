@@ -70,6 +70,65 @@ class PendingDomainEventsTest {
         assertEquals(emptyList(), aggregate.pendingDomainEvents())
     }
 
+    @Test
+    fun `pending events are submitted as one ordered batch`() {
+        val events = listOf(TestEvent(), TestEvent())
+        val aggregate = TestAggregate().apply { events.forEach(::record) }
+        val publishedBatches = mutableListOf<List<DomainEvent>>()
+        val publisher =
+            object : DomainEventPublisher {
+                override fun publishEvent(event: DomainEvent) =
+                    error("single-event publication must not be used")
+
+                override fun publishEvents(events: List<DomainEvent>) {
+                    publishedBatches += events.toList()
+                }
+            }
+
+        aggregate.publishPendingEvents(publisher)
+
+        assertEquals(listOf<List<DomainEvent>>(events), publishedBatches)
+        assertEquals(emptyList(), aggregate.pendingDomainEvents())
+    }
+
+    @Test
+    fun `batch failure preserves every event in the stable snapshot`() {
+        val events = listOf(TestEvent(), TestEvent())
+        val aggregate = TestAggregate().apply { events.forEach(::record) }
+        val publisher =
+            object : DomainEventPublisher {
+                override fun publishEvent(event: DomainEvent) = Unit
+
+                override fun publishEvents(events: List<DomainEvent>) {
+                    throw IllegalStateException("outbox batch unavailable")
+                }
+            }
+
+        assertFailsWith<IllegalStateException> { aggregate.publishPendingEvents(publisher) }
+
+        assertEquals(events, aggregate.pendingDomainEvents())
+    }
+
+    @Test
+    fun `events recorded during batch publication remain pending`() {
+        val initial = TestEvent()
+        val recordedDuringPublication = TestEvent()
+        val aggregate = TestAggregate().apply { record(initial) }
+        val publisher =
+            object : DomainEventPublisher {
+                override fun publishEvent(event: DomainEvent) = Unit
+
+                override fun publishEvents(events: List<DomainEvent>) {
+                    assertEquals(listOf(initial), events)
+                    aggregate.record(recordedDuringPublication)
+                }
+            }
+
+        aggregate.publishPendingEvents(publisher)
+
+        assertEquals(listOf(recordedDuringPublication), aggregate.pendingDomainEvents())
+    }
+
     private data object TestId : Identifier
 
     private class TestEvent(

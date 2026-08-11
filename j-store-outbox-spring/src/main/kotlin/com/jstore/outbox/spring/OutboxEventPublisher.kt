@@ -17,6 +17,7 @@
 package com.jstore.outbox.spring
 
 import com.jstore.common.framework.event.DomainEvent
+import com.jstore.common.framework.event.DomainEventMetadata
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.DomainEventType
 import com.jstore.common.persistent.SnowFlakSequence
@@ -40,7 +41,48 @@ open class OutboxEventPublisher(
 
     @Transactional(propagation = Propagation.MANDATORY)
     override fun publishEvent(event: DomainEvent) {
+        publishEvents(listOf(event))
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    override fun publishEvents(events: List<DomainEvent>) {
+        if (events.isEmpty()) return
+
+        val preparedEvents = events.map(::prepare)
+        val streams = preparedEvents.map {
+            OutboxStreamKey(OutboxTransportIds.LOCAL_DOMAIN, it.orderingKey)
+        }
+        val sequenceNumbers = streamSequenceAllocator.nextSequences(streams)
+        check(sequenceNumbers.size == preparedEvents.size) {
+            "Outbox stream allocator returned ${sequenceNumbers.size} sequences " +
+                "for ${preparedEvents.size} domain events"
+        }
         val now = Instant.now()
+        val entries =
+            preparedEvents.zip(sequenceNumbers) { prepared, sequenceNumber ->
+                val metadata = prepared.metadata
+                OutboxEntry(
+                    id = snowFlakSequence.nextId().toString(),
+                    eventId = metadata.eventId,
+                    eventType = metadata.eventName,
+                    eventClassName = prepared.eventClassName,
+                    eventVersion = metadata.eventVersion,
+                    payload = prepared.payload,
+                    aggregateType = metadata.aggregateType,
+                    aggregateId = metadata.aggregateId,
+                    status = OutboxEntryStatus.PENDING,
+                    createdAt = now,
+                    updatedAt = now,
+                    occurredAt = metadata.occurredAt,
+                    retryCount = 0,
+                    orderingKey = prepared.orderingKey,
+                    sequenceNo = sequenceNumber,
+                )
+            }
+        outboxEntryRepository.saveAll(entries)
+    }
+
+    private fun prepare(event: DomainEvent): PreparedDomainEvent {
         val metadata = event.metadata
         val eventType =
             event::class.java.getAnnotation(DomainEventType::class.java)
@@ -61,29 +103,18 @@ open class OutboxEventPublisher(
                 "eventName=${metadata.eventName}, eventVersion=${metadata.eventVersion}, " +
                 "registeredClass=${registeredEventClass.name}, publishingClass=${event::class.java.name}"
         }
-        val entry =
-            OutboxEntry(
-                id = snowFlakSequence.nextId().toString(),
-                eventId = metadata.eventId,
-                eventType = metadata.eventName,
-                eventClassName = event::class.java.name,
-                eventVersion = metadata.eventVersion,
-                payload = eventSerializer.serialize(event),
-                aggregateType = metadata.aggregateType,
-                aggregateId = metadata.aggregateId,
-                status = OutboxEntryStatus.PENDING,
-                createdAt = now,
-                updatedAt = now,
-                occurredAt = metadata.occurredAt,
-                retryCount = 0,
-                orderingKey =
-                    OutboxOrderingKeys.domain(metadata.aggregateType, metadata.aggregateId),
-                sequenceNo =
-                    streamSequenceAllocator.nextSequence(
-                        OutboxTransportIds.LOCAL_DOMAIN,
-                        OutboxOrderingKeys.domain(metadata.aggregateType, metadata.aggregateId),
-                    ),
-            )
-        outboxEntryRepository.save(entry)
+        return PreparedDomainEvent(
+            metadata = metadata,
+            eventClassName = event::class.java.name,
+            payload = eventSerializer.serialize(event),
+            orderingKey = OutboxOrderingKeys.domain(metadata.aggregateType, metadata.aggregateId),
+        )
     }
+
+    private data class PreparedDomainEvent(
+        val metadata: DomainEventMetadata,
+        val eventClassName: String,
+        val payload: String,
+        val orderingKey: String,
+    )
 }

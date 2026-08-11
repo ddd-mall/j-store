@@ -27,6 +27,9 @@ interface OutboxEntryRepository {
 
     fun save(entry: OutboxEntry): OutboxEntry
 
+    /** Saves an ordered entry batch as one logical repository operation. */
+    fun saveAll(entries: List<OutboxEntry>): List<OutboxEntry> = entries.map(::save)
+
     fun claimPendingAndRetryable(
         maxRetryCount: Int,
         batchSize: Int,

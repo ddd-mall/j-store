@@ -23,4 +23,14 @@ package com.jstore.common.framework.event
  */
 interface DomainEventPublisher {
     fun publishEvent(event: DomainEvent)
+
+    /**
+     * Publishes an ordered event batch as one logical operation.
+     *
+     * Implementations may override this method to optimize transactional persistence. The default
+     * keeps existing single-event publishers source-compatible.
+     */
+    fun publishEvents(events: List<DomainEvent>) {
+        events.forEach(::publishEvent)
+    }
 }

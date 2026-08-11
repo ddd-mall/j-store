@@ -35,7 +35,7 @@ Redis 会话键为 `auth_session:{userId}:{sessionId}`，值只保存 Refresh To
 
 ## 事务边界
 
-数据库聚合和 Outbox 保持在用户 boot 的事务装饰器中。登录成功后才创建 Redis session；密码修改、禁用和强制下线仅在数据库事务提交后递增 session epoch。Redis 失败不得伪装成数据库原子成功，调用方收到失败并由审计/重试机制处理。
+数据库聚合和 Outbox 保持在用户 boot 的事务装饰器中。登录成功后才创建 Redis session。密码修改、禁用和强制下线在数据库提交前递增 session epoch；Redis 失败会使数据库事务回滚，避免账号状态已经改变而旧会话仍然有效。若 Redis 撤销成功后数据库提交失败，允许产生保守的额外下线，用户重新登录即可恢复，不回退已经推进的 session epoch。
 
 ## 回滚
 

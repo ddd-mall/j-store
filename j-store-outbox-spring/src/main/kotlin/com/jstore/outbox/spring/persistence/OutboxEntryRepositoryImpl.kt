@@ -35,6 +35,9 @@ open class OutboxEntryRepositoryImpl(
         return Converter.toDomain(saved)
     }
 
+    override fun saveAll(entries: List<OutboxEntry>): List<OutboxEntry> =
+        jpaRepository.saveAll(entries.map(Converter::toPO)).map(Converter::toDomain)
+
     @Transactional
     open override fun claimPendingAndRetryable(
         maxRetryCount: Int,

@@ -9,6 +9,7 @@
 - 用 `jstore.messaging.targets` 替换旧 mode 枚举；每个目标生成独立 Outbox 记录。
 - 新增 `transport_id` 数据迁移，历史目标回填后设为非空并建立 ready 索引。
 - 外部中间件通过 `IntegrationMessageTransport.transportId` 接入；核心未引入 Kafka/RabbitMQ 客户端。
+- 启动时同时校验配置目标和领域事件固定使用的 `local-domain` 通道均恰好存在一个，适配器不能通过保留 ID 引入重复路由。
 - 指标与关键日志按 `transportId` 区分目标。
 
 ## 验证结论

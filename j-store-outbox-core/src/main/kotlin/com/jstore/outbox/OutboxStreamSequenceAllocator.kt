@@ -16,7 +16,23 @@
  */
 package com.jstore.outbox
 
-/** Allocates a monotonic position in one transport-specific ordering stream. */
+data class OutboxStreamKey(val transportId: String, val orderingKey: String) {
+    init {
+        require(transportId.isNotBlank()) { "transportId must not be blank" }
+        require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
+    }
+}
+
+/** Allocates monotonic positions in transport-specific ordering streams. */
 fun interface OutboxStreamSequenceAllocator {
     fun nextSequence(transportId: String, orderingKey: String): Long
+
+    /**
+     * Allocates one position for every stream occurrence while preserving input order.
+     *
+     * Implementations may override this method to reserve consecutive ranges per unique stream.
+     */
+    fun nextSequences(streams: List<OutboxStreamKey>): List<Long> = streams.map {
+        nextSequence(it.transportId, it.orderingKey)
+    }
 }

@@ -161,6 +161,43 @@ class OutboxEntryRepositoryImplPostgresTest {
     }
 
     @Test
+    fun `batch stream sequence allocation reserves continuous ranges in input order`() {
+        val transactions = TransactionTemplate(transactionManager)
+        val orderStream = OutboxStreamKey("local-domain", "Order:batch")
+        val paymentStream = OutboxStreamKey("local-domain", "Payment:batch")
+
+        val allocated =
+            transactions.execute {
+                streamSequenceAllocator.nextSequences(
+                    listOf(orderStream, paymentStream, orderStream, orderStream, paymentStream)
+                )
+            }!!
+
+        assertEquals(listOf(1L, 1L, 2L, 3L, 2L), allocated)
+        assertEquals(
+            listOf(4L, 3L),
+            transactions.execute {
+                streamSequenceAllocator.nextSequences(listOf(orderStream, paymentStream))
+            }!!,
+        )
+    }
+
+    @Test
+    fun `batch save persists every entry in input order`() {
+        val entries =
+            listOf(
+                entry("batch-save-1", orderingKey = "Order:batch-save", sequenceNo = 1),
+                entry("batch-save-2", orderingKey = "Order:batch-save", sequenceNo = 2),
+            )
+
+        val saved =
+            TransactionTemplate(transactionManager).execute { repository.saveAll(entries) }!!
+
+        assertEquals(entries.map { it.id }, saved.map { it.id })
+        assertEquals(entries.map { it.id }.toSet(), jpaRepository.findAll().map { it.id }.toSet())
+    }
+
+    @Test
     fun `ordered consumption accepts only the next sequence and rolls back gaps`() {
         val transactions = TransactionTemplate(transactionManager)
         assertTrue(
@@ -341,6 +378,29 @@ class OutboxEntryRepositoryImplPostgresTest {
     }
 
     @Test
+    fun `concurrent batch sequence allocation reserves non-overlapping ranges`() {
+        val start = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(8)
+        val stream = OutboxStreamKey("kafka", "Order:concurrent-batch")
+        try {
+            val futures =
+                (1..8).map {
+                    pool.submit<List<Long>> {
+                        start.await()
+                        TransactionTemplate(transactionManager).execute {
+                            streamSequenceAllocator.nextSequences(listOf(stream, stream, stream))
+                        }!!
+                    }
+                }
+            start.countDown()
+
+            assertEquals((1L..24L).toList(), futures.flatMap { it.get() }.sorted())
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
     fun `rolled back sequence allocation is reusable by the next committed publication`() {
         runCatching {
             TransactionTemplate(transactionManager).executeWithoutResult {
@@ -358,6 +418,27 @@ class OutboxEntryRepositoryImplPostgresTest {
             }
 
         assertEquals(1L, committed!!)
+    }
+
+    @Test
+    fun `rolled back batch sequence range is reusable by the next publication`() {
+        val stream = OutboxStreamKey("kafka", "Order:batch-rollback")
+        runCatching {
+            TransactionTemplate(transactionManager).executeWithoutResult {
+                assertEquals(
+                    listOf(1L, 2L, 3L),
+                    streamSequenceAllocator.nextSequences(listOf(stream, stream, stream)),
+                )
+                error("rollback")
+            }
+        }
+
+        val committed =
+            TransactionTemplate(transactionManager).execute {
+                streamSequenceAllocator.nextSequences(listOf(stream, stream))
+            }
+
+        assertEquals(listOf(1L, 2L), committed!!)
     }
 
     @Test
