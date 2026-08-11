@@ -27,6 +27,7 @@ import com.jstore.user.service.RefreshTokenDigest
 import com.jstore.user.service.UserAccountUseCase
 import java.time.LocalDateTime
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import org.mockito.kotlin.*
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
@@ -67,7 +68,7 @@ class TransactionalUserAccountUseCaseTest {
     }
 
     @Test
-    fun `password change disable and force offline revoke all sessions after commit`() {
+    fun `password change disable and force offline revoke all sessions before commit`() {
         whenever(delegate.changePassword(userId, "old", "NewPass12")).thenReturn(Success(Unit))
         whenever(delegate.disable(userId)).thenReturn(Success(Unit))
         whenever(delegate.forceOffline(userId)).thenReturn(Success(Unit))
@@ -76,8 +77,28 @@ class TransactionalUserAccountUseCaseTest {
         subject().disable(userId)
         subject().forceOffline(userId)
 
-        verify(tokenStore, times(3)).revokeAllSessions(userId)
-        verify(transactionManager, times(3)).commit(transactionStatus)
+        inOrder(tokenStore, transactionManager) {
+            verify(tokenStore).revokeAllSessions(userId)
+            verify(transactionManager).commit(transactionStatus)
+            verify(tokenStore).revokeAllSessions(userId)
+            verify(transactionManager).commit(transactionStatus)
+            verify(tokenStore).revokeAllSessions(userId)
+            verify(transactionManager).commit(transactionStatus)
+        }
+    }
+
+    @Test
+    fun `session revocation failure rolls back password change`() {
+        whenever(delegate.changePassword(userId, "old", "NewPass12")).thenReturn(Success(Unit))
+        whenever(tokenStore.revokeAllSessions(userId))
+            .thenThrow(IllegalStateException("Redis unavailable"))
+
+        assertFailsWith<IllegalStateException> {
+            subject().changePassword(userId, "old", "NewPass12")
+        }
+
+        verify(transactionManager).rollback(transactionStatus)
+        verify(transactionManager, never()).commit(transactionStatus)
     }
 
     private fun subject() =

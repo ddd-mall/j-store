@@ -96,6 +96,13 @@ class OutboxAutoConfigurationTest :
                 }
         }
 
+        test("transport adapter cannot claim the reserved local-domain transport ID") {
+            contextRunner
+                .withUserConfiguration(ReservedDomainTransportConfig::class.java)
+                .withPropertyValues("jstore.outbox.enabled=true")
+                .run { context -> context.startupFailure.shouldNotBeNull() }
+        }
+
         test("enabled=false does not register OutboxAutoConfiguration beans") {
             contextRunner.withPropertyValues("jstore.outbox.enabled=false").run { context ->
                 context.containsBean("domainEventPublisher") shouldBe false
@@ -132,6 +139,17 @@ class OutboxAutoConfigurationTest :
         fun kafkaIntegrationMessageTransport(): IntegrationMessageTransport =
             object : IntegrationMessageTransport {
                 override val transportId: String = "kafka"
+
+                override fun publish(envelope: IntegrationMessageEnvelope) = Unit
+            }
+    }
+
+    @Configuration
+    class ReservedDomainTransportConfig {
+        @Bean
+        fun reservedDomainIntegrationMessageTransport(): IntegrationMessageTransport =
+            object : IntegrationMessageTransport {
+                override val transportId: String = "local-domain"
 
                 override fun publish(envelope: IntegrationMessageEnvelope) = Unit
             }

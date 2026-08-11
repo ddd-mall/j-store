@@ -16,7 +16,9 @@
  */
 package com.jstore.user.config
 
+import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.PhoneNumber
+import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.user.domain.useraccount.Nickname
 import com.jstore.user.domain.useraccount.PhoneVerificationProof
@@ -79,24 +81,30 @@ class TransactionalUserAccountUseCase(
     }
 
     override fun changePassword(userId: UserId, oldPassword: String, newPassword: String) =
-        tx { delegate.changePassword(userId, oldPassword, newPassword) }
-            .also { result -> if (result is Success) tokenStore.revokeAllSessions(userId) }
+        txAndRevokeAllSessions(userId) {
+            delegate.changePassword(userId, oldPassword, newPassword)
+        }
 
     override fun disable(userId: UserId) =
-        tx { delegate.disable(userId) }
-            .also { result ->
-                if (result is Success) tokenStore.revokeAllSessions(userId)
-            }
+        txAndRevokeAllSessions(userId) { delegate.disable(userId) }
 
     override fun enable(userId: UserId) = tx { delegate.enable(userId) }
 
     override fun forceOffline(userId: UserId) =
-        tx { delegate.forceOffline(userId) }
-            .also { result ->
-                if (result is Success) {
-                    tokenStore.revokeAllSessions(userId)
-                }
-            }
+        txAndRevokeAllSessions(userId) { delegate.forceOffline(userId) }
+
+    /**
+     * Revocation happens before the database commit so a Redis failure rolls back the account
+     * change. If the later database commit fails, the conservative result is an extra logout.
+     */
+    private fun <T> txAndRevokeAllSessions(
+        userId: UserId,
+        block: () -> Result<T, BusinessError>,
+    ): Result<T, BusinessError> = tx {
+        block().also { result ->
+            if (result is Success) tokenStore.revokeAllSessions(userId)
+        }
+    }
 
     private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 

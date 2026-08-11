@@ -6,7 +6,7 @@
 - 注册前必须完成手机号 challenge；Redis 仅保存 HMAC-SHA256，challenge 与手机号绑定、一次性消费、五分钟过期，并限制一分钟内重复发送。
 - 登录对不存在账号和密码错误返回同一错误，使用 Redis 共享十五分钟失败窗口；成功登录清除失败计数。
 - 每次登录创建独立 session。Refresh Token 仅以 SHA-256 摘要保存，rotation 由 Lua 原子比较替换，重放撤销该 session。
-- 密码修改、账号禁用和强制下线在数据库事务提交后递增 session epoch，使该用户全部 Access/Refresh Token 在下一次请求立即失效。
+- 密码修改、账号禁用和强制下线在数据库提交前递增 session epoch，使该用户全部 Access/Refresh Token 在下一次请求立即失效；Redis 撤销失败会回滚账号变更。
 - JWT 使用不同的 Access/Refresh HS256 密钥，强制校验 issuer、audience、kid、type、sid 和 session epoch；认证 SDK 每个受保护请求还检查 Redis session。
 - 用户 ID 完全由应用 Snowflake 分配，JPA 不再声明数据库生成；迁移删除 ID 默认值并把手机号列扩展为 E.164 所需的 16 字符。
 
@@ -14,6 +14,7 @@
 
 - `UserAccountControllerContractTest`：`/me` 只能使用认证上下文用户，旧任意用户和消费者管理路由均为 404，匿名方法显式标注 `@SkipLogin`。
 - `UserAccountServiceTest`：验证码前置、统一登录错误、共享限流编排、独立 session、摘要 rotation、重放拒绝和单 session 退出。
+- `TransactionalUserAccountUseCaseTest`：验证全量会话撤销发生在数据库提交前，且 Redis 撤销失败会触发数据库回滚。
 - `RedisAccountSecurityIntegrationTest`：真实 Redis 验证 challenge HMAC、手机号绑定、一次性、过期、发送限流和共享登录失败窗口。
 - `RedisTokenStoreIntegrationTest`：真实 Redis 验证多会话、并发 rotation 最多一个成功、重放撤销和 epoch 全量撤销。
 - `JwtTokenProviderPropertyTest` 与认证 SDK 测试：双密钥隔离、claims 往返、issuer/audience/kid/type 校验以及服务端 session 拒绝。

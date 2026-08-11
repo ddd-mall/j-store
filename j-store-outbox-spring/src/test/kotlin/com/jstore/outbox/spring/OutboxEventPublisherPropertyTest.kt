@@ -88,7 +88,8 @@ class OutboxEventPublisherPropertyTest :
             checkAll(PropTestConfig(iterations = 20), arbDomainEvent) { event ->
                 val mockRepository =
                     mock<OutboxEntryRepository> {
-                        on { save(any()) } doAnswer { it.arguments[0] as OutboxEntry }
+                        on { saveAll(any()) } doAnswer
+                            @Suppress("UNCHECKED_CAST") { it.arguments[0] as List<OutboxEntry> }
                     }
                 val eventTypeRegistry =
                     InMemoryEventTypeRegistry().apply {
@@ -112,10 +113,10 @@ class OutboxEventPublisherPropertyTest :
                     )
                 publisher.publishEvent(event)
 
-                val captor = argumentCaptor<OutboxEntry>()
-                verify(mockRepository).save(captor.capture())
+                val captor = argumentCaptor<List<OutboxEntry>>()
+                verify(mockRepository).saveAll(captor.capture())
 
-                val savedEntry = captor.firstValue
+                val savedEntry = captor.firstValue.single()
                 savedEntry.status shouldBe OutboxEntryStatus.PENDING
                 savedEntry.eventId shouldBe event.metadata.eventId
                 savedEntry.eventType shouldBe event.metadata.eventName

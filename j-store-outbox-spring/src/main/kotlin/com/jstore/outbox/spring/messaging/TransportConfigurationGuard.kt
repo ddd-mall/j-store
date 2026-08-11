@@ -30,10 +30,11 @@ class TransportConfigurationGuard(
         val transportIds =
             localChannels.map { it.transportId } +
                 transportProvider.orderedStream().map { it.transportId }.toList()
-        properties.targets.forEach { transportId ->
+        val requiredTransportIds = properties.targets + OutboxTransportIds.LOCAL_DOMAIN
+        requiredTransportIds.forEach { transportId ->
             val matches = transportIds.count { it == transportId }
             check(matches == 1) {
-                "jstore.messaging.targets requires exactly one OutboxDeliveryChannel for " +
+                "Outbox requires exactly one delivery channel for " +
                     "transportId=$transportId, found=$matches"
             }
         }
