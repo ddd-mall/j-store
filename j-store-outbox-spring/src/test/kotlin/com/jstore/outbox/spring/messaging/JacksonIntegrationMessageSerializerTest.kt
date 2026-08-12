@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.jstore.contracts.commerce.ContractAuthorizedSaleItem
+import com.jstore.contracts.commerce.InventoryReservedIntegrationEvent
 import com.jstore.contracts.commerce.ReserveInventoryCommand
 import com.jstore.outbox.InMemoryIntegrationMessageTypeRegistry
 import io.kotest.core.spec.style.FunSpec
@@ -30,7 +31,7 @@ class JacksonIntegrationMessageSerializerTest :
     FunSpec({
         test("portable integration contract round trips by stable name and version") {
             val registry = InMemoryIntegrationMessageTypeRegistry()
-            registry.register("inventory.reserve", 3, ReserveInventoryCommand::class.java)
+            registry.register("inventory.reserve", 1, ReserveInventoryCommand::class.java)
             val serializer =
                 JacksonIntegrationMessageSerializer(
                     JsonMapper.builder()
@@ -55,6 +56,7 @@ class JacksonIntegrationMessageSerializerTest :
                     "order-created-42",
                     7,
                     Instant.parse("2026-08-05T00:00:00Z"),
+                    Instant.parse("2026-08-05T00:10:00Z"),
                 )
 
             val restored =
@@ -65,5 +67,41 @@ class JacksonIntegrationMessageSerializerTest :
                 )
 
             restored shouldBe command
+        }
+
+        test("inventory reserved fact round trips with its required expiry") {
+            val registry = InMemoryIntegrationMessageTypeRegistry()
+            registry.register(
+                "inventory.reserved",
+                1,
+                InventoryReservedIntegrationEvent::class.java,
+            )
+            val serializer =
+                JacksonIntegrationMessageSerializer(
+                    JsonMapper.builder()
+                        .addModule(KotlinModule.Builder().build())
+                        .addModule(JavaTimeModule())
+                        .build(),
+                    registry,
+                )
+
+            val event =
+                InventoryReservedIntegrationEvent(
+                    orderId = 42,
+                    authorizationIds = listOf("auth-42"),
+                    reservationIds = listOf("reservation-42"),
+                    reservationExpiresAt = Instant.parse("2026-08-05T00:15:00Z"),
+                    sourceMessageId = "stock-reserved-42",
+                    occurredAtValue = Instant.parse("2026-08-05T00:00:00Z"),
+                )
+
+            val restored =
+                serializer.deserialize(
+                    serializer.serialize(event),
+                    "inventory.reserved",
+                    1,
+                ) as InventoryReservedIntegrationEvent
+
+            restored shouldBe event
         }
     })

@@ -25,14 +25,85 @@ import java.time.Instant
 
 class IntegrationMessagingModelTest :
     FunSpec({
-        test("one configured transport plans one independently tracked delivery") {
-            IntegrationTransportPlanner(listOf("local")).targets().shouldContainExactly("local")
+        test("logical destination route selects physical destinations and delivery profiles") {
+            val planner =
+                IntegrationPublicationPlanner(
+                    defaultTargets = listOf("local"),
+                    routes =
+                        listOf(
+                            IntegrationRoute(
+                                logicalDestination = "inventory.commands",
+                                deliveries =
+                                    listOf(
+                                        IntegrationDeliveryRoute(
+                                            transportId = "kafka",
+                                            destination = "commerce.inventory.commands.v1",
+                                            deliveryProfile = "CHECKOUT_CRITICAL",
+                                        ),
+                                        IntegrationDeliveryRoute(
+                                            transportId = "local",
+                                            destination = "inventory.commands",
+                                            deliveryProfile = "CHECKOUT_CRITICAL",
+                                        ),
+                                    ),
+                            )
+                        ),
+                )
+
+            planner
+                .plan("inventory.commands")
+                .shouldContainExactly(
+                    IntegrationPublication(
+                        transportId = "kafka",
+                        logicalDestination = "inventory.commands",
+                        destination = "commerce.inventory.commands.v1",
+                        deliveryProfile = "CHECKOUT_CRITICAL",
+                    ),
+                    IntegrationPublication(
+                        transportId = "local",
+                        logicalDestination = "inventory.commands",
+                        destination = "inventory.commands",
+                        deliveryProfile = "CHECKOUT_CRITICAL",
+                    ),
+                )
         }
 
-        test("multiple transports plan independent deliveries and remove duplicates") {
-            IntegrationTransportPlanner(listOf("local", "kafka", "kafka"))
-                .targets()
-                .shouldContainExactly("kafka", "local")
+        test("unconfigured logical destination uses globally configured default transports") {
+            IntegrationPublicationPlanner(defaultTargets = listOf("local", "kafka"))
+                .plan("notification.events")
+                .shouldContainExactly(
+                    IntegrationPublication(
+                        transportId = "kafka",
+                        logicalDestination = "notification.events",
+                        destination = "notification.events",
+                        deliveryProfile = "STANDARD",
+                    ),
+                    IntegrationPublication(
+                        transportId = "local",
+                        logicalDestination = "notification.events",
+                        destination = "notification.events",
+                        deliveryProfile = "STANDARD",
+                    ),
+                )
+        }
+
+        test("duplicate logical routes are rejected") {
+            shouldThrow<IllegalArgumentException> {
+                IntegrationPublicationPlanner(
+                    defaultTargets = listOf("local"),
+                    routes =
+                        listOf(
+                            IntegrationRoute(
+                                "inventory.commands",
+                                listOf(IntegrationDeliveryRoute("local", "inventory.commands")),
+                            ),
+                            IntegrationRoute(
+                                "inventory.commands",
+                                listOf(IntegrationDeliveryRoute("kafka", "inventory.commands")),
+                            ),
+                        ),
+                )
+            }
         }
 
         test("integration metadata rejects unstable routing and identity fields") {

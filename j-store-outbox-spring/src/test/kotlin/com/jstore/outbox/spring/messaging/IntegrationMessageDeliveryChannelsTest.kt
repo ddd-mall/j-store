@@ -41,6 +41,7 @@ class IntegrationMessageDeliveryChannelsTest {
             }
         val channel = TransportIntegrationMessageDeliveryChannel(transport)
         val now = Instant.parse("2026-08-10T00:00:00Z")
+        val acceptBefore = now.plusSeconds(15)
 
         channel.deliver(
             OutboxEntry(
@@ -52,10 +53,13 @@ class IntegrationMessageDeliveryChannelsTest {
                 status = OutboxEntryStatus.PENDING,
                 createdAt = now,
                 updatedAt = now,
-                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                messageKind = OutboxMessageKind.INTEGRATION_COMMAND,
                 deliveryTarget = OutboxDeliveryTarget.BROKER,
                 transportId = "kafka",
                 destination = "orders.events",
+                logicalDestination = "order.events",
+                deliveryProfile = "CHECKOUT_CRITICAL",
+                acceptBefore = acceptBefore,
                 partitionKey = "42",
                 orderingKey = "orders.events:42",
                 sequenceNo = 19,
@@ -64,6 +68,10 @@ class IntegrationMessageDeliveryChannelsTest {
 
         assertEquals("orders.events:42", delivered?.orderingKey)
         assertEquals(19, delivered?.sequenceNo)
+        assertEquals("orders.events", delivered?.destination)
+        assertEquals("order.events", delivered?.logicalDestination)
+        assertEquals("CHECKOUT_CRITICAL", delivered?.deliveryProfile)
+        assertEquals(acceptBefore, delivered?.acceptBefore)
     }
 
     @Test

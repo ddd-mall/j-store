@@ -35,7 +35,7 @@ open class OutboxIntegrationMessagePublisher(
     private val serializer: IntegrationMessageSerializer,
     private val sequence: SnowFlakSequence,
     private val typeRegistry: IntegrationMessageTypeRegistry,
-    private val publicationPlanner: IntegrationTransportPlanner,
+    private val publicationPlanner: IntegrationPublicationPlanner,
     private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
 ) : IntegrationMessagePublisher {
 
@@ -71,9 +71,12 @@ open class OutboxIntegrationMessagePublisher(
                 else -> error("Unsupported IntegrationMessage marker: ${message::class.java.name}")
             }
 
-        publicationPlanner.targets().forEach { transportId ->
+        publicationPlanner.plan(message.destination).forEach { publication ->
             val orderingKey =
-                OutboxOrderingKeys.integration(message.destination, metadata.partitionKey)
+                OutboxOrderingKeys.integration(
+                    publication.logicalDestination,
+                    metadata.partitionKey,
+                )
             repository.save(
                 OutboxEntry(
                     id = sequence.nextId().toString(),
@@ -82,7 +85,7 @@ open class OutboxIntegrationMessagePublisher(
                     eventClassName = message::class.java.name,
                     eventVersion = metadata.messageVersion,
                     payload = payload,
-                    aggregateType = message.destination,
+                    aggregateType = publication.logicalDestination,
                     aggregateId = metadata.partitionKey,
                     status = OutboxEntryStatus.PENDING,
                     createdAt = now,
@@ -90,19 +93,23 @@ open class OutboxIntegrationMessagePublisher(
                     occurredAt = metadata.occurredAt,
                     messageKind = kind,
                     deliveryTarget =
-                        if (transportId == OutboxTransportIds.LOCAL) {
+                        if (publication.transportId == OutboxTransportIds.LOCAL) {
                             OutboxDeliveryTarget.LOCAL_INTEGRATION
                         } else {
                             OutboxDeliveryTarget.BROKER
                         },
-                    transportId = transportId,
-                    destination = message.destination,
+                    transportId = publication.transportId,
+                    destination = publication.destination,
+                    logicalDestination = publication.logicalDestination,
+                    deliveryProfile = publication.deliveryProfile,
+                    acceptBefore = metadata.acceptBefore,
                     partitionKey = metadata.partitionKey,
                     correlationId = metadata.correlationId,
                     causationId = metadata.causationId,
                     tenantId = metadata.tenantId,
                     orderingKey = orderingKey,
-                    sequenceNo = streamSequenceAllocator.nextSequence(transportId, orderingKey),
+                    sequenceNo =
+                        streamSequenceAllocator.nextSequence(publication.transportId, orderingKey),
                 )
             )
         }

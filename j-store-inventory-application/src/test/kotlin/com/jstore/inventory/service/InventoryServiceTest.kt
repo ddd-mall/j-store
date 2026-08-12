@@ -23,7 +23,9 @@ import com.jstore.contracts.commerce.PhysicalStockChangedIntegrationEvent
 import com.jstore.contracts.commerce.ReserveInventoryCommand
 import com.jstore.inventory.domain.*
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -39,7 +41,8 @@ class InventoryServiceTest {
         val service = service(positions, reservations)
         val command = reserveCommand(expiresAt = now.plusSeconds(60), quantity = 3)
 
-        assertIs<Success<*>>(service.reserve(command))
+        val first = assertIs<Success<StockReservationResult>>(service.reserve(command))
+        assertEquals(now.plusSeconds(60), first.value.expiresAt)
         assertEquals(3, positions.single().reserved)
         assertEquals(4, positions.single().availableToPromise)
         assertEquals(1, reservations.values.size)
@@ -56,6 +59,42 @@ class InventoryServiceTest {
 
         assertIs<Failure<*>>(
             service(positions, reservations).reserve(reserveCommand(expiresAt = now, quantity = 1))
+        )
+        assertEquals(0, positions.single().reserved)
+        assertEquals(0, reservations.values.size)
+    }
+
+    @Test
+    fun `command that missed its acceptance deadline cannot consume ATP`() {
+        val positions = FakePositions(stock(onHand = 10))
+        val reservations = FakeReservations()
+        val command =
+            reserveCommand(expiresAt = now.plusSeconds(60), quantity = 1).copy(acceptBefore = now)
+
+        assertIs<Failure<*>>(service(positions, reservations).reserve(command))
+        assertEquals(0, positions.single().reserved)
+        assertEquals(0, reservations.values.size)
+    }
+
+    @Test
+    fun `authorization expiring while waiting for stock lock cannot consume ATP`() {
+        val positions = FakePositions(stock(onHand = 10))
+        val reservations = FakeReservations()
+        val clock = MutableClock(now)
+        val service =
+            InventoryService(
+                positionGuard =
+                    StockPositionGuard { ids ->
+                        clock.advance(Duration.ofSeconds(61))
+                        ids.mapNotNull(positions::findById)
+                    },
+                positions = positions,
+                reservations = reservations,
+                clock = clock,
+            )
+
+        assertIs<Failure<*>>(
+            service.reserve(reserveCommand(expiresAt = now.plusSeconds(60), quantity = 1))
         )
         assertEquals(0, positions.single().reserved)
         assertEquals(0, reservations.values.size)
@@ -121,6 +160,18 @@ class InventoryServiceTest {
             merchantId = 7,
             occurredAtValue = now,
         )
+}
+
+private class MutableClock(private var current: Instant) : Clock() {
+    fun advance(duration: Duration) {
+        current = current.plus(duration)
+    }
+
+    override fun instant(): Instant = current
+
+    override fun getZone(): ZoneId = ZoneOffset.UTC
+
+    override fun withZone(zone: ZoneId): Clock = this
 }
 
 private class FakePositions(vararg initial: StockPosition) : StockPositionRepository {

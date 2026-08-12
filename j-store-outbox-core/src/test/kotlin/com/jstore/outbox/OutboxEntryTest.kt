@@ -70,6 +70,31 @@ class OutboxEntryTest {
     }
 
     @Test
+    fun `integration delivery metadata must be complete`() {
+        assertFailsWith<IllegalArgumentException> { entry(logicalDestination = " ") }
+        assertFailsWith<IllegalArgumentException> { entry(deliveryProfile = " ") }
+    }
+
+    @Test
+    fun `domain event cannot carry integration deadline or delivery profile`() {
+        val now = Instant.parse("2026-01-01T00:00:00Z")
+        assertFailsWith<IllegalArgumentException> { entry(acceptBefore = now.plusSeconds(1)) }
+        assertFailsWith<IllegalArgumentException> { entry(deliveryProfile = "STANDARD") }
+    }
+
+    @Test
+    fun `publication time must agree with published status`() {
+        val now = Instant.parse("2026-01-01T00:00:00Z")
+        assertFailsWith<IllegalArgumentException> {
+            entry(status = OutboxEntryStatus.PENDING, publishedAt = now)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            entry(status = OutboxEntryStatus.PUBLISHED)
+        }
+        entry(status = OutboxEntryStatus.PUBLISHED, publishedAt = now)
+    }
+
+    @Test
     fun `ordering keys include their business scope`() {
         kotlin.test.assertEquals(
             "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089",
@@ -100,6 +125,10 @@ class OutboxEntryTest {
         deliveryTarget: OutboxDeliveryTarget = OutboxDeliveryTarget.LOCAL_DOMAIN,
         orderingKey: String = "Test:1",
         sequenceNo: Long = 1,
+        logicalDestination: String = "test.event",
+        deliveryProfile: String = "LOCAL_DOMAIN",
+        acceptBefore: Instant? = null,
+        publishedAt: Instant? = null,
     ): OutboxEntry {
         val now = Instant.parse("2026-01-01T00:00:00Z")
         return OutboxEntry(
@@ -114,6 +143,10 @@ class OutboxEntryTest {
             retryCount = retryCount,
             lockToken = lockToken,
             deliveryTarget = deliveryTarget,
+            logicalDestination = logicalDestination,
+            deliveryProfile = deliveryProfile,
+            acceptBefore = acceptBefore,
+            publishedAt = publishedAt,
             orderingKey = orderingKey,
             sequenceNo = sequenceNo,
         )

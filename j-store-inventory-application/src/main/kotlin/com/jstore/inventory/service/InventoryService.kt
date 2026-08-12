@@ -46,6 +46,7 @@ import java.time.Instant
 data class StockReservationResult(
     val authorizationIds: List<String>,
     val reservationIds: List<String>,
+    val expiresAt: Instant,
 )
 
 interface InventoryUseCase {
@@ -71,12 +72,11 @@ class InventoryService(
         command: ReserveInventoryCommand
     ): Result<StockReservationResult, BusinessError> {
         if (command.items.isEmpty()) return Failure(InventoryErrors.INVALID_QUANTITY)
-        val now = Instant.now(clock)
-        if (
-            command.items.any {
-                it.authorizationId.isBlank() || it.quantity <= 0 || !now.isBefore(it.expiresAt)
-            }
-        ) {
+        val receivedAt = Instant.now(clock)
+        if (hasExpired(command, receivedAt)) {
+            return Failure(InventoryErrors.RESERVATION_CONFLICT)
+        }
+        if (command.items.any { it.authorizationId.isBlank() || it.quantity <= 0 }) {
             return Failure(InventoryErrors.RESERVATION_CONFLICT)
         }
 
@@ -94,6 +94,7 @@ class InventoryService(
                 StockReservationResult(
                     existing.map { it.saleAuthorizationId }.distinct(),
                     existing.map { it.id.value },
+                    existing.minOf { it.expiresAt },
                 )
             )
         }
@@ -103,6 +104,10 @@ class InventoryService(
         }
         val locked = positionGuard.lock(keys).associateBy { it.id }
         if (locked.size != keys.distinct().size) return Failure(InventoryErrors.POSITION_NOT_FOUND)
+        val lockedAt = Instant.now(clock)
+        if (hasExpired(command, lockedAt)) {
+            return Failure(InventoryErrors.RESERVATION_CONFLICT)
+        }
 
         val created = mutableListOf<StockReservation>()
         for (item in normalized) {
@@ -122,7 +127,7 @@ class InventoryService(
                     skuId = SkuId(item.skuId),
                     fulfillmentNodeId = FulfillmentNodeId(item.fulfillmentNodeId),
                     quantity = item.quantity,
-                    expiresAt = now.plus(reservationTtl),
+                    expiresAt = minOf(lockedAt.plus(reservationTtl), item.expiresAt),
                 )
             positions.save(position)
             reservations.save(reservation)
@@ -132,9 +137,14 @@ class InventoryService(
             StockReservationResult(
                 created.map { it.saleAuthorizationId }.distinct(),
                 created.map { it.id.value },
+                created.minOf { it.expiresAt },
             )
         )
     }
+
+    private fun hasExpired(command: ReserveInventoryCommand, now: Instant): Boolean =
+        command.acceptBefore?.let { !now.isBefore(it) } == true ||
+            command.items.any { !now.isBefore(it.expiresAt) }
 
     override fun confirm(orderId: Long): Result<Unit, BusinessError> {
         val records = reservations.findByOrderId(orderId)
@@ -203,16 +213,17 @@ class ReserveInventoryCommandHandler(
     private val useCase: InventoryUseCase,
     private val publisher: DomainEventPublisher,
 ) : IntegrationMessageHandler<ReserveInventoryCommand> {
-    override fun handlerId() = "inventory.reserve-authorized-stock.v3"
+    override fun handlerId() = "inventory.reserve-authorized-stock.v1"
 
     override fun handle(message: ReserveInventoryCommand) {
         when (val result = useCase.reserve(message)) {
             is Success ->
                 publisher.publishEvent(
                     StockReservedEvent(
-                        message.orderId,
-                        result.value.authorizationIds,
-                        result.value.reservationIds,
+                        orderId = message.orderId,
+                        authorizationIds = result.value.authorizationIds,
+                        reservationIds = result.value.reservationIds,
+                        reservationExpiresAt = result.value.expiresAt,
                     )
                 )
             is Failure ->

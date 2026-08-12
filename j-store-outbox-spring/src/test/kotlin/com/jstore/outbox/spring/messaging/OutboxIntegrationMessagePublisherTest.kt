@@ -20,8 +20,10 @@ import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.messaging.IntegrationCommand
 import com.jstore.messaging.IntegrationMessageType
 import com.jstore.outbox.InMemoryIntegrationMessageTypeRegistry
+import com.jstore.outbox.IntegrationDeliveryRoute
 import com.jstore.outbox.IntegrationMessageSerializer
-import com.jstore.outbox.IntegrationTransportPlanner
+import com.jstore.outbox.IntegrationPublicationPlanner
+import com.jstore.outbox.IntegrationRoute
 import com.jstore.outbox.OutboxDeliveryTarget
 import com.jstore.outbox.OutboxEntryRepository
 import com.jstore.outbox.OutboxMessageKind
@@ -56,7 +58,28 @@ class OutboxIntegrationMessagePublisherTest :
                     serializer,
                     SnowFlakSequence(1, 1),
                     registry,
-                    IntegrationTransportPlanner(listOf("local", "kafka")),
+                    IntegrationPublicationPlanner(
+                        defaultTargets = listOf("local"),
+                        routes =
+                            listOf(
+                                IntegrationRoute(
+                                    logicalDestination = "inventory.commands",
+                                    deliveries =
+                                        listOf(
+                                            IntegrationDeliveryRoute(
+                                                transportId = "kafka",
+                                                destination = "commerce.inventory.commands.v1",
+                                                deliveryProfile = "CHECKOUT_CRITICAL",
+                                            ),
+                                            IntegrationDeliveryRoute(
+                                                transportId = "local",
+                                                destination = "inventory.commands",
+                                                deliveryProfile = "CHECKOUT_CRITICAL",
+                                            ),
+                                        ),
+                                )
+                            ),
+                    ),
                     sequenceAllocator,
                 )
 
@@ -71,6 +94,18 @@ class OutboxIntegrationMessagePublisherTest :
                     OutboxDeliveryTarget.LOCAL_INTEGRATION,
                 )
             captor.allValues.map { it.transportId }.shouldContainExactly("kafka", "local")
+            captor.allValues.map { it.logicalDestination }.distinct() shouldBe
+                listOf("inventory.commands")
+            captor.allValues
+                .map { it.destination }
+                .shouldContainExactly(
+                    "commerce.inventory.commands.v1",
+                    "inventory.commands",
+                )
+            captor.allValues.map { it.deliveryProfile }.distinct() shouldBe
+                listOf("CHECKOUT_CRITICAL")
+            captor.allValues.map { it.acceptBefore }.distinct() shouldBe
+                listOf(message.acceptBefore)
             captor.allValues.map { it.eventId }.distinct() shouldBe listOf(message.messageId)
             captor.allValues.map { it.messageKind }.distinct() shouldBe
                 listOf(OutboxMessageKind.INTEGRATION_COMMAND)
@@ -94,7 +129,7 @@ class OutboxIntegrationMessagePublisherTest :
                     serializer,
                     SnowFlakSequence(1, 1),
                     registry,
-                    IntegrationTransportPlanner(listOf("local")),
+                    IntegrationPublicationPlanner(defaultTargets = listOf("local")),
                     sequenceAllocator,
                 )
 
@@ -116,6 +151,7 @@ data class TestReserveInventoryCommand(
     override val occurredAt: Instant,
     override val causationId: String = "order-created-42",
     override val tenantId: String = "merchant-7",
+    override val acceptBefore: Instant = occurredAt.plusSeconds(10),
 ) : IntegrationCommand {
     override val messageId: String = "message-1"
     override val messageName: String = "test.inventory.reserve"

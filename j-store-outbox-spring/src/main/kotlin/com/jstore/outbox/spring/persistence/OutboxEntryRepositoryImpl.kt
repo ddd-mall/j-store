@@ -151,6 +151,7 @@ open class OutboxEntryRepositoryImpl(
                     UPDATE outbox_entry
                     SET status = 'PUBLISHED',
                         updated_at = :updatedAt,
+                        published_at = :publishedAt,
                         locked_by = NULL,
                         locked_at = NULL,
                         locked_until = NULL,
@@ -167,6 +168,7 @@ open class OutboxEntryRepositoryImpl(
                 .setParameter("lockedBy", lockedBy)
                 .setParameter("lockToken", entry.lockToken)
                 .setParameter("updatedAt", entry.updatedAt)
+                .setParameter("publishedAt", entry.publishedAt)
                 .setParameter("now", Instant.now())
                 .executeUpdate() == 1
         entityManager.clear()
@@ -478,6 +480,10 @@ open class OutboxEntryRepositoryImpl(
                 deliveryTarget = entry.deliveryTarget,
                 transportId = entry.transportId,
                 destination = entry.destination,
+                logicalDestination = entry.logicalDestination,
+                deliveryProfile = entry.deliveryProfile,
+                acceptBefore = entry.acceptBefore,
+                publishedAt = entry.publishedAt,
                 partitionKey = entry.partitionKey,
                 correlationId = entry.correlationId,
                 causationId = entry.causationId,
@@ -489,9 +495,9 @@ open class OutboxEntryRepositoryImpl(
         fun toDomain(po: OutboxEntryPO) =
             OutboxEntry(
                 id = po.id,
-                eventId = po.eventId.ifBlank { po.id },
+                eventId = po.eventId,
                 eventType = po.eventType,
-                eventClassName = po.eventClassName.ifBlank { po.eventType },
+                eventClassName = po.eventClassName,
                 eventVersion = po.eventVersion,
                 payload = po.payload,
                 aggregateType = po.aggregateType,
@@ -510,9 +516,13 @@ open class OutboxEntryRepositoryImpl(
                 messageKind = po.messageKind,
                 deliveryTarget = po.deliveryTarget,
                 transportId = po.transportId,
-                destination = po.destination.ifBlank { po.eventType },
-                partitionKey = po.partitionKey.ifBlank { po.aggregateId },
-                correlationId = po.correlationId.ifBlank { po.eventId.ifBlank { po.id } },
+                destination = po.destination,
+                logicalDestination = po.logicalDestination,
+                deliveryProfile = po.deliveryProfile,
+                acceptBefore = po.acceptBefore,
+                publishedAt = po.publishedAt,
+                partitionKey = po.partitionKey,
+                correlationId = po.correlationId,
                 causationId = po.causationId,
                 tenantId = po.tenantId,
                 orderingKey = po.orderingKey,

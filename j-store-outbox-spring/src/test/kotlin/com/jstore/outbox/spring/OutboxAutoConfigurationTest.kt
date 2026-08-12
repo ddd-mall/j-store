@@ -22,6 +22,7 @@ import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.messaging.IntegrationMessageEnvelope
 import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.messaging.IntegrationMessageTransport
+import com.jstore.outbox.IntegrationPublicationPlanner
 import com.jstore.outbox.OutboxDeliveryChannel
 import com.jstore.outbox.spring.persistence.OutboxEntryPOJpaRepository
 import io.kotest.core.spec.style.FunSpec
@@ -93,6 +94,29 @@ class OutboxAutoConfigurationTest :
                 .run { context ->
                     context.startupFailure shouldBe null
                     context.containsBean("transportConfigurationGuard") shouldBe true
+                }
+        }
+
+        test("destination route properties bind to the publication planner") {
+            contextRunner
+                .withUserConfiguration(BrokerTransportConfig::class.java)
+                .withPropertyValues(
+                    "jstore.outbox.enabled=true",
+                    "jstore.messaging.routes[0].logical-destination=inventory.commands",
+                    "jstore.messaging.routes[0].deliveries[0].transport-id=kafka",
+                    "jstore.messaging.routes[0].deliveries[0].destination=commerce.inventory.commands.v1",
+                    "jstore.messaging.routes[0].deliveries[0].delivery-profile=CHECKOUT_CRITICAL",
+                )
+                .run { context ->
+                    context.startupFailure shouldBe null
+                    val publication =
+                        context
+                            .getBean(IntegrationPublicationPlanner::class.java)
+                            .plan("inventory.commands")
+                            .single()
+                    publication.transportId shouldBe "kafka"
+                    publication.destination shouldBe "commerce.inventory.commands.v1"
+                    publication.deliveryProfile shouldBe "CHECKOUT_CRITICAL"
                 }
         }
 

@@ -60,6 +60,12 @@ class OutboxEntryPO(
     var deliveryTarget: OutboxDeliveryTarget = OutboxDeliveryTarget.LOCAL_DOMAIN,
     @Column(name = "transport_id", nullable = false, length = 64) var transportId: String = "",
     @Column(name = "destination", nullable = false, length = 512) var destination: String = "",
+    @Column(name = "logical_destination", nullable = false, length = 512)
+    var logicalDestination: String = "",
+    @Column(name = "delivery_profile", nullable = false, length = 64)
+    var deliveryProfile: String = "STANDARD",
+    @Column(name = "accept_before") var acceptBefore: Instant? = null,
+    @Column(name = "published_at") var publishedAt: Instant? = null,
     @Column(name = "partition_key", nullable = false, length = 256) var partitionKey: String = "",
     @Column(name = "correlation_id", nullable = false, length = 128) var correlationId: String = "",
     @Column(name = "causation_id", length = 128) var causationId: String? = null,

@@ -110,13 +110,17 @@ class OutboxEntryRepositoryImplPostgresTest {
 
     @Test
     fun `integration delivery routing metadata survives persistence round trip`() {
+        val acceptBefore = Instant.parse("2099-01-01T00:00:00Z")
         val integrationEntry =
             entry("integration-routing")
                 .copy(
                     messageKind = OutboxMessageKind.INTEGRATION_COMMAND,
                     deliveryTarget = OutboxDeliveryTarget.BROKER,
                     transportId = "kafka",
-                    destination = "inventory.commands",
+                    destination = "commerce.inventory.commands.v1",
+                    logicalDestination = "inventory.commands",
+                    deliveryProfile = "CHECKOUT_CRITICAL",
+                    acceptBefore = acceptBefore,
                     partitionKey = "order-42",
                     correlationId = "checkout-42",
                     causationId = "order-created-42",
@@ -131,7 +135,11 @@ class OutboxEntryRepositoryImplPostgresTest {
         assertEquals(OutboxMessageKind.INTEGRATION_COMMAND, saved.messageKind)
         assertEquals(OutboxDeliveryTarget.BROKER, saved.deliveryTarget)
         assertEquals("kafka", saved.transportId)
-        assertEquals("inventory.commands", saved.destination)
+        assertEquals("commerce.inventory.commands.v1", saved.destination)
+        assertEquals("inventory.commands", saved.logicalDestination)
+        assertEquals("CHECKOUT_CRITICAL", saved.deliveryProfile)
+        assertEquals(acceptBefore, saved.acceptBefore)
+        assertEquals(null, saved.publishedAt)
         assertEquals("order-42", saved.partitionKey)
         assertEquals("checkout-42", saved.correlationId)
         assertEquals("order-created-42", saved.causationId)
@@ -1042,6 +1050,7 @@ class OutboxEntryRepositoryImplPostgresTest {
         sequenceNo: Long = 1,
         messageKind: OutboxMessageKind = OutboxMessageKind.DOMAIN_EVENT,
         deliveryTarget: OutboxDeliveryTarget = OutboxDeliveryTarget.LOCAL_DOMAIN,
+        publishedAt: Instant? = createdAt.takeIf { status == OutboxEntryStatus.PUBLISHED },
     ) =
         OutboxEntry(
             id = id,
@@ -1064,6 +1073,7 @@ class OutboxEntryRepositoryImplPostgresTest {
             sequenceNo = sequenceNo,
             messageKind = messageKind,
             deliveryTarget = deliveryTarget,
+            publishedAt = publishedAt,
         )
 
     @SpringBootConfiguration

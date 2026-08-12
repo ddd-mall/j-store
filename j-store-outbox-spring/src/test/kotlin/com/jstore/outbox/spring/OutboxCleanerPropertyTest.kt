@@ -79,6 +79,7 @@ class OutboxCleanerPropertyTest :
                     createdAt = ts,
                     updatedAt = ts,
                     retryCount = rc,
+                    publishedAt = ts.takeIf { st == OutboxEntryStatus.PUBLISHED },
                     orderingKey = OutboxOrderingKeys.domain(aggType, aggId),
                     sequenceNo = 1,
                 )

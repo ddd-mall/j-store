@@ -139,8 +139,10 @@ class OutboxAutoConfiguration {
     }
 
     @Bean
-    fun integrationTransportPlanner(properties: MessagingProperties): IntegrationTransportPlanner =
-        IntegrationTransportPlanner(properties.targets)
+    fun integrationPublicationPlanner(
+        properties: MessagingProperties
+    ): IntegrationPublicationPlanner =
+        IntegrationPublicationPlanner(properties.targets, properties.integrationRoutes())
 
     @Bean
     fun integrationMessagePublisher(
@@ -148,7 +150,7 @@ class OutboxAutoConfiguration {
         integrationMessageSerializer: IntegrationMessageSerializer,
         snowFlakSequence: SnowFlakSequence,
         integrationMessageTypeRegistry: IntegrationMessageTypeRegistry,
-        integrationTransportPlanner: IntegrationTransportPlanner,
+        integrationPublicationPlanner: IntegrationPublicationPlanner,
         outboxStreamSequenceAllocator: OutboxStreamSequenceAllocator,
     ): IntegrationMessagePublisher =
         OutboxIntegrationMessagePublisher(
@@ -156,7 +158,7 @@ class OutboxAutoConfiguration {
             integrationMessageSerializer,
             snowFlakSequence,
             integrationMessageTypeRegistry,
-            integrationTransportPlanner,
+            integrationPublicationPlanner,
             outboxStreamSequenceAllocator,
         )
 
@@ -272,14 +274,16 @@ class OutboxAutoConfiguration {
         schedulerExecutionState: SchedulerExecutionState,
         observabilityProperties: OutboxObservabilityProperties,
         properties: OutboxProperties,
-        messagingProperties: MessagingProperties,
+        integrationPublicationPlanner: IntegrationPublicationPlanner,
     ): OutboxOperationalHealth =
         OutboxOperationalHealth(
             outboxEntryRepository,
             schedulerExecutionState,
             observabilityProperties,
             properties.maxRetryCount,
-            configuredTransportIds = messagingProperties.targets + OutboxTransportIds.LOCAL_DOMAIN,
+            configuredTransportIds =
+                integrationPublicationPlanner.requiredTransportIds() +
+                    OutboxTransportIds.LOCAL_DOMAIN,
         )
 
     @Bean
@@ -288,7 +292,7 @@ class OutboxAutoConfiguration {
         outboxEntryRepository: OutboxEntryRepository,
         outboxOperationalHealth: OutboxOperationalHealth,
         schedulerExecutionState: SchedulerExecutionState,
-        messagingProperties: MessagingProperties,
+        integrationPublicationPlanner: IntegrationPublicationPlanner,
     ): OutboxMonitor {
         val meterRegistry = meterRegistryProvider.getIfAvailable() ?: return NoopOutboxMonitor
         return MicrometerOutboxMonitor(
@@ -296,7 +300,7 @@ class OutboxAutoConfiguration {
             outboxEntryRepository,
             outboxOperationalHealth,
             schedulerExecutionState,
-            messagingProperties.targets + OutboxTransportIds.LOCAL_DOMAIN,
+            integrationPublicationPlanner.requiredTransportIds() + OutboxTransportIds.LOCAL_DOMAIN,
         )
     }
 
