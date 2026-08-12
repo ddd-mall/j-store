@@ -19,7 +19,9 @@ package com.jstore.translator
 import com.jstore.common.properties.Price
 import com.jstore.contracts.commerce.AuthorizeSaleCommand
 import com.jstore.contracts.commerce.CreatePaymentForOrderCommand
+import com.jstore.contracts.commerce.InventoryReservedIntegrationEvent
 import com.jstore.contracts.commerce.ReserveInventoryCommand
+import com.jstore.inventory.domain.event.StockReservedEvent
 import com.jstore.messaging.IntegrationMessage
 import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.domain.order.MerchantId
@@ -101,9 +103,10 @@ class OrderReservationTranslatorsTest {
         OrderSaleAuthorizedToStockReservationTranslator(publisher).onDomainEvent(event)
 
         val command = assertIs<ReserveInventoryCommand>(publisher.messages.single())
-        assertEquals(3, command.messageVersion)
+        assertEquals(1, command.messageVersion)
         assertEquals("auth-1", command.items.single().authorizationId)
         assertEquals(expiry, command.items.single().expiresAt)
+        assertEquals(expiry, command.acceptBefore)
     }
 
     @Test
@@ -121,6 +124,27 @@ class OrderReservationTranslatorsTest {
         OrderStockConfirmedToPaymentTranslator(publisher).onDomainEvent(event)
 
         assertIs<CreatePaymentForOrderCommand>(publisher.messages.single())
+    }
+
+    @Test
+    fun `reserved stock expiry is preserved across the context boundary`() {
+        val publisher = CapturingPublisher()
+        val expiry = Instant.parse("2026-08-05T00:30:00Z")
+        val event =
+            StockReservedEvent(
+                orderId = 42,
+                authorizationIds = listOf("auth-1"),
+                reservationIds = listOf("reservation-1"),
+                reservationExpiresAt = expiry,
+                occurredAt = Instant.EPOCH,
+            )
+
+        StockReservedToOrderConfirmedTranslator(publisher).onDomainEvent(event)
+
+        val integrationEvent =
+            assertIs<InventoryReservedIntegrationEvent>(publisher.messages.single())
+        assertEquals(1, integrationEvent.messageVersion)
+        assertEquals(expiry, integrationEvent.reservationExpiresAt)
     }
 
     private class CapturingPublisher : IntegrationMessagePublisher {

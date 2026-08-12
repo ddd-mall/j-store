@@ -92,6 +92,7 @@ class OrderSaleAuthorizedToStockReservationTranslator(
                 sourceMessageId = event.eventId,
                 merchantId = event.merchantId.value,
                 occurredAtValue = event.occurredAt,
+                acceptBefore = event.authorizations.minOf { it.expiresAt },
             )
         )
     }

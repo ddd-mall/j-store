@@ -30,7 +30,12 @@ class TransportConfigurationGuard(
         val transportIds =
             localChannels.map { it.transportId } +
                 transportProvider.orderedStream().map { it.transportId }.toList()
-        val requiredTransportIds = properties.targets + OutboxTransportIds.LOCAL_DOMAIN
+        val requiredTransportIds =
+            properties.targets +
+                properties.routes.flatMap { route ->
+                    route.deliveries.map { delivery -> delivery.transportId }
+                } +
+                OutboxTransportIds.LOCAL_DOMAIN
         requiredTransportIds.forEach { transportId ->
             val matches = transportIds.count { it == transportId }
             check(matches == 1) {

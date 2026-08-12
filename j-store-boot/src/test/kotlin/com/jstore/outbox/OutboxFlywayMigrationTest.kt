@@ -58,18 +58,31 @@ class OutboxFlywayMigrationTest {
                         }
                     statement
                         .executeQuery(
-                            "SELECT message_kind, delivery_target, destination, partition_key, correlation_id, " +
+                            "SELECT message_kind, delivery_target, destination, logical_destination, " +
+                                "delivery_profile, accept_before, published_at, partition_key, correlation_id, " +
                                 "transport_id, ordering_key, sequence_no " +
                                 "FROM develop.outbox_entry LIMIT 0"
                         )
                         .use { rows ->
-                            assertEquals(8, rows.metaData.columnCount)
+                            assertEquals(12, rows.metaData.columnCount)
                         }
                     statement
                         .executeQuery("SELECT to_regclass('develop.outbox_stream_position')")
                         .use { rows ->
                             assertTrue(rows.next())
                             assertEquals("develop.outbox_stream_position", rows.getString(1))
+                        }
+                    statement
+                        .executeQuery(
+                            "SELECT COUNT(*) FROM pg_constraint " +
+                                "WHERE conrelid = 'develop.outbox_entry'::regclass " +
+                                "AND conname IN ('chk_outbox_publication_time', " +
+                                "'chk_outbox_acceptance_deadline_kind', " +
+                                "'chk_outbox_domain_delivery_metadata')"
+                        )
+                        .use { rows ->
+                            assertTrue(rows.next())
+                            assertEquals(3L, rows.getLong(1))
                         }
                 }
             }
@@ -106,6 +119,7 @@ class OutboxFlywayMigrationTest {
                 .locations("classpath:db/migration")
                 .schemas("develop")
                 .defaultSchema("develop")
+                .target(MigrationVersion.fromVersion("20260811"))
                 .load()
                 .migrate()
             dataSource.connection.use { connection ->
@@ -181,6 +195,7 @@ class OutboxFlywayMigrationTest {
                 .locations("classpath:db/migration")
                 .schemas("develop")
                 .defaultSchema("develop")
+                .target(MigrationVersion.fromVersion("20260811"))
                 .load()
                 .migrate()
 

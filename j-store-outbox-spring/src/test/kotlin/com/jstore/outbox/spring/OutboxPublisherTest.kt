@@ -58,7 +58,6 @@ class OutboxPublisherTest :
         fun createEntry(
             id: String = "entry-1",
             retryCount: Int = 0,
-            status: OutboxEntryStatus = OutboxEntryStatus.PENDING,
         ) =
             OutboxEntry(
                 id = id,
@@ -66,10 +65,14 @@ class OutboxPublisherTest :
                 payload = """{"source":"stub"}""",
                 aggregateType = "Order",
                 aggregateId = "42",
-                status = status,
+                status = OutboxEntryStatus.IN_PROGRESS,
                 createdAt = Instant.parse("2025-01-01T00:00:00Z"),
                 updatedAt = Instant.parse("2025-01-01T00:00:00Z"),
                 retryCount = retryCount,
+                lockedBy = "worker-a",
+                lockedAt = Instant.parse("2025-01-01T00:00:00Z"),
+                lockedUntil = Instant.parse("2099-01-01T00:00:00Z"),
+                lockToken = 1,
                 orderingKey = OutboxOrderingKeys.domain("Order", "42"),
                 sequenceNo = 1,
             )
@@ -80,6 +83,7 @@ class OutboxPublisherTest :
                 mock<OutboxEntryRepository> {
                     on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                         listOf(entry)
+                    on { renewLease(any(), any(), any(), any()) } doReturn true
                     on { markPublished(any(), any()) } doReturn true
                 }
             val mockSerializer =
@@ -100,6 +104,7 @@ class OutboxPublisherTest :
             captor.firstValue.lockedBy shouldBe null
             captor.firstValue.lockedUntil shouldBe null
             captor.firstValue.lastError shouldBe null
+            (captor.firstValue.publishedAt == null) shouldBe false
         }
 
         test("delivery failure increments retryCount and sets FAILED status") {
@@ -108,6 +113,7 @@ class OutboxPublisherTest :
                 mock<OutboxEntryRepository> {
                     on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                         listOf(entry)
+                    on { renewLease(any(), any(), any(), any()) } doReturn true
                     on { markFailed(any(), any()) } doReturn true
                 }
             val mockSerializer =
@@ -140,6 +146,7 @@ class OutboxPublisherTest :
                 mock<OutboxEntryRepository> {
                     on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                         listOf(entry)
+                    on { renewLease(any(), any(), any(), any()) } doReturn true
                     on { markFailed(any(), any()) } doReturn true
                 }
             val mockSerializer =
@@ -241,6 +248,7 @@ class OutboxPublisherTest :
                 mock<OutboxEntryRepository> {
                     on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                         listOf(entry1, entry2, entry3)
+                    on { renewLease(any(), any(), any(), any()) } doReturn true
                     on { markPublished(any(), any()) } doReturn true
                     on { markFailed(any(), any()) } doReturn true
                 }
@@ -275,6 +283,7 @@ class OutboxPublisherTest :
                 mock<OutboxEntryRepository> {
                     on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                         listOf(entry)
+                    on { renewLease(any(), any(), any(), any()) } doReturn true
                     on { markFailed(any(), any()) } doReturn true
                 }
             val mockSerializer =
@@ -313,6 +322,7 @@ class OutboxPublisherTest :
                 mock<OutboxEntryRepository> {
                     on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                         listOf(entry)
+                    on { renewLease(any(), any(), any(), any()) } doReturn true
                     on { markPublished(any(), any()) } doReturn false
                     on { markFailed(any(), any()) } doReturn false
                 }

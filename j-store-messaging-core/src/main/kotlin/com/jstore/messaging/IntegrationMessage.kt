@@ -47,6 +47,7 @@ interface IntegrationMessage {
                 correlationId = correlationId,
                 causationId = causationId,
                 tenantId = tenantId,
+                acceptBefore = (this as? IntegrationCommand)?.acceptBefore,
             )
 }
 
@@ -61,7 +62,11 @@ annotation class IntegrationMessageType(
 interface IntegrationEvent : IntegrationMessage
 
 /** An intention addressed to one logical owning context. */
-interface IntegrationCommand : IntegrationMessage
+interface IntegrationCommand : IntegrationMessage {
+    /** Latest instant at which a consumer may start accepting this command. */
+    val acceptBefore: Instant?
+        get() = null
+}
 
 data class IntegrationMessageMetadata(
     val messageId: String,
@@ -72,6 +77,7 @@ data class IntegrationMessageMetadata(
     val correlationId: String,
     val causationId: String? = null,
     val tenantId: String? = null,
+    val acceptBefore: Instant? = null,
 ) {
     init {
         require(messageId.isNotBlank()) { "messageId must not be blank" }
@@ -83,6 +89,9 @@ data class IntegrationMessageMetadata(
             "causationId must be null or non-blank"
         }
         require(tenantId == null || tenantId.isNotBlank()) { "tenantId must be null or non-blank" }
+        require(acceptBefore == null || !acceptBefore.isBefore(occurredAt)) {
+            "acceptBefore must not precede occurredAt"
+        }
     }
 }
 
@@ -90,14 +99,22 @@ interface IntegrationMessagePublisher {
     fun publish(message: IntegrationMessage)
 }
 
+/**
+ * Derives a stable integration-message identity from its source message and business scope.
+ * Retranslating the same source produces the same ID, while distinct source messages do not
+ * collapse merely because they share a timestamp and partition key.
+ */
 fun stableIntegrationMessageId(
     messageName: String,
     messageVersion: Int,
-    partitionKey: String,
-    occurredAt: Instant,
-): String =
-    UUID.nameUUIDFromBytes(
-            "$messageName|$messageVersion|$partitionKey|$occurredAt"
-                .toByteArray(StandardCharsets.UTF_8)
-        )
-        .toString()
+    sourceMessageId: String,
+    businessKey: String,
+): String {
+    require(messageName.isNotBlank()) { "messageName must not be blank" }
+    require(messageVersion > 0) { "messageVersion must be greater than zero" }
+    require(sourceMessageId.isNotBlank()) { "sourceMessageId must not be blank" }
+    require(businessKey.isNotBlank()) { "businessKey must not be blank" }
+    val fields = listOf(messageName, messageVersion.toString(), sourceMessageId, businessKey)
+    val canonical = fields.joinToString(separator = "") { value -> "${value.length}:$value" }
+    return UUID.nameUUIDFromBytes(canonical.toByteArray(StandardCharsets.UTF_8)).toString()
+}

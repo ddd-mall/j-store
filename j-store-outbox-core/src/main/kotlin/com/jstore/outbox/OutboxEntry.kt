@@ -47,6 +47,15 @@ data class OutboxEntry(
     val deliveryTarget: OutboxDeliveryTarget = OutboxDeliveryTarget.LOCAL_DOMAIN,
     val transportId: String = deliveryTarget.defaultTransportId,
     val destination: String = eventType,
+    /** Stable bounded-context destination, independent from broker topic/queue naming. */
+    val logicalDestination: String = destination,
+    /** Operational delivery policy selected for this publication. */
+    val deliveryProfile: String =
+        if (messageKind == OutboxMessageKind.DOMAIN_EVENT) "LOCAL_DOMAIN" else "STANDARD",
+    /** Optional command acceptance deadline propagated end-to-end. */
+    val acceptBefore: Instant? = null,
+    /** Time at which this delivery was confirmed as published. */
+    val publishedAt: Instant? = null,
     val partitionKey: String = aggregateId,
     val correlationId: String = eventId,
     val causationId: String? = null,
@@ -65,6 +74,11 @@ data class OutboxEntry(
         require(aggregateType.isNotBlank()) { "Outbox aggregate type must not be blank" }
         require(aggregateId.isNotBlank()) { "Outbox aggregate ID must not be blank" }
         require(destination.isNotBlank()) { "Outbox destination must not be blank" }
+        require(logicalDestination.isNotBlank()) { "Outbox logical destination must not be blank" }
+        require(deliveryProfile.isNotBlank()) { "Outbox delivery profile must not be blank" }
+        require(acceptBefore == null || !acceptBefore.isBefore(occurredAt)) {
+            "Outbox accept-before deadline must not precede occurred-at"
+        }
         require(transportId.isNotBlank()) { "Outbox transport ID must not be blank" }
         require(partitionKey.isNotBlank()) { "Outbox partition key must not be blank" }
         require(correlationId.isNotBlank()) { "Outbox correlation ID must not be blank" }
@@ -72,6 +86,9 @@ data class OutboxEntry(
         require(sequenceNo > 0) { "Outbox sequence number must be positive" }
         require(retryCount >= 0) { "Outbox retry count must not be negative" }
         require(lockToken >= 0) { "Outbox lock token must not be negative" }
+        require((status == OutboxEntryStatus.PUBLISHED) == (publishedAt != null)) {
+            "Only PUBLISHED outbox entries must have a publication time"
+        }
 
         val hasCompleteLease = lockedBy != null && lockedAt != null && lockedUntil != null
         if (status == OutboxEntryStatus.IN_PROGRESS) {
@@ -86,15 +103,19 @@ data class OutboxEntry(
         }
 
         when (messageKind) {
-            OutboxMessageKind.DOMAIN_EVENT ->
+            OutboxMessageKind.DOMAIN_EVENT -> {
                 require(
                     deliveryTarget == OutboxDeliveryTarget.LOCAL_DOMAIN &&
                         transportId == OutboxTransportIds.LOCAL_DOMAIN
                 ) {
                     "Domain events can only target local-domain"
                 }
+                require(deliveryProfile == "LOCAL_DOMAIN" && acceptBefore == null) {
+                    "Domain events require LOCAL_DOMAIN profile and cannot have an acceptance deadline"
+                }
+            }
             OutboxMessageKind.INTEGRATION_EVENT,
-            OutboxMessageKind.INTEGRATION_COMMAND ->
+            OutboxMessageKind.INTEGRATION_COMMAND -> {
                 require(
                     when (deliveryTarget) {
                         OutboxDeliveryTarget.LOCAL_DOMAIN -> false
@@ -107,6 +128,12 @@ data class OutboxEntry(
                 ) {
                     "Integration message delivery target and transport ID are inconsistent"
                 }
+                if (messageKind == OutboxMessageKind.INTEGRATION_EVENT) {
+                    require(acceptBefore == null) {
+                        "Integration events cannot have an acceptance deadline"
+                    }
+                }
+            }
         }
     }
 }

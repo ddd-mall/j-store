@@ -65,6 +65,9 @@ class TransportIntegrationMessageDeliveryChannel(
                             error("Domain event cannot use broker transport")
                     },
                 destination = entry.destination,
+                logicalDestination = entry.logicalDestination,
+                deliveryProfile = entry.deliveryProfile,
+                acceptBefore = entry.acceptBefore,
                 partitionKey = entry.partitionKey,
                 correlationId = entry.correlationId,
                 causationId = entry.causationId,

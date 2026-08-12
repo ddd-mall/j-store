@@ -30,6 +30,9 @@ data class IntegrationMessageEnvelope(
     val messageVersion: Int,
     val messageKind: IntegrationMessageKind,
     val destination: String,
+    val logicalDestination: String,
+    val deliveryProfile: String,
+    val acceptBefore: Instant?,
     val partitionKey: String,
     val correlationId: String,
     val causationId: String?,
@@ -41,6 +44,9 @@ data class IntegrationMessageEnvelope(
 ) {
     init {
         require(transportId.isNotBlank()) { "transportId must not be blank" }
+        require(destination.isNotBlank()) { "destination must not be blank" }
+        require(logicalDestination.isNotBlank()) { "logicalDestination must not be blank" }
+        require(deliveryProfile.isNotBlank()) { "deliveryProfile must not be blank" }
         require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
         require(sequenceNo > 0) { "sequenceNo must be positive" }
     }

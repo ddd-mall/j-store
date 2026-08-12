@@ -57,26 +57,28 @@ class OutboxPublisher(
 
             for (entry in entries) {
                 try {
-                    // Claimed rows always have a positive token. Token zero is retained only for
-                    // compatibility with custom repositories during a rolling upgrade.
+                    check(entry.status == OutboxEntryStatus.IN_PROGRESS && entry.lockToken > 0) {
+                        "Claimed outbox entry must hold a positive fencing token: id=${entry.id}"
+                    }
                     if (
-                        entry.lockToken > 0 &&
-                            !outboxEntryRepository.renewLease(
-                                entry.id,
-                                workerId,
-                                entry.lockToken,
-                                Instant.now().plusMillis(properties.lockTimeoutMillis),
-                            )
+                        !outboxEntryRepository.renewLease(
+                            entry.id,
+                            workerId,
+                            entry.lockToken,
+                            Instant.now().plusMillis(properties.lockTimeoutMillis),
+                        )
                     ) {
                         throw OutboxLockOwnershipChangedException(entry.id, workerId)
                     }
                     val updated = transactionOperations.executeDelivery {
                         deliveryRouter.deliver(entry)
+                        val publishedAt = Instant.now()
                         outboxEntryRepository
                             .markPublished(
                                 entry.copy(
                                     status = OutboxEntryStatus.PUBLISHED,
-                                    updatedAt = Instant.now(),
+                                    updatedAt = publishedAt,
+                                    publishedAt = publishedAt,
                                     lockedBy = null,
                                     lockedAt = null,
                                     lockedUntil = null,

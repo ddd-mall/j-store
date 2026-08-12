@@ -38,11 +38,12 @@ class StockReservedToOrderConfirmedTranslator(
     override fun onDomainEvent(event: StockReservedEvent) {
         integrationMessagePublisher.publish(
             InventoryReservedIntegrationEvent(
-                event.orderId,
-                event.authorizationIds,
-                event.reservationIds,
-                event.eventId,
-                event.occurredAt,
+                orderId = event.orderId,
+                authorizationIds = event.authorizationIds,
+                reservationIds = event.reservationIds,
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
+                reservationExpiresAt = event.reservationExpiresAt,
             )
         )
     }

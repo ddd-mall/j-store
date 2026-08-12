@@ -27,6 +27,7 @@ data class StockReservedEvent(
     val orderId: Long,
     val authorizationIds: List<String>,
     val reservationIds: List<String>,
+    val reservationExpiresAt: Instant,
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {

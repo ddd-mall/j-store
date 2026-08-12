@@ -46,7 +46,6 @@ class OutboxPublisherPropertyTest :
         val arbInstant = Arb.long(1_000_000L..2_000_000_000L).map { Instant.ofEpochSecond(it) }
 
         fun arbOutboxEntry(
-            status: OutboxEntryStatus = OutboxEntryStatus.PENDING,
             retryCount: Int = 0,
             createdAt: Arb<Instant> = arbInstant,
         ): Arb<OutboxEntry> =
@@ -64,10 +63,14 @@ class OutboxPublisherPropertyTest :
                     payload = payload,
                     aggregateType = aggType,
                     aggregateId = aggId,
-                    status = status,
+                    status = OutboxEntryStatus.IN_PROGRESS,
                     createdAt = ts,
                     updatedAt = ts,
                     retryCount = retryCount,
+                    lockedBy = "worker-a",
+                    lockedAt = ts,
+                    lockedUntil = Instant.parse("2099-01-01T00:00:00Z"),
+                    lockToken = 1,
                     orderingKey = OutboxOrderingKeys.domain(aggType, aggId),
                     sequenceNo = 1,
                 )
@@ -85,6 +88,7 @@ class OutboxPublisherPropertyTest :
                     mock<OutboxEntryRepository> {
                         on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                             listOf(entry)
+                        on { renewLease(any(), any(), any(), any()) } doReturn true
                         on { markPublished(any(), any()) } doAnswer
                             { invocation ->
                                 val saved = invocation.arguments[0] as OutboxEntry
@@ -124,6 +128,7 @@ class OutboxPublisherPropertyTest :
                     mock<OutboxEntryRepository> {
                         on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                             sortedEntries
+                        on { renewLease(any(), any(), any(), any()) } doReturn true
                         on { markPublished(any(), any()) } doReturn true
                         on { markFailed(any(), any()) } doReturn true
                     }
@@ -183,10 +188,14 @@ class OutboxPublisherPropertyTest :
                             payload = """{"source":1}""",
                             aggregateType = "Order",
                             aggregateId = "$i",
-                            status = OutboxEntryStatus.PENDING,
+                            status = OutboxEntryStatus.IN_PROGRESS,
                             createdAt = Instant.ofEpochSecond(1_000_000L + i),
                             updatedAt = Instant.ofEpochSecond(1_000_000L + i),
                             retryCount = 0,
+                            lockedBy = "worker-a",
+                            lockedAt = Instant.ofEpochSecond(1_000_000L + i),
+                            lockedUntil = Instant.parse("2099-01-01T00:00:00Z"),
+                            lockToken = 1,
                             orderingKey = OutboxOrderingKeys.domain("Order", "$i"),
                             sequenceNo = i.toLong() + 1,
                         )
@@ -202,6 +211,7 @@ class OutboxPublisherPropertyTest :
                                 capturedBatchSize = invocation.arguments[1] as Int
                                 returnedEntries
                             }
+                        on { renewLease(any(), any(), any(), any()) } doReturn true
                         on { markPublished(any(), any()) } doReturn true
                     }
                 val mockSerializer =
@@ -240,12 +250,14 @@ class OutboxPublisherPropertyTest :
                         payload = """{"source":1}""",
                         aggregateType = "Order",
                         aggregateId = "1",
-                        status =
-                            if (retryCount == 0) OutboxEntryStatus.PENDING
-                            else OutboxEntryStatus.FAILED,
+                        status = OutboxEntryStatus.IN_PROGRESS,
                         createdAt = Instant.ofEpochSecond(1_000_000L),
                         updatedAt = Instant.ofEpochSecond(1_000_000L),
                         retryCount = retryCount,
+                        lockedBy = "worker-a",
+                        lockedAt = Instant.ofEpochSecond(1_000_000L),
+                        lockedUntil = Instant.parse("2099-01-01T00:00:00Z"),
+                        lockToken = 1,
                         orderingKey = OutboxOrderingKeys.domain("Order", "1"),
                         sequenceNo = 1,
                     )
@@ -255,6 +267,7 @@ class OutboxPublisherPropertyTest :
                     mock<OutboxEntryRepository> {
                         on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
                             listOf(entry)
+                        on { renewLease(any(), any(), any(), any()) } doReturn true
                         on { markFailed(any(), any()) } doAnswer
                             { invocation ->
                                 val saved = invocation.arguments[0] as OutboxEntry
