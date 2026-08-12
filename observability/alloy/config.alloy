@@ -1,0 +1,104 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+discovery.docker "jstore" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+
+  filter {
+    name   = "label"
+    values = ["jstore.logs.enabled=true"]
+  }
+}
+
+discovery.relabel "jstore" {
+  targets = discovery.docker.jstore.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_jstore_service"]
+    target_label  = "service_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_jstore_environment"]
+    target_label  = "environment"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "jstore" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.relabel.jstore.output
+  refresh_interval = "5s"
+  forward_to       = [loki.process.jstore.receiver]
+}
+
+loki.process "jstore" {
+  forward_to = [loki.write.local.receiver]
+
+  stage.json {
+    expressions = {
+      level          = "log.level",
+      service_name   = "service.name",
+      environment    = "service.environment",
+      trace_id       = "trace_id",
+      span_id        = "span_id",
+      correlation_id = "correlation_id",
+      message_id     = "message_id",
+      causation_id   = "causation_id",
+      transport_id   = "transport_id",
+    }
+    drop_malformed = false
+  }
+
+  stage.labels {
+    values = {
+      level        = "level",
+      service_name = "service_name",
+      environment  = "environment",
+      transport_id = "transport_id",
+    }
+  }
+
+  stage.structured_metadata {
+    values = {
+      trace_id       = "trace_id",
+      span_id        = "span_id",
+      correlation_id = "correlation_id",
+      message_id     = "message_id",
+      causation_id   = "causation_id",
+    }
+  }
+}
+
+loki.write "local" {
+  endpoint {
+    url                   = "http://loki:3100/loki/api/v1/push"
+    min_backoff_period    = "500ms"
+    max_backoff_period    = "30s"
+    max_backoff_retries   = 20
+    retry_on_http_429     = true
+
+    queue_config {
+      capacity          = "32MiB"
+      min_shards        = 1
+      block_on_overflow = false
+      drain_timeout     = "30s"
+    }
+  }
+
+  wal {
+    enabled            = true
+    max_segment_age    = "1h"
+    min_read_frequency = "250ms"
+    max_read_frequency = "2s"
+    drain_timeout      = "30s"
+  }
+}

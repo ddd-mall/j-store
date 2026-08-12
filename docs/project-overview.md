@@ -23,7 +23,6 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - 测试栈包含 JUnit 5、Kotlin test、Kotest、Kotest property、Mockito、Spring Boot Test
 - `j-store-outbox-spring` 和部分 infrastructure/boot 集成测试使用嵌入式 PostgreSQL
 - `j-store-user-infrastructure` 的 Redis 集成测试使用测试依赖携带的嵌入式 Redis，不要求本机预装服务
-- `j-store-boot` 仍包含少量 Java 代码，主要是订单过期定时任务相关实现
 
 ## Gradle 模块
 
@@ -53,7 +52,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-user-client-spring`: 用户资料远程 HTTP 客户端与条件自动配置；单体使用进程内实现，微服务消费方通过 `jstore.user-query.mode=remote` 切换。
 - `j-store-authentication-spring-sdk`: 基于 Spring MVC 的认证拦截器、当前用户参数解析、登录注解与自动配置，依赖 `j-store-user-domain`。
 - `j-store-accounting-domain/application/infrastructure/boot`: 会计账户、期间、凭证、结算领域与用例、JPA/Outbox 以及 Spring 事务装配。
-- `j-store-boot`: 当前主启动模块，组合各上下文 boot、公共 Spring 基础设施和认证 SDK，并承载数据库迁移、跨上下文事件翻译器、订单过期定时任务。
+- `j-store-boot`: 当前主启动模块，组合各上下文 boot、公共 Spring 基础设施和认证 SDK，并承载数据库迁移与跨上下文事件翻译器。
 - `j-store-admin-boot`: 管理端启动模块骨架，目前只有基础 Kotlin/JVM 配置和 `Main.kt`。
 
 ## 当前实现重点
@@ -103,7 +102,6 @@ boot/interface -> application -> domain -> common-core
 - `j-store-boot/src/main/resources/db/migration/` 保存当前 Flyway 基线及已有迁移事实，`db/init/` 保存初始化快照；内部开发期的后续结构迭代默认按上文策略维护当前基线/快照，而不是为可丢弃的开发数据累积兼容性迁移。
 - `docker-compose.postgres.yml` 提供本地 PostgreSQL 与 Redis 服务，连接信息见 [README.md](../README.md)。
 - `j-store-boot/src/main/resources/application-local.properties` 与 README 中的本地服务配置对应。
-- 订单过期定时任务目前位于 `j-store-boot/src/main/java/com/jstore/order/expired/`，并使用 Redis Lua 脚本资源。
 
 ## 测试现状
 

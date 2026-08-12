@@ -5,7 +5,6 @@ import org.gradle.api.tasks.bundling.Jar
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.plugin.lombok) apply false
     alias(libs.plugins.spotless)
     alias(libs.plugins.kotlin.plugin.spring)
     id("app.cash.licensee") version "1.14.1" apply false
@@ -96,6 +95,9 @@ subprojects {
         }
         allowDependency("javax.money", "money-api", "1.1") {
             because("The POM names Apache License 2.0 but uses the relative URL LICENSE.txt.")
+        }
+        allowDependency("aopalliance", "aopalliance", "1.0") {
+            because("The published POM declares this AOP Alliance API artifact as Public Domain.")
         }
         unusedAction(UnusedAction.IGNORE)
     }

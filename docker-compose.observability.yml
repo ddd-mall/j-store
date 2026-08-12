@@ -1,0 +1,113 @@
+services:
+  j-store:
+    build:
+      context: ./j-store-boot
+      dockerfile: Dockerfile
+    image: j-store:observability-local
+    container_name: j-store-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local,observability
+      JSTORE_DEPLOYMENT_ENVIRONMENT: local-compose
+      JSTORE_SERVICE_VERSION: ${JSTORE_SERVICE_VERSION:-dev}
+      JSTORE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-j_store}?currentSchema=develop
+      JSTORE_DB_USER: ${POSTGRES_USER:-develop}
+      JSTORE_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in an untracked .env file}
+      JSTORE_REDIS_HOST: redis
+      JSTORE_REDIS_PORT: 6379
+      JSTORE_JWT_ACCESS_SECRET: ${JSTORE_JWT_ACCESS_SECRET:?set JSTORE_JWT_ACCESS_SECRET in an untracked .env file}
+      JSTORE_JWT_REFRESH_SECRET: ${JSTORE_JWT_REFRESH_SECRET:?set JSTORE_JWT_REFRESH_SECRET in an untracked .env file}
+      JSTORE_PHONE_VERIFICATION_HMAC_SECRET: ${JSTORE_PHONE_VERIFICATION_HMAC_SECRET:?set JSTORE_PHONE_VERIFICATION_HMAC_SECRET in an untracked .env file}
+    labels:
+      jstore.logs.enabled: "true"
+      jstore.service: j-store
+      jstore.environment: local-compose
+    ports:
+      - "127.0.0.1:${JSTORE_PORT:-8080}:8080"
+
+  loki:
+    image: grafana/loki:3.6.12
+    container_name: j-store-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./observability/loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  alloy:
+    image: grafana/alloy:v1.18.0
+    container_name: j-store-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy
+      - --stability.level=experimental
+      - /etc/alloy/config.alloy
+    depends_on:
+      loki:
+        condition: service_healthy
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy
+    ports:
+      - "127.0.0.1:${ALLOY_PORT:-12345}:12345"
+
+  prometheus:
+    image: prom/prometheus:v3.13.2
+    container_name: j-store-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-7d}
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  grafana:
+    image: grafana/grafana:13.1.0
+    container_name: j-store-grafana
+    restart: unless-stopped
+    depends_on:
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in an untracked .env file}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+
+volumes:
+  alloy_data:
+  loki_data:
+  prometheus_data:
+  grafana_data:

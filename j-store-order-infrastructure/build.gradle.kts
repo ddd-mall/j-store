@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
-    kotlin("plugin.lombok")
 }
 
 repositories {
@@ -20,16 +19,9 @@ dependencies {
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)
-    implementation(libs.spring.data.jpa)
-    implementation(libs.spring.data.commons)
-    implementation(libs.spring.data.redis)
-    implementation(libs.spring.boot.starter.data.redis)
-    implementation(libs.spring.boot.starter.web)
-    implementation(libs.spring.boot.starter.webflux)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockito.kotlin)
     testImplementation("io.zonky.test:embedded-postgres:2.1.0")
-    //    annotationProcessor(libs.spring.boot.configuration.processor)
 
     runtimeOnly(libs.postgresql)
     testImplementation(libs.kotlin.test)
@@ -38,12 +30,6 @@ dependencies {
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotest.property)
-    implementation(libs.commons.lang3)
-    compileOnly(libs.lombok)
-    annotationProcessor(libs.lombok)
-    testCompileOnly(libs.lombok)
-    testAnnotationProcessor(libs.lombok)
-    testImplementation(kotlin("test"))
 }
 
 tasks.test {

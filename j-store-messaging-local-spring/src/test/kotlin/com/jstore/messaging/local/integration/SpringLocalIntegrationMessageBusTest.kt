@@ -24,6 +24,7 @@ import java.time.Instant
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.slf4j.MDC
 
 class SpringLocalIntegrationMessageBusTest :
     FunSpec({
@@ -120,14 +121,139 @@ class SpringLocalIntegrationMessageBusTest :
                     message.messageVersion,
                 )
         }
+
+        test("handler receives message logging context and it is cleared between messages") {
+            val observed = mutableListOf<Map<String, String?>>()
+            val handler =
+                object : IntegrationMessageHandler<TestReserveInventoryCommand> {
+                    override fun handlerId() = "inventory.reserve.v1"
+
+                    override fun handle(message: TestReserveInventoryCommand) {
+                        observed +=
+                            mapOf(
+                                "message_id" to MDC.get("message_id"),
+                                "correlation_id" to MDC.get("correlation_id"),
+                                "causation_id" to MDC.get("causation_id"),
+                                "transport_id" to MDC.get("transport_id"),
+                            )
+                    }
+                }
+            val consumption = mock<MessageConsumptionRepository>()
+            whenever(
+                    consumption.tryStart(
+                        org.mockito.kotlin.any(),
+                        org.mockito.kotlin.any(),
+                        org.mockito.kotlin.any(),
+                        org.mockito.kotlin.any(),
+                    )
+                )
+                .thenReturn(true)
+            val bus = SpringLocalIntegrationMessageBus(listOf(handler), consumption)
+
+            bus.publish(message)
+            bus.publish(message.copy(orderId = 43).withMessageId("message-2"))
+
+            observed shouldBe
+                listOf(
+                    mapOf(
+                        "message_id" to "message-1",
+                        "correlation_id" to "checkout-42",
+                        "causation_id" to "order-created-42",
+                        "transport_id" to "local",
+                    ),
+                    mapOf(
+                        "message_id" to "message-2",
+                        "correlation_id" to "checkout-42",
+                        "causation_id" to "order-created-42",
+                        "transport_id" to "local",
+                    ),
+                )
+            MDC.get("message_id") shouldBe null
+            MDC.get("correlation_id") shouldBe null
+            MDC.get("causation_id") shouldBe null
+            MDC.get("transport_id") shouldBe null
+        }
+
+        test("handler failure does not leak message logging context") {
+            val handler =
+                object : IntegrationMessageHandler<TestReserveInventoryCommand> {
+                    override fun handlerId() = "inventory.reserve.v1"
+
+                    override fun handle(message: TestReserveInventoryCommand) {
+                        throw IllegalStateException("synthetic failure")
+                    }
+                }
+            val consumption = mock<MessageConsumptionRepository>()
+            whenever(
+                    consumption.tryStart(
+                        handler.handlerId(),
+                        message.messageId,
+                        message.messageName,
+                        message.messageVersion,
+                    )
+                )
+                .thenReturn(true)
+
+            shouldThrow<IllegalStateException> {
+                SpringLocalIntegrationMessageBus(listOf(handler), consumption).publish(message)
+            }
+
+            MDC.get("message_id") shouldBe null
+            MDC.get("correlation_id") shouldBe null
+            MDC.get("causation_id") shouldBe null
+            MDC.get("transport_id") shouldBe null
+        }
+
+        test("message claim executes inside logging context and failure restores caller context") {
+            val handler =
+                object : IntegrationMessageHandler<TestReserveInventoryCommand> {
+                    override fun handlerId() = "inventory.reserve.v1"
+
+                    override fun handle(message: TestReserveInventoryCommand) = Unit
+                }
+            val observed = mutableMapOf<String, String?>()
+            val consumption = mock<MessageConsumptionRepository>()
+            whenever(
+                    consumption.tryStart(
+                        handler.handlerId(),
+                        message.messageId,
+                        message.messageName,
+                        message.messageVersion,
+                    )
+                )
+                .thenAnswer {
+                    observed["message_id"] = MDC.get("message_id")
+                    observed["correlation_id"] = MDC.get("correlation_id")
+                    observed["causation_id"] = MDC.get("causation_id")
+                    observed["transport_id"] = MDC.get("transport_id")
+                    throw IllegalStateException("synthetic claim failure")
+                }
+
+            shouldThrow<IllegalStateException> {
+                SpringLocalIntegrationMessageBus(listOf(handler), consumption).publish(message)
+            }
+
+            observed shouldBe
+                mapOf(
+                    "message_id" to "message-1",
+                    "correlation_id" to "checkout-42",
+                    "causation_id" to "order-created-42",
+                    "transport_id" to "local",
+                )
+            MDC.get("message_id") shouldBe null
+            MDC.get("correlation_id") shouldBe null
+            MDC.get("causation_id") shouldBe null
+            MDC.get("transport_id") shouldBe null
+        }
     })
 
 @IntegrationMessageType(name = "test.inventory.reserve", version = 1)
 private data class TestReserveInventoryCommand(
     val orderId: Long,
     override val occurredAt: Instant,
+    private val id: String = "message-1",
 ) : IntegrationCommand {
-    override val messageId: String = "message-1"
+    override val messageId: String = id
     override val messageName: String = "test.inventory.reserve"
     override val messageVersion: Int = 1
     override val partitionKey: String = orderId.toString()
@@ -135,6 +261,8 @@ private data class TestReserveInventoryCommand(
     override val causationId: String = "order-created-42"
     override val tenantId: String = "merchant-7"
     override val destination: String = "inventory.commands"
+
+    fun withMessageId(messageId: String) = copy(id = messageId)
 }
 
 private val message =
