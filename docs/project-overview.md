@@ -6,6 +6,15 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 完整的权威事实、上下文关系、聚合边界和跨服务一致性协议见 [领域建模说明](domain-modeling.md)。
 
+## 开发阶段与变更策略
+
+本项目当前处于内部开发期，尚未发布公开稳定版本，也没有需要保留的生产数据。除非已批准的 requirement/delta 明确规定兼容或迁移要求，否则仓库内接口、集成契约、领域模型和数据库结构均按当前目标形态直接演进。
+
+- 接口或契约变化应在同一变更中直接更新所有仓库内调用方、测试和文档；不得仅为旧内部版本保留弃用别名、适配器、兼容端点/字段/事件或新旧逻辑分支。
+- 数据结构变化应更新当前基线、初始化脚本和相关验证，并允许开发环境重建；不得仅为保留可丢弃的开发数据新增增量回填脚本、兼容视图、双列或双读/双写逻辑。
+- “无需向后兼容”不表示可以留下不一致状态；当前版本的 API、消息、持久化映射、测试夹具和文档必须在同一变更内收敛。
+- 若某项接口已有仓库外消费者、某环境包含不可丢弃数据，或变更面向发布/生产，则该事项不再适用上述默认值，必须在规格中明确兼容、迁移、回滚策略并取得相应人工批准。
+
 ## 技术栈
 
 - Kotlin 2.4.10，Java 25
@@ -91,7 +100,7 @@ boot/interface -> application -> domain -> common-core
 
 ## 数据库与运行时
 
-- `j-store-boot/src/main/resources/db/migration/` 保存 Flyway 风格迁移脚本，当前包含 Outbox、用户账户、会计表、事件消费记录等迁移。
+- `j-store-boot/src/main/resources/db/migration/` 保存当前 Flyway 基线及已有迁移事实，`db/init/` 保存初始化快照；内部开发期的后续结构迭代默认按上文策略维护当前基线/快照，而不是为可丢弃的开发数据累积兼容性迁移。
 - `docker-compose.postgres.yml` 提供本地 PostgreSQL 与 Redis 服务，连接信息见 [README.md](../README.md)。
 - `j-store-boot/src/main/resources/application-local.properties` 与 README 中的本地服务配置对应。
 - 订单过期定时任务目前位于 `j-store-boot/src/main/java/com/jstore/order/expired/`，并使用 Redis Lua 脚本资源。
