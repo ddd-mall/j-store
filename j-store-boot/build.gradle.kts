@@ -1,11 +1,11 @@
+import org.springframework.boot.gradle.tasks.bundling.BootJar
+
 plugins {
     id("java")
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
     alias(libs.plugins.springframework)
-    kotlin("plugin.lombok")
-    kotlin("kapt")
 }
 
 java {
@@ -58,21 +58,15 @@ dependencies {
     //    implementation(libs.spring.cloud.starter.alibaba.nacos.discovery)
     //    implementation(libs.spring.cloud.starter.alibaba.nacos.config)
 
-    implementation(libs.spring.data.redis)
-    implementation(libs.spring.boot.starter.data.redis)
-
     implementation(platform(libs.spring.boot.dependencies))
-    annotationProcessor(platform(libs.spring.boot.dependencies))
-    implementation(libs.spring.data.commons)
-
-    implementation(libs.spring.data.jpa)
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation(libs.spring.boot.starter.webflux)
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation(libs.flyway.core)
     testImplementation(libs.spring.boot.starter.test)
-    annotationProcessor(libs.spring.boot.configuration.processor)
 
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.flyway.database.postgresql)
@@ -80,24 +74,12 @@ dependencies {
     testImplementation(libs.kotlin.test.junit5)
     testImplementation("io.zonky.test:embedded-postgres:2.1.0")
     testRuntimeOnly(libs.junit.platform.launcher)
-    implementation(libs.commons.lang3)
-    compileOnly(libs.lombok)
-    annotationProcessor(libs.lombok)
-    testCompileOnly(libs.lombok)
-    testAnnotationProcessor(libs.lombok)
-
-    implementation(libs.fastexcel)
-    testImplementation(kotlin("test"))
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
-tasks.withType<Tar> {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-kapt {
-    keepJavacAnnotationProcessors = true
+tasks.named<BootJar>("bootJar") {
+    archiveFileName.set("app.jar")
 }

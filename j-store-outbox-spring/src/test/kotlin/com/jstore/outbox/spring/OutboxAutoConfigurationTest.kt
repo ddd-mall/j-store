@@ -24,13 +24,17 @@ import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.messaging.IntegrationMessageTransport
 import com.jstore.outbox.IntegrationPublicationPlanner
 import com.jstore.outbox.OutboxDeliveryChannel
+import com.jstore.outbox.OutboxEntryRepository
 import com.jstore.outbox.spring.persistence.OutboxEntryPOJpaRepository
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import jakarta.persistence.EntityManager
 import org.mockito.kotlin.mock
+import org.springframework.beans.factory.support.StaticListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
@@ -133,6 +137,33 @@ class OutboxAutoConfigurationTest :
                 context.containsBean("outboxPublisher") shouldBe false
                 context.containsBean("outboxCleaner") shouldBe false
             }
+        }
+
+        test("real MeterRegistry activates Micrometer Outbox monitoring") {
+            val registry = SimpleMeterRegistry()
+            val beanFactory = StaticListableBeanFactory(mapOf("meterRegistry" to registry))
+            val repository = mock<OutboxEntryRepository>()
+            val schedulerState = SchedulerExecutionState()
+            val health =
+                OutboxOperationalHealth(
+                    repository,
+                    schedulerState,
+                    OutboxObservabilityProperties(),
+                    maxRetryCount = 8,
+                )
+
+            val monitor =
+                OutboxAutoConfiguration()
+                    .outboxMonitor(
+                        beanFactory.getBeanProvider(MeterRegistry::class.java),
+                        repository,
+                        health,
+                        schedulerState,
+                        IntegrationPublicationPlanner(defaultTargets = listOf("local")),
+                    )
+
+            monitor.shouldBeInstanceOf<MicrometerOutboxMonitor>()
+            registry.meters.isNotEmpty() shouldBe true
         }
 
         test("no property configured does not register OutboxAutoConfiguration beans") {

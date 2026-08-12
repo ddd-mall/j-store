@@ -17,16 +17,23 @@
 package com.jstore.user.client
 
 import com.jstore.user.api.UserProfileQueryService
+import java.util.concurrent.atomic.AtomicBoolean
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.web.client.RestClient
 
 class UserProfileClientAutoConfigurationTest {
     private val runner =
         ApplicationContextRunner()
             .withConfiguration(
-                AutoConfigurations.of(UserProfileClientAutoConfiguration::class.java)
+                AutoConfigurations.of(
+                    RestClientAutoConfiguration::class.java,
+                    UserProfileClientAutoConfiguration::class.java,
+                )
             )
 
     @Test
@@ -58,5 +65,32 @@ class UserProfileClientAutoConfigurationTest {
                 "jstore.user-query.remote.base-url=http://user-service",
             )
             .run { context -> assertThat(context).hasFailed() }
+    }
+
+    @Test
+    fun `remote client retains interceptors from the Spring managed builder`() {
+        val intercepted = AtomicBoolean(false)
+        val managedBuilder =
+            RestClient.builder().requestInterceptor { request, body, execution ->
+                intercepted.set(true)
+                execution.execute(request, body)
+            }
+
+        runner
+            .withBean(RestClient.Builder::class.java, { managedBuilder })
+            .withPropertyValues(
+                "jstore.user-query.mode=remote",
+                "jstore.user-query.remote.base-url=http://127.0.0.1:1",
+                "jstore.user-query.remote.token=${"a".repeat(32)}",
+                "jstore.user-query.remote.connect-timeout=100ms",
+                "jstore.user-query.remote.read-timeout=100ms",
+            )
+            .run { context ->
+                assertThatThrownBy {
+                        context.getBean(UserProfileQueryService::class.java).findById(42)
+                    }
+                    .isInstanceOf(UserProfileDependencyException::class.java)
+                assertThat(intercepted).isTrue()
+            }
     }
 }

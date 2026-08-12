@@ -1,0 +1,87 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Outbox oldest ready lag (seconds)",
+      "id": 1,
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(jstore_outbox_oldest_ready_lag{transportId=\"all\"})", "instant": true }]
+    },
+    {
+      "type": "stat",
+      "title": "Dead-letter entries",
+      "id": 2,
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(jstore_outbox_entries{status=\"DEAD_LETTER\",transportId=\"all\"})", "instant": true }]
+    },
+    {
+      "type": "stat",
+      "title": "Expired Outbox locks",
+      "id": 3,
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(jstore_outbox_expired_locks{transportId=\"all\"})", "instant": true }]
+    },
+    {
+      "type": "stat",
+      "title": "Scheduler consecutive failures",
+      "id": 4,
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(jstore_outbox_scheduler_consecutive_failures)", "instant": true }]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP server requests",
+      "id": 5,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (status) (rate(http_server_requests_seconds_count{application=\"j-store\"}[5m]))", "legendFormat": "{{status}}" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Alloy delivery, retries and drops",
+      "id": 6,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(loki_write_sent_entries_total[5m]))", "legendFormat": "sent/s" },
+        { "refId": "B", "expr": "sum(rate(loki_write_batch_retries_total[5m]))", "legendFormat": "retries/s" },
+        { "refId": "C", "expr": "sum(rate(loki_write_dropped_entries_total[5m]))", "legendFormat": "dropped/s" },
+        { "refId": "D", "expr": "sum(rate(loki_source_docker_target_parsing_errors_total[5m]))", "legendFormat": "parse errors/s" }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "J-Store errors",
+      "id": 7,
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [{ "refId": "A", "expr": "{service_name=\"j-store\", level=\"ERROR\"} | json" }],
+      "options": { "showTime": true, "showLabels": false, "wrapLogMessage": true, "enableLogDetails": true }
+    },
+    {
+      "type": "logs",
+      "title": "Correlation / trace searchable logs",
+      "id": 8,
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [{ "refId": "A", "expr": "{service_name=\"j-store\"} | json | correlation_id != \"\" or trace_id != \"\"" }],
+      "options": { "showTime": true, "showLabels": false, "wrapLogMessage": true, "enableLogDetails": true }
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 41,
+  "tags": ["j-store", "observability", "outbox"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "J-Store Observability",
+  "uid": "j-store-observability",
+  "version": 1
+}

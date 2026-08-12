@@ -26,7 +26,6 @@ dependencies {
 
     implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.web)
-    implementation(libs.spring.boot.starter.data.redis)
     implementation("org.springframework:spring-tx")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 

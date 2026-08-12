@@ -18,6 +18,7 @@ package com.jstore.messaging.local.integration
 
 import com.jstore.messaging.*
 import java.util.concurrent.CopyOnWriteArrayList
+import org.slf4j.MDC
 import org.springframework.aop.support.AopUtils
 import org.springframework.core.ResolvableType
 
@@ -45,37 +46,60 @@ class SpringLocalIntegrationMessageBus(
     }
 
     private fun publishInternal(message: IntegrationMessage, deliveryOrder: MessageDeliveryOrder?) {
-        val matching = registrations.filter { it.messageType.isInstance(message) }
-        if (message is IntegrationCommand) {
-            check(matching.size == 1) {
-                "IntegrationCommand requires exactly one handler: " +
-                    "message=${message.messageName}, handlers=${matching.size}"
+        withMessageLoggingContext(message) {
+            val matching = registrations.filter { it.messageType.isInstance(message) }
+            if (message is IntegrationCommand) {
+                check(matching.size == 1) {
+                    "IntegrationCommand requires exactly one handler: " +
+                        "message=${message.messageName}, handlers=${matching.size}"
+                }
+            }
+            if (
+                deliveryOrder != null &&
+                    !consumptionRepository.tryStartOrdered(
+                        BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS,
+                        message.messageId,
+                        message.messageName,
+                        message.messageVersion,
+                        deliveryOrder,
+                    )
+            ) {
+                return@withMessageLoggingContext
+            }
+            matching.forEach { registration ->
+                val handler = registration.handler
+                if (
+                    consumptionRepository.tryStart(
+                        handler.handlerId(),
+                        message.messageId,
+                        message.messageName,
+                        message.messageVersion,
+                    )
+                ) {
+                    @Suppress("UNCHECKED_CAST")
+                    (handler as IntegrationMessageHandler<IntegrationMessage>).handle(message)
+                }
             }
         }
-        if (
-            deliveryOrder != null &&
-                !consumptionRepository.tryStartOrdered(
-                    BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS,
-                    message.messageId,
-                    message.messageName,
-                    message.messageVersion,
-                    deliveryOrder,
-                )
-        ) {
-            return
-        }
-        matching.forEach { registration ->
-            val handler = registration.handler
-            if (
-                consumptionRepository.tryStart(
-                    handler.handlerId(),
-                    message.messageId,
-                    message.messageName,
-                    message.messageVersion,
-                )
-            ) {
-                @Suppress("UNCHECKED_CAST")
-                (handler as IntegrationMessageHandler<IntegrationMessage>).handle(message)
+    }
+
+    private fun withMessageLoggingContext(message: IntegrationMessage, action: () -> Unit) {
+        val values =
+            mapOf(
+                "message_id" to message.messageId,
+                "correlation_id" to message.correlationId,
+                "causation_id" to message.causationId,
+                "transport_id" to "local",
+            )
+        val previous = values.keys.associateWith(MDC::get)
+        try {
+            values.forEach { (key, value) ->
+                if (value == null) MDC.remove(key) else MDC.put(key, value)
+            }
+            action()
+        } finally {
+            previous.forEach { (key, value) ->
+                if (value == null) MDC.remove(key) else MDC.put(key, value)
             }
         }
     }

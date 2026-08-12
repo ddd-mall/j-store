@@ -18,6 +18,7 @@ package com.jstore.outbox
 
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.MigrationVersion
@@ -72,6 +73,17 @@ class OutboxFlywayMigrationTest {
                             assertTrue(rows.next())
                             assertEquals("develop.outbox_stream_position", rows.getString(1))
                         }
+                    val removedTimerTables =
+                        listOf("timer_job", "handled_timer_job", "timer_job_dead_queue")
+                    removedTimerTables.forEach { table ->
+                        statement.executeQuery("SELECT to_regclass('develop.$table')").use { rows ->
+                            assertTrue(rows.next())
+                            assertNull(
+                                rows.getString(1),
+                                "$table must not exist in the target schema",
+                            )
+                        }
+                    }
                     statement
                         .executeQuery(
                             "SELECT COUNT(*) FROM pg_constraint " +

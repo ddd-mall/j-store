@@ -20,8 +20,10 @@ import com.jstore.user.api.UserProfileQueryService
 import java.net.URI
 import java.time.Duration
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.AutoConfigureAfter
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -54,13 +56,15 @@ class UserProfileRemoteProperties {
 }
 
 @AutoConfiguration
+@AutoConfigureAfter(RestClientAutoConfiguration::class)
 @ConditionalOnProperty(prefix = "jstore.user-query", name = ["mode"], havingValue = "remote")
 @EnableConfigurationProperties(UserProfileRemoteProperties::class)
 class UserProfileClientAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(UserProfileQueryService::class)
     fun remoteUserProfileQueryService(
-        properties: UserProfileRemoteProperties
+        properties: UserProfileRemoteProperties,
+        restClientBuilder: RestClient.Builder,
     ): HttpUserProfileQueryService {
         properties.validate()
         val requestFactory =
@@ -69,7 +73,8 @@ class UserProfileClientAutoConfiguration {
                 setReadTimeout(properties.readTimeout)
             }
         val restClient =
-            RestClient.builder()
+            restClientBuilder
+                .clone()
                 .baseUrl(properties.baseUrl.removeSuffix("/"))
                 .requestFactory(requestFactory)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer ${properties.token}")

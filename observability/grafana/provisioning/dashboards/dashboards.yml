@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: J-Store
+    orgId: 1
+    folder: J-Store
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
