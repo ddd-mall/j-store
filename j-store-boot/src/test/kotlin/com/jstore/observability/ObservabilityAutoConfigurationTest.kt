@@ -19,6 +19,7 @@ package com.jstore.observability
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.tracing.Tracer
 import io.micrometer.tracing.propagation.Propagator
+import io.opentelemetry.api.OpenTelemetry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration
@@ -52,6 +53,15 @@ class ObservabilityAutoConfigurationTest {
             )
 
     @Test
+    fun `OpenTelemetry runtime contains the baggage allocation fix`() {
+        val runtimeVersion =
+            requireNotNull(OpenTelemetry::class.java.`package`.implementationVersion)
+        val versionParts = runtimeVersion.split(".").map(String::toInt)
+
+        assertThat(versionParts[0] > 1 || (versionParts[0] == 1 && versionParts[1] >= 62)).isTrue()
+    }
+
+    @Test
     fun `OpenTelemetry tracer Prometheus registry and observed RestClient builder are configured`() {
         runner.run { context ->
             assertThat(context).hasNotFailed()
@@ -74,7 +84,7 @@ class ObservabilityAutoConfigurationTest {
                     value ->
                     carrier!![key] = value
                 }
-                assertThat(headers["traceparent"]).matches("00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]")
+                assertThat(headers["traceparent"]).matches("00-[0-9a-f]{32}-[0-9a-f]{16}-0[0-3]")
             } finally {
                 span.end()
             }

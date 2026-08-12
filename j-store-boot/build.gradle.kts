@@ -59,6 +59,7 @@ dependencies {
     //    implementation(libs.spring.cloud.starter.alibaba.nacos.config)
 
     implementation(platform(libs.spring.boot.dependencies))
+    implementation(platform(libs.open.telemetry.bom))
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
     implementation("org.springframework.boot:spring-boot-starter-validation")

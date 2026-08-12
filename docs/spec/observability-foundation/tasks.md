@@ -126,3 +126,4 @@
 - 待人工：日志安全规范、隐私边界和本地栈运维性仍需独立安全/隐私与运维评审，实施者不自行批准退出门禁。
 - 审查修复：异常访问日志只记录不含异常消息的类型与栈帧，并以合成手机号、密码、JWT、验证码和消息载荷验证无泄露；访问日志使用 MVC 路由模板；消息 MDC 覆盖 handler 校验和幂等 claim；本地端口仅绑定 loopback；运行手册明确旧基线 checksum 的破坏性重建步骤；全量 Flyway 回归通过 `to_regclass` 断言三张旧任务表不存在；PowerShell 契约验证 `.env` 非默认端口、Grafana 用户名、进程环境变量优先级和 loopback 端口绑定。
 - 修复后回归：`spotlessCheck licensee test verifyLicenseArtifacts` 构建成功（250 个任务完成或复用缓存，53 个 JAR 制品验证通过）；治理检查、69 个 Python 契约测试、文件归属、PowerShell 语法与 3 个 Pester 契约测试通过；`git diff --check` 通过。
+- 依赖漏洞修复：针对 `GHSA-rcgg-9c38-7xpx` 增加 OpenTelemetry 运行时最低安全版本回归测试，并通过 OpenTelemetry BOM 将 API、SDK 与 propagators 从 `1.49.0` 统一对齐到 `1.62.0`；Tracer、W3C `traceparent`（含 random flag）、Prometheus 和受观测 HTTP 客户端装配测试通过。重新生成的生产 SBOM 包含 197 个包，使用已校验发布摘要的 OSV Scanner 2.4.0 扫描结果为 0 个漏洞；完整 `./scripts/quality-gate.sh` 通过。
