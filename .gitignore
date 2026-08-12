@@ -40,7 +40,7 @@ out/
 ### Kotlin ###
 .kotlin
 
-.gradle-home
+/.gradle-home/
 
 ### JVM crash diagnostics ###
 hs_err_pid*.log
