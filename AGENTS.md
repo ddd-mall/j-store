@@ -7,11 +7,12 @@
 1. 阅读 `docs/project-overview.md`。
 2. 领域边界、聚合、状态机或跨上下文协作变更阅读 `docs/domain-modeling.md`。
 3. Kotlin/Gradle 变更阅读 `docs/steering/ddd-guidelines.md`。
-4. 新功能或行为修复阅读 `docs/steering/tdd-guidelines.md`。
-5. agent 编排、自动维护、评审、发布和生产相关工作阅读 `docs/steering/agent-governance.md`。
-6. 有适用规格时，以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为产品意图来源。
-7. 分支、PR、发布或热修复工作阅读 `docs/operations/branch-management.md`。
-8. Agentic CI/CD Supervisor、GitHub Issue 控制面或 Symphony 接入工作阅读 `docs/operations/agentic-cicd-runbook.md`。
+4. 依赖声明、版本调整、BOM、Gradle Platform 或供应链验证变更阅读 `docs/steering/dependency-management-guidelines.md`。
+5. 新功能或行为修复阅读 `docs/steering/tdd-guidelines.md`。
+6. agent 编排、自动维护、评审、发布和生产相关工作阅读 `docs/steering/agent-governance.md`。
+7. 有适用规格时，以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为产品意图来源。
+8. 分支、PR、发布或热修复工作阅读 `docs/operations/branch-management.md`。
+9. Agentic CI/CD Supervisor、GitHub Issue 控制面或 Symphony 接入工作阅读 `docs/operations/agentic-cicd-runbook.md`。
 
 ## 长期记忆与文档索引
 
@@ -26,6 +27,7 @@
 
 - [docs/steering/ddd-guidelines.md](docs/steering/ddd-guidelines.md)：DDD 架构、模块依赖、领域对象、仓储、应用服务、反腐层、基础设施与禁止模式。
 - [docs/steering/tdd-guidelines.md](docs/steering/tdd-guidelines.md)：TDD 工作流、测试分层、属性测试、集成测试、回归保护与执行建议。
+- [docs/steering/dependency-management-guidelines.md](docs/steering/dependency-management-guidelines.md)：外部坐标、统一 Platform、版本与安全例外、供应链验证和依赖变更完成标准。
 - [docs/steering/agent-memory-guidelines.md](docs/steering/agent-memory-guidelines.md)：Agent 长期记忆文件组织规则。
 - [docs/steering/agent-governance.md](docs/steering/agent-governance.md)：长期自动维护的角色、权限、需求漂移、质量门禁和人工审批规则。
 
