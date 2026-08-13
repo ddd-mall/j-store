@@ -1,3 +1,13 @@
+x-runtime-no-proxy: &runtime-no-proxy
+  HTTP_PROXY: ""
+  HTTPS_PROXY: ""
+  ALL_PROXY: ""
+  NO_PROXY: "*"
+  http_proxy: ""
+  https_proxy: ""
+  all_proxy: ""
+  no_proxy: "*"
+
 services:
   j-store:
     build:
@@ -12,6 +22,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      <<: *runtime-no-proxy
       SPRING_PROFILES_ACTIVE: local,observability
       JSTORE_DEPLOYMENT_ENVIRONMENT: local-compose
       JSTORE_SERVICE_VERSION: ${JSTORE_SERVICE_VERSION:-dev}
@@ -35,6 +46,7 @@ services:
     container_name: j-store-loki
     restart: unless-stopped
     command: ["-config.file=/etc/loki/config.yml"]
+    environment: *runtime-no-proxy
     volumes:
       - ./observability/loki/config.yml:/etc/loki/config.yml:ro
       - loki_data:/loki
@@ -56,6 +68,7 @@ services:
       - --storage.path=/var/lib/alloy
       - --stability.level=experimental
       - /etc/alloy/config.alloy
+    environment: *runtime-no-proxy
     depends_on:
       loki:
         condition: service_healthy
@@ -74,13 +87,14 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-7d}
+    environment: *runtime-no-proxy
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/ready"]
+      test: ["CMD", "wget", "-Y", "off", "--spider", "-q", "http://localhost:9090/-/ready"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -95,6 +109,7 @@ services:
       prometheus:
         condition: service_healthy
     environment:
+      <<: *runtime-no-proxy
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in an untracked .env file}
       GF_USERS_ALLOW_SIGN_UP: "false"

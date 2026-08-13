@@ -188,6 +188,43 @@ fi
         self.assertEqual("class StagedApp\n", self.git("show", ":src/App.kt").stdout)
         self.assertFalse(app_file.exists())
 
+    def test_source_commit_runs_from_linked_worktree(self) -> None:
+        branch = "linked-worktree"
+        worktree = Path(self.temp_dir.name) / "linked"
+        self.git("branch", branch)
+        self.git("worktree", "add", worktree.as_posix(), branch)
+        app_file = worktree / "src" / "App.kt"
+        app_file.write_text("class    App\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "add", "src/App.kt"],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        environment = os.environ.copy()
+        environment["SPOTLESS_PRE_COMMIT_GRADLE"] = self.fake_gradle.as_posix()
+        environment["SPOTLESS_TEST_LOG"] = self.gradle_log.as_posix()
+        environment["SPOTLESS_TEST_REPOSITORY"] = worktree.as_posix()
+
+        result = subprocess.run(
+            ["sh", PRE_COMMIT_HOOK_SCRIPT.as_posix()],
+            cwd=worktree,
+            env=environment,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        staged_content = subprocess.run(
+            ["git", "show", ":src/App.kt"],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        self.assertEqual("class FormattedApp\n", staged_content)
+
 
 if __name__ == "__main__":
     unittest.main()

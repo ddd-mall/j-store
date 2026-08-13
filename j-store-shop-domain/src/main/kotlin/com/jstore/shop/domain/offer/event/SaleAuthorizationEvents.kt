@@ -22,7 +22,6 @@ import com.jstore.common.framework.event.newDomainEventId
 import com.jstore.shop.domain.offer.SaleAuthorizationId
 import java.time.Instant
 
-@DomainEventType(name = "store.sale-authorized", version = 1)
 data class AuthorizedSaleLine(
     val authorizationId: String,
     val offerId: Long,
@@ -32,6 +31,7 @@ data class AuthorizedSaleLine(
     val expiresAt: Instant,
 )
 
+@DomainEventType(name = "store.sale-authorized", version = 1)
 data class SaleAuthorizedEvent(
     val orderId: Long,
     val items: List<AuthorizedSaleLine>,

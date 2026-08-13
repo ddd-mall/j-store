@@ -79,7 +79,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "bootJar build failed" }
 
     Invoke-Compose config --quiet
-    Invoke-Compose up -d --build
+    Invoke-Compose up --detach --build
 
     Wait-Http "$($settings.LokiBaseUri)/ready" | Out-Null
     Wait-Http "$($settings.AlloyBaseUri)/-/ready" | Out-Null
