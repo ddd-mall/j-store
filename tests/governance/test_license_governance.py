@@ -49,9 +49,10 @@ class LicenseGovernanceContractTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn('id("app.cash.licensee") version "1.14.1"', build_script)
+        self.assertIn("alias(libs.plugins.licensee) apply false", build_script)
         self.assertIn('into("META-INF")', build_script)
         self.assertIn('tasks.register("verifyLicenseArtifacts")', build_script)
+        self.assertIn("python scripts/check-file-ownership.py", quality_gate)
         self.assertIn("./gradlew licensee", quality_gate)
         self.assertIn("verifyLicenseArtifacts", quality_gate)
         self.assertIn("dependency-license-audit:", security_workflow)

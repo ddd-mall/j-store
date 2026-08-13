@@ -1,0 +1,11 @@
+plugins { `java-platform` }
+
+repositories { mavenCentral() }
+
+javaPlatform { allowDependencies() }
+
+dependencies {
+    api(platform(libs.spring.boot.dependencies))
+    api(platform(libs.junit.bom))
+    api(platform(libs.open.telemetry.bom))
+}

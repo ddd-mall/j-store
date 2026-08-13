@@ -6,15 +6,14 @@ plugins {
 repositories { mavenCentral() }
 
 dependencies {
-    implementation("org.springframework:spring-context")
+    implementation(libs.spring.context)
     implementation(project(":j-store-accounting-domain"))
     implementation(project(":j-store-accounting-application"))
     implementation(project(":j-store-accounting-infrastructure"))
     implementation(project(":j-store-order-domain"))
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-integration-contracts"))
-    implementation(platform(libs.spring.boot.dependencies))
-    implementation("org.springframework:spring-tx")
+    implementation(libs.spring.tx)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.kotlin.test)

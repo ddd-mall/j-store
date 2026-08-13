@@ -17,7 +17,6 @@ dependencies {
     implementation(libs.kotlin.reflect)
     api(project(":j-store-accounting-domain"))
     implementation(project(":j-store-common-core"))
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.data.jpa)
     runtimeOnly(libs.postgresql)
@@ -28,7 +27,7 @@ dependencies {
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotest.property)
-    testRuntimeOnly("com.h2database:h2")
+    testRuntimeOnly(libs.h2)
 }
 
 kotlin {

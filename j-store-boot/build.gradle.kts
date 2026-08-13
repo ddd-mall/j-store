@@ -57,15 +57,12 @@ dependencies {
     //    implementation(platform(libs.spring.cloud.alibaba.dependencies))
     //    implementation(libs.spring.cloud.starter.alibaba.nacos.discovery)
     //    implementation(libs.spring.cloud.starter.alibaba.nacos.config)
-
-    implementation(platform(libs.spring.boot.dependencies))
-    implementation(platform(libs.open.telemetry.bom))
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("io.micrometer:micrometer-tracing-bridge-otel")
-    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.micrometer.tracing.bridge.otel)
+    runtimeOnly(libs.micrometer.registry.prometheus)
     implementation(libs.flyway.core)
     testImplementation(libs.spring.boot.starter.test)
 
@@ -73,7 +70,7 @@ dependencies {
     runtimeOnly(libs.flyway.database.postgresql)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit5)
-    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+    testImplementation(libs.embedded.postgres)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

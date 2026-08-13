@@ -15,14 +15,13 @@ repositories {
 dependencies {
     api(project(":j-store-shop-domain"))
     implementation(project(":j-store-common-core"))
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.data.jpa)
     runtimeOnly(libs.postgresql)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlin.test.junit5)
-    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+    testImplementation(libs.embedded.postgres)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

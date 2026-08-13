@@ -8,11 +8,10 @@ repositories {
 }
 
 dependencies {
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-messaging-core"))
-    implementation(libs.spirng.boot.boot)
-    implementation("org.springframework:spring-context")
+    implementation(libs.spring.boot.core)
+    implementation(libs.spring.context)
 
     testImplementation(kotlin("test"))
     testImplementation(libs.kotest.runner.junit5)

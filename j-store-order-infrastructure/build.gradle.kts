@@ -16,12 +16,10 @@ dependencies {
     implementation(project(":j-store-goods-api"))
     implementation(project(":j-store-shop-api"))
     implementation(project(":j-store-user-api"))
-
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockito.kotlin)
-    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+    testImplementation(libs.embedded.postgres)
 
     runtimeOnly(libs.postgresql)
     testImplementation(libs.kotlin.test)

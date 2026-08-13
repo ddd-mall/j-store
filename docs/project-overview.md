@@ -19,7 +19,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 - Kotlin 2.4.10，Java 25
 - Spring Boot 3.5.16，Spring Data JPA，PostgreSQL，Redis
-- Gradle Kotlin DSL，依赖版本集中在 `gradle/libs.versions.toml`
+- Gradle Kotlin DSL；外部坐标集中在 `gradle/libs.versions.toml`，解析约束由 `j-store-dependencies-platform` 统一提供
 - 测试栈包含 JUnit 5、Kotlin test、Kotest、Kotest property、Mockito、Spring Boot Test
 - `j-store-outbox-spring` 和部分 infrastructure/boot 集成测试使用嵌入式 PostgreSQL
 - `j-store-user-infrastructure` 的 Redis 集成测试使用测试依赖携带的嵌入式 Redis，不要求本机预装服务
@@ -28,6 +28,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 当前 `settings.gradle.kts` 注册了这些模块：
 
+- `j-store-dependencies-platform`: 全模块共享的 Java Platform，统一导入 Spring Boot、JUnit 和安全基线 OpenTelemetry BOM；不承载运行时代码。
 - `j-store-common-core`: 不依赖 Spring 的共享领域基础类型、错误、Result、领域事件、地理地址、日志、工具类。
 - `j-store-common-spring`: 仅保留通用 Spring 地理地址服务实现，不承载消息或 Outbox 基础设施。
 - `j-store-messaging-core`: 框架无关的集成消息、handler、publisher、envelope 与 transport SPI。
