@@ -28,7 +28,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 当前 `settings.gradle.kts` 注册了这些模块：
 
-- `j-store-dependencies-platform`: 全模块共享的 Java Platform，统一导入 Spring Boot、JUnit 和安全基线 OpenTelemetry BOM；不承载运行时代码。
+- `j-store-dependencies-platform`: 全模块共享的 Java Platform，统一导入 Spring Boot、JUnit、OpenTelemetry 及获批安全 BOM/constraint；不承载运行时代码。详细规则见 [依赖管理规范](steering/dependency-management-guidelines.md)。
 - `j-store-common-core`: 不依赖 Spring 的共享领域基础类型、错误、Result、领域事件、地理地址、日志、工具类。
 - `j-store-common-spring`: 仅保留通用 Spring 地理地址服务实现，不承载消息或 Outbox 基础设施。
 - `j-store-messaging-core`: 框架无关的集成消息、handler、publisher、envelope 与 transport SPI。

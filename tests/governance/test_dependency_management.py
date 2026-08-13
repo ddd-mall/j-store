@@ -107,6 +107,32 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertNotIn("version", libraries["spring-security-crypto"])
         self.assertNotIn("spirng-boot-boot", libraries)
 
+    def test_dependency_management_rules_are_part_of_project_steering(self) -> None:
+        guideline_path = (
+            REPO_ROOT / "docs" / "steering" / "dependency-management-guidelines.md"
+        )
+        agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "docs/steering/dependency-management-guidelines.md",
+            agents,
+        )
+        self.assertTrue(guideline_path.is_file())
+
+        guideline = guideline_path.read_text(encoding="utf-8")
+        required_contracts = (
+            "gradle/libs.versions.toml",
+            "j-store-dependencies-platform",
+            "Spring Boot BOM",
+            "安全下限",
+            "dependencyInsight",
+            "cyclonedxDirectBom",
+            "OSV Scanner",
+            "./scripts/quality-gate.sh",
+        )
+        for contract in required_contracts:
+            self.assertIn(contract, guideline)
+
 
 if __name__ == "__main__":
     unittest.main()
