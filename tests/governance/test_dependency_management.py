@@ -71,6 +71,7 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertIn("api(platform(libs.open.telemetry.bom))", platform)
         self.assertIn("api(platform(libs.jackson.bom))", platform)
         self.assertIn("api(platform(libs.netty.bom))", platform)
+        self.assertIn("api(platform(libs.log4j.bom))", platform)
         self.assertIn("api(libs.postgresql)", platform)
         self.assertIn("api(libs.commons.lang3)", platform)
 
@@ -82,6 +83,7 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertNotIn("platform(libs.spring.boot.dependencies)", non_platform_text)
         self.assertNotIn("platform(libs.jackson.bom)", non_platform_text)
         self.assertNotIn("platform(libs.netty.bom)", non_platform_text)
+        self.assertNotIn("platform(libs.log4j.bom)", non_platform_text)
         self.assertNotIn("platform(libs.open.telemetry.bom)", non_platform_text)
 
         root_build = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
@@ -95,10 +97,12 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertEqual("1.62.0", versions["open-telemetry"])
         self.assertEqual("2.21.5", versions["jackson"])
         self.assertEqual("4.1.136.Final", versions["netty"])
+        self.assertEqual("2.25.5", versions["log4j"])
         self.assertEqual("42.7.12", versions["postgresql"])
         self.assertEqual("3.19.0", versions["commons-lang3"])
         self.assertEqual("jackson", libraries["jackson-bom"]["version"]["ref"])
         self.assertEqual("netty", libraries["netty-bom"]["version"]["ref"])
+        self.assertEqual("log4j", libraries["log4j-bom"]["version"]["ref"])
         self.assertEqual("postgresql", libraries["postgresql"]["version"]["ref"])
         self.assertEqual(
             "commons-lang3", libraries["commons-lang3"]["version"]["ref"]
