@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+data:
+  datasources.yml: |
+    apiVersion: 1
+    deleteDatasources:
+      - name: Loki
+        orgId: 1
+      - name: Prometheus
+        orgId: 1
+    datasources:
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: https://loki-gateway
+        basicAuth: true
+        basicAuthUser: ${LOKI_USERNAME}
+        secureJsonData:
+          basicAuthPassword: ${LOKI_PASSWORD}
+        jsonData:
+          tlsSkipVerify: false
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+  dashboards.yml: |
+    apiVersion: 1
+    providers:
+      - name: J-Store Kubernetes
+        orgId: 1
+        folder: J-Store
+        type: file
+        disableDeletion: true
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard
+data:
+  kubernetes-observability.json: |
+    {
+      "annotations": {"list": []},
+      "editable": false,
+      "panels": [
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [{"expr": "{service_name=~\".+\"}", "refId": "A"}],
+          "title": "J-Store Kubernetes logs",
+          "type": "logs"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
+          "id": 2,
+          "targets": [{"expr": "sum(loki_write_dropped_entries_total)", "refId": "A"}],
+          "title": "Alloy dropped log entries",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
+          "id": 3,
+          "targets": [{"expr": "jstore_outbox_oldest_ready_lag{transportId=\"all\"}", "refId": "A"}],
+          "title": "Outbox oldest ready lag",
+          "type": "timeseries"
+        }
+      ],
+      "schemaVersion": 41,
+      "tags": ["j-store", "kubernetes", "observability"],
+      "time": {"from": "now-1h", "to": "now"},
+      "title": "J-Store Kubernetes Observability",
+      "uid": "jstore-kubernetes-observability",
+      "version": 1
+    }

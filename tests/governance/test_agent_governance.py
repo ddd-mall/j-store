@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import tomllib
 import unittest
@@ -8,6 +9,16 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def repository_bash() -> str:
+    if shutil.which("git"):
+        git = Path(shutil.which("git") or "")
+        candidates = (git.with_name("bash.exe"), git.parent.parent / "bin" / "bash.exe")
+        for candidate in candidates:
+            if candidate.is_file():
+                return str(candidate)
+    return shutil.which("bash") or "bash"
 
 
 class AgentGovernanceContractTest(unittest.TestCase):
@@ -41,11 +52,13 @@ class AgentGovernanceContractTest(unittest.TestCase):
 
     def test_repository_governance_contract(self) -> None:
         result = subprocess.run(
-            ["bash", "scripts/check-agent-governance.sh"],
+            [repository_bash(), "scripts/check-agent-governance.sh"],
             cwd=REPO_ROOT,
             check=False,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
