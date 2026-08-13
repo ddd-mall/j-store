@@ -44,7 +44,8 @@ else
 fi
 ./gradlew spotlessCheck --no-daemon --console=plain
 
-printf '%s\n' '[4/6] Dependency license audit'
+printf '%s\n' '[4/6] Dependency resolution and license audit'
+./gradlew verifyDependencyResolution --no-daemon --console=plain
 ./gradlew licensee --no-daemon --console=plain
 
 printf '%s\n' '[5/6] Gradle regression tests'
