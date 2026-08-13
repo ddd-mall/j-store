@@ -21,4 +21,5 @@ flowchart LR
 - PostgreSQL 使用新 database `j_store_codex` 与 role `jstore_app`。脚本只创建/轮换该 role，不删除或改写已有 `j_store`。
 - 共享 Redis Service 当前没有可响应的后端。为避免修改共享 namespace，本部署创建带密码和 AOF 的单副本 Redis；应用通过同 namespace Service 使用它。
 - Prometheus CR 的 ServiceMonitor namespace/label selector 均为空选择器，能发现 `jstore` namespace 的 ServiceMonitor。Grafana dashboard sidecar 监听所有 namespace 中 `grafana_dashboard=1` 的 ConfigMap，因此只需新增 dashboard，不修改 Helm 管理对象。
+- 应用 Dashboard 直接复用 Micrometer、Tomcat MBean、kubelet/cAdvisor 与 kube-state-metrics 指标。接口查询使用 MVC 模板化 `uri` 与 method，排除 `/actuator.*`；Pod 查询显式限定 application container，避免把 pause container 或 Pod 汇总序列重复计入。
 - 默认 ClusterIP 与 port-forward。NetworkPolicy 描述预期最小流量，但远程 Flannel 环境不能提供执行保证。

@@ -75,6 +75,14 @@ flowchart LR
 - 复用现有 `jstore.outbox.*` 指标和健康阈值，不在日志栈中重新计算另一套 Outbox 真相。
 - Dashboard 至少展示 oldest-ready lag、失败/死信、过期锁和 scheduler 连续失败。
 
+## 决策五：应用与 Kubernetes 运行 Dashboard
+
+- 总体 QPS 保留全部 HTTP 流量以反映运行时实际负载；业务 QPS 与请求耗时查询排除 `/actuator.*` 和 `UNKNOWN`，避免健康探针与 Prometheus 自抓取掩盖真实业务流量。
+- 接口维度只使用 `method` 与 Spring MVC 模板化 `uri`。平均耗时由同一窗口的 duration sum/count 计算；最大耗时使用 Micrometer Timer 的滚动窗口 max，其语义不是所选 Grafana 时间范围内的历史绝对最大值。
+- 启用 `server.tomcat.mbeanregistry.enabled` 导出 busy/current/configured-max 线程指标。JVM 内存按低基数内存池 `id` 分组，GC 按 `action/cause` 分组。
+- JVM 进程 CPU 来自应用指标；Pod CPU 和 memory working set 来自 kubelet/cAdvisor，limit 与 restart 来自 kube-state-metrics。所有 Pod 查询限定 `namespace=jstore`、应用 Pod 名和 `container=application`，排除 pause container 与 Pod 汇总序列。
+- Dashboard 查询使用 Grafana `$__rate_interval` 与 `$__range`，使速率和重启统计适配所选时间范围与 Prometheus 抓取间隔。
+
 ## 故障与降级
 
 - Loki 或网络不可用时，采集器在受限磁盘缓冲内重试，应用继续写本地 stdout，不等待远程确认。
@@ -97,6 +105,7 @@ flowchart LR
 - HTTP 异常契约测试验证未处理异常不会被记录为成功，并保留有效状态、错误类型和堆栈。
 - 消息测试验证 message/correlation/causation 字段以及连续消费无串扰。
 - Spring 装配测试验证真实 `MeterRegistry` 和 Outbox meters 存在。
+- Dashboard 契约测试解析渲染后的 ConfigMap JSON，验证 HTTP、Tomcat、JVM、GC 与 Kubernetes Pod 指标及低基数过滤规则均存在。
 - Compose smoke test 产生唯一合成日志，在限定时间内通过 Loki 查询命中，并验证 Grafana 数据源健康。
 - PowerShell 契约测试使用非默认端口和管理员用户名验证 smoke 配置解析。
 - 全量 Flyway 回归测试验证从空库得到当前目标结构，不再创建已删除的任务表。

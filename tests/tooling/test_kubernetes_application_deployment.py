@@ -1,3 +1,4 @@
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -81,6 +82,73 @@ class KubernetesApplicationDeploymentTest(unittest.TestCase):
         dashboard = by_kind_name(self.documents, "ConfigMap", "j-store-grafana-dashboard")
         self.assertEqual("1", dashboard["metadata"]["labels"]["grafana_dashboard"])
         self.assertIn('"uid": "j-store-runtime"', dashboard["data"]["j-store-runtime.json"])
+
+    def test_runtime_dashboard_covers_application_jvm_and_pod_signals(self) -> None:
+        dashboard_config = by_kind_name(
+            self.documents, "ConfigMap", "j-store-grafana-dashboard"
+        )
+        dashboard = json.loads(dashboard_config["data"]["j-store-runtime.json"])
+        panels = {panel["title"]: panel for panel in dashboard["panels"]}
+
+        expected_titles = {
+            "Overall QPS",
+            "Business QPS",
+            "Average request duration",
+            "Maximum request duration",
+            "QPS by endpoint",
+            "Request duration by endpoint",
+            "Tomcat threads",
+            "Heap pools used",
+            "GC count rate",
+            "GC pause time",
+            "JVM process CPU",
+            "Pod CPU usage",
+            "Pod memory working set",
+            "Pod resource utilization",
+            "Pod restarts",
+        }
+        self.assertEqual(set(), expected_titles - panels.keys())
+
+        expressions = "\n".join(
+            target["expr"]
+            for panel in dashboard["panels"]
+            for target in panel.get("targets", [])
+        )
+        for metric in (
+            "http_server_requests_seconds_count",
+            "http_server_requests_seconds_sum",
+            "http_server_requests_seconds_max",
+            "tomcat_threads_busy_threads",
+            "tomcat_threads_current_threads",
+            "tomcat_threads_config_max_threads",
+            "jvm_memory_used_bytes",
+            "jvm_gc_pause_seconds_count",
+            "jvm_gc_pause_seconds_sum",
+            "process_cpu_usage",
+            "container_cpu_usage_seconds_total",
+            "container_memory_working_set_bytes",
+            "kube_pod_container_resource_limits",
+            "kube_pod_container_status_restarts_total",
+        ):
+            self.assertIn(metric, expressions)
+        self.assertIn('uri!~"/actuator.*"', expressions)
+        self.assertIn("by (method, uri)", expressions)
+        self.assertIn("by (id)", expressions)
+
+    def test_observability_profile_enables_tomcat_thread_metrics(self) -> None:
+        properties = (
+            REPOSITORY_ROOT
+            / "j-store-boot"
+            / "src"
+            / "main"
+            / "resources"
+            / "application-observability.properties"
+        ).read_text(encoding="utf-8")
+        self.assertIn("server.tomcat.mbeanregistry.enabled=true", properties)
+        runtime = by_kind_name(self.documents, "ConfigMap", "jstore-runtime")
+        self.assertEqual(
+            "true", runtime["data"]["SERVER_TOMCAT_MBEANREGISTRY_ENABLED"]
+        )
 
     def test_services_are_internal_and_default_deny_is_declared(self) -> None:
         for service in (

@@ -15,6 +15,7 @@
 3. 既有 `redis.redis.svc` 不可用时，部署脚本使用 `jstore` namespace 内带认证和 PVC 的隔离 Redis，不修改共享 `redis` namespace。
 4. 开发集群没有镜像 registry 或 containerd 导入权限时，脚本可把本地构建的 `app.jar` 写入专用 PVC，并用固定 Java 25 基础镜像运行；此路径必须明确标记为非生产制品交付方式。
 5. Prometheus Operator 通过 ServiceMonitor 抓取 `/actuator/prometheus`；现有 Grafana sidecar 自动加载 J-Store dashboard，且无需修改 Helm 管理的 monitoring 资源。
+   Dashboard 覆盖业务总体与接口级 QPS/耗时、Tomcat、JVM 堆/GC/CPU 以及 Pod CPU/内存/limit 利用率/重启，并明确排除 Actuator 自流量。
 6. 默认不创建 Ingress、NodePort 或 LoadBalancer；人工访问应用使用 `kubectl port-forward`。
 7. 部署脚本必须要求显式 context、只写固定 namespace、清理一次性 loader，并在失败时保留可诊断状态而不修改现有 monitoring/PostgreSQL/Redis 工作负载。
 
