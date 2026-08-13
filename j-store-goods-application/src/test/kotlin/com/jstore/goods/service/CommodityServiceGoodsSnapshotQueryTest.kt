@@ -18,6 +18,7 @@ package com.jstore.goods.service
 
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.goods.api.GoodsSkuSnapshotInfo
+import com.jstore.goods.domain.brand.BrandId
 import com.jstore.goods.domain.commodity.Attribute
 import com.jstore.goods.domain.commodity.GoodsStyleFactory
 import com.jstore.goods.domain.commodity.GoodsStyleRepository
@@ -31,6 +32,7 @@ import com.jstore.goods.domain.commodity.snapshot.SpuSnapshot
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactory
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotId
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotRepository
+import com.jstore.goods.domain.content.LocalizedText
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -52,6 +54,7 @@ class CommodityServiceGoodsSnapshotQueryTest :
                     snapshotRepository = snapshotRepository,
                     goodsStyleRepository = mock<GoodsStyleRepository>(),
                     goodsStyleFactory = mock<GoodsStyleFactory>(),
+                    brandRepository = mock(),
                 )
             val snapshot =
                 SpuSnapshot(
@@ -61,6 +64,8 @@ class CommodityServiceGoodsSnapshotQueryTest :
                     snapshotVersion = 3L,
                     spuName = "Keyboard",
                     description = "Mechanical keyboard",
+                    brandId = BrandId(81),
+                    brandName = LocalizedText.of("en-US" to "Key Works"),
                     skuSnapshots =
                         listOf(
                             SkuSnapshot(
@@ -83,6 +88,8 @@ class CommodityServiceGoodsSnapshotQueryTest :
             result.first().spuId shouldBe 1001L
             result.first().snapshotVersion shouldBe 3L
             result.first().spuName shouldBe "Keyboard"
+            result.first().brandId shouldBe 81L
+            result.first().brandName shouldBe mapOf("en-US" to "Key Works")
             result
                 .first()
                 .skuSnapshots

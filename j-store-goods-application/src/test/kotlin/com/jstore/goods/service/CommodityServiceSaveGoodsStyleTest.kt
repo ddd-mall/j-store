@@ -57,6 +57,7 @@ class CommodityServiceSaveGoodsStyleTest :
                     snapshotRepository = snapshotRepository,
                     goodsStyleRepository = goodsStyleRepository,
                     goodsStyleFactory = goodsStyleFactory,
+                    brandRepository = mock(),
                 )
         }
 

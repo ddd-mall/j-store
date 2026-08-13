@@ -49,7 +49,9 @@ AttributeDefinition
 
 ### 5. 内容基础类型先落领域语义
 
-本次提供 `Category`、`Brand`、`LocalizedText`、`MediaAsset` 类型及不变量，但不引入完整管理后台和搜索投影。SPU 增加可选 `brandId`、`categoryIds` 和本地化标题/描述的能力时，只引用稳定 ID。
+本次提供 `Category`、`Brand`、`LocalizedText`、`MediaAsset` 类型及不变量，但不引入完整管理后台和搜索投影。SPU 对 Category 只引用稳定 ID；Brand 作为 Catalog 内商户级聚合，通过仓储和应用用例维护，SPU 仍只持有 `brandId`。
+
+Brand 默认启用，可维护多语言名称并显式启用或停用；商户内按确定性首选本地化名称规范化后保持唯一。商品保存和发布由应用服务加载 Brand，校验存在性、启用状态和商户归属；数据库外键保证引用目标存在。快照保存 Brand ID 与发布时名称，历史查询不回查可变 Brand。
 
 ## 发布事务
 
@@ -72,7 +74,9 @@ delete draft style + draft
 ## 数据结构
 
 - `sku.source_sku_id`：草稿 SKU 指向其稳定来源。
+- `brand` 保存商户、名称、规范化名称、状态和乐观锁版本，并以 `(merchant_id, normalized_name)` 保证商户内唯一；`spu.brand_id` 使用外键引用。
 - `spu.product_type_id`、`brand_id`、`localized_name`、`localized_description`、`category_ids`。
+- `spu_snapshot.brand_name` 冻结发布时的本地化品牌名称。
 - `spu.persistence_version`：JPA 乐观锁。
 - `product_type`：类型定义 JSONB。
 - 快照 JSON 扩展内容和新的商品资料字段。

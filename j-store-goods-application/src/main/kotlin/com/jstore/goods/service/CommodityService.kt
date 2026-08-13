@@ -23,6 +23,11 @@ import com.jstore.common.utils.*
 import com.jstore.goods.api.GoodsSkuSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotQueryService
+import com.jstore.goods.domain.brand.Brand
+import com.jstore.goods.domain.brand.BrandErrors
+import com.jstore.goods.domain.brand.BrandId
+import com.jstore.goods.domain.brand.BrandRepository
+import com.jstore.goods.domain.brand.BrandStatus
 import com.jstore.goods.domain.commodity.*
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.GoodsStyleSaveCmd
@@ -43,6 +48,7 @@ class CommodityService(
     private val snapshotRepository: SpuSnapshotRepository,
     private val goodsStyleRepository: GoodsStyleRepository,
     private val goodsStyleFactory: GoodsStyleFactory,
+    private val brandRepository: BrandRepository,
     private val productTypeRepository: ProductTypeRepository? = null,
 ) : CommodityUseCase, GoodsSnapshotQueryService {
 
@@ -53,6 +59,9 @@ class CommodityService(
      */
     override fun createOrUpdate(cmd: CommodityCreateCmd): Result<Spu, BusinessError> {
         return cmd.verify().map {
+            validateBrandReference(cmd.brandId, MerchantId(cmd.merchantId)).onFailure {
+                return Failure(it)
+            }
             cmd.spuId?.let {
                 val old =
                     spuRepository.findById(it) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
@@ -104,13 +113,22 @@ class CommodityService(
      */
     override fun publish(spuId: SpuId): Result<SpuSnapshot, BusinessError> {
         val spu = spuRepository.findById(spuId) ?: return Failure(CommodityErrors.SPU_NOT_FOUND)
+        val brand =
+            findValidBrand(spu.brandId, spu.merchantId).getOrElse {
+                return Failure(it)
+            }
         validateProductType(spu).onFailure {
             return Failure(it)
         }
         spu.publish().onFailure {
             return Failure(it)
         }
-        val snapshot = snapshotFactory.createSnapshot(spu, goodsStyleRepository.findBySpuId(spu.id))
+        val snapshot =
+            snapshotFactory.createSnapshot(
+                spu,
+                goodsStyleRepository.findBySpuId(spu.id),
+                brand?.name,
+            )
         spuRepository.save(spu)
         snapshotRepository.save(snapshot)
         spu.publishPendingEvents(domainEventPublisher)
@@ -141,6 +159,7 @@ class CommodityService(
                     productTypeId = snapshot.productTypeId?.value,
                     productAttributes = snapshot.productAttributes.map { it.key to it.value },
                     brandId = snapshot.brandId?.value,
+                    brandName = snapshot.brandName?.values.orEmpty(),
                     categoryIds = snapshot.categoryIds.map { it.value }.toSet(),
                     localizedNames = snapshot.localizedNames?.values.orEmpty(),
                     localizedDescriptions = snapshot.localizedDescriptions?.values.orEmpty(),
@@ -196,6 +215,10 @@ class CommodityService(
 
         val draftStyle = goodsStyleRepository.findBySpuId(draft.id)
         val stableSkuIds = draft.skus.associate { it.id to (it.sourceSkuId ?: it.id) }
+        val brand =
+            findValidBrand(draft.brandId, draft.merchantId).getOrElse {
+                return Failure(it)
+            }
         validateProductType(draft).onFailure {
             return Failure(it)
         }
@@ -211,7 +234,7 @@ class CommodityService(
             }
 
         // 创建新快照
-        val snapshot = snapshotFactory.createSnapshot(source, publishedStyle)
+        val snapshot = snapshotFactory.createSnapshot(source, publishedStyle, brand?.name)
 
         // 持久化
         spuRepository.save(source)
@@ -318,5 +341,30 @@ class CommodityService(
             return Failure(ProductTypeErrors.MERCHANT_MISMATCH)
         }
         return productType.validate(spu.productAttributes, spu.skus)
+    }
+
+    private fun validateBrandReference(
+        brandId: BrandId?,
+        merchantId: MerchantId,
+    ): Result<Unit, BusinessError> {
+        findValidBrand(brandId, merchantId).onFailure {
+            return Failure(it)
+        }
+        return Success(Unit)
+    }
+
+    private fun findValidBrand(
+        brandId: BrandId?,
+        merchantId: MerchantId,
+    ): Result<Brand?, BusinessError> {
+        brandId ?: return Success(null)
+        val brand = brandRepository.findById(brandId) ?: return Failure(BrandErrors.NOT_FOUND)
+        if (brand.merchantId != merchantId) {
+            return Failure(BrandErrors.MERCHANT_MISMATCH)
+        }
+        if (brand.status != BrandStatus.ACTIVE) {
+            return Failure(BrandErrors.INACTIVE)
+        }
+        return Success(brand)
     }
 }

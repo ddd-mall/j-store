@@ -18,11 +18,14 @@ package com.jstore.goods.config
 
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
+import com.jstore.goods.domain.brand.BrandRepository
 import com.jstore.goods.domain.commodity.*
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactory
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactoryImpl
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotRepository
 import com.jstore.goods.domain.producttype.ProductTypeRepository
+import com.jstore.goods.service.BrandService
+import com.jstore.goods.service.BrandUseCase
 import com.jstore.goods.service.CommodityService
 import com.jstore.goods.service.ProductTypeService
 import com.jstore.goods.service.ProductTypeUseCase
@@ -57,6 +60,7 @@ class GoodsBootConfiguration {
         snapshotRepository: SpuSnapshotRepository,
         goodsStyleRepository: GoodsStyleRepository,
         goodsStyleFactory: GoodsStyleFactory,
+        brandRepository: BrandRepository,
         productTypeRepository: ProductTypeRepository,
     ): CommodityService {
         return CommodityService(
@@ -67,9 +71,23 @@ class GoodsBootConfiguration {
             snapshotRepository = snapshotRepository,
             goodsStyleRepository = goodsStyleRepository,
             goodsStyleFactory = goodsStyleFactory,
+            brandRepository = brandRepository,
             productTypeRepository = productTypeRepository,
         )
     }
+
+    @Bean
+    fun brandService(
+        snowFlakSequence: SnowFlakSequence,
+        brandRepository: BrandRepository,
+    ): BrandService = BrandService(snowFlakSequence, brandRepository)
+
+    @Bean
+    @Primary
+    fun transactionalBrandUseCase(
+        brandService: BrandService,
+        transactionManager: PlatformTransactionManager,
+    ): BrandUseCase = TransactionalBrandUseCase(brandService, transactionManager)
 
     @Bean
     fun productTypeService(

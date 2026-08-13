@@ -16,9 +16,11 @@
  */
 package com.jstore.goods.domain.commodity
 
+import com.jstore.goods.domain.brand.BrandId
 import com.jstore.goods.domain.commodity.snapshot.SkuSnapshot
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshot
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotId
+import com.jstore.goods.domain.content.LocalizedText
 import java.time.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -71,6 +73,8 @@ class CatalogV2ConverterTest {
                     ),
                 mainImages = listOf("main-image"),
                 detailHtml = "<p>detail</p>",
+                brandId = BrandId(9),
+                brandName = LocalizedText.of("zh-CN" to "山野"),
                 createdAt = LocalDateTime.of(2026, 8, 13, 12, 0),
             )
 
@@ -81,6 +85,8 @@ class CatalogV2ConverterTest {
 
         assertEquals(snapshot.mainImages, roundTrip.mainImages)
         assertEquals(snapshot.detailHtml, roundTrip.detailHtml)
+        assertEquals(snapshot.brandId, roundTrip.brandId)
+        assertEquals(snapshot.brandName, roundTrip.brandName)
         assertEquals(
             snapshot.skuSnapshots.single().imageKeys,
             roundTrip.skuSnapshots.single().imageKeys,

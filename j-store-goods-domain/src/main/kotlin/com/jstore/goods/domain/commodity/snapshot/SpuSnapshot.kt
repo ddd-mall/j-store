@@ -50,6 +50,7 @@ data class SpuSnapshot(
     val productTypeId: ProductTypeId? = null,
     val productAttributes: List<Attribute<String, String>> = emptyList(),
     val brandId: BrandId? = null,
+    val brandName: LocalizedText? = null,
     val categoryIds: Set<CategoryId> = emptySet(),
     val localizedNames: LocalizedText? = null,
     val localizedDescriptions: LocalizedText? = null,
