@@ -32,6 +32,16 @@ KNOWN_FALSE_POSITIVES = [
         "j-store-outbox-spring/src/test/kotlin/com/jstore/outbox/spring/"
         "OutboxEventPublisherTest.kt:generic-api-key:135"
     ),
+    (
+        "386126f3aad184e2fcdd5ad37d6ea0d29c61c321:"
+        "j-store-outbox-spring/src/test/kotlin/com/jstore/outbox/spring/messaging/"
+        "OutboxIntegrationMessagePublisherTest.kt:generic-api-key:48"
+    ),
+    (
+        "98daa4019bedc1ebfd42074acd66c950d73c3180:"
+        "j-store-outbox-spring/src/test/kotlin/com/jstore/outbox/spring/"
+        "OutboxEventPublisherTest.kt:generic-api-key:135"
+    ),
 ]
 
 

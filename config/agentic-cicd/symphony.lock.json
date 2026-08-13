@@ -1,0 +1,18 @@
+{
+  "repository": "openai/symphony",
+  "implementation": "elixir",
+  "commit": "8001b52e3062495a16e520e4ceaf8f9de868c4d0",
+  "source_url": "https://github.com/openai/symphony/tree/8001b52e3062495a16e520e4ceaf8f9de868c4d0",
+  "reviewed_at": "2026-08-13",
+  "required_ancestor_commits": [
+    "8001b52e3062495a16e520e4ceaf8f9de868c4d0"
+  ],
+  "required_features": [
+    "github-issues-adapter",
+    "host-side-github-api-tool",
+    "github-token-alias-scrubbing",
+    "workspace-write-sandbox",
+    "bounded-agent-turns"
+  ],
+  "deployment_policy": "Build from the pinned source commit and verify its ancestry before use; do not follow a floating branch or unverified binary."
+}

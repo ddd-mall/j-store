@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "dispatch_label": "agent:queued",
+  "claimable_states": ["queued"],
+  "human_terminal_state": "agent:human-review",
+  "states": {
+    "queued": "agent:queued",
+    "waiting_ci": "agent:waiting-ci",
+    "human_review": "agent:human-review",
+    "blocked": "agent:blocked",
+    "fused": "agent:fused",
+    "cancelled": "agent:cancelled"
+  },
+  "transitions": {
+    "queued": ["waiting_ci", "human_review", "blocked", "fused", "cancelled"],
+    "waiting_ci": ["queued", "human_review", "blocked", "fused", "cancelled"],
+    "human_review": ["queued", "cancelled"],
+    "blocked": ["queued", "cancelled"],
+    "fused": ["queued", "cancelled"],
+    "cancelled": []
+  },
+  "required_checks": [
+    "branch-policy",
+    "quality",
+    "static-analysis",
+    "dependency-vulnerability-scan",
+    "dependency-license-audit",
+    "secret-scan"
+  ],
+  "limits": {
+    "max_concurrent_agents": 1,
+    "max_turns_per_invocation": 12,
+    "max_turns_per_task": 48,
+    "max_wall_clock_seconds": 14400,
+    "max_cost_microusd": 5000000,
+    "semantic_fixes_per_root_cause": 2,
+    "infrastructure_retries": 3
+  },
+  "capabilities": {
+    "read_only_observation": true,
+    "create_branch": false,
+    "push_commit": false,
+    "create_draft_pull_request": false,
+    "mark_pull_request_ready": false,
+    "send_email": false,
+    "auto_approve": false,
+    "auto_merge": false,
+    "auto_release": false,
+    "production_write": false
+  }
+}
