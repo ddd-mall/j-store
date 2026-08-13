@@ -96,7 +96,6 @@ def main() -> int:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        encoding="utf-8",
     )
     if process.stdin is None or process.stdout is None:
         process.kill()

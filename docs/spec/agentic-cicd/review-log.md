@@ -132,3 +132,6 @@
 - `develop@daf184ab9bb3f3bf811ae2158de704df6762b2a8` 的 Security Gate 失败 job 已重跑，仍稳定报告 2 个 finding。
 - 使用 workflow 固定且 SHA-256 校验通过的 Gitleaks `8.30.1` 在 Ubuntu 原生临时仓库复现：只扫描 develop 历史为 0；加入全部 `origin/*` refs 后复现 2 个 finding。
 - 两个 finding 仅位于未合并且无关联 PR 的 `origin/codex/branch-management-governance`，对应文件 blob 与此前已审查的 SHA-256 ordering-key 测试 fixture 完全相同。保留分支中的未合并工作，不删除远端 ref；候选增加两个精确 commit/path/rule/line fingerprint，不扩大规则范围。
+- 候选提交 `93fe23d0a1d5d6b695d4edd22c37b2d87087334a` 已推送并创建唯一 Draft PR `#27`，目标为 `develop`；远端 `Protect develop` ruleset `20787654` 已启用且无 bypass actor。
+- PR 首轮 `secret-scan` 和 `branch-policy` PASS；`quality` 因精确 allowlist 测试未同步而 FAIL，保留严格相等断言并加入两个已审计 fingerprint 后，聚焦测试 3/3、全量 governance 31/31 PASS。
+- PR 首轮 `static-analysis` 报告 `scripts/smoke-codex-app-server.py` 的显式 `Popen.encoding` 为 Python 3.6 兼容 finding；移除冗余参数而不增加 Semgrep ignore。下一候选提交会使旧 head 的检查结论失效并触发完整 PR CI。
