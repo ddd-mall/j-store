@@ -70,6 +70,7 @@ class CreateOrUpdateStatusGuardPropertyTest :
                     snapshotRepository = snapshotRepository,
                     goodsStyleRepository = goodsStyleRepository,
                     goodsStyleFactory = goodsStyleFactory,
+                    brandRepository = mock(),
                 )
         }
 

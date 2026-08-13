@@ -40,6 +40,7 @@ class CommodityServiceSkuManagementTest {
             snapshotRepository = mock<SpuSnapshotRepository>(),
             goodsStyleRepository = mock<GoodsStyleRepository>(),
             goodsStyleFactory = mock<GoodsStyleFactory>(),
+            brandRepository = mock(),
         )
 
     @Test

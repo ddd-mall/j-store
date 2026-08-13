@@ -67,6 +67,7 @@ class DiscardDraftSourceUnchangedPropertyTest :
                     snapshotRepository = snapshotRepository,
                     goodsStyleRepository = goodsStyleRepository,
                     goodsStyleFactory = goodsStyleFactory,
+                    brandRepository = mock(),
                 )
         }
 

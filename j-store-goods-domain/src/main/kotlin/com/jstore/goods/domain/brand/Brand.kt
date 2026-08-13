@@ -16,19 +16,63 @@
  */
 package com.jstore.goods.domain.brand
 
+import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.properties.Id
 import com.jstore.goods.domain.commodity.MerchantId
 import com.jstore.goods.domain.content.LocalizedText
+import java.util.Locale
 
 data class BrandId(override val value: Long) : Id<Long>(value) {
     init {
-        require(value != 0L) { "brand id must not be zero" }
+        require(value > 0L) { "brand id must be positive" }
     }
 }
 
-data class Brand(
+enum class BrandStatus {
+    ACTIVE,
+    INACTIVE,
+}
+
+class Brand(
     override val id: BrandId,
     val merchantId: MerchantId,
-    val name: LocalizedText,
-) : AggregateRoot<BrandId>
+    name: LocalizedText,
+    status: BrandStatus = BrandStatus.ACTIVE,
+) : AggregateRoot<BrandId> {
+    private var _name: LocalizedText = name
+    private var _status: BrandStatus = status
+
+    val name: LocalizedText
+        get() = _name
+
+    val status: BrandStatus
+        get() = _status
+
+    val normalizedName: String
+        get() = normalizeName(_name)
+
+    fun rename(name: LocalizedText) {
+        _name = name
+    }
+
+    fun activate() {
+        _status = BrandStatus.ACTIVE
+    }
+
+    fun deactivate() {
+        _status = BrandStatus.INACTIVE
+    }
+
+    companion object {
+        fun normalizeName(name: LocalizedText): String =
+            name.values.toSortedMap().values.first().trim().lowercase(Locale.ROOT)
+    }
+}
+
+object BrandErrors {
+    val NOT_FOUND = BusinessError("品牌不存在", "Catalog.Brand.NotFound", 404)
+    val MERCHANT_MISMATCH = BusinessError("品牌不属于当前商户", "Catalog.Brand.MerchantMismatch", 400)
+    val INACTIVE = BusinessError("品牌已停用", "Catalog.Brand.Inactive", 400)
+    val NAME_DUPLICATE = BusinessError("商户下已存在同名品牌", "Catalog.Brand.NameDuplicate", 409)
+}

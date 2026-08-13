@@ -43,6 +43,7 @@ class SpuSnapshotPO(
     @Column(name = "product_attributes", columnDefinition = "jsonb", nullable = false)
     var productAttributes: String = "[]",
     @Column(name = "brand_id") var brandId: Long? = null,
+    @Column(name = "brand_name", columnDefinition = "jsonb") var brandName: String? = null,
     @Column(name = "category_ids", columnDefinition = "jsonb", nullable = false)
     var categoryIds: String = "[]",
     @Column(name = "localized_names", columnDefinition = "jsonb")

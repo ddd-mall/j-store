@@ -19,15 +19,24 @@ package com.jstore.goods.domain.commodity.snapshot
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.goods.domain.commodity.GoodsStyle
 import com.jstore.goods.domain.commodity.Spu
+import com.jstore.goods.domain.content.LocalizedText
 import java.time.LocalDateTime
 
 interface SpuSnapshotFactory {
-    fun createSnapshot(spu: Spu, style: GoodsStyle? = null): SpuSnapshot
+    fun createSnapshot(
+        spu: Spu,
+        style: GoodsStyle? = null,
+        brandName: LocalizedText? = null,
+    ): SpuSnapshot
 }
 
 class SpuSnapshotFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : SpuSnapshotFactory {
 
-    override fun createSnapshot(spu: Spu, style: GoodsStyle?): SpuSnapshot {
+    override fun createSnapshot(
+        spu: Spu,
+        style: GoodsStyle?,
+        brandName: LocalizedText?,
+    ): SpuSnapshot {
         return SpuSnapshot(
             id = SpuSnapshotId(snowFlakSequence.nextId()),
             merchantId = spu.merchantId,
@@ -51,6 +60,7 @@ class SpuSnapshotFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : S
             productTypeId = spu.productTypeId,
             productAttributes = spu.productAttributes.toList(),
             brandId = spu.brandId,
+            brandName = brandName,
             categoryIds = spu.categoryIds.toSet(),
             localizedNames = spu.localizedNames,
             localizedDescriptions = spu.localizedDescriptions,
