@@ -82,6 +82,7 @@ class OutboxEventPublisherTest :
                 )
                 .thenReturn(listOf(9))
             val serializer = JacksonEventSerializer(objectMapper)
+            val relaySignal = mock<OutboxRelaySignal>()
             val publisher =
                 OutboxEventPublisher(
                     mockRepository,
@@ -89,6 +90,7 @@ class OutboxEventPublisherTest :
                     SnowFlakSequence(1, 1),
                     eventTypeRegistry,
                     streamSequenceAllocator,
+                    relaySignal,
                 )
 
             val event =
@@ -105,6 +107,7 @@ class OutboxEventPublisherTest :
 
             val captor = argumentCaptor<List<OutboxEntry>>()
             verify(mockRepository, times(1)).saveAll(captor.capture())
+            verify(relaySignal).signalAfterCommit()
 
             val saved = captor.firstValue.single()
             saved.id shouldNotBe ""

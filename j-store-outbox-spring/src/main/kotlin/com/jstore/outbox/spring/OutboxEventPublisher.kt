@@ -37,6 +37,7 @@ open class OutboxEventPublisher(
     private val snowFlakSequence: SnowFlakSequence,
     private val eventTypeRegistry: EventTypeRegistry = InMemoryEventTypeRegistry(),
     private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
+    private val relaySignal: OutboxRelaySignal = NoopOutboxRelaySignal,
 ) : DomainEventPublisher {
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -80,6 +81,7 @@ open class OutboxEventPublisher(
                 )
             }
         outboxEntryRepository.saveAll(entries)
+        relaySignal.signalAfterCommit()
     }
 
     private fun prepare(event: DomainEvent): PreparedDomainEvent {

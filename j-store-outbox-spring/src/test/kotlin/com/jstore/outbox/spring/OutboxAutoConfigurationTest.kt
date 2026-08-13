@@ -62,6 +62,9 @@ class OutboxAutoConfigurationTest :
                     .getBean(DomainEventPublisher::class.java)
                     .shouldBeInstanceOf<OutboxEventPublisher>()
                 context.containsBean("outboxPublisher") shouldBe true
+                context.containsBean("outboxRelayCoordinator") shouldBe true
+                context.containsBean("outboxRelaySignal") shouldBe true
+                context.containsBean("outboxRelayExecutor") shouldBe true
                 context.containsBean("outboxCleaner") shouldBe true
                 context.containsBean("eventSerializer") shouldBe true
                 context.containsBean("eventTypeRegistry") shouldBe true
