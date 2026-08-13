@@ -73,6 +73,18 @@ class OutboxFlywayMigrationTest {
                             assertTrue(rows.next())
                             assertEquals("develop.outbox_stream_position", rows.getString(1))
                         }
+                    listOf(
+                            "idx_domain_event_consumption_retention",
+                            "idx_message_stream_consumption_retention",
+                        )
+                        .forEach { indexName ->
+                            statement
+                                .executeQuery("SELECT to_regclass('develop.$indexName')")
+                                .use { rows ->
+                                    assertTrue(rows.next())
+                                    assertEquals("develop.$indexName", rows.getString(1))
+                                }
+                        }
                     val removedTimerTables =
                         listOf("timer_job", "handled_timer_job", "timer_job_dead_queue")
                     removedTimerTables.forEach { table ->

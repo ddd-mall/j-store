@@ -22,5 +22,6 @@ import com.jstore.common.framework.RecordsDomainEvents
 fun RecordsDomainEvents.publishPendingEvents(publisher: DomainEventPublisher) {
     val pending = pendingDomainEvents()
     publisher.publishEvents(pending)
-    acknowledgeDomainEvents(pending.mapTo(linkedSetOf()) { it.eventId })
+    val publishedEventIds = pending.mapTo(linkedSetOf()) { it.eventId }
+    publisher.afterPublicationCommitted { acknowledgeDomainEvents(publishedEventIds) }
 }

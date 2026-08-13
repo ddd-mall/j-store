@@ -81,6 +81,16 @@ class OutboxPublisherTest :
             shouldThrow<IllegalArgumentException> { OutboxProperties(maxBatchesPerDrain = 0) }
         }
 
+        test("cleanup configuration must preserve bounded progress and deduplication horizon") {
+            shouldThrow<IllegalArgumentException> {
+                OutboxProperties(cleanupMaxBatchesPerRun = 0)
+            }
+            shouldThrow<IllegalArgumentException> { OutboxProperties(cleanupIntervalMillis = 0) }
+            shouldThrow<IllegalArgumentException> {
+                OutboxProperties(retentionDays = 7, consumptionRetentionDays = 6)
+            }
+        }
+
         test("poll, deliver, and update status to PUBLISHED on success") {
             val entry = createEntry()
             val mockRepo =

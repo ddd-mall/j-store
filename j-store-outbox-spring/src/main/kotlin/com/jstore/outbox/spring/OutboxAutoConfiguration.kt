@@ -26,6 +26,7 @@ import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.messaging.IntegrationMessageTransport
 import com.jstore.messaging.LocalIntegrationMessageBus
 import com.jstore.messaging.MessageConsumptionRepository
+import com.jstore.messaging.MessageConsumptionRetentionRepository
 import com.jstore.messaging.local.event.*
 import com.jstore.messaging.local.integration.SpringLocalIntegrationMessageBus
 import com.jstore.outbox.*
@@ -120,7 +121,9 @@ class OutboxAutoConfiguration {
         PostgresOutboxStreamSequenceAllocator(entityManager)
 
     @Bean
-    fun messageConsumptionRepository(entityManager: EntityManager): MessageConsumptionRepository {
+    fun messageConsumptionRepository(
+        entityManager: EntityManager
+    ): MessageConsumptionRepositoryImpl {
         return MessageConsumptionRepositoryImpl(entityManager)
     }
 
@@ -280,8 +283,9 @@ class OutboxAutoConfiguration {
     fun outboxCleaner(
         outboxEntryRepository: OutboxEntryRepository,
         properties: OutboxProperties,
+        consumptionRetentionRepository: MessageConsumptionRetentionRepository,
     ): OutboxCleaner {
-        return OutboxCleaner(outboxEntryRepository, properties)
+        return OutboxCleaner(outboxEntryRepository, properties, consumptionRetentionRepository)
     }
 
     @Bean

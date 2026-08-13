@@ -23,8 +23,11 @@ import com.jstore.common.framework.event.DomainEventType
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.outbox.*
 import java.time.Instant
+import org.slf4j.LoggerFactory
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /**
  * 基于 Outbox 模式的事件发布者实现。
@@ -39,6 +42,7 @@ open class OutboxEventPublisher(
     private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
     private val relaySignal: OutboxRelaySignal = NoopOutboxRelaySignal,
 ) : DomainEventPublisher {
+    private val logger = LoggerFactory.getLogger(OutboxEventPublisher::class.java)
 
     @Transactional(propagation = Propagation.MANDATORY)
     override fun publishEvent(event: DomainEvent) {
@@ -82,6 +86,26 @@ open class OutboxEventPublisher(
             }
         outboxEntryRepository.saveAll(entries)
         relaySignal.signalAfterCommit()
+    }
+
+    override fun afterPublicationCommitted(acknowledgement: () -> Unit) {
+        check(TransactionSynchronizationManager.isSynchronizationActive()) {
+            "Outbox event acknowledgement requires active transaction synchronization"
+        }
+        TransactionSynchronizationManager.registerSynchronization(
+            object : TransactionSynchronization {
+                override fun afterCommit() {
+                    try {
+                        acknowledgement()
+                    } catch (failure: RuntimeException) {
+                        logger.error(
+                            "Aggregate domain events could not be acknowledged after commit",
+                            failure,
+                        )
+                    }
+                }
+            }
+        )
     }
 
     private fun prepare(event: DomainEvent): PreparedDomainEvent {

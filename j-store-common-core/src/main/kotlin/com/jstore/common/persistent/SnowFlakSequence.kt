@@ -73,11 +73,10 @@ open class SnowFlakSequence {
         /** 毫秒内自增 */
         private const val SEQUENCE_BITS: Int = 12
         private const val WORKER_ID_SHIFT: Int = SEQUENCE_BITS
-        private const val DATACENTER_SHIFT = SEQUENCE_BITS + WORKER_ID_SHIFT
+        private const val DATACENTER_SHIFT = SEQUENCE_BITS + WORKER_ID_BITS
 
         /** 时间戳左移位 */
-        private const val TIMESTAMP_SHIFT: Int =
-            SEQUENCE_BITS + WORKER_ID_SHIFT + DATACENTER_ID_BITS
+        private const val TIMESTAMP_SHIFT: Int = SEQUENCE_BITS + WORKER_ID_BITS + DATACENTER_ID_BITS
         private const val SEQUENCE_MASK: Long = (-1L shl SEQUENCE_BITS).inv()
 
         private fun getDefaultWorkerId(datacenterId: Long): Long {

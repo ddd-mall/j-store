@@ -33,4 +33,15 @@ interface DomainEventPublisher {
     fun publishEvents(events: List<DomainEvent>) {
         events.forEach(::publishEvent)
     }
+
+    /**
+     * Runs aggregate acknowledgement after the publication's durability boundary commits.
+     *
+     * Non-transactional publishers commit when [publishEvents] returns, so the default executes
+     * immediately. Transactional adapters override this hook without leaking their framework into
+     * the domain or application layers.
+     */
+    fun afterPublicationCommitted(acknowledgement: () -> Unit) {
+        acknowledgement()
+    }
 }

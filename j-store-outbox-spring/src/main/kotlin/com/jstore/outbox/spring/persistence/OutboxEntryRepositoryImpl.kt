@@ -225,6 +225,7 @@ open class OutboxEntryRepositoryImpl(
                         WHERE status = 'PUBLISHED' AND created_at < :before
                         ORDER BY created_at ASC
                         LIMIT :batchSize
+                        FOR UPDATE SKIP LOCKED
                     )
                     """
                         .trimIndent()

@@ -79,6 +79,7 @@ class OutboxRelayCoordinator(
             executor.execute(::runDrain)
         } catch (failure: RuntimeException) {
             running.set(false)
+            observer.recordFailure()
             logger.warn(
                 "Outbox relay wake-up could not be scheduled; periodic polling will retry",
                 failure,
