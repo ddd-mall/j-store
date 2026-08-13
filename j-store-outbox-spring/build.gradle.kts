@@ -34,7 +34,36 @@ dependencies {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("capacity")
+    }
+}
+
+tasks.register<Test>("outboxRelayCapacityTest") {
+    description = "Measures committed Outbox relay latency against embedded PostgreSQL."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("capacity")
+    }
+    filter {
+        includeTestsMatching("*OutboxRelayCapacityTest")
+    }
+    listOf(
+            "messageCount",
+            "producerConcurrency",
+            "batchSize",
+            "maxBatchesPerDrain",
+            "timeoutSeconds",
+            "output",
+        )
+        .forEach { name ->
+            providers.gradleProperty("outboxCapacity.$name").orNull?.let { value ->
+                systemProperty("outboxCapacity.$name", value)
+            }
+        }
+    outputs.upToDateWhen { false }
 }
 
 kotlin {
