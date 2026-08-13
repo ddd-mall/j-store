@@ -6,28 +6,30 @@
 
 ## 当前状态
 
-- 实施分支：`codex/agentic-cicd-orchestration`
+- 当前推进分支：`codex/agentic-cicd-continuation`
 - 初始基线：`origin/develop@daf184ab9bb3f3bf811ae2158de704df6762b2a8`
-- 当前阶段：迭代 3 — App Server 协议和独立评审机制已实现，真实 Agent 演练待准入
-- 外部阻塞：远端 `develop` ruleset 未启用；`develop` push 的历史 secret scan 仍失败。
+- 当前可信基线：`origin/develop@2542ee92a50bf87c427637d81d6445e4b2cea1db`
+- 当前阶段：迭代 3 — 组件级协议和独立评审合同已实现，固定运行时预检和真实 Agent 演练待完成
+- 外部阻塞：ruleset 正反例演练、固定 Symphony/Codex 构建环境、付费模型 turn 和 disposable Issue 均尚未形成完整证据。
 
 ## 迭代 0：远端基线可用
 
 目标：在允许自动代码写入前，确保长期分支和当前基线本身可被确定性门禁信任。
 
-- [ ] `I0-01` 审计最新 `develop` Security Gate 中两个 Gitleaks finding，不在日志或文档中暴露秘密。
+- [x] `I0-01` 审计最新 `develop` Security Gate 中两个 Gitleaks finding，不在日志或文档中暴露秘密。
   - 依赖：仓库管理员和可能的凭据所有者。
   - 证据：finding 分类、是否曾有效、轮换确认和处置决策。
-  - 人工门：真实密钥轮换、历史重写或 ignore fingerprint 变更必须批准。
-- [ ] `I0-02` 使 `develop` 最新 push 的 Quality、Security 和 Qodana 全部绿色。
-  - 证据：同一 `develop` SHA 的成功 run URL。
-- [ ] `I0-03` 按 `.github/rulesets/develop.json` 启用远端 ruleset。
+  - 证据：两个 finding 仅来自未合并测试 fixture，按 commit/path/rule/line 精确 fingerprint 处置；没有扩大 Gitleaks 规则范围，见 `review-log.md` 远端准入审计。
+  - 人工门：未执行真实密钥轮换或历史重写；未来出现真实凭据时仍必须单独批准。
+- [x] `I0-02` 使 `develop` 最新 push 的 Quality、Security 和 Qodana 全部绿色。
+  - 证据：同一 `develop@2542ee92a50bf87c427637d81d6445e4b2cea1db` 的三个 push workflow 均为 success，见 `review-log.md`。
+- [x] `I0-03` 按 `.github/rulesets/develop.json` 启用远端 ruleset。
   - 证据：GitHub Rulesets API 返回 active `Protect develop`，required contexts 精确匹配模板。
   - 人工门：远端 Administration 写操作。
 - [ ] `I0-04` 用合法和故意违规的 disposable Draft PR 验证分支方向、required checks、禁止删除和禁止 force push。
   - 证据：测试 PR、check 和 ruleset 拒绝结果。
 
-退出条件：`develop` 是受保护且绿色的可信基线。未达到时只允许迭代 1 和只读观察，不开放自动 push/PR。
+退出条件尚未完全满足：`develop` 已受保护且绿色，但 I0-04 的正反例 enforcement 演练尚无证据。完成前保持 Level 0，不开放自动 push/PR。
 
 ## 迭代 1：控制面与只读运行骨架
 
@@ -81,8 +83,12 @@
 - [x] `I3-06` 验证相同根因第三次出现时进入 `agent:fused`。
   - 证据：不同 strategy fingerprint 的第三次修复被协调器熔断；重复 strategy 不消耗次数。
 - [ ] `I3-07` 在 disposable Issue 上完成无远端写的端到端演练。
+- [ ] `I3-08` 将 Coordinator、workspace metadata、IterationPacket 和独立 Reviewer 决定接入唯一 Symphony 运行路径；不得建立第二个并行 Supervisor。
+  - 依赖：I3-04 和 I3-07 必须通过该真实运行路径取得证据，组件单测不能替代运行闭环。
+- [x] `I3-09` 增加固定 Symphony/Codex 运行时预检，不启动服务或模型 turn。
+  - 证据：`scripts/check-agentic-cicd-runtime.py`、6 个聚焦测试，以及本机对锁定 Symphony 源码成功、Codex/Elixir 环境漂移失败的确定性报告。
 
-退出条件尚未满足：协议、身份分离和熔断机制已具备，但在 Level 0 与基线硬阻塞解除前，不启动付费模型 turn，也不创建 disposable GitHub Issue。I3-04 和 I3-07 需要后续明确授权和外部环境。
+退出条件尚未满足：协议、身份分离、熔断机制和固定运行时预检已具备，但尚未接入真实 Symphony 运行闭环。I3-04、I3-07 和 I3-08 仍需完成；付费模型 turn 和 disposable GitHub Issue 需要后续明确授权。
 
 ## 迭代 4：唯一 Draft PR 与 CI/Review 闭环
 

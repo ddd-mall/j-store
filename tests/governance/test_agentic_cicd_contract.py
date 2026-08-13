@@ -111,6 +111,16 @@ class AgenticCicdContractTest(unittest.TestCase):
         self.assertIn("docs/operations/agentic-cicd-runbook.md", agents)
         self.assertIn("agentic-cicd-runbook.md", automation_runbook)
 
+    def test_runtime_preflight_is_required_before_starting_symphony(self) -> None:
+        governance = (REPO_ROOT / "scripts" / "check-agent-governance.sh").read_text(
+            encoding="utf-8"
+        )
+        runbook = RUNBOOK.read_text(encoding="utf-8")
+
+        self.assertIn("scripts/check-agentic-cicd-runtime.py", governance)
+        self.assertIn("check-agentic-cicd-runtime.py", runbook)
+        self.assertIn("JSTORE_SYMPHONY_SOURCE", runbook)
+
     def test_branch_examples_follow_existing_lowercase_branch_policy(self) -> None:
         artifacts = [
             WORKFLOW,

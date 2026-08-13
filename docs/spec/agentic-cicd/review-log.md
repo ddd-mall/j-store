@@ -135,3 +135,32 @@
 - 候选提交 `93fe23d0a1d5d6b695d4edd22c37b2d87087334a` 已推送并创建唯一 Draft PR `#27`，目标为 `develop`；远端 `Protect develop` ruleset `20787654` 已启用且无 bypass actor。
 - PR 首轮 `secret-scan` 和 `branch-policy` PASS；`quality` 因精确 allowlist 测试未同步而 FAIL，保留严格相等断言并加入两个已审计 fingerprint 后，聚焦测试 3/3、全量 governance 31/31 PASS。
 - PR 首轮 `static-analysis` 报告 `scripts/smoke-codex-app-server.py` 的显式 `Popen.encoding` 为 Python 3.6 兼容 finding；移除冗余参数而不增加 Semgrep ignore。下一候选提交会使旧 head 的检查结论失效并触发完整 PR CI。
+
+## 迭代 3 延续：可信基线收敛与运行时预检
+
+### 事实收敛
+
+- 当前推进分支从 `origin/develop@2542ee92a50bf87c427637d81d6445e4b2cea1db` 创建。
+- GitHub Actions 对该 SHA 的 Quality、Security 和 Qodana 三条 push workflow 均为 success。
+- GitHub Rulesets API 返回 `Protect develop`（ID `20787654`）为 active，六个 required contexts 与仓库模板一致，且没有 bypass actor。
+- 因此 I0-01 至 I0-03 已有完成证据；I0-04 尚缺合法与故意违规 Draft PR 的实际 enforcement 演练，Level 0 写能力继续关闭。
+
+### TDD 与实现证据
+
+1. 先添加 `tests/tooling/test_agentic_cicd_runtime.py`，首次因 `agentic_cicd.runtime` 不存在而 ERROR。
+2. 实现只读 `RuntimePreflight` 和 CLI，覆盖精确 Symphony HEAD、安全祖先、tracked source 洁净度、Codex 精确版本以及 mise/Elixir 构建工具。
+3. 增加治理合同，要求运行手册和治理文件清单包含预检入口；首次因 runbook 未记录命令而 FAIL，补齐文档后通过。
+
+### 当前验证
+
+| 检查 | 结果 |
+|---|---|
+| `python -m unittest tests/tooling/test_agentic_cicd_runtime.py`（通过 uv 隔离依赖） | PASS，6 tests |
+| Symphony `/Users/jupeter/Sources/symphony` HEAD 与安全祖先 | PASS，精确匹配 `8001b52e3062495a16e520e4ceaf8f9de868c4d0`，tracked source 洁净 |
+| Codex 固定版本 | FAIL，主机为 `0.147.0`，合同要求 `0.146.0` |
+| Symphony Elixir 构建工具 | FAIL，主机尚无 `mise`，也没有原生 `elixir`/`mix` |
+| Agentic CI/CD 聚焦组合 | PASS，43 tests |
+| `bash scripts/check-agent-governance.sh` / `python3 scripts/check-agentic-cicd.py` / `git diff --check` | PASS |
+| `./scripts/quality-gate.sh` | PASS；spec-dev 28、governance 37、tooling 69 tests，Spotless、50 模块 Licensee、189 个 Gradle 回归任务及 53 个 JAR license verification 全部完成 |
+
+预检失败只说明当前主机不能启动受支持的试点运行时，不影响仓库内纯合同测试；不得通过放宽精确版本或跳过源码构建来伪造通过。预检不会启动 Symphony、App Server thread 或模型 turn，也不会执行 GitHub 写入。

@@ -159,6 +159,7 @@ Agent 输出计划、变更、验证建议和阻塞项。Supervisor 不接受 Ag
 - `scripts/agentic_cicd/protocol.py`：运行时校验、固定 head PASS ledger 和快照可恢复的决定；
 - `scripts/agentic_cicd/app_server.py`：JSONL request/response correlation、拒绝 server-initiated 提权请求、角色 sandbox 和 structured output；
 - `scripts/smoke-codex-app-server.py`：不启动模型 turn，只验证固定 CLI、动态 v2 schema 和初始化握手。
+- `scripts/check-agentic-cicd-runtime.py`：在启动 Supervisor 前验证 Symphony 精确源码提交及安全祖先、tracked source 洁净度、Codex 精确版本和 Elixir/mise 构建工具；不启动服务或模型 turn。
 
 ### 独立评审
 
