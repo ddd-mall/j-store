@@ -11,11 +11,11 @@
 
 能力升级必须通过受审 PR 更新合同、测试和本手册；仅扩大 GitHub token 权限不会自动扩大流程授权。
 
-## 上线前硬阻塞
+## 当前准入状态
 
-1. 当前远端没有 active `develop ruleset`。管理员必须按 `.github/rulesets/README.md` 应用并验证模板。
-2. 当前 `develop` push 的 `secret-scan` 仍因历史发现失败。必须先审计、必要时轮换，再由人批准历史处置方式。
-3. 在上述两项完成前，Supervisor 只能运行只读观察，不得开放分支、push 或 Draft PR。
+1. 远端 develop ruleset（`Protect develop`）已 active，六个 required contexts 与模板一致且无 bypass actor；仍需用合法和故意违规的 disposable Draft PR 验证实际 enforcement。
+2. 历史 Gitleaks finding 已审计为未合并测试 fixture，并按精确 fingerprint 处置；最新 `develop` 的 Quality、Security（包含 `secret-scan`）和 Qodana 已绿色。
+3. 固定 Symphony/Codex 运行时、真实独立 Reviewer turn 和 disposable Issue 端到端演练仍缺证据。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
 
 ## Symphony 来源
 
@@ -53,16 +53,25 @@
 - 安装 `git`、固定版本的 Symphony 运行时和兼容的 `codex`。
 - 创建仅供该服务使用的 workspace 和 log 根目录，禁止使用仓库根或用户主目录作为递归清理目标。
 - 将 `JSTORE_SYMPHONY_WORKSPACE_ROOT` 设置为显式绝对路径。
+- 将 `JSTORE_SYMPHONY_SOURCE` 设置为锁定提交的 Symphony 源码绝对路径。
 - 将 `JSTORE_SYMPHONY_REPOSITORY_URL` 设置为只读 clone URL。
 - 使用进程监管器保证单实例；不要同时启动两个指向同一仓库的 Supervisor。
 
 ### Ubuntu / WSL 开发预检
 
-本仓库当前在 WSL Ubuntu 验证。交互环境中的 Codex 安装位于 `~/.bun/bin`；服务环境不能依赖 Windows PATH 透传，应显式提供 Ubuntu 原生路径：
+部署前先运行只读预检。它只检查源码提交、安全祖先、工作树、Codex 精确版本和 Elixir 构建工具，不启动 Symphony、Codex thread 或模型 turn：
 
 ```bash
-export PATH="$HOME/.bun/bin:$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-python3 scripts/smoke-codex-app-server.py
+export JSTORE_SYMPHONY_SOURCE=/absolute/path/to/symphony
+python3 scripts/check-agentic-cicd-runtime.py
+```
+
+随后使用隔离 Python 依赖运行 App Server smoke：
+
+```bash
+UV_CACHE_DIR="${TMPDIR:-/tmp}/j-store-uv-cache" \
+  uv run --with-requirements requirements-quality.txt \
+  python scripts/smoke-codex-app-server.py
 ```
 
 smoke 会核对 `config/agentic-cicd/codex-app-server.lock.json` 中的精确版本、用同一二进制生成 v2 JSON schema、校验 Implementer/Reviewer 请求并完成初始化握手。它不会创建 thread 或发送模型 turn。
@@ -95,7 +104,7 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 ## 启动只读观察
 
 1. 确认 `python scripts/check-agentic-cicd.py` 通过。
-2. 确认 runtime commit 与 `symphony.lock.json` 一致，并运行 App Server smoke。
+2. 设置 `JSTORE_SYMPHONY_SOURCE`，确认 `python scripts/check-agentic-cicd-runtime.py` 和 App Server smoke 通过。
 3. 确认真实模型 turn 的费用上限、模型、认证来源和审计归属已经批准；smoke 成功不代表已获模型调用授权。
 4. 从可信 `origin/develop` 提取 `WORKFLOW.md` 到部署配置目录，记录其 blob SHA；不得运行候选分支版本。
 5. 注入短期只读 GitHub token 和明确 workspace root。

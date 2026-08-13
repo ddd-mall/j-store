@@ -61,7 +61,9 @@ required_files=(
   scripts/agentic_cicd/coordinator.py
   scripts/agentic_cicd/protocol.py
   scripts/agentic_cicd/app_server.py
+  scripts/agentic_cicd/runtime.py
   scripts/agentic_cicd/workspace.py
+  scripts/check-agentic-cicd-runtime.py
   scripts/smoke-codex-app-server.py
   WORKFLOW.md
   config/agentic-cicd/state-contract.json
