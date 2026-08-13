@@ -74,6 +74,9 @@
 - 根应用必须提供受控的 Actuator 健康和 Prometheus 指标端点；不得公开高风险诊断端点。
 - Outbox 的积压、失败、死信、过期锁、最近调度成功和连续失败指标必须进入实际 `MeterRegistry`，不得在参考运行环境中回退为 Noop。
 - 必须提供至少一个 Outbox 异常查询或 Dashboard，并验证阈值状态能够被运维人员发现。
+- 应用运行 Dashboard 必须同时展示包含探针/抓取的总体 HTTP QPS，以及排除 Actuator 自流量后的业务 QPS、平均请求耗时和滚动窗口最大请求耗时，并按 Spring MVC 路由模板与 HTTP method 展示各接口 QPS、平均及最大耗时；不得使用原始 URL 或业务 ID 形成高基数标签。
+- 应用运行 Dashboard 必须展示 Tomcat busy/current/configured-max 线程、各堆内存池、GC 次数与暂停时间、JVM 进程 CPU，以及 Kubernetes Pod CPU、memory working set、相对 limit 利用率和容器重启次数。
+- Tomcat 线程池指标必须由运行 profile 显式启用并由 Prometheus 实际导出；Pod 资源指标复用 kubelet/cAdvisor 与 kube-state-metrics，不在应用内重复采集。
 
 ## 质量目标
 

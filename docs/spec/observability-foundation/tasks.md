@@ -85,6 +85,7 @@
 - [x] OBS-T3.5：编写自动或半自动 smoke test：产生唯一合成日志，在限定时间内从 Loki 查询命中；重启采集器后验证缓冲内续传，并检查解析失败/丢弃信号。（OBS-R5）
 - [x] OBS-T3.6：编写本地运行手册，说明启动、查询、健康检查、磁盘容量、保留、停止和可恢复清理方式，不包含真实凭据。（OBS-R5、OBS-R6）
 - [x] OBS-T3.7：运行相关模块回归、Compose smoke test、`git diff --check` 和 `./scripts/quality-gate.sh`，记录未运行项与残余风险。（OBS-R1-OBS-R6）
+- [x] OBS-T3.8：扩展 Kubernetes 应用运行 Dashboard，覆盖业务/接口 QPS、平均与滚动最大耗时、Tomcat 线程、分池堆内存、GC、JVM CPU 和 Pod 资源，并用渲染后 JSON 契约测试固定查询语义。（OBS-R6）
 
 ### 验证证据
 
