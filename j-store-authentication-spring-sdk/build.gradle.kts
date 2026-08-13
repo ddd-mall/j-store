@@ -14,7 +14,6 @@ dependencies {
     api(project(":j-store-user-domain"))
 
     // Spring MVC（仅 spring/ 包使用）
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.web)
 
     // Jackson（拦截器写 JSON 错误响应）

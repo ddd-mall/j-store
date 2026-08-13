@@ -13,8 +13,6 @@ dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
     api(project(":j-store-user-domain"))
-
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.data.commons)
@@ -39,7 +37,7 @@ dependencies {
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotest.property)
     testImplementation(libs.embedded.redis)
-    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+    testImplementation(libs.embedded.postgres)
 }
 
 tasks.test {

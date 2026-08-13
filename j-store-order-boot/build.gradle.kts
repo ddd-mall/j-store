@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.springframework:spring-context")
+    implementation(libs.spring.context)
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
     implementation(project(":j-store-order-domain"))
@@ -23,18 +23,16 @@ dependencies {
     implementation(project(":j-store-user-client-spring"))
     implementation(project(":j-store-shop-application"))
     implementation(project(":j-store-authentication-spring-sdk"))
-
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(libs.spring.boot.starter.web)
-    implementation("org.springframework:spring-tx")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation(libs.spring.tx)
+    implementation(libs.spring.boot.starter.validation)
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.kotlin.test)
-    testImplementation("org.springframework:spring-jdbc")
-    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+    testImplementation(libs.spring.jdbc)
+    testImplementation(libs.embedded.postgres)
     testRuntimeOnly(libs.postgresql)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

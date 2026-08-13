@@ -36,7 +36,12 @@ else
 fi
 
 printf '%s\n' '[3/6] Source ownership and formatting'
-"$python_bin" scripts/check-file-ownership.py
+if command -v uv >/dev/null 2>&1; then
+  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
+    python scripts/check-file-ownership.py
+else
+  "$python_bin" scripts/check-file-ownership.py
+fi
 ./gradlew spotlessCheck --no-daemon --console=plain
 
 printf '%s\n' '[4/6] Dependency license audit'

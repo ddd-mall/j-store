@@ -7,8 +7,8 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.spotless)
     alias(libs.plugins.kotlin.plugin.spring)
-    id("app.cash.licensee") version "1.14.1" apply false
-    id("org.cyclonedx.bom") version "3.3.0"
+    alias(libs.plugins.licensee) apply false
+    alias(libs.plugins.cyclonedx)
 }
 
 allprojects {
@@ -51,7 +51,23 @@ allprojects {
 }
 
 subprojects {
+    if (path == ":j-store-dependencies-platform") return@subprojects
+
     apply(plugin = "app.cash.licensee")
+    pluginManager.withPlugin("java") {
+        dependencies {
+            add("implementation", platform(project(":j-store-dependencies-platform")))
+            add("testImplementation", platform(project(":j-store-dependencies-platform")))
+        }
+    }
+    pluginManager.withPlugin("java-test-fixtures") {
+        dependencies {
+            add(
+                "testFixturesImplementation",
+                platform(project(":j-store-dependencies-platform")),
+            )
+        }
+    }
     extensions.configure<LicenseeExtension> {
         allow("Apache-2.0")
         allow("BSD-2-Clause")
@@ -188,7 +204,7 @@ spotless {
     java {
         target(prePushTargets?.filter { it.extension == "java" } ?: javaSourceTrees)
         licenseHeaderFile(rootProject.file("config/spotless/license-header.txt"))
-        googleJavaFormat("1.35.0").aosp()
+        googleJavaFormat(libs.versions.google.java.format.get()).aosp()
         trimTrailingWhitespace()
         endWithNewline()
     }
@@ -196,7 +212,7 @@ spotless {
     kotlin {
         target(prePushTargets?.filter { it.extension == "kt" } ?: kotlinSourceTrees)
         licenseHeaderFile(rootProject.file("config/spotless/license-header.txt"))
-        ktfmt("0.63").kotlinlangStyle()
+        ktfmt(libs.versions.ktfmt.get()).kotlinlangStyle()
         trimTrailingWhitespace()
         endWithNewline()
     }
@@ -210,7 +226,7 @@ spotless {
 
     kotlinGradle {
         target(prePushTargets?.filter { it.name.endsWith(".gradle.kts") } ?: kotlinGradleFiles)
-        ktfmt("0.63").kotlinlangStyle()
+        ktfmt(libs.versions.ktfmt.get()).kotlinlangStyle()
         trimTrailingWhitespace()
         endWithNewline()
     }

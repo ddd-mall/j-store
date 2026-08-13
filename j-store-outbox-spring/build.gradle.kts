@@ -9,15 +9,14 @@ repositories {
 }
 
 dependencies {
-    implementation(platform(libs.spring.boot.dependencies))
     api(libs.spring.data.jpa)
     api(libs.spring.boot.starter.data.jpa)
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-messaging-core"))
     implementation(project(":j-store-outbox-core"))
     implementation(project(":j-store-messaging-local-spring"))
-    implementation("io.micrometer:micrometer-core")
-    implementation(libs.spirng.boot.boot)
+    implementation(libs.micrometer.core)
+    implementation(libs.spring.boot.core)
 
     testImplementation(kotlin("test"))
     testImplementation(libs.kotest.runner.junit5)
@@ -28,7 +27,7 @@ dependencies {
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.spring.boot.starter.test)
-    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
+    testImplementation(libs.embedded.postgres)
     testImplementation(project(":j-store-order-domain"))
     testImplementation(project(":j-store-integration-contracts"))
     testRuntimeOnly(libs.postgresql)

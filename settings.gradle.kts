@@ -4,6 +4,8 @@ plugins {
 
 rootProject.name = "j-store"
 
+include("j-store-dependencies-platform")
+
 include("j-store-boot")
 
 include("j-store-common-core")

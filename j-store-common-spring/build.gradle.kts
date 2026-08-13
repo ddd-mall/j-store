@@ -10,10 +10,9 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(project(":j-store-common-core"))
     implementation(libs.fastexcel)
-    implementation("org.springframework:spring-context")
+    implementation(libs.spring.context)
 
     // Test dependencies
     testImplementation(libs.kotest.runner.junit5)
