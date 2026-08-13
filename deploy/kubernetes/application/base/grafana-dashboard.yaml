@@ -1,0 +1,202 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: j-store-grafana-dashboard
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: j-store
+    app.kubernetes.io/part-of: j-store
+data:
+  j-store-runtime.json: |
+    {
+      "annotations": {"list": []},
+      "editable": false,
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 5, "w": 4, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [{"expr": "max(up{namespace=\"jstore\",service=\"j-store\"})", "refId": "A"}],
+          "title": "Application up",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 5, "w": 4, "x": 4, "y": 0},
+          "id": 2,
+          "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{namespace=\"jstore\"}[$__rate_interval]))", "refId": "A"}],
+          "title": "Overall QPS",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 5, "w": 4, "x": 8, "y": 0},
+          "id": 18,
+          "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{namespace=\"jstore\",uri!~\"/actuator.*\",uri!=\"UNKNOWN\"}[$__rate_interval]))", "refId": "A"}],
+          "title": "Business QPS",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 5, "w": 4, "x": 12, "y": 0},
+          "id": 3,
+          "targets": [{"expr": "sum(rate(http_server_requests_seconds_sum{namespace=\"jstore\",uri!~\"/actuator.*\",uri!=\"UNKNOWN\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_requests_seconds_count{namespace=\"jstore\",uri!~\"/actuator.*\",uri!=\"UNKNOWN\"}[$__rate_interval])), 1e-9)", "refId": "A"}],
+          "title": "Average request duration",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "description": "Maximum observed by Micrometer's rolling Timer window, excluding Actuator traffic.",
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 5, "w": 4, "x": 16, "y": 0},
+          "id": 4,
+          "targets": [{"expr": "max(http_server_requests_seconds_max{namespace=\"jstore\",uri!~\"/actuator.*\",uri!=\"UNKNOWN\"})", "refId": "A"}],
+          "title": "Maximum request duration",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+          "gridPos": {"h": 5, "w": 4, "x": 20, "y": 0},
+          "id": 5,
+          "targets": [{"expr": "max(process_cpu_usage{namespace=\"jstore\"})", "refId": "A"}],
+          "title": "JVM process CPU",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 5},
+          "id": 6,
+          "targets": [{"expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{namespace=\"jstore\",uri!~\"/actuator.*\",uri!=\"UNKNOWN\"}[$__rate_interval]))", "legendFormat": "{{method}} {{uri}}", "refId": "A"}],
+          "title": "QPS by endpoint",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 5},
+          "id": 7,
+          "targets": [
+            {"expr": "sum by (method, uri) (rate(http_server_requests_seconds_sum{namespace=\"jstore\",uri!~\"/actuator.*\",uri!=\"UNKNOWN\"}[$__rate_interval])) / clamp_min(sum by (method, uri) (rate(http_server_requests_seconds_count{namespace=\"jstore\",uri!~\"/actuator.*\",uri!=\"UNKNOWN\"}[$__rate_interval])), 1e-9)", "legendFormat": "avg {{method}} {{uri}}", "refId": "A"},
+            {"expr": "max by (method, uri) (http_server_requests_seconds_max{namespace=\"jstore\",uri!~\"/actuator.*\",uri!=\"UNKNOWN\"})", "legendFormat": "max {{method}} {{uri}}", "refId": "B"}
+          ],
+          "title": "Request duration by endpoint",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+          "id": 8,
+          "targets": [
+            {"expr": "sum(tomcat_threads_busy_threads{namespace=\"jstore\"})", "legendFormat": "busy", "refId": "A"},
+            {"expr": "sum(tomcat_threads_current_threads{namespace=\"jstore\"})", "legendFormat": "current", "refId": "B"},
+            {"expr": "sum(tomcat_threads_config_max_threads{namespace=\"jstore\"})", "legendFormat": "configured max", "refId": "C"}
+          ],
+          "title": "Tomcat threads",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+          "id": 9,
+          "targets": [{"expr": "sum by (id) (jvm_memory_used_bytes{namespace=\"jstore\",area=\"heap\"})", "legendFormat": "{{id}}", "refId": "A"}],
+          "title": "Heap pools used",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 22},
+          "id": 10,
+          "targets": [{"expr": "sum by (action, cause) (rate(jvm_gc_pause_seconds_count{namespace=\"jstore\"}[$__rate_interval]))", "legendFormat": "{{action}} / {{cause}}", "refId": "A"}],
+          "title": "GC count rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 22},
+          "id": 11,
+          "targets": [
+            {"expr": "sum by (action, cause) (rate(jvm_gc_pause_seconds_sum{namespace=\"jstore\"}[$__rate_interval]))", "legendFormat": "pause/s {{action}} / {{cause}}", "refId": "A"},
+            {"expr": "max by (action, cause) (jvm_gc_pause_seconds_max{namespace=\"jstore\"})", "legendFormat": "rolling max {{action}} / {{cause}}", "refId": "B"}
+          ],
+          "title": "GC pause time",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 22},
+          "id": 12,
+          "targets": [
+            {"expr": "hikaricp_connections_active{namespace=\"jstore\"}", "legendFormat": "active", "refId": "A"},
+            {"expr": "hikaricp_connections_idle{namespace=\"jstore\"}", "legendFormat": "idle", "refId": "B"}
+          ],
+          "title": "Database connections",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "cores"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 30},
+          "id": 13,
+          "targets": [{"expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"jstore\",pod=~\"j-store-.*\",container=\"application\"}[$__rate_interval]))", "legendFormat": "{{pod}}", "refId": "A"}],
+          "title": "Pod CPU usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 30},
+          "id": 14,
+          "targets": [{"expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"jstore\",pod=~\"j-store-.*\",container=\"application\"})", "legendFormat": "{{pod}}", "refId": "A"}],
+          "title": "Pod memory working set",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 38},
+          "id": 15,
+          "targets": [
+            {"expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"jstore\",pod=~\"j-store-.*\",container=\"application\"}[$__rate_interval])) / clamp_min(sum(kube_pod_container_resource_limits{namespace=\"jstore\",pod=~\"j-store-.*\",container=\"application\",resource=\"cpu\",unit=\"core\"}), 1e-9)", "legendFormat": "CPU / limit", "refId": "A"},
+            {"expr": "sum(container_memory_working_set_bytes{namespace=\"jstore\",pod=~\"j-store-.*\",container=\"application\"}) / clamp_min(sum(kube_pod_container_resource_limits{namespace=\"jstore\",pod=~\"j-store-.*\",container=\"application\",resource=\"memory\",unit=\"byte\"}), 1)", "legendFormat": "memory / limit", "refId": "B"}
+          ],
+          "title": "Pod resource utilization",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 6, "x": 12, "y": 38},
+          "id": 16,
+          "targets": [{"expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"jstore\",pod=~\"j-store-.*\",container=\"application\"}[$__range]))", "refId": "A"}],
+          "title": "Pod restarts",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 6, "x": 18, "y": 38},
+          "id": 17,
+          "targets": [{"expr": "jstore_outbox_oldest_ready_lag{namespace=\"jstore\",transportId=\"all\"}", "refId": "A"}],
+          "title": "Outbox oldest ready lag",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 41,
+      "tags": ["j-store", "kubernetes", "development"],
+      "time": {"from": "now-1h", "to": "now"},
+      "title": "J-Store Runtime",
+      "uid": "j-store-runtime",
+      "version": 2
+    }

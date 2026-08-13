@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+data:
+  config.alloy: |
+    logging {
+      level  = "info"
+      format = "logfmt"
+    }
+    discovery.kubernetes "jstore_pods" {
+      role = "pod"
+
+      selectors {
+        role  = "pod"
+        field = "spec.nodeName=" + sys.env("HOSTNAME")
+        label = "jstore.logs/enabled=true"
+      }
+    }
+
+    discovery.relabel "jstore_pods" {
+      targets = discovery.kubernetes.jstore_pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        target_label  = "service_name"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_jstore_logs_environment"]
+        target_label  = "environment"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        target_label  = "node"
+      }
+    }
+
+    loki.source.kubernetes "jstore_pods" {
+      targets    = discovery.relabel.jstore_pods.output
+      forward_to = [loki.process.jstore.receiver]
+    }
+
+    loki.process "jstore" {
+      forward_to = [loki.write.cluster.receiver]
+
+      stage.json {
+        expressions = {
+          level          = "log.level",
+          service_name   = "service.name",
+          environment    = "service.environment",
+          trace_id       = "trace_id",
+          span_id        = "span_id",
+          correlation_id = "correlation_id",
+          message_id     = "message_id",
+          causation_id   = "causation_id",
+          transport_id   = "transport_id",
+        }
+        drop_malformed = false
+      }
+
+      stage.labels {
+        values = {
+          level        = "level",
+          service_name = "service_name",
+          environment  = "environment",
+          namespace    = "namespace",
+          container    = "container",
+          transport_id = "transport_id",
+        }
+      }
+
+      stage.structured_metadata {
+        values = {
+          pod            = "pod",
+          node           = "node",
+          trace_id       = "trace_id",
+          span_id        = "span_id",
+          correlation_id = "correlation_id",
+          message_id     = "message_id",
+          causation_id   = "causation_id",
+        }
+      }
+    }
+
+    loki.write "cluster" {
+      endpoint {
+        url                = "https://loki-gateway/loki/api/v1/push"
+        min_backoff_period = "500ms"
+        max_backoff_period = "30s"
+        max_backoff_retries = 20
+        retry_on_http_429  = true
+
+        basic_auth {
+          username      = sys.env("LOKI_USERNAME")
+          password_file = "/var/run/secrets/loki/password"
+        }
+
+        tls_config {
+          ca_file     = "/var/run/secrets/loki/ca.crt"
+          min_version = "TLS12"
+          server_name = "loki-gateway.jstore-observability.svc"
+        }
+
+        queue_config {
+          capacity          = "32MiB"
+          min_shards        = 1
+          block_on_overflow = false
+          drain_timeout     = "30s"
+        }
+      }
+
+      wal {
+        enabled            = true
+        max_segment_age    = "1h"
+        min_read_frequency = "250ms"
+        max_read_frequency = "2s"
+        drain_timeout      = "30s"
+      }
+    }
