@@ -78,6 +78,28 @@ data class ContractAuthorizedSaleItem(
     val expiresAt: Instant,
 )
 
+@IntegrationMessageType("trade.start", 1)
+data class StartTradeProcessCommand(
+    val orderId: Long,
+    val merchantId: Long,
+    val items: List<ContractSaleItem>,
+    val payableAmountFen: Long,
+    val currency: String,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationCommand(
+        id("trade.start", 1, orderId, sourceMessageId),
+        "trade.start",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        merchantId.toString(),
+        "trade.commands",
+    )
+
 data class ContractRecipient(
     val name: String,
     val phone: String?,
@@ -145,7 +167,7 @@ data class SaleAuthorizedIntegrationEvent(
         orderId.toString(),
         sourceMessageId,
         null,
-        "order.events",
+        "trade.events",
     )
 
 @IntegrationMessageType("sale.authorization-failed", 1)
@@ -164,7 +186,7 @@ data class SaleAuthorizationFailedIntegrationEvent(
         orderId.toString(),
         sourceMessageId,
         null,
-        "order.events",
+        "trade.events",
     )
 
 @IntegrationMessageType("inventory.reserve", 1)
@@ -244,7 +266,7 @@ data class InventoryReservedIntegrationEvent(
         orderId.toString(),
         sourceMessageId,
         null,
-        "order.events",
+        "trade.events",
     )
 
 @IntegrationMessageType("inventory.reservation-failed", 1)
@@ -264,7 +286,81 @@ data class InventoryReservationFailedIntegrationEvent(
         orderId.toString(),
         sourceMessageId,
         null,
+        "trade.events",
+    )
+
+@IntegrationMessageType("trade.commitment-confirmed", 1)
+data class TradeCommitmentConfirmedIntegrationEvent(
+    val orderId: Long,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationEvent(
+        id("trade.commitment-confirmed", 1, orderId, sourceMessageId),
+        "trade.commitment-confirmed",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        null,
         "order.events",
+    )
+
+@IntegrationMessageType("trade.commitment-failed", 1)
+data class TradeCommitmentFailedIntegrationEvent(
+    val orderId: Long,
+    val reason: String,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationEvent(
+        id("trade.commitment-failed", 1, orderId, sourceMessageId),
+        "trade.commitment-failed",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        null,
+        "order.events",
+    )
+
+@IntegrationMessageType("order.cancelled.integration", 1)
+data class OrderCancelledIntegrationEvent(
+    val orderId: Long,
+    val reason: String,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationEvent(
+        id("order.cancelled.integration", 1, orderId, sourceMessageId),
+        "order.cancelled.integration",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        null,
+        "trade.events",
+    )
+
+@IntegrationMessageType("order.paid.integration", 1)
+data class OrderPaidIntegrationEvent(
+    val orderId: Long,
+    val sourceMessageId: String,
+    val occurredAtValue: Instant,
+) :
+    CommerceIntegrationEvent(
+        id("order.paid.integration", 1, orderId, sourceMessageId),
+        "order.paid.integration",
+        1,
+        occurredAtValue,
+        orderId.toString(),
+        orderId.toString(),
+        sourceMessageId,
+        null,
+        "trade.events",
     )
 
 @IntegrationMessageType("warehouse.physical-stock-changed", 1)

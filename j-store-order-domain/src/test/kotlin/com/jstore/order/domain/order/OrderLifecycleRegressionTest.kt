@@ -20,7 +20,7 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.order.event.OrderCancelledEvent
-import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
+import com.jstore.order.domain.order.event.OrderTradeCommittedEvent
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -28,63 +28,47 @@ import org.junit.jupiter.api.Test
 
 class OrderLifecycleRegressionTest {
     @Test
-    fun `order must persist offer authorization before stock can confirm the trade`() {
+    fun `trade commitment activates an order exactly once`() {
         val order = testOrder(commitment = CommitmentStatus.PENDING_OFFER)
 
-        assertIs<Failure<*>>(order.confirmStock())
-        assertIs<Success<Unit>>(
-            order.recordSaleAuthorized(
-                listOf(SaleAuthorizationRef("sale-auth-1", 10, java.time.Instant.MAX))
-            )
-        )
-        assertEquals(CommitmentStatus.OFFER_AUTHORIZED, order.commitmentStatus)
-        assertIs<Success<Unit>>(order.confirmStock())
+        assertIs<Success<Unit>>(order.confirmTradeCommitment())
         assertEquals(CommitmentStatus.CONFIRMED, order.commitmentStatus)
         assertEquals(TradeStatus.ACTIVE, order.tradeStatus)
+        assertIs<Failure<*>>(order.confirmTradeCommitment())
     }
 
     @Test
     fun `stock confirmation activates order and records payment eligibility fact once`() {
         val order = testOrder(trade = TradeStatus.CREATED)
 
-        assertIs<Success<Unit>>(
-            order.recordSaleAuthorized(
-                listOf(SaleAuthorizationRef("sale-auth-1", 10, java.time.Instant.MAX))
-            )
-        )
-        assertIs<Success<Unit>>(order.confirmStock())
+        assertIs<Success<Unit>>(order.confirmTradeCommitment())
 
         assertEquals(TradeStatus.ACTIVE, order.tradeStatus)
         val event =
-            order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().single()
+            order.pendingDomainEvents().filterIsInstance<OrderTradeCommittedEvent>().single()
         assertEquals(order.id, event.orderId)
         assertEquals(order.merchantId, event.merchantId)
         assertEquals(order.amountSnapshot.payableAmount, event.payableAmount)
         assertEquals(order.amountSnapshot.currency, event.currency)
-        assertIs<Failure<*>>(order.confirmStock())
+        assertIs<Failure<*>>(order.confirmTradeCommitment())
         assertEquals(
             1,
-            order.pendingDomainEvents().filterIsInstance<OrderStockConfirmedEvent>().size,
+            order.pendingDomainEvents().filterIsInstance<OrderTradeCommittedEvent>().size,
         )
     }
 
     @Test
-    fun `stock failure closes authorized order without recording payment eligibility fact`() {
+    fun `trade commitment failure closes order without recording payment eligibility fact`() {
         val order = testOrder(trade = TradeStatus.CREATED)
-        assertIs<Success<Unit>>(
-            order.recordSaleAuthorized(
-                listOf(SaleAuthorizationRef("sale-auth-1", 10, java.time.Instant.MAX))
-            )
-        )
 
-        assertIs<Success<Unit>>(order.markStockInsufficient("out of stock"))
+        assertIs<Success<Unit>>(order.rejectTradeCommitment("out of stock"))
 
         assertEquals(CommitmentStatus.FAILED, order.commitmentStatus)
         assertEquals(TradeStatus.CLOSED, order.tradeStatus)
         assertIs<OrderCancelledEvent>(
             order.pendingDomainEvents().filterIsInstance<OrderCancelledEvent>().single()
         )
-        assertTrue(order.pendingDomainEvents().none { it is OrderStockConfirmedEvent })
+        assertTrue(order.pendingDomainEvents().none { it is OrderTradeCommittedEvent })
     }
 
     @Test

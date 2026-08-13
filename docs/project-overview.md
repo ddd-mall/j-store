@@ -2,7 +2,7 @@
 
 ## 项目定位
 
-j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下文拆分为 Gradle 多模块。核心交易链路已拆分为 Catalog、Store/Offer、Inventory/ATP、WMS 与 Order，并通过版本化集成消息和 Outbox 协作。
+j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下文拆分为 Gradle 多模块。核心交易链路已拆分为 Catalog、Store/Offer、Inventory/ATP、WMS、Trade/Checkout 与 Order，并通过版本化集成消息和 Outbox 协作。
 
 完整的权威事实、上下文关系、聚合边界和跨服务一致性协议见 [领域建模说明](domain-modeling.md)。
 
@@ -45,6 +45,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-shop-api`: Store/Offer 对外的销售要约快照查询契约。
 - `j-store-shop-domain/application/infrastructure/boot`: 店铺、商户成员和 `SalesOffer`；销售状态、成交价、渠道、有效期、限购与履约策略由此上下文权威管理，并签发持久化 `SaleAuthorization`。
 - `j-store-inventory-domain/application/infrastructure/boot`: ATP 库存镜像、安全库存、渠道隔离量与订单 `StockReservation`；只有预留成功才构成库存承诺。
+- `j-store-trade-domain/application/infrastructure/boot`: Trade Process、成交快照、销售授权与库存预留 Saga、失败补偿和取消释放；向 Order 只发布最终交易承诺结果。
 - `j-store-warehouse-domain/application/infrastructure/boot`: WMS 实物库存权威及单调版本库存事件；Inventory 消费其事件维护销售库存镜像。
 - `j-store-payment-domain/application/infrastructure/boot`: 支付单与退款用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-fulfillment-domain/application/infrastructure/boot`: 履约单用例、JPA/Outbox 以及 Spring 事务装配。

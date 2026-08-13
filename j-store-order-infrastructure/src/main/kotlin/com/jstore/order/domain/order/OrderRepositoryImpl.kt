@@ -92,10 +92,6 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 paymentStatus = order.paymentStatus,
                 fulfillmentStatus = order.fulfillmentStatus,
                 commitmentStatus = order.commitmentStatus,
-                saleAuthorizationIds =
-                    order.saleAuthorizations.joinToString(";") {
-                        "${it.authorizationId}|${it.offerId}|${it.expiresAt.toEpochMilli()}"
-                    },
                 currency = order.amountSnapshot.currency,
                 itemsSubtotal = order.amountSnapshot.itemsSubtotal.toBigDecimal(),
                 discountAmount = order.amountSnapshot.discountAmount.toBigDecimal(),
@@ -187,20 +183,6 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 _paymentStatus = po.paymentStatus,
                 _fulfillmentStatus = po.fulfillmentStatus,
                 _commitmentStatus = po.commitmentStatus,
-                _saleAuthorizations =
-                    po.saleAuthorizationIds
-                        .split(';')
-                        .filter(String::isNotBlank)
-                        .map {
-                            val parts = it.split('|')
-                            require(parts.size == 3)
-                            SaleAuthorizationRef(
-                                parts[0],
-                                parts[1].toLong(),
-                                java.time.Instant.ofEpochMilli(parts[2].toLong()),
-                            )
-                        }
-                        .toMutableList(),
                 amountSnapshot =
                     OrderAmountSnapshot(
                         currency = po.currency,

@@ -19,12 +19,9 @@ package com.jstore.translator
 import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.contracts.commerce.*
 import com.jstore.messaging.IntegrationMessagePublisher
-import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
-import com.jstore.order.domain.order.event.OrderSaleAuthorizedEvent
 import org.springframework.stereotype.Component
 
 /**
@@ -33,14 +30,14 @@ import org.springframework.stereotype.Component
  * 职责：纯格式转换，不包含任何业务逻辑 位于 boot 组装层，是两个限界上下文之间的桥梁
  */
 @Component
-class OrderCreatedToSaleAuthorizationTranslator(
+class OrderCreatedToTradeTranslator(
     private val integrationMessagePublisher: IntegrationMessagePublisher
 ) : DomainEventListener<OrderCreatedEvent> {
-    override fun listenerId(): String = "translator.order-created.to-sale-authorization.v1"
+    override fun listenerId(): String = "translator.order-created.to-trade.v1"
 
     override fun onDomainEvent(event: OrderCreatedEvent) {
         integrationMessagePublisher.publish(
-            AuthorizeSaleCommand(
+            StartTradeProcessCommand(
                 orderId = event.orderId.value,
                 items =
                     event.items.map {
@@ -59,40 +56,9 @@ class OrderCreatedToSaleAuthorizationTranslator(
                     },
                 sourceMessageId = event.eventId,
                 merchantId = event.merchantId.value,
+                payableAmountFen = event.payableAmount.fen,
+                currency = event.currency,
                 occurredAtValue = event.occurredAt,
-            )
-        )
-    }
-}
-
-@Component
-class OrderSaleAuthorizedToStockReservationTranslator(
-    private val integrationMessagePublisher: IntegrationMessagePublisher
-) : DomainEventListener<OrderSaleAuthorizedEvent> {
-    override fun listenerId(): String = "translator.order-sale-authorized.to-atp-reservation.v1"
-
-    override fun onDomainEvent(event: OrderSaleAuthorizedEvent) {
-        val authorizationByOffer = event.authorizations.associateBy { it.offerId }
-        require(authorizationByOffer.size == event.items.size)
-        integrationMessagePublisher.publish(
-            ReserveInventoryCommand(
-                orderId = event.orderId.value,
-                items =
-                    event.items.map { item ->
-                        val authorization = authorizationByOffer.getValue(item.offerId)
-                        ContractAuthorizedSaleItem(
-                            authorizationId = authorization.authorizationId,
-                            offerId = item.offerId,
-                            skuId = item.skuId,
-                            quantity = item.quantity,
-                            fulfillmentNodeId = item.fulfillmentNodeId,
-                            expiresAt = authorization.expiresAt,
-                        )
-                    },
-                sourceMessageId = event.eventId,
-                merchantId = event.merchantId.value,
-                occurredAtValue = event.occurredAt,
-                acceptBefore = event.authorizations.minOf { it.expiresAt },
             )
         )
     }
@@ -117,31 +83,36 @@ class OrderPaidToStockConfirmTranslator(
 }
 
 @Component
-class OrderCancelledToStockReleaseTranslator(
-    private val integrationMessagePublisher: IntegrationMessagePublisher,
-    private val orderRepository: OrderRepository,
+class OrderCancelledToTradeTranslator(
+    private val integrationMessagePublisher: IntegrationMessagePublisher
 ) : DomainEventListener<OrderCancelledEvent> {
-    override fun listenerId(): String = "translator.order-cancelled.to-stock-release-requested"
+    override fun listenerId(): String = "translator.order-cancelled.to-trade.v1"
 
     override fun onDomainEvent(event: OrderCancelledEvent) {
-        val order = orderRepository.findById(OrderId(event.orderId.value)) ?: return
         integrationMessagePublisher.publish(
-            ReleaseInventoryCommand(
+            OrderCancelledIntegrationEvent(
                 orderId = event.orderId.value,
-                items = order.items.map { ContractItem(skuId = it.skuId, quantity = it.quantity) },
+                reason = event.reason,
                 sourceMessageId = event.eventId,
                 occurredAtValue = event.occurredAt,
             )
         )
-        if (order.saleAuthorizations.isNotEmpty()) {
-            integrationMessagePublisher.publish(
-                ReleaseSaleAuthorizationCommand(
-                    orderId = event.orderId.value,
-                    authorizationIds = order.saleAuthorizations.map { it.authorizationId },
-                    sourceMessageId = event.eventId,
-                    occurredAtValue = event.occurredAt,
-                )
+    }
+}
+
+@Component
+class OrderPaidToTradeTranslator(
+    private val integrationMessagePublisher: IntegrationMessagePublisher
+) : DomainEventListener<OrderPaidEvent> {
+    override fun listenerId(): String = "translator.order-paid.to-trade.v1"
+
+    override fun onDomainEvent(event: OrderPaidEvent) {
+        integrationMessagePublisher.publish(
+            OrderPaidIntegrationEvent(
+                orderId = event.orderId.value,
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
             )
-        }
+        )
     }
 }

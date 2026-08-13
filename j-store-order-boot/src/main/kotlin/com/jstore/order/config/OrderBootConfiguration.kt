@@ -36,14 +36,12 @@ import com.jstore.order.service.FulfillmentDeliveredOrderHandler
 import com.jstore.order.service.FulfillmentDispatchedOrderHandler
 import com.jstore.order.service.FulfillmentPreparedOrderHandler
 import com.jstore.order.service.OrderService
-import com.jstore.order.service.OrderStockConfirmedEventHandler
-import com.jstore.order.service.OrderStockInsufficientEventHandler
+import com.jstore.order.service.OrderTradeCommitmentFailedEventHandler
+import com.jstore.order.service.OrderTradeCommittedEventHandler
 import com.jstore.order.service.OrderUseCase
 import com.jstore.order.service.PaymentCapturedOrderHandler
 import com.jstore.order.service.PaymentRefundFailedOrderHandler
 import com.jstore.order.service.PaymentRefundSucceededOrderHandler
-import com.jstore.order.service.SaleAuthorizationFailedOrderHandler
-import com.jstore.order.service.SaleAuthorizedOrderHandler
 import com.jstore.shop.api.OfferSnapshotQueryService
 import com.jstore.user.api.UserProfileQueryService
 import org.springframework.context.annotation.Bean
@@ -134,18 +132,11 @@ class OrderBootConfiguration {
         PaymentRefundFailedOrderHandler(afterSales)
 
     @Bean
-    fun orderStockConfirmedHandler(service: OrderUseCase) = OrderStockConfirmedEventHandler(service)
+    fun orderTradeCommittedHandler(service: OrderUseCase) = OrderTradeCommittedEventHandler(service)
 
     @Bean
-    fun orderStockInsufficientHandler(service: OrderUseCase) =
-        OrderStockInsufficientEventHandler(service)
-
-    @Bean
-    fun saleAuthorizedOrderHandler(service: OrderUseCase) = SaleAuthorizedOrderHandler(service)
-
-    @Bean
-    fun saleAuthorizationFailedOrderHandler(service: OrderUseCase) =
-        SaleAuthorizationFailedOrderHandler(service)
+    fun orderTradeCommitmentFailedHandler(service: OrderUseCase) =
+        OrderTradeCommitmentFailedEventHandler(service)
 
     @Bean
     fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory =
