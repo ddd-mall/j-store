@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: grafana/alloy
+    newName: docker.m.daocloud.io/grafana/alloy
+  - name: grafana/loki
+    newName: docker.m.daocloud.io/grafana/loki
+  - name: grafana/grafana
+    newName: docker.m.daocloud.io/grafana/grafana
+  - name: prom/prometheus
+    newName: quay.m.daocloud.io/prometheus/prometheus
+  - name: nginxinc/nginx-unprivileged
+    newName: docker.m.daocloud.io/nginxinc/nginx-unprivileged

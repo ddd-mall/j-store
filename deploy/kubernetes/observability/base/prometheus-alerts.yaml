@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+data:
+  observability-alerts.yml: |
+    groups:
+      - name: j-store-observability
+        rules:
+          - alert: JStoreAlloyTargetDown
+            expr: (up{job="alloy"} == 0) or absent(up{job="alloy"})
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: Alloy collector target is unavailable
+              description: Prometheus has been unable to scrape an Alloy collector for five minutes.
+
+          - alert: JStoreAlloyDroppedLogs
+            expr: increase(loki_write_dropped_entries_total[5m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: Alloy is dropping log entries
+              description: At least one log entry was dropped by Alloy during the last five minutes.
+
+          - alert: JStoreAlloyWriteRetries
+            expr: increase(loki_write_batch_retries_total[10m]) > 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: Alloy is repeatedly retrying Loki writes
+              description: Loki delivery is degraded and the bounded queue or WAL may eventually overflow.
+
+          - alert: JStoreLokiUnavailable
+            expr: (up{job="loki"} == 0) or absent(up{job="loki"})
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: Loki is unavailable
+              description: Prometheus has been unable to scrape the Loki backend for two minutes.
+
+          - alert: JStoreApplicationMetricsTargetDown
+            expr: up{job="j-store-kubernetes-pods"} == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: A J-Store metrics target is unavailable
+              description: A selected J-Store Pod has failed Prometheus scrapes for five minutes.

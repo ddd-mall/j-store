@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: j-store-grafana-dashboard
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: j-store
+    app.kubernetes.io/part-of: j-store
+data:
+  j-store-runtime.json: |
+    {
+      "annotations": {"list": []},
+      "editable": false,
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [{"expr": "max(up{namespace=\"jstore\",service=\"j-store\"})", "refId": "A"}],
+          "title": "Application up",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+          "id": 2,
+          "targets": [{"expr": "process_uptime_seconds{namespace=\"jstore\"}", "refId": "A"}],
+          "title": "Process uptime",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+          "id": 3,
+          "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{namespace=\"jstore\"}[5m]))", "refId": "A"}],
+          "title": "HTTP request rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+          "id": 4,
+          "targets": [{"expr": "sum(jvm_memory_used_bytes{namespace=\"jstore\",area=\"heap\"})", "refId": "A"}],
+          "title": "JVM heap used",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+          "id": 5,
+          "targets": [{"expr": "hikaricp_connections_active{namespace=\"jstore\"}", "refId": "A"}],
+          "title": "Active database connections",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "seconds"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+          "id": 6,
+          "targets": [{"expr": "jstore_outbox_oldest_ready_lag{namespace=\"jstore\",transportId=\"all\"}", "refId": "A"}],
+          "title": "Outbox oldest ready lag",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 41,
+      "tags": ["j-store", "kubernetes", "development"],
+      "time": {"from": "now-1h", "to": "now"},
+      "title": "J-Store Runtime",
+      "uid": "j-store-runtime",
+      "version": 1
+    }
