@@ -4,12 +4,7 @@ set -eu
 
 zero_sha=0000000000000000000000000000000000000000
 repository_root=$(git rev-parse --show-toplevel)
-git_directory=$(git rev-parse --git-dir)
-
-case "$git_directory" in
-    /*) ;;
-    *) git_directory="$repository_root/$git_directory" ;;
-esac
+git_directory=$(git rev-parse --path-format=absolute --git-dir)
 
 raw_file="$git_directory/spotless-pre-push-raw.$$"
 target_file="$git_directory/spotless-pre-push-files.$$"

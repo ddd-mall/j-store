@@ -70,4 +70,22 @@ Describe "observability smoke settings" {
             $compose | Should Match ([regex]::Escape($_))
         }
     }
+
+    It "prevents host proxy settings from intercepting internal observability traffic" {
+        $repositoryRoot = Split-Path -Parent $scriptDirectory
+        $compose = Get-Content -Raw (Join-Path $repositoryRoot "docker-compose.observability.yml")
+
+        $compose | Should Match ([regex]::Escape('x-runtime-no-proxy: &runtime-no-proxy'))
+        $compose | Should Match ([regex]::Escape('NO_PROXY: "*"'))
+        $compose | Should Match ([regex]::Escape('no_proxy: "*"'))
+        ([regex]::Matches($compose, [regex]::Escape('*runtime-no-proxy'))).Count | Should Be 5
+        $compose | Should Match 'wget.*-Y.*off.*http://localhost:9090/-/ready'
+    }
+
+    It "starts Compose in detached mode without a PowerShell short option" {
+        $smokeScript = Get-Content -Raw (Join-Path $scriptDirectory "observability-smoke.ps1")
+
+        $smokeScript | Should Match ([regex]::Escape('Invoke-Compose up --detach --build'))
+        $smokeScript | Should Not Match ([regex]::Escape('Invoke-Compose up -d --build'))
+    }
 }

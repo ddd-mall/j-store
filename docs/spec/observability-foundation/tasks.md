@@ -84,7 +84,7 @@
 - [x] OBS-T3.4：通过 provisioning 创建 Loki/Prometheus 数据源和最小 Dashboard，覆盖错误日志、correlation/trace 查询及 Outbox lag、死信、过期锁和调度失败。（OBS-R5、OBS-R6）
 - [x] OBS-T3.5：编写自动或半自动 smoke test：产生唯一合成日志，在限定时间内从 Loki 查询命中；重启采集器后验证缓冲内续传，并检查解析失败/丢弃信号。（OBS-R5）
 - [x] OBS-T3.6：编写本地运行手册，说明启动、查询、健康检查、磁盘容量、保留、停止和可恢复清理方式，不包含真实凭据。（OBS-R5、OBS-R6）
-- [ ] OBS-T3.7：运行相关模块回归、Compose smoke test、`git diff --check` 和 `./scripts/quality-gate.sh`，记录未运行项与残余风险。（OBS-R1-OBS-R6）
+- [x] OBS-T3.7：运行相关模块回归、Compose smoke test、`git diff --check` 和 `./scripts/quality-gate.sh`，记录未运行项与残余风险。（OBS-R1-OBS-R6）
 
 ### 验证证据
 
@@ -127,3 +127,12 @@
 - 审查修复：异常访问日志只记录不含异常消息的类型与栈帧，并以合成手机号、密码、JWT、验证码和消息载荷验证无泄露；访问日志使用 MVC 路由模板；消息 MDC 覆盖 handler 校验和幂等 claim；本地端口仅绑定 loopback；运行手册明确旧基线 checksum 的破坏性重建步骤；全量 Flyway 回归通过 `to_regclass` 断言三张旧任务表不存在；PowerShell 契约验证 `.env` 非默认端口、Grafana 用户名、进程环境变量优先级和 loopback 端口绑定。
 - 修复后回归：`spotlessCheck licensee test verifyLicenseArtifacts` 构建成功（250 个任务完成或复用缓存，53 个 JAR 制品验证通过）；治理检查、69 个 Python 契约测试、文件归属、PowerShell 语法与 3 个 Pester 契约测试通过；`git diff --check` 通过。
 - 依赖漏洞修复：针对 `GHSA-rcgg-9c38-7xpx` 增加 OpenTelemetry 运行时最低安全版本回归测试，并通过 OpenTelemetry BOM 将 API、SDK 与 propagators 从 `1.49.0` 统一对齐到 `1.62.0`；Tracer、W3C `traceparent`（含 random flag）、Prometheus 和受观测 HTTP 客户端装配测试通过。重新生成的生产 SBOM 包含 197 个包，使用已校验发布摘要的 OSV Scanner 2.4.0 扫描结果为 0 个漏洞；完整 `./scripts/quality-gate.sh` 通过。
+
+## 远程 Compose 验收证据（2026-08-13）
+
+- 在隔离的远程开发环境中显式使用 JDK 25.0.3 构建 `:j-store-boot:bootJar`，并以 `amazoncorretto:25-al2023-headless` 运行应用容器；PostgreSQL、Redis、应用、Loki、Alloy、Prometheus 与 Grafana 全部启动并通过健康检查。此前“本机未安装容器运行时”的限制已由本次远程验收补足。
+- 官方 `scripts/observability-smoke.ps1 -KeepRunning -TimeoutSeconds 420` 通过：Loki 可查询合成 `correlation_id=smoke-3ada1affc43d476eaafd43b4e2c15a39` 与 `trace_id=aafdb557596349a49da3e2d4c7739315`，应用响应回传相同 correlation ID。
+- Loki 停止期间生成 `buffered_id=buffered-8d710da946e247a28a8612b36e98a078`，重启 Alloy 并恢复 Loki 后能够查询该日志；`loki_write_dropped_entries_total` 与 `loki_source_docker_target_parsing_errors_total` 未报告大于零的结果。
+- Prometheus 的 `up{job="j-store"}` 为 1，`jstore_outbox_oldest_ready_lag{transportId="all"}` 存在；Grafana 中 Loki 与 Prometheus 数据源健康检查均通过。
+- 宿主机注入代理变量的场景已覆盖：应用与可观测性容器清空代理变量并设置 `NO_PROXY/no_proxy=*`，Loki 日志中无代理连接错误；所有临时发布端口仅绑定远程回环地址。
+- 本次运行前，相关模块测试、PowerShell/Python 契约测试、`git diff --check` 和完整 `./scripts/quality-gate.sh` 均通过。独立安全/隐私与运维评审仍为退出门禁的人工事项，本验收不替代独立批准。

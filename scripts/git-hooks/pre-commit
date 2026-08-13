@@ -3,12 +3,7 @@
 set -eu
 
 repository_root=$(git rev-parse --show-toplevel)
-git_directory=$(git rev-parse --git-dir)
-
-case "$git_directory" in
-    /*) ;;
-    *) git_directory="$repository_root/$git_directory" ;;
-esac
+git_directory=$(git rev-parse --path-format=absolute --git-dir)
 
 target_file="$git_directory/spotless-pre-commit-files.$$"
 partially_staged_file="$git_directory/spotless-pre-commit-partial.$$"
