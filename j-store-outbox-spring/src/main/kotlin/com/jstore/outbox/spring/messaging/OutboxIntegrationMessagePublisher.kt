@@ -26,6 +26,8 @@ import com.jstore.outbox.OutboxEntry
 import com.jstore.outbox.OutboxEntryRepository
 import com.jstore.outbox.OutboxEntryStatus
 import com.jstore.outbox.OutboxMessageKind
+import com.jstore.outbox.spring.NoopOutboxRelaySignal
+import com.jstore.outbox.spring.OutboxRelaySignal
 import java.time.Instant
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -37,6 +39,7 @@ open class OutboxIntegrationMessagePublisher(
     private val typeRegistry: IntegrationMessageTypeRegistry,
     private val publicationPlanner: IntegrationPublicationPlanner,
     private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
+    private val relaySignal: OutboxRelaySignal = NoopOutboxRelaySignal,
 ) : IntegrationMessagePublisher {
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -71,7 +74,8 @@ open class OutboxIntegrationMessagePublisher(
                 else -> error("Unsupported IntegrationMessage marker: ${message::class.java.name}")
             }
 
-        publicationPlanner.plan(message.destination).forEach { publication ->
+        val publications = publicationPlanner.plan(message.destination)
+        publications.forEach { publication ->
             val orderingKey =
                 OutboxOrderingKeys.integration(
                     publication.logicalDestination,
@@ -113,5 +117,6 @@ open class OutboxIntegrationMessagePublisher(
                 )
             )
         }
+        if (publications.isNotEmpty()) relaySignal.signalAfterCommit()
     }
 }

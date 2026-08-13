@@ -33,7 +33,10 @@ import com.jstore.outbox.spring.messaging.*
 import com.jstore.outbox.spring.persistence.*
 import io.micrometer.core.instrument.MeterRegistry
 import jakarta.persistence.EntityManager
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -128,6 +131,7 @@ class OutboxAutoConfiguration {
         snowFlakSequence: SnowFlakSequence,
         eventTypeRegistry: EventTypeRegistry,
         outboxStreamSequenceAllocator: OutboxStreamSequenceAllocator,
+        outboxRelaySignal: OutboxRelaySignal,
     ): DomainEventPublisher {
         return OutboxEventPublisher(
             outboxEntryRepository,
@@ -135,6 +139,7 @@ class OutboxAutoConfiguration {
             snowFlakSequence,
             eventTypeRegistry,
             outboxStreamSequenceAllocator,
+            outboxRelaySignal,
         )
     }
 
@@ -152,6 +157,7 @@ class OutboxAutoConfiguration {
         integrationMessageTypeRegistry: IntegrationMessageTypeRegistry,
         integrationPublicationPlanner: IntegrationPublicationPlanner,
         outboxStreamSequenceAllocator: OutboxStreamSequenceAllocator,
+        outboxRelaySignal: OutboxRelaySignal,
     ): IntegrationMessagePublisher =
         OutboxIntegrationMessagePublisher(
             outboxEntryRepository,
@@ -160,6 +166,7 @@ class OutboxAutoConfiguration {
             integrationMessageTypeRegistry,
             integrationPublicationPlanner,
             outboxStreamSequenceAllocator,
+            outboxRelaySignal,
         )
 
     @Bean
@@ -243,6 +250,32 @@ class OutboxAutoConfiguration {
         )
     }
 
+    @Bean(destroyMethod = "shutdown")
+    fun outboxRelayExecutor(): ExecutorService = Executors.newSingleThreadExecutor { task ->
+        Thread(task, "jstore-outbox-relay").apply { isDaemon = true }
+    }
+
+    @Bean
+    fun outboxRelayCoordinator(
+        outboxPublisher: OutboxPublisher,
+        @Qualifier("outboxRelayExecutor") executor: ExecutorService,
+        observer: OutboxRelayExecutionObserver,
+    ): OutboxRelayCoordinator = OutboxRelayCoordinator(outboxPublisher, executor, observer)
+
+    @Bean
+    fun outboxRelayExecutionObserver(
+        outboxMonitor: OutboxMonitor,
+        schedulerExecutionState: SchedulerExecutionState,
+    ): OutboxRelayExecutionObserver =
+        MonitoringOutboxRelayExecutionObserver(outboxMonitor, schedulerExecutionState)
+
+    @Bean
+    fun outboxRelaySignal(
+        coordinatorProvider: ObjectProvider<OutboxRelayCoordinator>
+    ): OutboxRelaySignal = TransactionAwareOutboxRelaySignal {
+        coordinatorProvider.getObject().requestDrain()
+    }
+
     @Bean
     fun outboxCleaner(
         outboxEntryRepository: OutboxEntryRepository,
@@ -253,17 +286,10 @@ class OutboxAutoConfiguration {
 
     @Bean
     fun outboxScheduler(
-        outboxPublisher: OutboxPublisher,
+        outboxRelayCoordinator: OutboxRelayCoordinator,
         outboxCleaner: OutboxCleaner,
-        outboxMonitor: OutboxMonitor,
-        schedulerExecutionState: SchedulerExecutionState,
     ): OutboxScheduler {
-        return OutboxScheduler(
-            outboxPublisher,
-            outboxCleaner,
-            outboxMonitor,
-            schedulerState = schedulerExecutionState,
-        )
+        return OutboxScheduler(outboxRelayCoordinator, outboxCleaner)
     }
 
     @Bean fun schedulerExecutionState(): SchedulerExecutionState = SchedulerExecutionState()

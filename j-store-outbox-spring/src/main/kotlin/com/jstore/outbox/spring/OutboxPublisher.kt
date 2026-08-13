@@ -42,7 +42,7 @@ class OutboxPublisher(
             "outbox-${UUID.randomUUID()}"
         }
 
-    fun pollAndPublish() {
+    fun pollAndPublish(): Int {
         try {
             val now = Instant.now()
             val entries =
@@ -152,10 +152,23 @@ class OutboxPublisher(
 
             logger.info("Outbox poll completed: delivered={}, failed={}", successCount, failCount)
             outboxMonitor.recordPoll(successCount, failCount)
+            return entries.size
         } catch (e: Exception) {
             logger.error("Outbox polling encountered an unexpected error", e)
             throw e
         }
+    }
+
+    /** Reclaims newly-ready work until the queue is empty or this drain spends its batch budget. */
+    fun drainAndPublish(): OutboxDrainResult {
+        var processedBatches = 0
+        repeat(properties.maxBatchesPerDrain) {
+            if (pollAndPublish() == 0) {
+                return OutboxDrainResult(processedBatches, budgetExhausted = false)
+            }
+            processedBatches++
+        }
+        return OutboxDrainResult(processedBatches, budgetExhausted = true)
     }
 
     private fun calculateNextAttemptAt(retryCount: Int): Instant {
@@ -182,3 +195,5 @@ class OutboxPublisher(
             "Outbox entry lock ownership changed before publish commit: id=$entryId, workerId=$workerId"
         )
 }
+
+data class OutboxDrainResult(val processedBatches: Int, val budgetExhausted: Boolean)

@@ -28,6 +28,7 @@ import com.jstore.outbox.OutboxDeliveryTarget
 import com.jstore.outbox.OutboxEntryRepository
 import com.jstore.outbox.OutboxMessageKind
 import com.jstore.outbox.OutboxStreamSequenceAllocator
+import com.jstore.outbox.spring.OutboxRelaySignal
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
@@ -52,6 +53,7 @@ class OutboxIntegrationMessagePublisherTest :
             val orderingKey = "57d0d731fe2cefe49a264ba7e12c17ae2b8de8fae70f4703504532a64e200f47"
             whenever(sequenceAllocator.nextSequence("local", orderingKey)).thenReturn(7)
             whenever(sequenceAllocator.nextSequence("kafka", orderingKey)).thenReturn(11)
+            val relaySignal = mock<OutboxRelaySignal>()
             val publisher =
                 OutboxIntegrationMessagePublisher(
                     repository,
@@ -81,12 +83,14 @@ class OutboxIntegrationMessagePublisherTest :
                             ),
                     ),
                     sequenceAllocator,
+                    relaySignal,
                 )
 
             publisher.publish(message)
 
             val captor = argumentCaptor<com.jstore.outbox.OutboxEntry>()
             verify(repository, times(2)).save(captor.capture())
+            verify(relaySignal).signalAfterCommit()
             captor.allValues
                 .map { it.deliveryTarget }
                 .shouldContainExactly(
