@@ -21,6 +21,8 @@ import com.jstore.goods.domain.commodity.SpuId
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.GoodsStyleSaveCmd
 import com.jstore.goods.domain.commodity.comand.SkuCreateCmd
+import com.jstore.goods.domain.commodity.comand.SkuRemoveCmd
+import com.jstore.goods.domain.commodity.comand.SkuUpdateCmd
 import com.jstore.goods.service.CommodityUseCase
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -36,6 +38,10 @@ class TransactionalCommodityUseCase(
     override fun createOrUpdate(cmd: CommodityCreateCmd) = tx { delegate.createOrUpdate(cmd) }
 
     override fun addSku(cmd: SkuCreateCmd) = tx { delegate.addSku(cmd) }
+
+    override fun updateSku(cmd: SkuUpdateCmd) = tx { delegate.updateSku(cmd) }
+
+    override fun removeSku(cmd: SkuRemoveCmd) = tx { delegate.removeSku(cmd) }
 
     override fun publish(spuId: SpuId) = tx { delegate.publish(spuId) }
 

@@ -33,6 +33,9 @@ interface Sku : Entity<SkuId> {
 
     /** 标准条形码（EAN/UPC） */
     val barcode: String?
+
+    /** 草稿 SKU 对应的稳定已发布 SKU；新建 SKU 和已发布 SKU 为 null。 */
+    val sourceSkuId: SkuId?
 }
 
 class SkuImpl(
@@ -41,4 +44,5 @@ class SkuImpl(
     override val attributes: List<Attribute<String, String>>,
     override val merchantCode: String? = null,
     override val barcode: String? = null,
+    override val sourceSkuId: SkuId? = null,
 ) : Sku

@@ -30,4 +30,5 @@ class SkuPO(
     @Column(name = "attributes", columnDefinition = "jsonb") var attributes: String = "[]",
     @Column(name = "merchant_code", length = 128) var merchantCode: String? = null,
     @Column(name = "barcode", length = 64) var barcode: String? = null,
+    @Column(name = "source_sku_id") var sourceSkuId: Long? = null,
 )

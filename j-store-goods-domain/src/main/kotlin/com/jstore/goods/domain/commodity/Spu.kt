@@ -21,6 +21,10 @@ import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.framework.RecordsDomainEvents
 import com.jstore.common.properties.Id
 import com.jstore.common.utils.Result
+import com.jstore.goods.domain.brand.BrandId
+import com.jstore.goods.domain.category.CategoryId
+import com.jstore.goods.domain.content.LocalizedText
+import com.jstore.goods.domain.producttype.ProductTypeId
 
 data class MerchantId(override val value: Long) : Id<Long>(value) {
     init {
@@ -39,6 +43,20 @@ interface Spu : AggregateRoot<SpuId>, RecordsDomainEvents {
     /** 商品描述 */
     val description: String
 
+    /** 可复用的商品资料 schema。null 表示尚未绑定类型的历史/最小商品。 */
+    val productTypeId: ProductTypeId?
+
+    /** SPU 级结构化属性值。 */
+    val productAttributes: List<Attribute<String, String>>
+
+    val brandId: BrandId?
+
+    val categoryIds: Set<CategoryId>
+
+    val localizedNames: LocalizedText?
+
+    val localizedDescriptions: LocalizedText?
+
     /** SKU 列表（只读视图） */
     val skus: List<Sku>
 
@@ -53,6 +71,12 @@ interface Spu : AggregateRoot<SpuId>, RecordsDomainEvents {
 
     /** 添加 SKU */
     fun addSku(sku: Sku): Result<Unit, BusinessError>
+
+    /** 修改草稿中的 SKU。替换对象必须使用被修改 SKU 的草稿身份。 */
+    fun updateSku(sku: Sku): Result<Unit, BusinessError>
+
+    /** 删除草稿中的 SKU。 */
+    fun removeSku(skuId: SkuId): Result<Unit, BusinessError>
 
     /** 发布商品资料：DRAFT → PUBLISHED。 */
     fun publish(): Result<Unit, BusinessError>

@@ -23,6 +23,7 @@ import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.SkuCreateCmd
+import com.jstore.goods.domain.commodity.comand.SkuUpdateCmd
 
 interface SpuFactory {
     fun create(createCmd: CommodityCreateCmd): Spu
@@ -30,6 +31,8 @@ interface SpuFactory {
     fun update(createCmd: CommodityCreateCmd, old: Spu): Spu
 
     fun createSku(cmd: SkuCreateCmd): Sku
+
+    fun createSku(cmd: SkuUpdateCmd): Sku
 
     fun createDraftCopy(source: Spu): Result<Spu, BusinessError>
 }
@@ -42,6 +45,12 @@ class SpuFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : SpuFactor
             merchantId = MerchantId(createCmd.merchantId),
             name = createCmd.spuName,
             description = createCmd.description,
+            productTypeId = createCmd.productTypeId,
+            productAttributes = createCmd.productAttributes,
+            brandId = createCmd.brandId,
+            categoryIds = createCmd.categoryIds,
+            localizedNames = createCmd.localizedNames,
+            localizedDescriptions = createCmd.localizedDescriptions,
             _status = CommodityStatus.DRAFT,
             _skus = ArrayList(),
         )
@@ -54,6 +63,12 @@ class SpuFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : SpuFactor
             merchantId = old.merchantId,
             name = createCmd.spuName,
             description = createCmd.description,
+            productTypeId = createCmd.productTypeId,
+            productAttributes = createCmd.productAttributes,
+            brandId = createCmd.brandId,
+            categoryIds = createCmd.categoryIds,
+            localizedNames = createCmd.localizedNames,
+            localizedDescriptions = createCmd.localizedDescriptions,
             _status = old.status,
             _skus = old.skus.toMutableList(),
             _version = old.version,
@@ -71,6 +86,15 @@ class SpuFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : SpuFactor
         )
     }
 
+    override fun createSku(cmd: SkuUpdateCmd): Sku =
+        SkuImpl(
+            id = cmd.skuId,
+            skuName = cmd.skuName,
+            attributes = cmd.attributes,
+            merchantCode = cmd.merchantCode,
+            barcode = cmd.barcode,
+        )
+
     /** 从已发布商品创建草稿副本。 */
     override fun createDraftCopy(source: Spu): Result<Spu, BusinessError> {
         if (source.status != CommodityStatus.PUBLISHED) {
@@ -82,8 +106,26 @@ class SpuFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : SpuFactor
                 merchantId = source.merchantId,
                 name = source.name,
                 description = source.description,
+                productTypeId = source.productTypeId,
+                productAttributes = source.productAttributes.toList(),
+                brandId = source.brandId,
+                categoryIds = source.categoryIds.toSet(),
+                localizedNames = source.localizedNames,
+                localizedDescriptions = source.localizedDescriptions,
                 _status = CommodityStatus.DRAFT,
-                _skus = source.skus.toMutableList(),
+                _skus =
+                    source.skus
+                        .map { sku ->
+                            SkuImpl(
+                                id = SkuId(snowFlakSequence.nextId()),
+                                skuName = sku.skuName,
+                                attributes = sku.attributes.toList(),
+                                merchantCode = sku.merchantCode,
+                                barcode = sku.barcode,
+                                sourceSkuId = sku.id,
+                            )
+                        }
+                        .toMutableList(),
                 _version = source.version,
                 sourceSpuId = source.id,
             )

@@ -35,6 +35,20 @@ class SpuSnapshotPO(
     /** 完整 SKU 快照 JSON 数组 */
     @Column(name = "sku_snapshots", columnDefinition = "jsonb", nullable = false)
     var skuSnapshots: String = "[]",
+    @Column(name = "main_images", columnDefinition = "jsonb", nullable = false)
+    var mainImages: String = "[]",
+    @Column(name = "detail_html", columnDefinition = "text", nullable = false)
+    var detailHtml: String = "",
+    @Column(name = "product_type_id") var productTypeId: Long? = null,
+    @Column(name = "product_attributes", columnDefinition = "jsonb", nullable = false)
+    var productAttributes: String = "[]",
+    @Column(name = "brand_id") var brandId: Long? = null,
+    @Column(name = "category_ids", columnDefinition = "jsonb", nullable = false)
+    var categoryIds: String = "[]",
+    @Column(name = "localized_names", columnDefinition = "jsonb")
+    var localizedNames: String? = null,
+    @Column(name = "localized_descriptions", columnDefinition = "jsonb")
+    var localizedDescriptions: String? = null,
     @Column(name = "created_at", nullable = false)
     var createdAt: LocalDateTime = LocalDateTime.now(),
 )

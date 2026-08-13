@@ -27,11 +27,24 @@ class SpuPO(
     @Column(name = "merchant_id", nullable = false) var merchantId: Long = 0,
     @Column(name = "name", nullable = false, length = 256) var name: String = "",
     @Column(name = "description", length = 2000) var description: String = "",
+    @Column(name = "product_type_id") var productTypeId: Long? = null,
+    @Column(name = "product_attributes", columnDefinition = "jsonb", nullable = false)
+    var productAttributes: String = "[]",
+    @Column(name = "brand_id") var brandId: Long? = null,
+    @Column(name = "category_ids", columnDefinition = "jsonb", nullable = false)
+    var categoryIds: String = "[]",
+    @Column(name = "localized_names", columnDefinition = "jsonb")
+    var localizedNames: String? = null,
+    @Column(name = "localized_descriptions", columnDefinition = "jsonb")
+    var localizedDescriptions: String? = null,
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
     var status: CommodityStatus = CommodityStatus.DRAFT,
     @Column(name = "version", nullable = false) var version: Long = 1,
     @Column(name = "source_spu_id") var sourceSpuId: Long? = null,
+    @Version
+    @Column(name = "persistence_version", nullable = false)
+    var persistenceVersion: Long = 0,
     @Column(name = "create_time", nullable = false)
     var createTime: LocalDateTime = LocalDateTime.now(),
     @Column(name = "update_time", nullable = false)

@@ -20,4 +20,6 @@ import com.jstore.common.framework.AggregateRepository
 
 interface GoodsStyleRepository : AggregateRepository<GoodsStyleId, GoodsStyle> {
     fun findBySpuId(spuId: SpuId): GoodsStyle?
+
+    fun delete(style: GoodsStyle)
 }

@@ -35,6 +35,8 @@ CREATE TABLE merchant_membership_roles (
 
 ALTER TABLE spu
     ADD CONSTRAINT fk_spu_merchant FOREIGN KEY (merchant_id) REFERENCES merchants(id);
+ALTER TABLE product_type
+    ADD CONSTRAINT fk_product_type_merchant FOREIGN KEY (merchant_id) REFERENCES merchants(id);
 ALTER TABLE spu_snapshot
     ADD CONSTRAINT fk_spu_snapshot_merchant FOREIGN KEY (merchant_id) REFERENCES merchants(id);
 ALTER TABLE orders

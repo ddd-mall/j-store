@@ -103,6 +103,8 @@ class CommodityServiceSaveGoodsStyleTest :
                 )
 
             whenever(spuRepository.findById(spuId)).thenReturn(spu)
+            whenever(spu.status).thenReturn(CommodityStatus.DRAFT)
+            whenever(spu.skus).thenReturn(listOf(SkuImpl(skuId, "SKU", emptyList())))
             whenever(goodsStyleRepository.findBySpuId(spuId)).thenReturn(null)
             whenever(goodsStyleFactory.create(any(), any(), any(), any())).thenReturn(newGoodsStyle)
             whenever(goodsStyleRepository.save(any<GoodsStyle>())).thenReturn(newGoodsStyle)
@@ -137,6 +139,8 @@ class CommodityServiceSaveGoodsStyleTest :
                 )
 
             whenever(spuRepository.findById(spuId)).thenReturn(spu)
+            whenever(spu.status).thenReturn(CommodityStatus.DRAFT)
+            whenever(spu.skus).thenReturn(listOf(SkuImpl(skuId, "SKU", emptyList())))
             whenever(goodsStyleRepository.findBySpuId(spuId)).thenReturn(existingGoodsStyle)
             whenever(goodsStyleRepository.save(any<GoodsStyle>())).thenReturn(existingGoodsStyle)
 

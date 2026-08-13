@@ -24,13 +24,30 @@ CREATE TABLE IF NOT EXISTS user_accounts (
 -- ============================================================
 -- Goods
 -- ============================================================
+CREATE TABLE IF NOT EXISTS product_type (
+    id                  BIGINT PRIMARY KEY,
+    merchant_id         BIGINT NOT NULL,
+    name                JSONB NOT NULL,
+    definitions         JSONB NOT NULL DEFAULT '[]',
+    persistence_version BIGINT NOT NULL DEFAULT 0,
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS spu (
     id              BIGINT        PRIMARY KEY,
     name            VARCHAR(256)  NOT NULL,
     description     VARCHAR(2000) DEFAULT '',
+    product_type_id BIGINT REFERENCES product_type(id),
+    product_attributes JSONB NOT NULL DEFAULT '[]',
+    brand_id        BIGINT,
+    category_ids    JSONB NOT NULL DEFAULT '[]',
+    localized_names JSONB,
+    localized_descriptions JSONB,
     status          VARCHAR(32)   NOT NULL DEFAULT 'DRAFT',
     version         BIGINT        NOT NULL DEFAULT 1,
     source_spu_id   BIGINT,
+    persistence_version BIGINT NOT NULL DEFAULT 0,
     create_time     TIMESTAMP     NOT NULL DEFAULT NOW(),
     update_time     TIMESTAMP     NOT NULL DEFAULT NOW()
 );
@@ -39,6 +56,10 @@ CREATE INDEX IF NOT EXISTS idx_spu_source_spu_id
     ON spu (source_spu_id)
     WHERE source_spu_id IS NOT NULL;
 
+CREATE UNIQUE INDEX IF NOT EXISTS uk_spu_one_draft_per_source
+    ON spu (source_spu_id)
+    WHERE source_spu_id IS NOT NULL AND status = 'DRAFT';
+
 CREATE TABLE IF NOT EXISTS sku (
     id              BIGINT        PRIMARY KEY,
     spu_id          BIGINT        NOT NULL REFERENCES spu(id),
@@ -46,7 +67,8 @@ CREATE TABLE IF NOT EXISTS sku (
     attributes      JSONB         NOT NULL DEFAULT '[]',
     price           NUMERIC(19,0) NOT NULL DEFAULT 0,
     merchant_code   VARCHAR(128),
-    barcode         VARCHAR(64)
+    barcode         VARCHAR(64),
+    source_sku_id   BIGINT
 );
 
 CREATE INDEX IF NOT EXISTS idx_sku_spu_id ON sku(spu_id);
@@ -58,6 +80,14 @@ CREATE TABLE IF NOT EXISTS spu_snapshot (
     spu_name          VARCHAR(256)  NOT NULL,
     description       VARCHAR(2000) DEFAULT '',
     sku_snapshots     JSONB         NOT NULL DEFAULT '[]',
+    main_images       JSONB         NOT NULL DEFAULT '[]',
+    detail_html       TEXT          NOT NULL DEFAULT '',
+    product_type_id   BIGINT,
+    product_attributes JSONB        NOT NULL DEFAULT '[]',
+    brand_id          BIGINT,
+    category_ids      JSONB         NOT NULL DEFAULT '[]',
+    localized_names   JSONB,
+    localized_descriptions JSONB,
     created_at        TIMESTAMP     NOT NULL DEFAULT NOW(),
     CONSTRAINT uk_spu_snapshot_spu_version UNIQUE (spu_id, snapshot_version)
 );
