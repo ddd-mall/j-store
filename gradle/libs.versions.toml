@@ -11,6 +11,10 @@ mockito-kotlin = "6.3.0"
 libphonenumber = "9.0.36"
 jjwt = "0.13.0"
 open-telemetry = "1.62.0"
+jackson = "2.21.5"
+netty = "4.1.136.Final"
+postgresql = "42.7.12"
+commons-lang3 = "3.19.0"
 embedded-redis = "1.4.3"
 embedded-postgres = "2.1.0"
 money-api = "1.1"
@@ -24,6 +28,8 @@ ktfmt = "0.63"
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 open-telemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "open-telemetry" }
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
+netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 
 # Kotlin and testing
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib" }
@@ -59,10 +65,10 @@ spring-data-jpa = { module = "org.springframework.data:spring-data-jpa" }
 spring-security-crypto = { module = "org.springframework.security:spring-security-crypto" }
 flyway-core = { module = "org.flywaydb:flyway-core" }
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
-postgresql = { module = "org.postgresql:postgresql" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 slf4j-api = { module = "org.slf4j:slf4j-api" }
 lombok = { module = "org.projectlombok:lombok" }
-commons-lang3 = { module = "org.apache.commons:commons-lang3" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 micrometer-core = { module = "io.micrometer:micrometer-core" }
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 micrometer-tracing-bridge-otel = { module = "io.micrometer:micrometer-tracing-bridge-otel" }
@@ -76,7 +82,7 @@ jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
 jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
 money-api = { module = "javax.money:money-api", version.ref = "money-api" }
 
-# Jackson coordinates are aligned by the Spring Boot platform
+# Jackson coordinates are aligned by the approved security BOM
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }

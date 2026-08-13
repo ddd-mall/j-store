@@ -69,6 +69,10 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertIn("api(platform(libs.spring.boot.dependencies))", platform)
         self.assertIn("api(platform(libs.junit.bom))", platform)
         self.assertIn("api(platform(libs.open.telemetry.bom))", platform)
+        self.assertIn("api(platform(libs.jackson.bom))", platform)
+        self.assertIn("api(platform(libs.netty.bom))", platform)
+        self.assertIn("api(libs.postgresql)", platform)
+        self.assertIn("api(libs.commons.lang3)", platform)
 
         non_platform_text = "\n".join(
             path.read_text(encoding="utf-8")
@@ -84,16 +88,23 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertIn('pluginManager.withPlugin("java-test-fixtures")', root_build)
         self.assertIn('"testFixturesImplementation"', root_build)
 
-    def test_approved_and_boot_managed_version_policy(self) -> None:
+    def test_approved_security_and_boot_managed_version_policy(self) -> None:
         versions = self.catalog["versions"]
         libraries = self.catalog["libraries"]
 
         self.assertEqual("1.62.0", versions["open-telemetry"])
-        self.assertNotIn("jackson-bom", libraries)
-        self.assertNotIn("netty-bom", libraries)
+        self.assertEqual("2.21.5", versions["jackson"])
+        self.assertEqual("4.1.136.Final", versions["netty"])
+        self.assertEqual("42.7.12", versions["postgresql"])
+        self.assertEqual("3.19.0", versions["commons-lang3"])
+        self.assertEqual("jackson", libraries["jackson-bom"]["version"]["ref"])
+        self.assertEqual("netty", libraries["netty-bom"]["version"]["ref"])
+        self.assertEqual("postgresql", libraries["postgresql"]["version"]["ref"])
+        self.assertEqual(
+            "commons-lang3", libraries["commons-lang3"]["version"]["ref"]
+        )
         self.assertNotIn("spring-security", versions)
         self.assertNotIn("version", libraries["spring-security-crypto"])
-        self.assertNotIn("version.ref", libraries["spring-security-crypto"])
         self.assertNotIn("spirng-boot-boot", libraries)
 
 

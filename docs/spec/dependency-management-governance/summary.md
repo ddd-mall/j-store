@@ -4,7 +4,7 @@
 
 - 所有项目构建脚本的外部库声明已统一使用 `libs.versions.toml`，项目脚本不再直接书写外部 GAV 或外部插件版本。
 - 新增 `j-store-dependencies-platform`，把坐标目录与实际版本对齐职责分离，并覆盖主代码、测试和测试夹具 classpath。
-- Spring Security、Jackson、Netty、SLF4J 等无批准依据的覆盖已移除并回归 Spring Boot 兼容矩阵；有漏洞修复证据的 OpenTelemetry 1.62.0 安全覆盖被保留。
+- Spring Security、SLF4J 等无批准依据的覆盖已移除并回归 Spring Boot 兼容矩阵；OpenTelemetry 1.62.0、Jackson 2.21.5、Netty 4.1.136.Final、PostgreSQL JDBC 42.7.12 和 Commons Lang 3.19.0 的安全下限集中保留。
 - 清理 26 个未使用 alias，补齐实际使用坐标，修复 catalog 命名错误，并集中 Spotless 格式化工具版本。
 - 新增 5 项可执行治理契约，阻止散落坐标、插件硬编码、无效 alias、Platform 缺失和关键策略回退。
 
@@ -20,8 +20,8 @@
 
 ## 兼容性与恢复
 
-本变更不升级既有版本、不改变业务代码或数据结构。解析图按受支持的 Spring Boot BOM 收敛，同时保留既有 JUnit 和 OpenTelemetry 版本。若候选在 CI 漏洞扫描或独立评审中出现问题，可整体 revert 本变更恢复原依赖图，无需数据迁移。
+本变更不引入高于治理前 catalog 的版本，也不改变业务代码或数据结构。解析图默认按 Spring Boot BOM 收敛，同时保留既有 JUnit、OpenTelemetry 及有漏洞修复依据的安全版本。若候选在 CI 漏洞扫描或独立评审中出现问题，可整体 revert 本变更恢复原依赖图，无需数据迁移。
 
 ## 残余门禁
 
-本地已使用 OSV Scanner 2.5.0 扫描生产 SBOM 的 198 个包，未发现漏洞。远端 required check 仍需使用其固定工具版本独立复核；依赖解析策略属于供应链范围，合并前仍需经过独立评审与既有 required checks。
+本地已使用与 workflow 一致、且通过官方 SHA-256 校验的 OSV Scanner 2.4.0 扫描生产 SBOM 的 199 个包，未发现漏洞。Homebrew OSV Scanner 2.5.0 对修复前 CI SBOM 的结果与 2.4.0 不一致，因此不作为验收依据。远端 required check 仍需在推送后独立复核；依赖解析策略属于供应链范围，合并前仍需经过独立评审与既有 required checks。
