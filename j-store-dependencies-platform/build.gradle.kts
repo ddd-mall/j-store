@@ -10,6 +10,7 @@ dependencies {
     api(platform(libs.open.telemetry.bom))
     api(platform(libs.jackson.bom))
     api(platform(libs.netty.bom))
+    api(platform(libs.log4j.bom))
 
     constraints {
         api(libs.postgresql)
