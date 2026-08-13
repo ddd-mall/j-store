@@ -44,6 +44,11 @@ class GoodsStyleRepositoryImpl(private val jpaRepository: GoodsStylePOJpaReposit
         return jpaRepository.findBySpuId(spuId.value)?.let { Converter.toDomain(it) }
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
+    override fun delete(style: GoodsStyle) {
+        jpaRepository.deleteById(style.id.value)
+    }
+
     internal object Converter {
 
         fun toPO(goodsStyle: GoodsStyle): GoodsStylePO {

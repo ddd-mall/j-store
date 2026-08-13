@@ -21,13 +21,24 @@ import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
+import com.jstore.goods.domain.brand.BrandId
+import com.jstore.goods.domain.category.CategoryId
+import com.jstore.goods.domain.commodity.Attribute
 import com.jstore.goods.domain.commodity.SpuId
+import com.jstore.goods.domain.content.LocalizedText
+import com.jstore.goods.domain.producttype.ProductTypeId
 
 data class CommodityCreateCmd(
     val spuId: SpuId?,
     val merchantId: Long,
     val spuName: String,
     val description: String = "",
+    val productTypeId: ProductTypeId? = null,
+    val productAttributes: List<Attribute<String, String>> = emptyList(),
+    val brandId: BrandId? = null,
+    val categoryIds: Set<CategoryId> = emptySet(),
+    val localizedNames: LocalizedText? = null,
+    val localizedDescriptions: LocalizedText? = null,
 ) {
     fun verify(): Result<Boolean, BusinessError> {
         if (merchantId <= 0) {

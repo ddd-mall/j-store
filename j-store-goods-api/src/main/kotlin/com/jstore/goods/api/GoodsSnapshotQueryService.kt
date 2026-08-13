@@ -26,10 +26,20 @@ data class GoodsSnapshotInfo(
     val snapshotVersion: Long,
     val spuName: String,
     val skuSnapshots: List<GoodsSkuSnapshotInfo>,
+    val description: String = "",
+    val mainImages: List<String> = emptyList(),
+    val detailHtml: String = "",
+    val productTypeId: Long? = null,
+    val productAttributes: List<Pair<String, String>> = emptyList(),
+    val brandId: Long? = null,
+    val categoryIds: Set<Long> = emptySet(),
+    val localizedNames: Map<String, String> = emptyMap(),
+    val localizedDescriptions: Map<String, String> = emptyMap(),
 )
 
 data class GoodsSkuSnapshotInfo(
     val skuId: Long,
     val skuName: String,
     val attributes: List<Pair<String, String>>,
+    val imageKeys: List<String> = emptyList(),
 )

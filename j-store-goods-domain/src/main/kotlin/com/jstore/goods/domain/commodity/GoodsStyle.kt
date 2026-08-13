@@ -33,6 +33,13 @@ interface GoodsStyle : AggregateRoot<GoodsStyleId> {
     fun updateDetailHtml(html: String): Result<Unit, BusinessError>
 
     fun updateSkuImages(skuId: SkuId, images: List<String>): Result<Unit, BusinessError>
+
+    /** Replace the complete versioned content, removing stale SKU media entries. */
+    fun replaceContent(
+        mainImages: List<String>,
+        detailHtml: String,
+        skuImages: Map<SkuId, List<String>>,
+    ): Result<Unit, BusinessError>
 }
 
 class GoodsStyleImpl(
@@ -69,6 +76,24 @@ class GoodsStyleImpl(
             return Failure(CommodityErrors.DUPLICATE_IMAGE_KEY)
         }
         _skuImages[skuId] = images.toList()
+        return Success(Unit)
+    }
+
+    override fun replaceContent(
+        mainImages: List<String>,
+        detailHtml: String,
+        skuImages: Map<SkuId, List<String>>,
+    ): Result<Unit, BusinessError> {
+        if (
+            mainImages.size != mainImages.distinct().size ||
+                skuImages.values.any { it.size != it.distinct().size }
+        ) {
+            return Failure(CommodityErrors.DUPLICATE_IMAGE_KEY)
+        }
+        _mainImages = mainImages.toMutableList()
+        _detailHtml = detailHtml
+        _skuImages.clear()
+        _skuImages.putAll(skuImages.mapValues { it.value.toList() })
         return Success(Unit)
     }
 }

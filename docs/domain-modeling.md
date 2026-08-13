@@ -55,7 +55,13 @@ flowchart LR
 
 ## Catalog：商品资料模型
 
-Catalog 回答“商品是什么”。`Spu` 管理商品名称、描述和 SKU 结构，`GoodsStyle` 管理展示素材，`SpuSnapshot` 提供可追溯资料版本。
+Catalog 回答“商品是什么”。`Spu` 管理商品名称、描述、SKU 结构以及对 Product Type、Brand 和 Category 的稳定引用；`GoodsStyle` 管理展示素材，`SpuSnapshot` 冻结一次发布产生的完整可追溯资料版本。
+
+`ProductType` 是独立聚合，定义 SPU 级与 SKU 级属性的 code、类型、必填、枚举范围和变体轴。Category 负责分类树，Product Type 负责资料结构，二者不能互相替代。属性值目前以字符串传输和持久化，但发布前必须按 Product Type 解析为文本、数字、布尔或枚举语义并校验。
+
+已发布 SPU 通过 Copy-on-Write 草稿修改。草稿 SPU 由 `sourceSpuId` 指向发布源；草稿 SKU 使用独立 ID，并由 `sourceSkuId` 指向稳定已发布 SKU。发布草稿时，已有 SKU 恢复稳定源 ID，新建 SKU 保留其新 ID，从而避免两个 SPU 聚合共享同一持久化 SKU 主键，也避免破坏 Offer、Inventory 和历史订单对稳定 SKU ID 的引用。
+
+商品名称、描述、结构化属性、类目/品牌引用、主图、详情和 SKU 图片都参与同一次发布并进入 `SpuSnapshot`。`GoodsStyle` 虽是独立聚合，但其写入只能针对 DRAFT SPU，草稿复制与发布由同一个商品应用事务协调；不能绕过草稿直接修改已发布素材。
 
 Catalog 生命周期为：
 
@@ -66,6 +72,8 @@ DRAFT -> PUBLISHED -> ARCHIVED
 - `DRAFT`：资料编辑中。
 - `PUBLISHED`：资料可被店铺 Offer 引用。
 - `ARCHIVED`：资料停止继续使用或进入历史保留。
+
+业务资料版本 `Spu.version` 与 JPA 乐观锁版本分离。前者进入发布快照和跨上下文契约，后者只用于检测并发覆盖。数据库同时保证一个发布源最多存在一个 DRAFT 副本。
 
 `PUBLISHED` 不代表消费者可以购买。Catalog 不保存 `ON_SALE/OFF_SALE`，SKU 不拥有成交价，商品快照也不作为订单价格权威。
 

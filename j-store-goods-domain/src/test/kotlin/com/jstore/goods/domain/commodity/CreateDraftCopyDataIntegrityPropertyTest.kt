@@ -89,7 +89,13 @@ class CreateDraftCopyDataIntegrityPropertyTest :
 
                 draft.name shouldBe source.name
                 draft.description shouldBe source.description
-                draft.skus shouldBe source.skus
+                draft.skus.map { it.skuName } shouldBe source.skus.map { it.skuName }
+                draft.skus.map { it.attributes } shouldBe source.skus.map { it.attributes }
+                draft.skus.map { it.sourceSkuId } shouldBe source.skus.map { it.id }
+                draft.skus
+                    .map { it.id }
+                    .toSet()
+                    .intersect(source.skus.map { it.id }.toSet()) shouldBe emptySet()
                 draft.version shouldBe source.version
                 draft.status shouldBe CommodityStatus.DRAFT
                 draft.sourceSpuId shouldBe source.id

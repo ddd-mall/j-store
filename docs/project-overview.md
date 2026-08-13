@@ -41,7 +41,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-order-infrastructure`: 订单/售后 JPA、PostgreSQL 并发控制及 Catalog、Offer 查询 ACL 适配器。
 - `j-store-order-boot`: 订单 HTTP Controller、Spring 事务用例装饰器与上下文 Bean 装配。
 - `j-store-goods-api`: Catalog 对外的无价格商品资料快照查询契约。
-- `j-store-goods-domain/application/infrastructure/boot`: Catalog 的 SPU、SKU、款式、资料快照和 `DRAFT/PUBLISHED/ARCHIVED` 生命周期；不拥有销售状态或库存。
+- `j-store-goods-domain/application/infrastructure/boot`: Catalog 的 SPU、稳定 SKU、Product Type、类目/品牌引用、本地化内容、版本化款式、资料快照和 `DRAFT/PUBLISHED/ARCHIVED` 生命周期；不拥有销售状态或库存。
 - `j-store-shop-api`: Store/Offer 对外的销售要约快照查询契约。
 - `j-store-shop-domain/application/infrastructure/boot`: 店铺、商户成员和 `SalesOffer`；销售状态、成交价、渠道、有效期、限购与履约策略由此上下文权威管理，并签发持久化 `SaleAuthorization`。
 - `j-store-inventory-domain/application/infrastructure/boot`: ATP 库存镜像、安全库存、渠道隔离量与订单 `StockReservation`；只有预留成功才构成库存承诺。
@@ -59,7 +59,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 ## 当前实现重点
 
 - 订单：订单行冻结 Catalog 与 Offer 快照，持久化 `PENDING_OFFER → OFFER_AUTHORIZED → CONFIRMED/FAILED` Saga 状态；先取得销售授权，再请求 ATP 库存预留。
-- Catalog：SPU、SKU、商品款式、草稿/发布/归档和资料快照；商品价格不通过 Catalog API 进入交易决策。
+- Catalog：SPU、稳定 SKU、结构化 Product Type、类目/品牌引用、本地化内容、商品款式、草稿/发布/归档和完整资料快照；商品价格不通过 Catalog API 进入交易决策。
 - Store/Offer：一个 SKU 可按店铺、渠道、市场分别定价和启停；授权时用数据库悲观锁校验店铺、Offer 版本、价格、有效期和限购，并签发有时效、可幂等、可释放的业务凭证。
 - Inventory/ATP：按 `onHand - reserved - safetyStock - isolatedQuantity` 计算可承诺量；授权过期或 ATP 不足时拒绝预留。
 - WMS：维护实物在库数量和来源版本；订单不直接锁 WMS 数据库，旧库存事件不会覆盖新镜像。
