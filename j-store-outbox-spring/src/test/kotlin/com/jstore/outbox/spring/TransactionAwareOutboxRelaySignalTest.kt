@@ -70,6 +70,17 @@ class TransactionAwareOutboxRelaySignalTest :
             verify(trigger).requestDrain()
         }
 
+        test("relay wake-up failure does not escape the after-commit callback") {
+            val signal = TransactionAwareOutboxRelaySignal {
+                throw IllegalStateException("executor unavailable")
+            }
+            TransactionSynchronizationManager.initSynchronization()
+
+            signal.signalAfterCommit()
+
+            TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
+        }
+
         test("requires transaction synchronization") {
             val signal = TransactionAwareOutboxRelaySignal(mock())
 

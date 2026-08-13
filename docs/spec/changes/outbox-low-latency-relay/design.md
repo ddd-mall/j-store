@@ -41,7 +41,7 @@ OutboxPublisher.drainAndPublish()
 ## 失败语义
 
 - 业务事务回滚：`afterCommit` 不执行，不产生即时 signal；Outbox 写入也随事务回滚。
-- executor 拒绝：记录告警并清除本地运行门禁；周期调度后续恢复。
+- 提交后唤醒失败（包括 executor 拒绝）：记录告警且不向已提交业务事务传播；周期调度后续恢复。
 - 单条投递失败：保持现有 FAILED/DEAD_LETTER 处理，不中断同批其它独立记录。
 - drain 顶层异常：记录 relay/scheduler 失败健康状态并释放门禁；ready 记录仍在数据库，周期调度可恢复。
 - signal 与 worker 结束竞态：worker 释放门禁后再次检查 pending，必要时重新取得门禁并调度。

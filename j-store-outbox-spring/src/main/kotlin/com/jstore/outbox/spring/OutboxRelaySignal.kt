@@ -16,6 +16,7 @@
  */
 package com.jstore.outbox.spring
 
+import org.slf4j.LoggerFactory
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
 
@@ -30,6 +31,7 @@ object NoopOutboxRelaySignal : OutboxRelaySignal {
 
 class TransactionAwareOutboxRelaySignal(private val trigger: OutboxRelayTrigger) :
     OutboxRelaySignal {
+    private val logger = LoggerFactory.getLogger(TransactionAwareOutboxRelaySignal::class.java)
     private val synchronizationResourceKey = Any()
 
     override fun signalAfterCommit() {
@@ -41,7 +43,14 @@ class TransactionAwareOutboxRelaySignal(private val trigger: OutboxRelayTrigger)
         TransactionSynchronizationManager.registerSynchronization(
             object : TransactionSynchronization {
                 override fun afterCommit() {
-                    trigger.requestDrain()
+                    try {
+                        trigger.requestDrain()
+                    } catch (failure: RuntimeException) {
+                        logger.warn(
+                            "Outbox relay wake-up failed after commit; periodic polling will retry",
+                            failure,
+                        )
+                    }
                 }
 
                 override fun afterCompletion(status: Int) {
