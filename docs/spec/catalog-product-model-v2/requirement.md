@@ -70,7 +70,9 @@
 1. LocalizedText SHALL 要求至少一个非空语言值并使用规范化 locale key。
 2. MediaAsset SHALL 拒绝空 key、负数排序和缺失媒体类型。
 3. Category SHALL 使用父 Category ID 表达树关系，不直接嵌套父对象。
-4. Brand SHALL 使用稳定身份供 SPU 引用。
+4. Brand SHALL 是 Catalog 管理的商户级聚合，使用稳定身份供 SPU 引用，并支持启用、停用和多语言名称维护。
+5. 商品保存与发布 SHALL 拒绝不存在、已停用或属于其他商户的 Brand 引用。
+6. 商品快照 SHALL 同时冻结 Brand ID 和发布时的多语言名称，避免品牌改名改变历史资料解释。
 
 ## 质量目标
 

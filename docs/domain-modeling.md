@@ -57,7 +57,7 @@ flowchart LR
 
 Catalog 回答“商品是什么”。`Spu` 管理商品名称、描述、SKU 结构以及对 Product Type、Brand 和 Category 的稳定引用；`GoodsStyle` 管理展示素材，`SpuSnapshot` 冻结一次发布产生的完整可追溯资料版本。
 
-`ProductType` 是独立聚合，定义 SPU 级与 SKU 级属性的 code、类型、必填、枚举范围和变体轴。Category 负责分类树，Product Type 负责资料结构，二者不能互相替代。属性值目前以字符串传输和持久化，但发布前必须按 Product Type 解析为文本、数字、布尔或枚举语义并校验。
+`ProductType` 是独立聚合，定义 SPU 级与 SKU 级属性的 code、类型、必填、枚举范围和变体轴。`Brand` 是 Catalog 内的商户级聚合，维护多语言名称与启停状态；SPU 保存和发布时必须验证品牌存在、启用且属于同一商户，历史快照同时冻结品牌 ID 和名称。Category 负责分类树，Product Type 负责资料结构，二者不能互相替代。属性值目前以字符串传输和持久化，但发布前必须按 Product Type 解析为文本、数字、布尔或枚举语义并校验。
 
 已发布 SPU 通过 Copy-on-Write 草稿修改。草稿 SPU 由 `sourceSpuId` 指向发布源；草稿 SKU 使用独立 ID，并由 `sourceSkuId` 指向稳定已发布 SKU。发布草稿时，已有 SKU 恢复稳定源 ID，新建 SKU 保留其新 ID，从而避免两个 SPU 聚合共享同一持久化 SKU 主键，也避免破坏 Offer、Inventory 和历史订单对稳定 SKU ID 的引用。
 

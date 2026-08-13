@@ -24,6 +24,19 @@ CREATE TABLE IF NOT EXISTS user_accounts (
 -- ============================================================
 -- Goods
 -- ============================================================
+CREATE TABLE IF NOT EXISTS brand (
+    id                  BIGINT PRIMARY KEY,
+    merchant_id         BIGINT NOT NULL,
+    name                JSONB NOT NULL,
+    normalized_name     VARCHAR(256) NOT NULL,
+    status              VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+    persistence_version BIGINT NOT NULL DEFAULT 0,
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_brand_status CHECK (status IN ('ACTIVE', 'INACTIVE')),
+    CONSTRAINT uk_brand_merchant_name UNIQUE (merchant_id, normalized_name)
+);
+
 CREATE TABLE IF NOT EXISTS product_type (
     id                  BIGINT PRIMARY KEY,
     merchant_id         BIGINT NOT NULL,
@@ -40,7 +53,7 @@ CREATE TABLE IF NOT EXISTS spu (
     description     VARCHAR(2000) DEFAULT '',
     product_type_id BIGINT REFERENCES product_type(id),
     product_attributes JSONB NOT NULL DEFAULT '[]',
-    brand_id        BIGINT,
+    brand_id        BIGINT REFERENCES brand(id),
     category_ids    JSONB NOT NULL DEFAULT '[]',
     localized_names JSONB,
     localized_descriptions JSONB,
@@ -85,6 +98,7 @@ CREATE TABLE IF NOT EXISTS spu_snapshot (
     product_type_id   BIGINT,
     product_attributes JSONB        NOT NULL DEFAULT '[]',
     brand_id          BIGINT,
+    brand_name        JSONB,
     category_ids      JSONB         NOT NULL DEFAULT '[]',
     localized_names   JSONB,
     localized_descriptions JSONB,

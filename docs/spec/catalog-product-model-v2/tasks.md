@@ -28,6 +28,14 @@
 - [x] T4.3 运行 `./scripts/quality-gate.sh`。
 - [x] T4.4 写入 `summary.md`，记录验收映射、命令和残余风险。
 
+## Corrective Iteration：Brand 聚合闭环
+
+- [x] T5.1 添加 Brand 身份、名称和启停生命周期的失败测试。
+- [x] T5.2 添加 Brand 应用服务和商品引用校验的失败测试。
+- [x] T5.3 实现 Brand 仓储、事务装配、数据库表与引用约束。
+- [x] T5.4 商品保存/发布校验 Brand，并在快照与公共查询契约冻结品牌名称。
+- [x] T5.5 运行 Goods 分层测试与完整质量门禁，更新交付证据。
+
 ## 后续候选
 
 - Bundle/Kit 与商品关系。

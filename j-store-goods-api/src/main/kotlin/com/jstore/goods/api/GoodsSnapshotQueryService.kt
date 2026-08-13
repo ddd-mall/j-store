@@ -32,6 +32,7 @@ data class GoodsSnapshotInfo(
     val productTypeId: Long? = null,
     val productAttributes: List<Pair<String, String>> = emptyList(),
     val brandId: Long? = null,
+    val brandName: Map<String, String> = emptyMap(),
     val categoryIds: Set<Long> = emptySet(),
     val localizedNames: Map<String, String> = emptyMap(),
     val localizedDescriptions: Map<String, String> = emptyMap(),

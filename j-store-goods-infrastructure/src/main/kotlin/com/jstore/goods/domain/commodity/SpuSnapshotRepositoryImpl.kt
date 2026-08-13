@@ -72,6 +72,7 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
                 productTypeId = snapshot.productTypeId?.value,
                 productAttributes = JsonUtils.toJsonString(snapshot.productAttributes),
                 brandId = snapshot.brandId?.value,
+                brandName = snapshot.brandName?.let { JsonUtils.toJsonString(it.values) },
                 categoryIds = JsonUtils.toJsonString(snapshot.categoryIds.map { it.value }),
                 localizedNames = snapshot.localizedNames?.let { JsonUtils.toJsonString(it.values) },
                 localizedDescriptions =
@@ -106,6 +107,7 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
                 productTypeId = po.productTypeId?.let(::ProductTypeId),
                 productAttributes = JsonUtils.deserialize(po.productAttributes),
                 brandId = po.brandId?.let(::BrandId),
+                brandName = po.brandName?.let { LocalizedText(JsonUtils.deserialize(it)) },
                 categoryIds =
                     JsonUtils.deserialize<List<Long>>(po.categoryIds).map(::CategoryId).toSet(),
                 localizedNames =

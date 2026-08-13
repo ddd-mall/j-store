@@ -43,6 +43,7 @@ class CommodityServiceDraftStyleFlowTest {
             snapshotRepository = snapshotRepository,
             goodsStyleRepository = styleRepository,
             goodsStyleFactory = styleFactory,
+            brandRepository = mock(),
         )
 
     @Test
