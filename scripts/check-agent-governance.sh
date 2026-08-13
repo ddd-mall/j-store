@@ -43,6 +43,7 @@ required_files=(
   THIRD_PARTY.md
   docs/steering/agent-governance.md
   docs/operations/branch-management.md
+  docs/operations/agentic-cicd-runbook.md
   docs/operations/release-evidence.md
   .env.example
   config/licenses/file-ownership.toml
@@ -56,6 +57,20 @@ required_files=(
   .github/rulesets/develop.json
   .github/rulesets/README.md
   scripts/check-branch-policy.py
+  scripts/check-agentic-cicd.py
+  scripts/agentic_cicd/coordinator.py
+  scripts/agentic_cicd/protocol.py
+  scripts/agentic_cicd/app_server.py
+  scripts/agentic_cicd/workspace.py
+  scripts/smoke-codex-app-server.py
+  WORKFLOW.md
+  config/agentic-cicd/state-contract.json
+  config/agentic-cicd/symphony.lock.json
+  config/agentic-cicd/codex-app-server.lock.json
+  config/agentic-cicd/iteration-packet.schema.json
+  config/agentic-cicd/review-decision.schema.json
+  config/agentic-cicd/role-routing.json
+  .github/ISSUE_TEMPLATE/agent-goal.yml
   .codex/agents/maintenance-orchestrator.toml
   .codex/agents/product-steward.toml
   .codex/agents/quality-gate.toml
@@ -67,6 +82,16 @@ required_files=(
 for path in "${required_files[@]}"; do
   require_file "$path"
 done
+
+if command -v python3 >/dev/null 2>&1; then
+  python3 scripts/check-agentic-cicd.py || \
+    fail "agentic CI/CD contracts are inconsistent"
+elif command -v python >/dev/null 2>&1; then
+  python scripts/check-agentic-cicd.py || \
+    fail "agentic CI/CD contracts are inconsistent"
+else
+  fail "Python 3 is required to validate agentic CI/CD contracts"
+fi
 
 if command -v rg >/dev/null 2>&1; then
   tracked_local_env="$(git ls-files | rg '^\.env($|\.)' | rg -v '^\.env\.example$' || true)"

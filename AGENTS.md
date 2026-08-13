@@ -11,6 +11,7 @@
 5. agent 编排、自动维护、评审、发布和生产相关工作阅读 `docs/steering/agent-governance.md`。
 6. 有适用规格时，以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为产品意图来源。
 7. 分支、PR、发布或热修复工作阅读 `docs/operations/branch-management.md`。
+8. Agentic CI/CD Supervisor、GitHub Issue 控制面或 Symphony 接入工作阅读 `docs/operations/agentic-cicd-runbook.md`。
 
 ## 长期记忆与文档索引
 
@@ -36,6 +37,7 @@
 ### 自动化运维
 
 - [docs/operations/agent-automation-runbook.md](docs/operations/agent-automation-runbook.md)：建议的周期任务、触发器、输出和人工接管规则。
+- [docs/operations/agentic-cicd-runbook.md](docs/operations/agentic-cicd-runbook.md)：Symphony/Codex 编排的能力级别、运行配置、安全边界、停止与恢复步骤。
 
 ## 权威来源与冲突处理
 

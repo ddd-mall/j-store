@@ -1,0 +1,26 @@
+{
+  "implementer": {
+    "roles": ["spec-planner", "spec-generator"],
+    "sandbox": "workspace-write",
+    "may_modify_candidate": true,
+    "may_approve_candidate": false
+  },
+  "quality_gate": {
+    "roles": ["quality-gate"],
+    "sandbox": "read-only",
+    "may_modify_candidate": false,
+    "may_approve_candidate": false
+  },
+  "independent_reviewer": {
+    "roles": ["product-steward", "spec-evaluator"],
+    "sandbox": "read-only",
+    "may_modify_candidate": false,
+    "may_approve_candidate": true
+  },
+  "security_reviewer": {
+    "roles": ["security-supply-chain"],
+    "sandbox": "read-only",
+    "may_modify_candidate": false,
+    "may_approve_candidate": false
+  }
+}

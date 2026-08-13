@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IterationPacket",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "issue_identifier",
+    "objective",
+    "base_sha",
+    "head_sha",
+    "acceptance",
+    "review_findings",
+    "ci_failures",
+    "attempts_by_root_cause",
+    "budget_remaining",
+    "validation_commands",
+    "implementer_session_id"
+  ],
+  "properties": {
+    "issue_identifier": {
+      "type": "string",
+      "pattern": "^GH-[1-9][0-9]*$"
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "review_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "ci_failures": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "attempts_by_root_cause": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9:._/-]{2,127}$"
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "budget_remaining": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "validation_commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^\\r\\n]+$"
+      }
+    },
+    "implementer_session_id": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root_cause_id",
+        "severity",
+        "evidence",
+        "impact",
+        "expected_behavior",
+        "verification"
+      ],
+      "properties": {
+        "root_cause_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9:._/-]{2,127}$"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "evidence": {"type": "string", "minLength": 1},
+        "impact": {"type": "string", "minLength": 1},
+        "expected_behavior": {"type": "string", "minLength": 1},
+        "verification": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

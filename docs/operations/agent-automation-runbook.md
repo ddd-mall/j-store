@@ -2,6 +2,8 @@
 
 本文件定义外部 Codex Automations、Jules Scheduled Tasks 或同类调度器接入本仓库时应创建的任务。仓库本身已提供 CI 和角色契约，但云端调度需要仓库管理员在所选平台授权后启用。
 
+常驻 Symphony/Codex Supervisor 的能力级别、GitHub Issue 控制面、运行安全和恢复步骤见 [agentic-cicd-runbook.md](agentic-cicd-runbook.md)。在该手册的 Level 0 退出条件满足前，不得开放自动分支、push 或 Draft PR。
+
 ## 周期任务
 
 | 周期 | 角色 | 任务 | 允许输出 |

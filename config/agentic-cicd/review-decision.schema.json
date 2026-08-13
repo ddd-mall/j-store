@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReviewDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "head_sha",
+    "reviewer_role",
+    "reviewer_session_id",
+    "implementer_session_id",
+    "findings"
+  ],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"]
+    },
+    "head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "reviewer_role": {
+      "type": "string",
+      "enum": ["product-steward", "security-supply-chain", "spec-evaluator"]
+    },
+    "reviewer_session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "implementer_session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {"const": "PASS"}
+        }
+      },
+      "then": {
+        "properties": {
+          "findings": {"maxItems": 0}
+        }
+      },
+      "else": {
+        "properties": {
+          "findings": {"minItems": 1}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root_cause_id",
+        "severity",
+        "evidence",
+        "impact",
+        "expected_behavior",
+        "verification"
+      ],
+      "properties": {
+        "root_cause_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9:._/-]{2,127}$"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "impact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verification": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

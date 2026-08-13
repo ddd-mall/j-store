@@ -1,0 +1,8 @@
+{
+  "binary": "codex",
+  "codex_cli_version": "0.146.0",
+  "protocol_version": "v2",
+  "transport": "stdio-jsonl",
+  "schema_command": "codex app-server generate-json-schema --out <trusted-temporary-directory>",
+  "documentation": "https://developers.openai.com/codex/app-server/"
+}
