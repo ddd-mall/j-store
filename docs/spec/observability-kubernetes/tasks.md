@@ -21,3 +21,8 @@
 - Loki、Prometheus、Grafana 使用 PVC，所有工作负载具备资源上限、探针和受限 securityContext。
 - 目标集群 dry-run 与隔离 smoke 通过，临时命名空间已精确清理。
 - 独立安全/隐私与运维评审仍需由非实现者完成；实现者不自行批准生产退出门禁。
+
+## 后续演进
+
+参考栈到生产级分布式日志平台的差距、优先级和分阶段门禁见
+[`observability-production-distributed/iteration-plan.md`](../observability-production-distributed/iteration-plan.md)。该计划不改变本规格“单副本参考后端、尚未通过生产门禁”的既有结论。
