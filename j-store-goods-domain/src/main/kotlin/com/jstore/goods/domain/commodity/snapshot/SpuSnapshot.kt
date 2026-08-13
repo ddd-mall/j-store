@@ -18,7 +18,11 @@ package com.jstore.goods.domain.commodity.snapshot
 
 import com.jstore.common.framework.Entity
 import com.jstore.common.properties.Id
+import com.jstore.goods.domain.brand.BrandId
+import com.jstore.goods.domain.category.CategoryId
 import com.jstore.goods.domain.commodity.*
+import com.jstore.goods.domain.content.LocalizedText
+import com.jstore.goods.domain.producttype.ProductTypeId
 import java.time.LocalDateTime
 
 /** SPU 快照 ID */
@@ -39,6 +43,16 @@ data class SpuSnapshot(
     val description: String,
     /** SKU 快照列表 */
     val skuSnapshots: List<SkuSnapshot>,
+    /** 发布时的主图对象 key，按展示顺序保存。 */
+    val mainImages: List<String> = emptyList(),
+    /** 发布时的详情内容。 */
+    val detailHtml: String = "",
+    val productTypeId: ProductTypeId? = null,
+    val productAttributes: List<Attribute<String, String>> = emptyList(),
+    val brandId: BrandId? = null,
+    val categoryIds: Set<CategoryId> = emptySet(),
+    val localizedNames: LocalizedText? = null,
+    val localizedDescriptions: LocalizedText? = null,
     /** 快照创建时间 */
     val createdAt: LocalDateTime,
 ) : Entity<SpuSnapshotId>
@@ -50,4 +64,5 @@ data class SkuSnapshot(
     val attributes: List<Attribute<String, String>>,
     val merchantCode: String? = null,
     val barcode: String? = null,
+    val imageKeys: List<String> = emptyList(),
 )

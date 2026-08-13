@@ -24,6 +24,10 @@ object CommodityErrors {
     val INVALID_STATUS_TRANSITION = BusinessError("非法的状态变更", "Goods.InvalidStatusTransition", 400)
     val NO_SKU_FOR_PUBLISH = BusinessError("商品至少需要一个SKU才能发布", "Goods.NoSkuForPublish", 400)
     val DUPLICATE_SKU_ATTRIBUTES = BusinessError("SKU属性组合重复", "Goods.DuplicateSkuAttributes", 400)
+    val DUPLICATE_MERCHANT_CODE = BusinessError("商家货号重复", "Catalog.Sku.DuplicateMerchantCode", 400)
+    val DUPLICATE_BARCODE = BusinessError("商品条码重复", "Catalog.Sku.DuplicateBarcode", 400)
+    val SKU_DIRECT_EDIT_REJECTED =
+        BusinessError("只有草稿商品可以修改SKU", "Catalog.Sku.DirectEditRejected", 400)
     val SNAPSHOT_SPU_MUST_BE_PUBLISHED =
         BusinessError("只有已发布商品才能创建快照", "Catalog.Snapshot.RequiresPublished", 400)
     val DUPLICATE_IMAGE_KEY = BusinessError("图片标识重复", "Goods.DuplicateImageKey", 400)
@@ -33,6 +37,8 @@ object CommodityErrors {
     val PUBLISHED_DIRECT_EDIT_REJECTED =
         BusinessError("已发布商品不允许直接编辑，请通过草稿流程修改", "Catalog.Draft.PublishedDirectEditRejected", 400)
     val NOT_A_DRAFT_COPY = BusinessError("该商品不是草稿副本", "Goods.Draft.NotADraftCopy", 400)
+    val DRAFT_COPY_DIRECT_PUBLISH_REJECTED =
+        BusinessError("草稿副本必须合并回源商品后发布", "Catalog.Draft.DirectPublishRejected", 400)
     val ONLY_PUBLISHED_NEEDS_DRAFT =
         BusinessError("只有已发布商品需要通过草稿编辑", "Catalog.Draft.OnlyPublishedNeedsDraft", 400)
     val DRAFT_NO_SKU_FOR_PUBLISH =

@@ -17,9 +17,13 @@
 package com.jstore.goods.domain.commodity
 
 import com.jstore.common.utils.json.JsonUtils
+import com.jstore.goods.domain.brand.BrandId
+import com.jstore.goods.domain.category.CategoryId
 import com.jstore.goods.domain.commodity.persistence.SpuSnapshotPO
 import com.jstore.goods.domain.commodity.persistence.SpuSnapshotPOJpaRepository
 import com.jstore.goods.domain.commodity.snapshot.*
+import com.jstore.goods.domain.content.LocalizedText
+import com.jstore.goods.domain.producttype.ProductTypeId
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -51,7 +55,7 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
         }
     }
 
-    private object Converter {
+    internal object Converter {
 
         fun toPO(snapshot: SpuSnapshot): SpuSnapshotPO {
             return SpuSnapshotPO(
@@ -63,6 +67,15 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
                 description = snapshot.description,
                 skuSnapshots =
                     JsonUtils.toJsonString(snapshot.skuSnapshots.map { toSkuSnapshotMap(it) }),
+                mainImages = JsonUtils.toJsonString(snapshot.mainImages),
+                detailHtml = snapshot.detailHtml,
+                productTypeId = snapshot.productTypeId?.value,
+                productAttributes = JsonUtils.toJsonString(snapshot.productAttributes),
+                brandId = snapshot.brandId?.value,
+                categoryIds = JsonUtils.toJsonString(snapshot.categoryIds.map { it.value }),
+                localizedNames = snapshot.localizedNames?.let { JsonUtils.toJsonString(it.values) },
+                localizedDescriptions =
+                    snapshot.localizedDescriptions?.let { JsonUtils.toJsonString(it.values) },
                 createdAt = snapshot.createdAt,
             )
         }
@@ -74,6 +87,7 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
                 "attributes" to sku.attributes.map { mapOf("key" to it.key, "value" to it.value) },
                 "merchantCode" to sku.merchantCode,
                 "barcode" to sku.barcode,
+                "imageKeys" to sku.imageKeys,
             )
         }
 
@@ -87,6 +101,17 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
                 spuName = po.spuName,
                 description = po.description,
                 skuSnapshots = skuMaps.map { toSkuSnapshot(it) },
+                mainImages = JsonUtils.deserialize(po.mainImages),
+                detailHtml = po.detailHtml,
+                productTypeId = po.productTypeId?.let(::ProductTypeId),
+                productAttributes = JsonUtils.deserialize(po.productAttributes),
+                brandId = po.brandId?.let(::BrandId),
+                categoryIds =
+                    JsonUtils.deserialize<List<Long>>(po.categoryIds).map(::CategoryId).toSet(),
+                localizedNames =
+                    po.localizedNames?.let { LocalizedText(JsonUtils.deserialize(it)) },
+                localizedDescriptions =
+                    po.localizedDescriptions?.let { LocalizedText(JsonUtils.deserialize(it)) },
                 createdAt = po.createdAt,
             )
         }
@@ -98,12 +123,14 @@ class SpuSnapshotRepositoryImpl(private val jpaRepository: SpuSnapshotPOJpaRepos
             val attrList = map["attributes"] as List<Map<String, String>>
             val merchantCode = map["merchantCode"] as? String
             val barcode = map["barcode"] as? String
+            val imageKeys = (map["imageKeys"] as? List<*>)?.map { it as String }.orEmpty()
             return SkuSnapshot(
                 skuId = SkuId(skuId),
                 skuName = skuName,
                 attributes = attrList.map { Attribute(it["key"]!!, it["value"]!!) },
                 merchantCode = merchantCode,
                 barcode = barcode,
+                imageKeys = imageKeys,
             )
         }
     }

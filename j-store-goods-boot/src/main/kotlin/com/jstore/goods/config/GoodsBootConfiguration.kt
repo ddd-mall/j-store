@@ -22,7 +22,10 @@ import com.jstore.goods.domain.commodity.*
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactory
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotFactoryImpl
 import com.jstore.goods.domain.commodity.snapshot.SpuSnapshotRepository
+import com.jstore.goods.domain.producttype.ProductTypeRepository
 import com.jstore.goods.service.CommodityService
+import com.jstore.goods.service.ProductTypeService
+import com.jstore.goods.service.ProductTypeUseCase
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -54,6 +57,7 @@ class GoodsBootConfiguration {
         snapshotRepository: SpuSnapshotRepository,
         goodsStyleRepository: GoodsStyleRepository,
         goodsStyleFactory: GoodsStyleFactory,
+        productTypeRepository: ProductTypeRepository,
     ): CommodityService {
         return CommodityService(
             spuFactory = spuFactory,
@@ -63,8 +67,22 @@ class GoodsBootConfiguration {
             snapshotRepository = snapshotRepository,
             goodsStyleRepository = goodsStyleRepository,
             goodsStyleFactory = goodsStyleFactory,
+            productTypeRepository = productTypeRepository,
         )
     }
+
+    @Bean
+    fun productTypeService(
+        snowFlakSequence: SnowFlakSequence,
+        productTypeRepository: ProductTypeRepository,
+    ): ProductTypeService = ProductTypeService(snowFlakSequence, productTypeRepository)
+
+    @Bean
+    @Primary
+    fun transactionalProductTypeUseCase(
+        productTypeService: ProductTypeService,
+        transactionManager: PlatformTransactionManager,
+    ): ProductTypeUseCase = TransactionalProductTypeUseCase(productTypeService, transactionManager)
 
     @Bean
     @Primary

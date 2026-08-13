@@ -116,7 +116,9 @@ class MergeFromDraftPropertyTest :
                 result.shouldBeInstanceOf<Success<Unit>>()
                 source.name shouldBe draft.name
                 source.description shouldBe draft.description
-                source.skus shouldBe draft.skus
+                source.skus.map { it.skuName } shouldBe draft.skus.map { it.skuName }
+                source.skus.map { it.attributes } shouldBe draft.skus.map { it.attributes }
+                source.skus.map { it.id } shouldBe draft.skus.map { it.sourceSkuId ?: it.id }
                 source.version shouldBe versionBefore + 1
                 source.status shouldBe CommodityStatus.PUBLISHED
             }
