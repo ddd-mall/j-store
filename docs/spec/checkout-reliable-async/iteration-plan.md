@@ -4,13 +4,20 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | 第一切片已实现；后续 Checkout Process Manager 与 Broker 切片待评审 |
+| 状态 | 迭代 1 基础消息能力已实现；Trade Process 基础已由 `trade-checkout-boundary` 迭代 1 实现；Trade 唯一 Payment 与安全关单已批准并纳入其迭代 2；Broker、低延迟、对账和微服务切片待推进 |
 | 适用范围 | 下单、销售授权、库存预留、支付准备、发起支付、支付确认、超时关单及相关补偿 |
 | 目标部署形态 | 同时支持模块化单体、本地集成、Broker 集成和逐步微服务化 |
 | 计划基线 | `event-delivery-architecture`、`outbox-production-hardening` 已交付能力 |
 | 非目标 | 跨数据库 Exactly Once、XA/2PC、一次性拆分全部微服务、在领域事件中固化 Kafka/RabbitMQ 细节 |
 
-本文把当前架构讨论收敛为可执行的迭代路线。2026-08-12 已落地第一切片（消息契约、路由、Outbox 元数据和库存预留时限）；后续章节中 Process Manager、Broker、支付状态机与两阶段关单仍是拟议目标。
+本文把可靠异步和部署演进收敛为可执行路线。2026-08-12 已落地第一切片（消息契约、路由、Outbox 元数据和库存预留时限）；2026-08-14 已由 `trade-checkout-boundary` 迭代 1 落地 Trade Process 基础、授权/预留编排和补偿。Trade 唯一 Payment、渠道受理、安全宽限关单和迟到支付退款已由产品所有者批准，业务实现归入 `trade-checkout-boundary` 迭代 2；本文继续负责其可靠投递与运行验证，以及 Broker、低延迟、对账与微服务拆分。
+
+### 1.1 与 Trade / Checkout 业务计划的关系
+
+- [`trade-checkout-boundary`](../trade-checkout-boundary/requirement.md) 是用户下单入口、Trade 身份、多商户订单计划、Order 创建和业务状态机的权威来源。
+- 本文负责 Broker、Inbox、投递故障窗口、支付关单竞争、容量、对账运维和微服务灰度，不再定义另一套 Order/Checkout Process Manager。
+- Trade / Checkout 已确认是唯一用户下单入口；Order 只接受 Trade 的可信内部创建契约，并继续拥有单订单生命周期。
+- 下一业务主迭代是“统一 Checkout、独立 `tradeId`、多商户 `TradeOrderPlan` 与 Trade 唯一 Payment”；Broker 可靠闭环可以并行准备，但不得继续把 `orderId` 固化为结账或支付主相关键。
 
 ## 2. 结论与实施原则
 
@@ -24,7 +31,7 @@
 2. Translator/ACL 把领域事实转换为稳定的集成命令或集成事件。
 3. 集成消息携带跨上下文语义、逻辑目的地、分区、关联、因果、租户以及必要的业务时限。
 4. boot/infrastructure 根据逻辑目的地和投递策略选择 `local`、Kafka、RabbitMQ 或其它物理传输。
-5. Checkout Process Manager 持久化跨上下文流程状态并决定下一步动作；Translator 不承担流程决策。
+5. Trade / Checkout Process Manager 持久化跨上下文流程状态并决定下一步动作；Translator 不承担流程决策，Order 不成为第二流程管理器。
 
 ### 2.2 可靠异步目标
 
@@ -55,37 +62,38 @@ At-least-once delivery + 幂等业务效果 + 可恢复状态机 + 对账兜底
 - 稳定的 message/event ID、名称、版本、发生时间、分区键、相关 ID、因果 ID和租户 ID。
 - 事务性 Outbox、目标级独立记录及 `local`/外部 transport 规划。
 - relay 领取、租约、fencing token、退避重试、死信、重放审计和可观测性。
+- `j-store-observability-spring` 已统一提供 Actuator、Tracing、Prometheus 和条件化 HTTP correlation 自动配置；组件专属 meter、health contributor 和 span 仍由组件自身拥有。
+- `j-store-outbox-spring` 已拥有 Outbox 指标、运行状态和条件化 `outbox` HealthIndicator；通用观测模块不依赖 Outbox，集群采集、存储和告警后端仍属于部署层。
 - 本地集成消息 Handler、Inbox 技术幂等和流级顺序检查。
 - 订单、销售授权、库存、支付、履约和会计之间的初步版本化集成契约。
-- 订单链路以 `orderId` 作为主要 partition/correlation key 的基础。
+- 结账命令 Deadline、库存 Reservation 标识和过期时间已进入现有契约；稳定消息 ID 已按真实消息版本生成。
+- 现有订单后续链路具备以 `orderId` 作为 partition/correlation key 的基础；Checkout 主链将在下一业务迭代迁移为 `tradeId/orderPlanId`。
 
 这些能力分别由以下既有规格定义：
 
 - [`event-delivery-architecture`](../event-delivery-architecture/requirement.md)
 - [`outbox-production-hardening`](../outbox-production-hardening/requirement.md)
+- [`observability-production-foundation`](../changes/observability-production-foundation/requirement.md)
 
 ### 3.2 当前关键差距
 
 | 差距 | 当前影响 | 目标迭代 |
 |---|---|---|
 | 没有具体 Broker 出站和入站适配器 | 现有 SPI 不能完成跨进程闭环 | 迭代 2 |
-| 结账消息缺少业务 Deadline/有效期 | 消费者无法判断迟到命令是否仍应执行 | 迭代 1 |
-| 库存预留成功消息未完整暴露 Reservation 及过期时间 | 支付窗口无法与库存承诺期限对齐 | 迭代 1 |
-| 缺少 `PaymentPrepared/Failed/Cancelled/Uncertain` 等结果契约 | 无法可靠表达收银台是否就绪以及支付取消裁决 | 迭代 1 |
-| 跨上下文流程由 Translator 链式触发，缺少持久化流程状态 | 无法统一处理截止时间、卡点、补偿和流程查询 | 迭代 3 |
+| 缺少 `PaymentPrepared/Failed/Cancelled/Uncertain` 等结果契约 | 无法可靠表达收银台是否就绪以及支付取消裁决 | `trade-checkout-boundary` 迭代 2 |
+| Trade Process 基础已经持久化，但仍由 provisional Order 启动，缺少统一 Checkout API、独立 `tradeId`、多商户计划和 Order 内部创建闭环 | 用户入口和流程身份仍绑定单订单，不能安全扩展多商户 | `trade-checkout-boundary` 迭代 2 |
 | 订单只有直接取消/关闭语义，缺少 `CLOSING` | 支付成功与超时关单竞争时可能错误拒绝资金事实 | 迭代 4 |
 | Outbox 默认轮询间隔为 5 秒 | 多跳链路会累积出不可接受的收银台准备延迟 | 迭代 5 |
-| 创建订单 API 没有有界等待和持久化进度协议 | 快路径不够快，慢路径用户不可感知 | 迭代 5 |
+| 用户仍通过 Order 创建接口下单，Checkout API 没有持久化进度协议和有界等待 | 无法形成统一 Trade 入口，快慢路径用户不可感知 | Trade 迭代 2、本文迭代 5 |
 | 缺少订单—库存—支付业务对账 | 消息系统之外的永久差异缺少最终兜底 | 迭代 6 |
 | 根 boot 仍集中装配跨上下文 Translator 和迁移 | 独立部署边界尚未形成 | 迭代 7 |
 
 ### 3.3 已识别的模型风险
 
-1. 当前 `CommerceIntegrationMessages.kt` 的稳定 ID 辅助函数固定使用版本 `1`，应改为显式纳入真实消息版本。
-2. 当前 `Order.recordPaymentCaptured` 只允许 `ACTIVE + UNPAID`，订单进入最终关闭后到达的合法支付事实会被拒绝。
-3. 支付上下文当前主要表达 `PENDING/CAPTURED/REFUND`，尚未完整表达支付准备、关闭申请、取消完成和外部状态不确定。
-4. 定时任务基础设施已存在，但不能直接把“计时到期”解释为“资金状态已经安全关闭”。
-5. Inbox 技术幂等只能拦截同一 `messageId`；支付创建、库存预留等仍必须有业务唯一约束。
+1. 当前 `Order.recordPaymentCaptured` 只允许 `ACTIVE + UNPAID`，订单进入最终关闭后到达的合法支付事实需要转入退款，而不能被静默拒绝或恢复履约。
+2. 支付上下文当前主要表达 `PENDING/CAPTURED/REFUND`，尚未完整表达支付准备、关闭申请、取消完成和外部状态不确定。
+3. 定时任务基础设施已存在，但不能直接把“计时到期”解释为“资金状态已经安全关闭”。
+4. Inbox 技术幂等只能拦截同一 `messageId`；Trade 唯一 Payment、退款和库存预留仍必须有业务唯一约束。
 
 ## 4. 目标业务流程
 
@@ -94,31 +102,36 @@ At-least-once delivery + 幂等业务效果 + 可恢复状态机 + 对账兜底
 ```mermaid
 sequenceDiagram
     participant Client as 客户端/BFF
-    participant Order as Order/Checkout
+    participant Trade as Trade/Checkout
     participant Store as Store/Offer
     participant Inventory as Inventory/ATP
+    participant Order as Order
     participant Payment as Payment
 
-    Client->>Order: 创建订单(checkoutRequestId)
-    Order-->>Store: AuthorizeSaleCommand
-    Store-->>Order: SaleAuthorizedEvent
-    Order-->>Inventory: ReserveInventoryCommand
-    Inventory-->>Order: InventoryReservedEvent
-    Order-->>Payment: PreparePaymentCommand
-    Payment-->>Order: PaymentPreparedEvent
-    Order-->>Client: CASHIER_READY + cashierSessionId
+    Client->>Trade: 创建 Checkout(checkoutRequestId)
+    Trade-->>Store: AuthorizeSaleCommand(tradeId, orderPlanId)
+    Store-->>Trade: SaleAuthorizedEvent
+    Trade-->>Inventory: ReserveInventoryCommand
+    Inventory-->>Trade: InventoryReservedEvent
+    Trade-->>Order: CreateOrderFromTradeCommand
+    Order-->>Trade: 全部 OrderCreatedFromTradeEvent(orderId)
+    Trade->>Trade: 校验所有 Order 完成且金额守恒
+    Trade-->>Payment: PreparePaymentCommand(tradeId, allocations)
+    Payment-->>Trade: PaymentPreparedEvent
+    Trade-->>Client: CASHIER_READY + tradeId + cashierSessionId
     Client->>Payment: 发起支付
-    Payment-->>Order: PaymentCapturedEvent
-    Order-->>Inventory: ConfirmInventoryCommand
+    Payment-->>Trade: PaymentCapturedEvent
+    Trade-->>Order: PaymentCaptured / allocation fact
+    Trade-->>Inventory: ConfirmInventoryCommand
 ```
 
 ### 4.2 慢路径
 
-创建订单请求只等待有限时间：
+Checkout 创建请求只等待有限时间：
 
 ```text
 在等待预算内达到 CASHIER_READY -> 200/201 + 收银台会话
-未达到但已可靠受理          -> 202 + checkoutId + statusUrl
+未达到但已可靠受理          -> 202 + tradeId + statusUrl
 请求本身无效或明确失败      -> 4xx/业务失败
 系统在受理前过载            -> 快速失败，可用相同 checkoutRequestId 重试
 ```
@@ -128,15 +141,16 @@ HTTP 请求结束后，可靠异步流程必须继续推进。客户端通过轮
 ### 4.3 超时关单路径
 
 ```text
-ACTIVE/UNPAID
-  -> CLOSING
-  -> CancelPaymentCommand
-       -> PaymentCancelledEvent -> ReleaseInventoryCommand -> CLOSED
-       -> PaymentCapturedEvent  -> PAID -> ConfirmInventoryCommand
-       -> PaymentUncertainEvent -> 保持 CLOSING，主动查询支付机构
+PAYMENT_READY / PAYING
+  -> 到达 Payment acceptBefore：禁止新支付尝试
+  -> 到达 Trade closeAfter（包含安全宽限）：查询或 CancelPaymentCommand
+       -> PaymentCancelled/NotAcceptedEvent -> 撤销 Orders -> ReleaseInventoryCommand -> CLOSED
+       -> PaymentCapturedEvent              -> PAID -> ConfirmInventoryCommand
+       -> PaymentUncertainEvent             -> 保持 CLOSING，主动查询支付机构
+       -> CLOSED 后迟到 PaymentCaptured     -> 保持关闭并发起幂等退款
 ```
 
-在支付上下文给出权威裁决前，订单不得最终关闭并释放库存。
+`closeAfter` 必须晚于 Payment `acceptBefore`；是否按时以渠道权威受理/捕获时间而不是回调到达时间判断。在支付上下文给出“未创建、未支付或已安全撤销”的权威裁决前，订单不得最终关闭并释放库存；原 Trade 关闭后不得创建第二个 Payment。
 
 ## 5. 消息建模与路由规范
 
@@ -156,8 +170,8 @@ ACTIVE/UNPAID
 | `messageName` | 稳定发布语言名称，不使用 Kotlin 类全名作为外部契约 |
 | `messageVersion` | 正整数；不兼容 payload 变化必须升版本 |
 | `destination` | 逻辑目的地，例如 `payment.commands`，不等于具体 Broker Topic |
-| `partitionKey` | Checkout 主链统一使用 `orderId`，保证同订单局部有序 |
-| `correlationId` | Checkout 主链统一使用 `orderId` 或稳定 `checkoutId`；选定后不得混用 |
+| `partitionKey` | Checkout 编排按 `orderPlanId` 保证计划内局部有序；订单生成后的支付分配、履约和售后按适用的 `tradeId` 或 `orderId` 分区 |
+| `correlationId` | Checkout 主链统一使用稳定 `tradeId`；不得再用尚未生成的 `orderId` 充当 Trade 身份 |
 | `causationId` | 触发当前消息的上游 message/event ID |
 | `tenantId` | 商户隔离需要时使用 `merchantId`；消费端不得只信任该字段完成授权 |
 | `occurredAt` | 事实发生或命令生成时间，不能代替业务截止时间 |
@@ -165,27 +179,29 @@ ACTIVE/UNPAID
 | `expiresAt` | 授权、Reservation、收银台会话等业务承诺失效时间 |
 | `orderingKey`/`sequenceNo` | 传输顺序元数据，由 Outbox 规划生成，不进入领域事实判断 |
 
-### 5.3 第一阶段消息目录
+### 5.3 目标消息目录
 
 | 消息 | 类型 | 生产者 -> 消费者 | 逻辑 destination | 关键业务字段 | 幂等业务键 |
 |---|---|---|---|---|---|
-| `AuthorizeSaleCommand` | Command | Order -> Store | `store.commands` | orderId、items、acceptBefore | orderId + offerIds |
-| `SaleAuthorizedEvent` | Event | Store -> Order | `order.events` | authorizationIds、各授权 expiresAt | orderId + authorizationIds |
-| `SaleAuthorizationFailedEvent` | Event | Store -> Order | `order.events` | 标准错误码、retryable | orderId + requestId |
-| `ReserveInventoryCommand` | Command | Order -> Inventory | `inventory.commands` | authorizationIds、items、acceptBefore | orderId + authorizationIds |
-| `InventoryReservedEvent` | Event | Inventory -> Order | `order.events` | reservationIds、expiresAt | orderId + reservationIds |
-| `InventoryReservationFailedEvent` | Event | Inventory -> Order | `order.events` | 标准错误码、retryable | orderId + requestId |
-| `PreparePaymentCommand` | Command | Order -> Payment | `payment.commands` | amount、currency、acceptBefore、desiredPaymentExpiresAt | orderId |
-| `PaymentPreparedEvent` | Event | Payment -> Order | `order.events` | paymentId、cashierSessionId、expiresAt | orderId/paymentId |
-| `PaymentPreparationFailedEvent` | Event | Payment -> Order | `order.events` | 标准错误码、retryable | orderId + requestId |
-| `CancelPaymentCommand` | Command | Order -> Payment | `payment.commands` | paymentId/orderId、reason、acceptBefore | orderId/paymentId |
-| `PaymentCancelledEvent` | Event | Payment -> Order | `order.events` | paymentId、cancelledAt | paymentId |
-| `PaymentCapturedEvent` | Event | Payment -> Order/Accounting | `commerce.events` | providerTransactionId、providerCapturedAt、amount、currency | providerTransactionId |
-| `PaymentStatusUncertainEvent` | Event | Payment -> Order | `order.events` | paymentId、reason、nextInquiryAt | paymentId + inquiryGeneration |
-| `ConfirmInventoryCommand` | Command | Order -> Inventory | `inventory.commands` | reservationIds | orderId + reservationIds |
-| `ReleaseInventoryCommand` | Command | Order -> Inventory | `inventory.commands` | reservationIds、reason | orderId + reservationIds |
+| `AuthorizeSaleCommand` | Command | Trade -> Store | `store.commands` | tradeId、orderPlanId、items、acceptBefore | orderPlanId + offerIds |
+| `SaleAuthorizedEvent` | Event | Store -> Trade | `trade.events` | tradeId、orderPlanId、authorizationIds、expiresAt | orderPlanId + authorizationIds |
+| `SaleAuthorizationFailedEvent` | Event | Store -> Trade | `trade.events` | tradeId、orderPlanId、标准错误码、retryable | orderPlanId + requestId |
+| `ReserveInventoryCommand` | Command | Trade -> Inventory | `inventory.commands` | tradeId、orderPlanId、authorizationIds、items、acceptBefore | orderPlanId + authorizationIds |
+| `InventoryReservedEvent` | Event | Inventory -> Trade | `trade.events` | tradeId、orderPlanId、reservationIds、expiresAt | orderPlanId + reservationIds |
+| `InventoryReservationFailedEvent` | Event | Inventory -> Trade | `trade.events` | tradeId、orderPlanId、标准错误码、retryable | orderPlanId + requestId |
+| `CreateOrderFromTradeCommand` | Command | Trade -> Order | `order.commands` | tradeId、orderPlanId、可信成交快照 | orderPlanId |
+| `OrderCreatedFromTradeEvent` | Event | Order -> Trade | `trade.events` | tradeId、orderPlanId、orderId | orderPlanId |
+| `PreparePaymentCommand` | Command | Trade -> Payment | `payment.commands` | tradeId、orderIds、金额分配、acceptBefore、desiredPaymentExpiresAt | tradeId |
+| `PaymentPreparedEvent` | Event | Payment -> Trade | `trade.events` | tradeId、paymentId、cashierSessionId、expiresAt、allocationVersion | tradeId/paymentId |
+| `PaymentPreparationFailedEvent` | Event | Payment -> Trade | `trade.events` | tradeId、标准错误码、retryable | tradeId + requestId |
+| `CancelPaymentCommand` | Command | Trade -> Payment | `payment.commands` | tradeId、paymentId、reason、acceptBefore | tradeId/paymentId |
+| `PaymentCancelledEvent` | Event | Payment -> Trade | `trade.events` | tradeId、paymentId、cancelledAt | paymentId |
+| `PaymentCapturedEvent` | Event | Payment -> Trade/Order/Accounting | `commerce.events` | tradeId、providerTransactionId、providerAcceptedAt/providerCapturedAt、amount、currency、allocationVersion | providerTransactionId |
+| `PaymentStatusUncertainEvent` | Event | Payment -> Trade | `trade.events` | tradeId、paymentId、reason、nextInquiryAt | paymentId + inquiryGeneration |
+| `ConfirmInventoryCommand` | Command | Trade -> Inventory | `inventory.commands` | tradeId、orderPlanId、reservationIds | orderPlanId + reservationIds |
+| `ReleaseInventoryCommand` | Command | Trade -> Inventory | `inventory.commands` | tradeId、orderPlanId、reservationIds、reason | orderPlanId + reservationIds |
 
-说明：`cashierSessionId` 应是可受控查询或兑换的短期引用，不应在广播事件中携带第三方密钥、完整支付凭证或用户敏感数据。
+说明：上表是目标发布语言，需按业务迭代升级当前 V1 契约；不得在未完成生产者、消费者和持久化同步迁移时只修改单侧载荷。`cashierSessionId` 应是可受控查询或兑换的短期引用，不应在广播事件中携带第三方密钥、完整支付凭证或用户敏感数据。
 
 ### 5.4 投递策略目录
 
@@ -207,7 +223,7 @@ data class DeliveryPolicy(
 
 | Profile | 适用消息 | 顺序 | 过期 | 失败策略 |
 |---|---|---|---|---|
-| `CHECKOUT_CRITICAL` | 授权、预留、支付准备、支付取消 | orderId 有序 | 根据业务 Deadline 拒绝迟到执行 | 快速重试，死信立即告警 |
+| `CHECKOUT_CRITICAL` | 授权、预留、Order 创建、支付准备、支付取消 | orderPlanId 或 tradeId 有序 | 根据业务 Deadline 拒绝迟到执行 | 快速重试，死信立即告警 |
 | `MONEY_FACT` | 支付捕获、退款结果 | payment/order 有序 | 不因消息年龄丢弃 | 持续恢复、死信 P0/P1 告警、对账 |
 | `FULFILLMENT_CRITICAL` | 创建履约、发货、签收 | orderId 有序 | 通常不可过期 | 重试、死信、对账 |
 | `NOTIFICATION_TRANSACTIONAL` | 支付/退款/发货通知 | 业务键去重 | 可配置通知有效期 | 有限重试、渠道降级 |
@@ -215,17 +231,17 @@ data class DeliveryPolicy(
 
 ## 6. 迭代总览
 
-建议采用 7 个实施迭代。每个迭代应形成独立可评审候选，不以日历日期替代完成证据。若采用双周迭代，整体预计为 7～10 个双周周期，Broker 选型、支付机构联调和压测环境可能增加时间。
+可靠异步技术路线保留 7 个实施迭代。业务功能顺序以 `trade-checkout-boundary` 为准；本文迭代可在不改变业务语义的前提下并行推进。每个迭代应形成独立可评审候选，不以日历日期替代完成证据。
 
-| 迭代 | 名称 | 核心结果 | 依赖 | 建议周期 |
-|---|---|---|---|---|
-| 1 | 结账契约与路由就绪 | 消息具备跨服务路由、时限、幂等和版本信息 | 人工确认业务语义 | 1～2 周 |
-| 2 | Broker 可靠投递闭环 | 跨进程 Outbox -> Broker -> Inbox -> 业务事务可恢复 | 迭代 1、Broker 选型 | 2～3 周 |
-| 3 | Checkout Process Manager | 流程状态持久化、可查询、可恢复 | 迭代 1～2 | 2 周 |
-| 4 | 支付与关单竞争治理 | 两阶段关单、迟到支付和不确定支付可收敛 | 迭代 3、支付机构语义 | 2～3 周 |
-| 5 | 低延迟结账体验 | 正常快速跳转，慢路径 202 + 状态订阅 | 迭代 2～4 | 1～2 周 |
-| 6 | 对账与运维恢复 | 差异发现、修复、DLQ 重放和故障演练 | 迭代 2～5 | 2 周 |
-| 7 | 微服务拆分与灰度 | 从 local 可控迁移到独立服务/Broker | 前述门禁全部通过 | 分上下文执行 |
+| 迭代 | 名称 | 核心结果 | 状态/依赖 |
+|---|---|---|---|
+| 1 | 结账契约与路由就绪 | 基础消息具备跨服务路由、时限、幂等和版本信息 | 基础已于 2026-08-12 实现；Trade Payment 增量契约归 Trade 迭代 2 |
+| 2 | Broker 可靠投递闭环 | 跨进程 Outbox -> Broker -> Inbox -> 业务事务可恢复 | 待 Broker 选型；可与 Trade 迭代 2 有限并行 |
+| 3 | Trade / Checkout Process Manager | 流程状态持久化、可查询、可恢复 | 基础已于 2026-08-14 实现；独立 `tradeId`、多商户计划、统一 Payment 和用户 API 转入 Trade 迭代 2 |
+| 4 | 支付与关单竞争治理 | 两阶段关单、迟到支付和不确定支付可收敛 | 产品语义已批准；实现归 Trade 迭代 2，本迭代补充渠道运行验证 |
+| 5 | 低延迟结账体验 | 正常快速跳转，慢路径 `202 + tradeId + statusUrl` | 依赖持久化 Checkout 状态；Broker 可选但需容量证据 |
+| 6 | 对账与运维恢复 | 差异发现、修复、DLQ 重放和故障演练 | 依赖稳定 Trade/Order/Payment 业务键 |
+| 7 | 微服务拆分与灰度 | 从 local 可控迁移到独立服务/Broker | 前述门禁全部通过 |
 
 ## 7. 详细迭代计划
 
@@ -235,18 +251,19 @@ data class DeliveryPolicy(
 
 在不引入具体 Broker 的前提下，使订单—销售授权—库存—支付的集成消息具备足够的业务数据和稳定路由信息，为本地和远程投递共享同一发布语言。
 
-#### 实施任务
+#### 已交付基础
 
-1. 建立可执行的消息契约清单和生产者/消费者矩阵。
-2. 明确命令、事件和查询 ACL 的选择；写协作不得用同步查询接口伪装。
-3. 增加 `PaymentPrepared`、`PaymentPreparationFailed`、`PaymentCancelled`、`PaymentStatusUncertain` 契约。
-4. 为库存预留成功事实补充 reservationIds 和统一过期时间，或明确每个 Reservation 的过期时间。
-5. 为时效敏感命令增加 `acceptBefore`；为业务承诺增加 `expiresAt`。
-6. 统一 Checkout 主链的 partition/correlation 规则。
-7. 修复稳定消息 ID 对真实 `messageVersion` 的处理。
-8. 建立逻辑 destination 到 Delivery Profile 的注册与启动时校验。
-9. 规定标准失败码、`retryable` 语义和迟到命令处理规则。
-10. 当前未发布契约统一定义为 V1；发布后的不兼容变更才升级版本并设计迁移策略。
+1. 已建立初步消息契约、命令/事件语义、逻辑 destination 和生产者/消费者装配。
+2. 库存预留成功事实已经暴露 Reservation 标识和过期时间，时效敏感命令已经具备 Deadline/有效期表达。
+3. 稳定消息 ID 已显式纳入真实 `messageVersion`，现有契约具备序列化、路由和 Handler 装配测试。
+4. 当前未发布契约统一按 V1 管理；项目内部开发期允许生产者、消费者和持久化一次性同步升级。
+
+#### Trade 迭代 2 增量
+
+1. 增加 `PaymentPrepared`、`PaymentPreparationFailed`、`PaymentCancelled/NotAccepted`、`PaymentStatusUncertain` 和迟到支付退款结果契约。
+2. 将 Checkout/Payment correlation 与业务幂等统一为 `tradeId`，计划级动作使用 `orderPlanId`，不再以 `orderId` 创建支付。
+3. 为支付受理截止、Payment 过期和 Trade/Order 安全宽限关单分别表达 `acceptBefore/expiresAt/closeAfter`。
+4. 规定确定失败、`retryable` 和 `uncertain` 语义以及渠道权威受理时间的迟到判断规则。
 
 #### 测试与证据
 
@@ -285,7 +302,7 @@ data class DeliveryPolicy(
 4. 实现入站 envelope consumer、类型注册、版本校验和 Handler 路由。
 5. 保证 `Inbox 插入 + 业务变更 + 本地 Outbox` 位于消费方同一数据库事务。
 6. 数据库提交后再 ACK Broker；回滚时允许 Broker 重投。
-7. 以 `orderId` 作为关键链路分区键，验证集群内同分区单消费者语义。
+7. Checkout 编排以 `orderPlanId`、Trade 级动作以 `tradeId`、订单后续事实以 `orderId` 作为分区键，分别验证集群内同分区单消费者语义。
 8. 为支付创建、库存预留、销售授权增加数据库业务唯一约束。
 9. 区分可重试、不可重试和未知错误，落地 Retry/DLQ 策略。
 10. 支持 trace/correlation 元数据透传，并避免日志输出支付凭证和个人信息。
@@ -307,25 +324,31 @@ data class DeliveryPolicy(
 - 未知版本和非法 payload 不会被 ACK 后静默丢失。
 - Broker 不可用时业务事务仍可提交 Outbox，并产生可观测积压。
 
-### 7.3 迭代 3：Checkout Process Manager
+### 7.3 迭代 3：Trade / Checkout Process Manager
 
 #### 目标
 
-使用持久化流程模型替代 Translator 的隐式流程决策，使结账进度可查询、可恢复、可超时和可补偿。
+使用持久化 Trade 流程模型替代 Translator 和 Order 的隐式流程决策，使结账进度可查询、可恢复、可超时和可补偿。
+
+基础 Trade Process 已在 2026-08-14 实现；独立 `tradeId`、统一用户入口、多商户订单计划和 Trade 到 Order 的内部创建闭环由 `trade-checkout-boundary` 迭代 2 继续完成。本节保留可靠性和恢复验收，不另建第二套 Process Manager。
 
 #### 建议模型
 
 ```text
-CheckoutProcess
-  checkoutId
+TradeProcess
+  tradeId
   checkoutRequestId
-  orderId
+  buyerId
+  requestDigest
   state
   stateVersion
   currentDeadline
-  authorizationIds
-  reservationIds
-  reservationExpiresAt
+  orderPlans[]
+    orderPlanId
+    merchantId
+    authorizationIds
+    reservationIds / reservationExpiresAt
+    orderId?
   paymentId
   paymentExpiresAt
   lastMessageId
@@ -336,9 +359,10 @@ CheckoutProcess
 建议状态：
 
 ```text
-CREATED
+PREPARING
 -> AUTHORIZING
 -> RESERVING
+-> CREATING_ORDERS
 -> PAYMENT_PREPARING
 -> CASHIER_READY
 -> PAYING
@@ -349,12 +373,12 @@ CREATED
 
 #### 实施任务
 
-1. 明确 Process Manager 属于 Order/Checkout 应用边界，不成为支付或库存事实权威。
-2. 新增流程聚合/状态模型、仓储和数据库迁移。
+1. 保持 Process Manager 属于 Trade / Checkout 上下文，不成为 Order、Payment、Offer 或库存事实权威。
+2. 将现有以 `orderId` 为身份的 Trade Process 演进为独立 `tradeId`、买家幂等和多商户 `TradeOrderPlan`。
 3. 使用乐观版本或条件更新裁决重复与并发事件。
 4. 每次状态变更与下一条集成命令 Outbox 同事务提交。
 5. 将下一步决策从 Translator 移入 Process Manager；Translator 只映射契约。
-6. 提供按 checkoutId/orderId 查询进度和失败原因的应用接口。
+6. 提供按 `tradeId` 查询总体进度、计划进度、`orderIds` 和失败原因的应用接口。
 7. 对无法识别、重复、陈旧和乱序事件定义明确行为。
 8. 引入 Deadline 扫描，但只推动到相应补偿状态。
 
@@ -368,7 +392,7 @@ CREATED
 
 #### 退出门禁
 
-- 每个订单的结账卡点、Deadline 和失败原因可查询。
+- 每个 Trade 及其订单计划的结账卡点、Deadline、失败原因和已生成订单可查询。
 - 重启或重复消息不会重置或越级推进流程。
 - Translator 中不存在同步/异步选择、重试或补偿业务逻辑。
 
@@ -386,8 +410,8 @@ CREATED
 4. 支付上下文以自身数据库和支付机构事实裁决 `CANCELLED/CAPTURED/UNCERTAIN`。
 5. 只有收到取消事实后才释放库存和销售授权。
 6. 若支付已捕获，则订单进入已支付路径并确认库存。
-7. 定义 `providerCapturedAt <= paymentExpiresAt` 的时间优先规则。
-8. 对截止后迟到支付实施自动退款或人工审核策略。
+7. 定义 `providerAcceptedAt/providerCapturedAt <= acceptBefore` 的时间优先规则，以及 `closeAfter > acceptBefore` 的可配置安全宽限期。
+8. 对已关闭 Trade 到达的合法支付事实实施幂等退款；自动退款失败或状态不确定时进入人工审核，不恢复订单履约。
 9. 对不确定支付主动查询支付机构并限制查询频率。
 10. 保存完整资金决策审计，不允许通过普通重试产生重复扣款/退款。
 
@@ -418,10 +442,10 @@ CREATED
 1. 为 Checkout 关键消息配置独立的高优先级 destination/Topic/队列和消费容量。
 2. 将关键 Outbox 轮询从默认 5 秒调整到经过压测验证的低延迟值。
 3. 增加事务提交后 Relay 唤醒；周期轮询继续作为防丢兜底。
-4. 创建订单接口支持 1～3 秒有界等待。
-5. 达到 `CASHIER_READY` 时返回短期 cashierSessionId；否则返回 `202 + statusUrl`。
+4. Checkout 创建接口支持经压测验证的有界等待，不再通过 Order 创建接口承载等待。
+5. 达到 `CASHIER_READY` 时返回 `tradeId` 和短期 cashierSessionId；否则返回 `202 + tradeId + statusUrl`。
 6. 提供轮询，并按客户端能力评估 SSE/WebSocket。
-7. 以 `checkoutRequestId` 保证客户端超时重试不会创建重复订单。
+7. 以买家范围 `checkoutRequestId` 保证客户端超时重试不会创建重复 Trade、订单计划或 Order。
 8. 增加过载保护、队列年龄阈值、快速失败和已受理请求继续推进规则。
 9. 非关键通知、分析、会计投影不得共享 Checkout 的关键消费容量。
 
@@ -467,6 +491,7 @@ CREATED
 6. 建立按 destination/transport 的积压量、最老消息年龄、失败率和死信告警。
 7. 建立 Checkout 状态停留时长、支付未知数量、迟到支付和自动退款指标。
 8. 编写 Broker 中断、数据库重启、消费者崩溃、时钟偏差、乱序和重复消息故障演练手册。
+9. Checkout/Trade/Payment 组件在自身模块注册低基数 meter、health 或 span；共享 HTTP correlation 和观测依赖装配复用 `j-store-observability-spring`，Outbox health 继续由 `j-store-outbox-spring` 拥有，部署层负责 Collector/Prometheus/Loki/Grafana 和通知路由。
 
 #### 退出门禁
 
@@ -487,7 +512,7 @@ CREATED
 2. 独立部署 Payment，验证资金链路、回调和对账。
 3. 独立部署 Inventory，验证预留并发和顺序。
 4. 独立部署 Store/Offer。
-5. 最后评估 Order 与 Checkout Process Manager 的部署边界。
+5. 最后评估 Trade 与 Order 的独立部署拓扑；上下文所有权已经确定，不在部署阶段重新决定 Process Manager 归属。
 
 #### 实施任务
 
@@ -510,21 +535,22 @@ CREATED
 
 ```mermaid
 flowchart LR
-    I1["迭代 1<br/>契约与路由"] --> I2["迭代 2<br/>Broker 闭环"]
-    I1 --> I3["迭代 3<br/>Process Manager"]
-    I2 --> I3
-    I3 --> I4["迭代 4<br/>支付关单竞争"]
+    I1["迭代 1<br/>契约与路由<br/>已完成"] --> I2["迭代 2<br/>Broker 闭环"]
+    I1 --> T2["Trade 迭代 2<br/>统一 Checkout / 多商户计划"]
+    T1["Trade Process 基础<br/>已完成"] --> T2
+    I2 -.-> T2
+    T2 --> I4["迭代 4<br/>支付关单竞争"]
     I2 --> I5["迭代 5<br/>低延迟体验"]
     I4 --> I5
     I5 --> I6["迭代 6<br/>对账运维"]
     I6 --> I7["迭代 7<br/>服务拆分"]
 ```
 
-关键路径是 `1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7`。以下工作可有限并行：
+业务关键路径是 `Trade Process 基础 -> Trade 迭代 2 -> 支付关单 -> 低延迟 -> 对账 -> 服务拆分`。Broker 闭环是并行技术路径，但独立部署前必须完成。以下工作可有限并行：
 
-- 迭代 1 期间并行完成 Broker 技术选型验证，但不提前固化业务契约。
-- 迭代 2 期间并行搭建压测和观测环境。
-- 迭代 3 期间并行设计对账查询，但不得绕过 Process Manager 状态语义。
+- Trade 迭代 2 期间可以并行完成 Broker 技术选型和适配器验证，但不得用旧 `orderId` 固化 Checkout 主相关键。
+- Broker 迭代 2 期间可以并行搭建压测和观测环境。
+- Trade 统一 Checkout 期间可以并行设计对账查询，但不得绕过 Trade Process 状态语义。
 
 ## 9. 质量门禁与完成定义
 
@@ -547,10 +573,14 @@ j-store-common-core
 j-store-messaging-core
 j-store-outbox-core
 j-store-messaging-local-spring
+j-store-observability-spring
 j-store-outbox-spring
 j-store-integration-contracts
+j-store-authentication-spring-sdk
+j-store-user-*
 j-store-shop-*
 j-store-inventory-*
+j-store-trade-*
 j-store-order-*
 j-store-payment-*
 j-store-boot
@@ -573,42 +603,42 @@ j-store-boot
 
 ## 11. 需要人工确认的架构与产品决策
 
-以下决策不应由实现过程隐式决定：
+仍需在接入具体生产基础设施前确认：
 
-1. Checkout 的 P95/P99 目标和用户支付窗口。
-2. SaleAuthorization、StockReservation 与 Payment 的 TTL 关系及安全余量。
-3. 支付截止后发生的迟到支付是自动退款还是进入人工审核。
-4. 支付机构对撤销、关闭、查询和捕获时间的实际契约。
-5. 首选 Broker 及其生产可用性、数据保留和成本要求。
-6. Checkout Process Manager 归属 Order 上下文还是独立 Checkout 上下文。
-7. 微服务拆分顺序和每个阶段的灰度/回滚窗口。
-8. 集成契约演进策略已确认：项目未上线，允许一次性破坏性升级，不保留滚动升级兼容期。
+1. Checkout 的 P95/P99 目标和具体用户支付窗口。
+2. SaleAuthorization、StockReservation、Payment 的具体 TTL 数值及安全余量；必须满足 `closeAfter > payment.acceptBefore`。
+3. 具体支付机构对受理、撤销、关闭、查询和捕获时间的实际契约。
+4. 首选 Broker 及其生产可用性、数据保留和成本要求。
+5. 微服务拆分顺序和每个阶段的灰度/回滚窗口。
 
-在这些决策未完成前，可以推进消息清单、契约测试框架、路由元数据校验和 Broker 技术验证，但不能宣称相关外部行为已经定稿。
+已经确认且不再开放的产品/架构决策：Checkout Process Manager 归属 Trade；多商户首期全有或全无；全部 Order 成功后才准备唯一 Payment；渠道明确受理后才暴露待支付对象；原 Trade 过期关闭后不得创建第二个 Payment；支付成功优先，已关闭后迟到支付进入退款；开发期允许一次性破坏性契约升级。
+
+具体时长、渠道和 Broker 决策未完成前，可以推进领域状态机、契约测试、测试适配器、路由元数据校验和 Broker 技术验证，但不能宣称生产渠道与容量行为已经定稿。
 
 ## 12. 问题到迭代的追踪
 
 | 业务问题 | 设计响应 | 负责迭代 |
 |---|---|---|
 | 消息缺少足够路由信息 | 稳定 envelope、逻辑 destination、partition/correlation/causation、策略目录 | 1 |
-| 库存/支付处理慢导致长时间等待 | 高优先级通道、低延迟 Relay、有界等待、202 状态查询 | 2、5 |
-| 支付成功通知晚于订单超时 | 两阶段关闭、Payment 权威裁决、迟到支付策略 | 3、4 |
-| 服务崩溃导致流程中断 | Outbox/Broker/Inbox、本地事务、持久化 Process Manager | 2、3 |
+| 库存/支付处理慢导致长时间等待 | 高优先级通道、低延迟 Relay、Trade API 有界等待、`202 + tradeId + statusUrl` | 2、5 |
+| 支付成功通知晚于订单超时 | Payment 截止与关单宽限分离、权威受理时间裁决、关闭后迟到支付退款 | Trade 迭代 2、本文 4 |
+| 服务崩溃导致流程中断 | Outbox/Broker/Inbox、本地事务、持久化 Trade Process | 2、Trade 迭代 2 |
 | 重复消息导致重复扣款或预留 | 技术幂等 + 业务唯一键 + 聚合幂等 | 1、2、4 |
+| 用户入口和支付相关键绑定单 Order | Trade 统一 Checkout、独立 `tradeId`、`TradeOrderPlan`、内部 Order 创建和 Trade 唯一 Payment | Trade 迭代 2 |
 | 消息永久失败后订单卡死 | DLQ 告警、授权重放、状态停留监控、对账修复 | 6 |
 | 单体到微服务迁移风险 | 同一发布语言、transport 切换、逐上下文灰度 | 1、2、7 |
 
 ## 13. 最近一个迭代的建议启动清单
 
-下一迭代只启动“迭代 1：结账契约与路由就绪”，建议按以下顺序执行：
+最近业务主迭代以 [`trade-checkout-boundary/tasks.md`](../trade-checkout-boundary/tasks.md) 的迭代 2 为准：统一 Trade Checkout、独立 `tradeId`、多商户 `TradeOrderPlan` 和内部 Order 创建闭环。
 
-1. 对本文第 5.3 节消息目录进行产品和架构评审。
-2. 为 TTL、Deadline、迟到支付和失败码形成批准的 requirement/delta。
-3. 先写契约、版本、稳定 ID 和路由校验的失败测试。
-4. 最小化修改 `j-store-messaging-core` 与 `j-store-integration-contracts`。
-5. 迁移当前 Translator 和 Handler，保持默认 local 模式行为不回归。
-6. 更新数据库结构、序列化契约测试以及领域建模说明。
-7. 运行相关模块测试、全量回归和质量门禁。
-8. 由非实现者评审公共契约和订单—库存—支付语义，再决定是否进入 Broker 迭代。
+可靠异步路线最近可以启动的独立切片是 Broker 选型与故障窗口验证，建议按以下顺序执行：
 
-该迭代完成的判据不是“新增了若干字段”，而是每条 Checkout 消息都能回答：谁拥有它、谁消费它、如何路由、如何排序、如何幂等、何时过期、失败后如何收敛。
+1. 先冻结 Trade 迭代 2 的 `tradeId/orderPlanId/orderId` 相关键和目标消息目录。
+2. 评审 Kafka/RabbitMQ 的容量、顺序、ACK、保留、DLQ、运维和成本，不提前修改业务状态机。
+3. 用独立 transport adapter 和 Testcontainers 验证 Outbox -> Broker -> Inbox -> 业务事务闭环。
+4. 验证生产 ACK、消费 ACK、数据库提交和进程崩溃的关键故障窗口。
+5. 保持默认 local 路径可运行，禁止 local 与 Broker 同时产生真实副作用。
+6. 运行相关模块测试、全量回归和质量门禁，并由非实现者评审可靠性与数据完整性证据。
+
+技术切片完成的判据不是“接入了 Broker 客户端”，而是 Trade 主链的每条消息都能回答：谁拥有它、如何相关和分区、如何幂等、何时过期、失败后如何恢复，以及切换传输时如何避免双副作用。
