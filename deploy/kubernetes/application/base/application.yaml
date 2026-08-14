@@ -8,7 +8,10 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: j-store
@@ -17,10 +20,9 @@ spec:
       labels:
         app.kubernetes.io/name: j-store
         app.kubernetes.io/component: application
+        app.kubernetes.io/environment: replace-by-overlay
         jstore.logs/enabled: "true"
-        jstore.logs/environment: kubernetes-development
-      annotations:
-        jstore.dev/artifact-sha256: replace-by-deploy-script
+        jstore.logs/environment: replace-by-overlay
     spec:
       serviceAccountName: j-store
       automountServiceAccountToken: false
@@ -35,17 +37,13 @@ spec:
           type: RuntimeDefault
       containers:
         - name: application
-          image: docker.m.daocloud.io/library/amazoncorretto:25-al2023-headless
+          image: j-store/application@sha256:0000000000000000000000000000000000000000000000000000000000000000
           imagePullPolicy: IfNotPresent
-          command: ["java"]
-          args:
-            - -XX:MaxRAMPercentage=75.0
-            - -Djava.io.tmpdir=/tmp
-            - -jar
-            - /opt/jstore/app.jar
           envFrom:
             - configMapRef:
                 name: jstore-runtime
+            - configMapRef:
+                name: jstore-deployment
             - secretRef:
                 name: jstore-runtime
           ports:
@@ -82,16 +80,14 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
           volumeMounts:
-            - name: artifact
-              mountPath: /opt/jstore
-              readOnly: true
             - name: tmp
               mountPath: /tmp
       volumes:
-        - name: artifact
-          persistentVolumeClaim:
-            claimName: jstore-artifact
         - name: tmp
           emptyDir:
             sizeLimit: 256Mi

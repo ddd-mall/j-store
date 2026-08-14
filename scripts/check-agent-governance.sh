@@ -132,6 +132,12 @@ search_quietly 'semgrep scan' .github/workflows/security.yml || \
   fail "security workflow is missing Semgrep static analysis"
 search_quietly 'osv-scanner.*scan source' .github/workflows/security.yml || \
   fail "security workflow is missing OSV dependency vulnerability scanning"
+search_quietly 'osv-scanner.*scan image' .github/workflows/security.yml || \
+  fail "security workflow is missing OCI image vulnerability scanning"
+search_quietly 'provenance=mode=max' .github/workflows/security.yml || \
+  fail "security workflow is missing OCI provenance generation"
+search_quietly 'sbom=true' .github/workflows/security.yml || \
+  fail "security workflow is missing OCI SBOM generation"
 search_quietly 'cyclonedxDirectBom' .github/workflows/security.yml || \
   fail "security workflow is missing a resolved production dependency SBOM"
 search_quietly 'dependency-license-audit' .github/workflows/security.yml || \
@@ -165,6 +171,12 @@ done
 
 if [[ -e .github/dependabot.yml ]]; then
   fail "Dependabot must remain disabled; dependency upgrades require explicit compatibility review"
+fi
+
+search_quietly '^FROM .+@sha256:[0-9a-f]{64}$' j-store-boot/Dockerfile || \
+  fail "j-store-boot base image is not pinned by digest"
+if search_quietly '^\s*image:\s*\S+:latest\s*$' deploy j-store-boot --glob '*.yaml'; then
+  fail "Kubernetes deployment contains a latest image tag"
 fi
 
 if ((failures > 0)); then

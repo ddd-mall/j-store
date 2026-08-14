@@ -1,18 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: jstore-runtime
+  name: jstore-deployment
 data:
-  SPRING_PROFILES_ACTIVE: local,observability,outbox-observability
-  JSTORE_DB_URL: jdbc:postgresql://postgresql.postgresql.svc.cluster.local:5432/j_store_codex?currentSchema=develop
-  JSTORE_DB_USER: jstore_app
-  JSTORE_REDIS_HOST: redis
-  JSTORE_REDIS_PORT: "6379"
-  JSTORE_REDIS_DATABASE: "0"
-  JSTORE_SERVICE_VERSION: development-pvc
-  JSTORE_DEPLOYMENT_ENVIRONMENT: kubernetes-development
+  SPRING_PROFILES_ACTIVE: production
+  JSTORE_SERVICE_VERSION: replace-by-renderer
+  JSTORE_DEPLOYMENT_ENVIRONMENT: replace-by-overlay
   JSTORE_TRACING_SAMPLING_PROBABILITY: "1.0"
   SERVER_TOMCAT_MBEANREGISTRY_ENABLED: "true"
-  JSTORE_JWT_ISSUER: j-store
-  JSTORE_JWT_AUDIENCE: j-store-api
-  JSTORE_JWT_KEY_ID: kubernetes-development-v1

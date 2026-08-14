@@ -1,0 +1,38 @@
+{
+  "$schema": "./cluster-target.schema.json",
+  "version": 1,
+  "targets": {
+    "development": {
+      "context": "jstore-development",
+      "expectedClusterUid": "00000000-0000-0000-0000-000000000001",
+      "namespace": "jstore",
+      "repository": "registry.development.internal/j-store/application",
+      "tunnelProfile": "development",
+      "requiresApproval": false
+    },
+    "integration": {
+      "context": "jstore-integration",
+      "expectedClusterUid": "00000000-0000-0000-0000-000000000002",
+      "namespace": "jstore",
+      "repository": "registry.integration.internal/j-store/application",
+      "tunnelProfile": "integration",
+      "requiresApproval": false
+    },
+    "canary": {
+      "context": "jstore-canary",
+      "expectedClusterUid": "00000000-0000-0000-0000-000000000003",
+      "namespace": "jstore",
+      "repository": "registry.canary.internal/j-store/application",
+      "tunnelProfile": "canary",
+      "requiresApproval": true
+    },
+    "production": {
+      "context": "jstore-production",
+      "expectedClusterUid": "00000000-0000-0000-0000-000000000004",
+      "namespace": "jstore",
+      "repository": "registry.production.internal/j-store/application",
+      "tunnelProfile": "production",
+      "requiresApproval": true
+    }
+  }
+}

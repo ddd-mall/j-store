@@ -57,3 +57,16 @@ fileMatchPattern: ['**/*.gradle.kts', 'gradle/libs.versions.toml', '.github/work
 - 所有 JVM 模块通过 `j-store-dependencies-platform` 获得一致约束，没有模块级旁路。
 - `dependencyInsight` 结果符合批准的 Boot 兼容矩阵和安全下限。
 - 治理契约、许可证审计、生产 SBOM、CI 同版本 OSV Scanner 和 `./scripts/quality-gate.sh` 均通过；任何跳过或工具差异已明确记录。
+
+## OCI 镜像供应链
+
+- 应用基础镜像必须使用可读 tag 加 OCI image-index digest，例如
+  `name:version@sha256:digest`；正式 Kubernetes 清单只部署完整应用镜像 digest。
+- 一个 Git 提交只构建一次 OCI 候选。环境晋级复制同一 manifest/index，不得按环境重建或
+  使用 `latest`、浮动 tag、PVC JAR 代替正式制品。
+- BuildKit 候选必须生成 SBOM 和 provenance；required 安全门禁同时扫描 Gradle 解析依赖与
+  最终容器的 OS/应用包。生产晋级还必须验证签名或等价 attestation。
+- registry mirror 是网络配置，不是新的制品版本。镜像复制前后 digest 不一致时必须停止，
+  不能仅凭 tag 相同继续部署。
+- 基础镜像升级属于显式供应链变更，必须记录原/新 digest、上游版本、架构 manifest、漏洞和
+  许可证结果、兼容性验证与回滚 digest；不得由定时任务自动合并。

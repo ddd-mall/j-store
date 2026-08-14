@@ -2,7 +2,9 @@
 
 ## 状态
 
-开发集群部署与指标接入已完成；生产门禁仍受 NetworkPolicy、HA 和镜像供应链边界限制。
+历史开发集群部署与指标接入验证已完成。PVC/JAR 交付已被
+[`immutable-multi-cluster-delivery`](../immutable-multi-cluster-delivery/requirement.md)
+取代，本文件只保留当时的验收背景，不再描述当前权威部署入口。
 
 ## 目标
 

@@ -111,6 +111,12 @@ docker compose --env-file .env -f docker-compose.postgres.yml down -v
 ./gradlew :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
 ```
 
+## 多集群交付
+
+物理隔离集群使用同一个 OCI digest 和 Kubernetes base，通过中央 CI/CD 的单目标隧道完成
+晋级与部署。构建、目标配置、部署和回滚契约见
+[`docs/operations/immutable-multi-cluster-delivery.md`](docs/operations/immutable-multi-cluster-delivery.md)。
+
 ## 安全提示
 
 历史版本曾包含本地 PostgreSQL 和 JWT 开发凭据。删除当前文件中的明文不会使历史凭据失效；所有曾使用这些值的环境都必须轮换凭据。不要复用示例值或把生产连接信息放进仓库。

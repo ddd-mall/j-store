@@ -1,5 +1,9 @@
 # J-Store Kubernetes 开发部署验证
 
+> 历史说明：以下内容是 PVC/JAR 开发部署的既有运行证据，不代表当前权威交付路径。
+> 当前 OCI 多集群交付及其未验证项见
+> [`immutable-multi-cluster-delivery`](../immutable-multi-cluster-delivery/requirement.md)。
+
 ## 已验证结果
 
 - `:j-store-boot:bootJar` 在 Java 25 工具链下成功，生成的 Spring Boot JAR 为 105,205,780 字节；上传前后 SHA-256 一致。

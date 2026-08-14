@@ -7,7 +7,14 @@ import yaml
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-BASE = REPOSITORY_ROOT / "deploy" / "kubernetes" / "application" / "base"
+BASE = (
+    REPOSITORY_ROOT
+    / "deploy"
+    / "kubernetes"
+    / "application"
+    / "overlays"
+    / "development"
+)
 
 
 def load_documents() -> list[dict]:
@@ -35,24 +42,31 @@ class KubernetesApplicationDeploymentTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.documents = load_documents()
 
-    def test_namespace_and_repository_do_not_embed_secrets(self) -> None:
-        namespace = by_kind_name(self.documents, "Namespace", "jstore")
-        labels = namespace["metadata"]["labels"]
-        self.assertEqual("restricted", labels["pod-security.kubernetes.io/enforce"])
+    def test_namespace_and_secrets_are_owned_by_the_platform(self) -> None:
+        self.assertFalse(any(document.get("kind") == "Namespace" for document in self.documents))
         self.assertFalse(any(document.get("kind") == "Secret" for document in self.documents))
+        namespaced = [
+            document
+            for document in self.documents
+            if document.get("kind")
+            not in {"Namespace", "ClusterRole", "ClusterRoleBinding"}
+        ]
+        self.assertTrue(namespaced)
+        self.assertTrue(
+            all(document["metadata"].get("namespace") == "jstore" for document in namespaced)
+        )
 
-    def test_application_uses_java_25_artifact_pvc_and_hardened_runtime(self) -> None:
+    def test_application_uses_immutable_oci_image_and_hardened_runtime(self) -> None:
         deployment = by_kind_name(self.documents, "Deployment", "j-store")
         pod_spec = deployment["spec"]["template"]["spec"]
         container = pod_spec["containers"][0]
         serialized = yaml.safe_dump(deployment)
 
-        self.assertEqual(
-            "docker.m.daocloud.io/library/amazoncorretto:25-al2023-headless",
-            container["image"],
+        self.assertRegex(
+            container["image"], r"^j-store/application@sha256:[0-9a-f]{64}$"
         )
-        self.assertIn("/opt/jstore/app.jar", container["args"])
-        self.assertIn("jstore-artifact", serialized)
+        self.assertNotIn("/opt/jstore/app.jar", serialized)
+        self.assertNotIn("jstore-artifact", serialized)
         self.assertIn("jstore-runtime", serialized)
         for key in ("startupProbe", "readinessProbe", "livenessProbe", "resources"):
             self.assertIn(key, container)
@@ -62,19 +76,10 @@ class KubernetesApplicationDeploymentTest(unittest.TestCase):
         self.assertEqual(["ALL"], security["capabilities"]["drop"])
         self.assertFalse(pod_spec["automountServiceAccountToken"])
 
-    def test_redis_is_authenticated_persistent_and_not_public(self) -> None:
-        redis = by_kind_name(self.documents, "StatefulSet", "redis")
-        container = redis["spec"]["template"]["spec"]["containers"][0]
-        serialized = yaml.safe_dump(redis)
-        self.assertEqual(
-            "docker.m.daocloud.io/library/redis:7.4.5-alpine",
-            container["image"],
-        )
-        self.assertIn("jstore-runtime", serialized)
-        self.assertIn("requirepass", serialized)
-        self.assertIn("volumeClaimTemplates", redis["spec"])
-        service = by_kind_name(self.documents, "Service", "redis")
-        self.assertEqual("ClusterIP", service["spec"].get("type", "ClusterIP"))
+    def test_platform_infrastructure_is_not_owned_by_application_manifests(self) -> None:
+        kinds = {document["kind"] for document in self.documents}
+        self.assertNotIn("StatefulSet", kinds)
+        self.assertNotIn("PersistentVolumeClaim", kinds)
 
     def test_existing_prometheus_and_grafana_discover_application(self) -> None:
         monitor = by_kind_name(self.documents, "ServiceMonitor", "j-store")
@@ -145,7 +150,7 @@ class KubernetesApplicationDeploymentTest(unittest.TestCase):
             / "application-observability.properties"
         ).read_text(encoding="utf-8")
         self.assertIn("server.tomcat.mbeanregistry.enabled=true", properties)
-        runtime = by_kind_name(self.documents, "ConfigMap", "jstore-runtime")
+        runtime = by_kind_name(self.documents, "ConfigMap", "jstore-deployment")
         self.assertEqual(
             "true", runtime["data"]["SERVER_TOMCAT_MBEANREGISTRY_ENABLED"]
         )
@@ -161,19 +166,26 @@ class KubernetesApplicationDeploymentTest(unittest.TestCase):
         policy = by_kind_name(self.documents, "NetworkPolicy", "default-deny")
         self.assertEqual({}, policy["spec"]["podSelector"])
         self.assertEqual({"Ingress", "Egress"}, set(policy["spec"]["policyTypes"]))
+        application_policy = by_kind_name(self.documents, "NetworkPolicy", "application")
+        ingress_sources = application_policy["spec"]["ingress"][0]["from"]
+        self.assertIn(
+            {"namespaceSelector": {"matchLabels": {"jstore.network/ingress-access": "true"}}},
+            ingress_sources,
+        )
 
-    def test_deploy_script_is_context_bound_and_uses_isolated_database(self) -> None:
+    def test_deploy_script_is_context_and_cluster_identity_bound(self) -> None:
         script = (
-            REPOSITORY_ROOT / "scripts" / "kubernetes-development-deploy.sh"
+            REPOSITORY_ROOT / "scripts" / "deploy-kubernetes-application.sh"
         ).read_text(encoding="utf-8")
         self.assertIn('"$(kubectl config current-context)" != "$context"', script)
-        self.assertIn('[[ "$namespace" != "jstore" ]]', script)
-        self.assertIn("j_store_codex", script)
-        self.assertIn("jstore_app", script)
-        self.assertIn("sha256sum /opt/jstore/app.jar", script)
+        self.assertIn("expected_cluster_uid", script)
+        self.assertIn("actual_cluster_uid", script)
+        self.assertIn("--dry-run=server", script)
+        self.assertIn('"$namespace" != "jstore"', script)
         self.assertIn("get secret jstore-runtime", script)
-        self.assertIn("existing Secret key is missing or too short", script)
-        self.assertNotIn("j_store OWNER", script)
+        self.assertNotIn("create secret", script)
+        self.assertNotIn("CREATE ROLE", script)
+        self.assertNotIn("get --raw", script)
 
 
 if __name__ == "__main__":
