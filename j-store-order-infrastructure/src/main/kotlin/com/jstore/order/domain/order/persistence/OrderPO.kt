@@ -62,8 +62,6 @@ class OrderPO(
     @Enumerated(EnumType.STRING)
     @Column(name = "commitment_status", nullable = false, length = 32)
     var commitmentStatus: CommitmentStatus = CommitmentStatus.PENDING_OFFER,
-    @Column(name = "sale_authorization_ids", nullable = false, columnDefinition = "text")
-    var saleAuthorizationIds: String = "",
     @Column(name = "currency", nullable = false, length = 3) var currency: String = "CNY",
     @Column(name = "items_subtotal", nullable = false, precision = 19, scale = 0)
     var itemsSubtotal: BigDecimal = BigDecimal.ZERO,
