@@ -16,6 +16,7 @@
  */
 package com.jstore.outbox.spring
 
+import com.jstore.messaging.MessageConsumptionRetentionRepository
 import com.jstore.outbox.*
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.spec.style.FunSpec
@@ -115,9 +116,18 @@ class OutboxCleanerPropertyTest :
                             }
                     }
                 val properties =
-                    OutboxProperties(retentionDays = retentionDays, cleanupBatchSize = 500)
+                    OutboxProperties(
+                        retentionDays = retentionDays,
+                        consumptionRetentionDays = retentionDays,
+                        cleanupBatchSize = 500,
+                    )
 
-                val cleaner = OutboxCleaner(mockRepo, properties)
+                val cleaner =
+                    OutboxCleaner(
+                        mockRepo,
+                        properties,
+                        mock<MessageConsumptionRetentionRepository>(),
+                    )
                 cleaner.cleanup()
 
                 // Verify deletePublishedBefore was called

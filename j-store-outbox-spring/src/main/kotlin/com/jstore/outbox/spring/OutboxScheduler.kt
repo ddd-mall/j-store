@@ -34,7 +34,7 @@ class OutboxScheduler(
         relayTrigger.requestDrain()
     }
 
-    @Scheduled(cron = $$"${jstore.outbox.cleanup-cron:0 0 3 * * ?}")
+    @Scheduled(fixedDelayString = $$"${jstore.outbox.cleanup-interval-millis:60000}")
     fun scheduleCleanup() {
         outboxCleaner.cleanup()
     }

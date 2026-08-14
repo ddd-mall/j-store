@@ -17,6 +17,7 @@
 package com.jstore.messaging
 
 import com.jstore.common.framework.event.DomainEvent
+import java.time.Instant
 
 /** Atomic inbox/idempotency port shared by local and broker-delivered messages. */
 fun interface MessageConsumptionRepository {
@@ -37,6 +38,13 @@ fun interface MessageConsumptionRepository {
         throw UnsupportedOperationException(
             "Ordered delivery requires a sequence-aware consumption repository"
         )
+}
+
+/** Retention operations kept separate from the hot-path consumption contract. */
+interface MessageConsumptionRetentionRepository {
+    fun deleteConsumptionsBefore(before: Instant, batchSize: Int): Int
+
+    fun deleteInactiveStreamPositionsBefore(before: Instant, batchSize: Int): Int
 }
 
 data class MessageDeliveryOrder(

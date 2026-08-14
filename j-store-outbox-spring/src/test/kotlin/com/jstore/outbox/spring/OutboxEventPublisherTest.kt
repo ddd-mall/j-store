@@ -34,6 +34,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import java.time.Instant
 import org.mockito.kotlin.*
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 
 private fun orderCreatedEvent(orderId: OrderId) =
     OrderCreatedEvent(
@@ -52,6 +54,12 @@ private fun orderCreatedEvent(orderId: OrderId) =
  */
 class OutboxEventPublisherTest :
     FunSpec({
+        afterTest {
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.clearSynchronization()
+            }
+            TransactionSynchronizationManager.clear()
+        }
         val objectMapper =
             ObjectMapper()
                 .registerKotlinModule()
@@ -122,6 +130,45 @@ class OutboxEventPublisherTest :
             saved.orderingKey shouldBe
                 "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089"
             saved.sequenceNo shouldBe 9
+        }
+
+        test("aggregate acknowledgement runs only after transaction commit") {
+            val publisher =
+                OutboxEventPublisher(
+                    mock(),
+                    mock(),
+                    SnowFlakSequence(1, 1),
+                    mock(),
+                    mock(),
+                )
+            var acknowledged = false
+            TransactionSynchronizationManager.initSynchronization()
+
+            publisher.afterPublicationCommitted { acknowledged = true }
+
+            acknowledged shouldBe false
+            TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
+            acknowledged shouldBe true
+        }
+
+        test("rollback leaves aggregate acknowledgement pending") {
+            val publisher =
+                OutboxEventPublisher(
+                    mock(),
+                    mock(),
+                    SnowFlakSequence(1, 1),
+                    mock(),
+                    mock(),
+                )
+            var acknowledged = false
+            TransactionSynchronizationManager.initSynchronization()
+
+            publisher.afterPublicationCommitted { acknowledged = true }
+            TransactionSynchronizationManager.getSynchronizations().forEach {
+                it.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
+            }
+
+            acknowledged shouldBe false
         }
 
         test("publishEvents saves one ordered batch with allocated stream sequences") {

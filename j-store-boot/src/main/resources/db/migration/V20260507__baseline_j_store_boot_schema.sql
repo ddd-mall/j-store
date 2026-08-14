@@ -216,6 +216,9 @@ CREATE TABLE IF NOT EXISTS domain_event_consumption (
 CREATE INDEX IF NOT EXISTS idx_domain_event_consumption_event
     ON domain_event_consumption (event_name, event_version, consumed_at);
 
+CREATE INDEX idx_domain_event_consumption_retention
+    ON domain_event_consumption (consumed_at, listener_id, event_id);
+
 -- ============================================================
 -- Accounting
 -- ============================================================
