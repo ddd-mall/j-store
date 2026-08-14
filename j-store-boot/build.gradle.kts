@@ -35,6 +35,8 @@ dependencies {
     implementation(project(":j-store-goods-boot"))
     implementation(project(":j-store-inventory-domain"))
     implementation(project(":j-store-inventory-boot"))
+    implementation(project(":j-store-trade-domain"))
+    implementation(project(":j-store-trade-boot"))
     implementation(project(":j-store-warehouse-domain"))
     implementation(project(":j-store-warehouse-boot"))
     implementation(project(":j-store-user-domain"))

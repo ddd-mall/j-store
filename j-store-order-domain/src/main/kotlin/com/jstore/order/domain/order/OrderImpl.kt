@@ -28,8 +28,7 @@ import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
 import com.jstore.order.domain.order.event.OrderPaidEvent
-import com.jstore.order.domain.order.event.OrderSaleAuthorizedEvent
-import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
+import com.jstore.order.domain.order.event.OrderTradeCommittedEvent
 import java.time.Instant
 import java.time.LocalDateTime
 
@@ -45,7 +44,6 @@ class OrderImpl(
     private var _commitmentStatus: CommitmentStatus =
         if (_tradeStatus == TradeStatus.CREATED) CommitmentStatus.PENDING_OFFER
         else CommitmentStatus.CONFIRMED,
-    private val _saleAuthorizations: MutableList<SaleAuthorizationRef> = mutableListOf(),
     override val amountSnapshot: OrderAmountSnapshot,
     private var _paidAmount: Price = Price.ZERO,
     private var _refundedAmount: Price = Price.ZERO,
@@ -69,9 +67,6 @@ class OrderImpl(
 
     override val commitmentStatus: CommitmentStatus
         get() = _commitmentStatus
-
-    override val saleAuthorizations: List<SaleAuthorizationRef>
-        get() = _saleAuthorizations.toList()
 
     override val paidAmount: Price
         get() = _paidAmount
@@ -112,53 +107,17 @@ class OrderImpl(
         )
     }
 
-    override fun recordSaleAuthorized(
-        authorizations: List<SaleAuthorizationRef>
-    ): Result<Unit, BusinessError> =
+    override fun confirmTradeCommitment(): Result<Unit, BusinessError> =
         transition(
             _tradeStatus == TradeStatus.CREATED &&
                 _commitmentStatus == CommitmentStatus.PENDING_OFFER &&
-                authorizations.isNotEmpty() &&
-                authorizations.map { it.authorizationId }.distinct().size == authorizations.size &&
-                authorizations.map { it.offerId }.toSet() == _items.map { it.offerId }.toSet(),
-            "登记销售授权",
-        ) {
-            _saleAuthorizations.clear()
-            _saleAuthorizations.addAll(authorizations)
-            _commitmentStatus = CommitmentStatus.OFFER_AUTHORIZED
-            raise(
-                OrderSaleAuthorizedEvent(
-                    orderId = id,
-                    merchantId = merchantId,
-                    authorizations = authorizations,
-                    items = orderItemSnapshots(),
-                )
-            )
-        }
-
-    override fun markSaleAuthorizationFailed(reason: String): Result<Unit, BusinessError> =
-        transition(
-            _tradeStatus == TradeStatus.CREATED &&
-                _commitmentStatus == CommitmentStatus.PENDING_OFFER,
-            "销售授权失败",
-        ) {
-            _commitmentStatus = CommitmentStatus.FAILED
-            _tradeStatus = TradeStatus.CLOSED
-            mutableItems().forEach { it.markCanceled() }
-            raise(OrderCancelledEvent(id, reason))
-        }
-
-    override fun confirmStock(): Result<Unit, BusinessError> =
-        transition(
-            _tradeStatus == TradeStatus.CREATED &&
-                _commitmentStatus == CommitmentStatus.OFFER_AUTHORIZED &&
                 unpaid(),
-            "确认库存",
+            "确认交易承诺",
         ) {
             _commitmentStatus = CommitmentStatus.CONFIRMED
             _tradeStatus = TradeStatus.ACTIVE
             raise(
-                OrderStockConfirmedEvent(
+                OrderTradeCommittedEvent(
                     orderId = id,
                     merchantId = merchantId,
                     payableAmount = amountSnapshot.payableAmount,
@@ -167,12 +126,12 @@ class OrderImpl(
             )
         }
 
-    override fun markStockInsufficient(reason: String): Result<Unit, BusinessError> =
+    override fun rejectTradeCommitment(reason: String): Result<Unit, BusinessError> =
         transition(
             _tradeStatus == TradeStatus.CREATED &&
-                _commitmentStatus == CommitmentStatus.OFFER_AUTHORIZED &&
+                _commitmentStatus == CommitmentStatus.PENDING_OFFER &&
                 unpaid(),
-            "库存不足取消",
+            "交易承诺失败",
         ) {
             _commitmentStatus = CommitmentStatus.FAILED
             _tradeStatus = TradeStatus.CLOSED

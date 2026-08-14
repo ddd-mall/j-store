@@ -22,7 +22,6 @@ import com.jstore.common.framework.event.newDomainEventId
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.order.SaleAuthorizationRef
 import java.time.Instant
 
 sealed class OrderDomainEvent(
@@ -62,25 +61,15 @@ data class OrderCreatedEvent(
     override val eventId: String = newDomainEventId(),
 ) : OrderDomainEvent(orderId, occurredAt, eventId, "order.created", 4)
 
-@DomainEventType(name = "order.sale-authorized", version = 1)
-data class OrderSaleAuthorizedEvent(
-    override val orderId: OrderId,
-    val merchantId: MerchantId,
-    val authorizations: List<SaleAuthorizationRef>,
-    val items: List<OrderItemSnapshot>,
-    override val occurredAt: Instant = Instant.now(),
-    override val eventId: String = newDomainEventId(),
-) : OrderDomainEvent(orderId, occurredAt, eventId, "order.sale-authorized", 1)
-
-@DomainEventType(name = "order.stock-confirmed", version = 1)
-data class OrderStockConfirmedEvent(
+@DomainEventType(name = "order.trade-committed", version = 1)
+data class OrderTradeCommittedEvent(
     override val orderId: OrderId,
     val merchantId: MerchantId,
     val payableAmount: Price,
     val currency: String,
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
-) : OrderDomainEvent(orderId, occurredAt, eventId, "order.stock-confirmed", 1)
+) : OrderDomainEvent(orderId, occurredAt, eventId, "order.trade-committed", 1)
 
 @DomainEventType(name = "order.paid", version = 2)
 data class OrderPaidEvent(

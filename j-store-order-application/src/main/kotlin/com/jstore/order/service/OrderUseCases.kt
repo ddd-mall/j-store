@@ -30,7 +30,6 @@ import com.jstore.order.domain.aftersale.command.AfterSaleRejectCMD
 import com.jstore.order.domain.aftersale.command.AfterSaleRetryRefundCMD
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.order.SaleAuthorizationRef
 import com.jstore.order.domain.order.SuccessfulRefundItem
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
@@ -46,16 +45,9 @@ interface OrderUseCase {
 
     fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError>
 
-    fun recordSaleAuthorized(
-        orderId: OrderId,
-        authorizations: List<SaleAuthorizationRef>,
-    ): Result<Unit, BusinessError>
+    fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError>
 
-    fun markSaleAuthorizationFailed(orderId: OrderId, reason: String): Result<Unit, BusinessError>
-
-    fun confirmStock(orderId: OrderId): Result<Unit, BusinessError>
-
-    fun markStockInsufficient(orderId: OrderId, reason: String): Result<Unit, BusinessError>
+    fun rejectTradeCommitment(orderId: OrderId, reason: String): Result<Unit, BusinessError>
 
     fun recordPaymentCaptured(
         orderId: OrderId,

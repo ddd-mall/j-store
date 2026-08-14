@@ -17,20 +17,17 @@
 package com.jstore.translator
 
 import com.jstore.common.properties.Price
-import com.jstore.contracts.commerce.AuthorizeSaleCommand
 import com.jstore.contracts.commerce.CreatePaymentForOrderCommand
 import com.jstore.contracts.commerce.InventoryReservedIntegrationEvent
-import com.jstore.contracts.commerce.ReserveInventoryCommand
+import com.jstore.contracts.commerce.StartTradeProcessCommand
 import com.jstore.inventory.domain.event.StockReservedEvent
 import com.jstore.messaging.IntegrationMessage
 import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.order.SaleAuthorizationRef
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
-import com.jstore.order.domain.order.event.OrderSaleAuthorizedEvent
-import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
+import com.jstore.order.domain.order.event.OrderTradeCommittedEvent
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,7 +35,7 @@ import kotlin.test.assertIs
 
 class OrderReservationTranslatorsTest {
     @Test
-    fun `order creation requests versioned store sale authorization`() {
+    fun `order creation starts a trade process with immutable sale snapshot`() {
         val publisher = CapturingPublisher()
         val event =
             OrderCreatedEvent(
@@ -64,56 +61,23 @@ class OrderReservationTranslatorsTest {
                 occurredAt = Instant.EPOCH,
             )
 
-        OrderCreatedToSaleAuthorizationTranslator(publisher).onDomainEvent(event)
+        OrderCreatedToTradeTranslator(publisher).onDomainEvent(event)
 
-        val command = assertIs<AuthorizeSaleCommand>(publisher.messages.single())
+        val command = assertIs<StartTradeProcessCommand>(publisher.messages.single())
         assertEquals(1, command.messageVersion)
         assertEquals(501, command.items.single().spuId)
         assertEquals(9, command.items.single().catalogSnapshotVersion)
         assertEquals(4, command.items.single().offerVersion)
         assertEquals(9900, command.items.single().unitPriceFen)
-    }
-
-    @Test
-    fun `authorized sale requests ATP reservation with the exact durable authorization expiry`() {
-        val publisher = CapturingPublisher()
-        val expiry = Instant.parse("2026-08-05T00:15:00Z")
-        val item =
-            OrderItemSnapshot(
-                offerId = 7001,
-                storeId = 71,
-                spuId = 501,
-                skuId = 1001,
-                quantity = 2,
-                catalogSnapshotVersion = 9,
-                offerVersion = 4,
-                fulfillmentNodeId = "CN-NORTH-1",
-                channelId = "ONLINE",
-                unitPrice = Price.ofFen(9900),
-            )
-        val event =
-            OrderSaleAuthorizedEvent(
-                OrderId(42),
-                MerchantId(7),
-                listOf(SaleAuthorizationRef("auth-1", 7001, expiry)),
-                listOf(item),
-                Instant.EPOCH,
-            )
-
-        OrderSaleAuthorizedToStockReservationTranslator(publisher).onDomainEvent(event)
-
-        val command = assertIs<ReserveInventoryCommand>(publisher.messages.single())
-        assertEquals(1, command.messageVersion)
-        assertEquals("auth-1", command.items.single().authorizationId)
-        assertEquals(expiry, command.items.single().expiresAt)
-        assertEquals(expiry, command.acceptBefore)
+        assertEquals(19800, command.payableAmountFen)
+        assertEquals("trade.commands", command.destination)
     }
 
     @Test
     fun `payment creation waits for stock confirmation fact`() {
         val publisher = CapturingPublisher()
         val event =
-            OrderStockConfirmedEvent(
+            OrderTradeCommittedEvent(
                 orderId = OrderId(42),
                 merchantId = MerchantId(7),
                 payableAmount = Price.ofFen(19800),
@@ -121,7 +85,7 @@ class OrderReservationTranslatorsTest {
                 occurredAt = Instant.EPOCH,
             )
 
-        OrderStockConfirmedToPaymentTranslator(publisher).onDomainEvent(event)
+        OrderTradeCommittedToPaymentTranslator(publisher).onDomainEvent(event)
 
         assertIs<CreatePaymentForOrderCommand>(publisher.messages.single())
     }
@@ -145,6 +109,7 @@ class OrderReservationTranslatorsTest {
             assertIs<InventoryReservedIntegrationEvent>(publisher.messages.single())
         assertEquals(1, integrationEvent.messageVersion)
         assertEquals(expiry, integrationEvent.reservationExpiresAt)
+        assertEquals("trade.events", integrationEvent.destination)
     }
 
     private class CapturingPublisher : IntegrationMessagePublisher {

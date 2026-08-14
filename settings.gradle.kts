@@ -22,6 +22,14 @@ include("j-store-outbox-spring")
 
 include("j-store-integration-contracts")
 
+include("j-store-trade-domain")
+
+include("j-store-trade-application")
+
+include("j-store-trade-infrastructure")
+
+include("j-store-trade-boot")
+
 include("j-store-order-domain")
 
 include("j-store-order-application")

@@ -22,34 +22,34 @@ import com.jstore.messaging.IntegrationMessage
 import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
+import com.jstore.order.domain.order.event.OrderTradeCommittedEvent
 import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import org.junit.jupiter.api.Test
 
-class OrderStockBeforePaymentTranslatorTest {
+class OrderTradeCommitmentBeforePaymentTranslatorTest {
     @Test
     fun `stock-confirmed order creates payment command`() {
         val publisher = CapturingPublisher()
         val event =
-            OrderStockConfirmedEvent(
+            OrderTradeCommittedEvent(
                 orderId = OrderId(1),
                 merchantId = MerchantId(7),
                 payableAmount = Price.ofFen(200),
                 currency = "CNY",
                 occurredAt = Instant.EPOCH,
-                eventId = "stock-confirmed-1",
+                eventId = "trade-committed-1",
             )
 
-        OrderStockConfirmedToPaymentTranslator(publisher).onDomainEvent(event)
+        OrderTradeCommittedToPaymentTranslator(publisher).onDomainEvent(event)
 
         val command = assertIs<CreatePaymentForOrderCommand>(publisher.messages.single())
         assertEquals(1, command.orderId)
         assertEquals(7, command.merchantId)
         assertEquals(200, command.payableAmountFen)
         assertEquals("CNY", command.currency)
-        assertEquals("stock-confirmed-1", command.sourceMessageId)
+        assertEquals("trade-committed-1", command.sourceMessageId)
         assertEquals(Instant.EPOCH, command.occurredAtValue)
     }
 

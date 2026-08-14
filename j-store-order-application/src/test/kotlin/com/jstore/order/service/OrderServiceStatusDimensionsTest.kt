@@ -33,7 +33,7 @@ import com.jstore.order.domain.order.TradeStatus
 import com.jstore.order.domain.order.UserInfo
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.domain.order.event.OrderCompletedEvent
-import com.jstore.order.domain.order.event.OrderStockConfirmedEvent
+import com.jstore.order.domain.order.event.OrderTradeCommittedEvent
 import com.jstore.order.domain.order.testOrder
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -70,21 +70,21 @@ class OrderServiceStatusDimensionsTest :
             val order = mock(Order::class.java)
             val id = OrderId(1)
             `when`(repository.findById(id)).thenReturn(order)
-            `when`(order.confirmStock()).thenReturn(Failure(OrderErrors.ILLEGAL_STATE))
+            `when`(order.confirmTradeCommitment()).thenReturn(Failure(OrderErrors.ILLEGAL_STATE))
 
             OrderService(factory, repository, publisher, mock(UserService::class.java))
-                .confirmStock(id)
+                .confirmTradeCommitment(id)
                 .shouldBeInstanceOf<Failure<*>>()
             verify(repository, never()).save(order)
         }
 
-        test("stock confirmation persists order and publishes payment creation gate event") {
+        test("trade commitment persists order and publishes payment creation gate event") {
             val factory = mock(OrderFactory::class.java)
             val repository = mock(OrderRepository::class.java)
             val order =
                 testOrder(
                     trade = TradeStatus.CREATED,
-                    commitment = com.jstore.order.domain.order.CommitmentStatus.OFFER_AUTHORIZED,
+                    commitment = com.jstore.order.domain.order.CommitmentStatus.PENDING_OFFER,
                 )
             val published = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
             val publisher =
@@ -99,10 +99,10 @@ class OrderServiceStatusDimensionsTest :
             `when`(repository.save(order)).thenReturn(order)
 
             OrderService(factory, repository, publisher, mock(UserService::class.java))
-                .confirmStock(order.id) shouldBe Success(Unit)
+                .confirmTradeCommitment(order.id) shouldBe Success(Unit)
 
             verify(repository).save(order)
-            published.single().shouldBeInstanceOf<OrderStockConfirmedEvent>()
+            published.single().shouldBeInstanceOf<OrderTradeCommittedEvent>()
             order.pendingDomainEvents().size shouldBe 0
         }
 

@@ -34,7 +34,6 @@ import com.jstore.order.domain.order.OrderErrors
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
-import com.jstore.order.domain.order.SaleAuthorizationRef
 import com.jstore.order.domain.order.SuccessfulRefundItem
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
@@ -73,12 +72,10 @@ class OrderService(
         }
     }
 
-    override fun recordSaleAuthorized(
-        orderId: OrderId,
-        authorizations: List<SaleAuthorizationRef>,
-    ): Result<Unit, BusinessError> {
+    /** Trade 完整承诺成功回调。 */
+    override fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.recordSaleAuthorized(authorizations).onFailure {
+        order.confirmTradeCommitment().onFailure {
             return Failure(it)
         }
         orderRepository.save(order)
@@ -86,37 +83,13 @@ class OrderService(
         return Success(Unit)
     }
 
-    override fun markSaleAuthorizationFailed(
-        orderId: OrderId,
-        reason: String,
-    ): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.markSaleAuthorizationFailed(reason).onFailure {
-            return Failure(it)
-        }
-        orderRepository.save(order)
-        order.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    /** 库存预扣成功回调 */
-    override fun confirmStock(orderId: OrderId): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.confirmStock().onFailure {
-            return Failure(it)
-        }
-        orderRepository.save(order)
-        order.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    /** 库存不足，取消订单 */
-    override fun markStockInsufficient(
+    /** Trade 无法形成承诺，关闭订单。 */
+    override fun rejectTradeCommitment(
         orderId: OrderId,
         reason: String,
     ): Result<Unit, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.markStockInsufficient(reason).onFailure {
+        order.rejectTradeCommitment(reason).onFailure {
             return Failure(it)
         }
         orderRepository.save(order)
