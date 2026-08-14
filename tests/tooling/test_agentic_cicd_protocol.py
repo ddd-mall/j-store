@@ -22,10 +22,13 @@ from agentic_cicd.app_server import (  # noqa: E402
 from agentic_cicd.protocol import (  # noqa: E402
     ITERATION_PACKET_SCHEMA,
     REVIEW_DECISION_SCHEMA,
+    REVIEW_PROPOSAL_SCHEMA,
     IterationPacket,
+    GateReceipt,
     ReviewDecision,
     ReviewFinding,
     ReviewLedger,
+    ReviewProposal,
     parse_review_decision,
 )
 from agentic_cicd.coordinator import SnapshotStore, TaskSnapshot  # noqa: E402
@@ -52,6 +55,29 @@ def sample_packet() -> IterationPacket:
 
 
 class ProtocolContractTest(unittest.TestCase):
+    def test_gate_receipt_binds_exact_head_and_failure_evidence(self) -> None:
+        pass_receipt = GateReceipt("gate-1", "PASS", SHA_B, ())
+        self.assertEqual(SHA_B, pass_receipt.head_sha)
+
+        with self.assertRaisesRegex(ValueError, "FAIL"):
+            GateReceipt("gate-2", "FAIL", SHA_B, ())
+        with self.assertRaisesRegex(ValueError, "PASS"):
+            GateReceipt(
+                "gate-3",
+                "PASS",
+                SHA_B,
+                (
+                    ReviewFinding(
+                        "gate:unexpected",
+                        "high",
+                        "evidence",
+                        "impact",
+                        "expected",
+                        "verification",
+                    ),
+                ),
+            )
+
     def test_iteration_packet_rejects_noncanonical_identity_and_sha(self) -> None:
         payload = sample_packet().to_json()
         payload["issue_identifier"] = "../../outside"
@@ -70,6 +96,15 @@ class ProtocolContractTest(unittest.TestCase):
         self.assertEqual(packet, IterationPacket.from_json(packet.to_json()))
         self.assertEqual("GH-123", packet.to_json()["issue_identifier"])
         self.assertEqual(["AC-01", "AC-02"], packet.to_json()["acceptance"])
+        Draft202012Validator(ITERATION_PACKET_SCHEMA).validate(packet.to_json())
+
+    def test_first_implementation_packet_can_precede_trusted_session_receipt(self) -> None:
+        payload = sample_packet().to_json()
+        payload["implementer_session_id"] = None
+
+        packet = IterationPacket.from_json(payload)
+
+        self.assertIsNone(packet.implementer_session_id)
         Draft202012Validator(ITERATION_PACKET_SCHEMA).validate(packet.to_json())
 
     def test_iteration_packet_rejects_scalar_values_for_array_fields(self) -> None:
@@ -123,6 +158,18 @@ class ProtocolContractTest(unittest.TestCase):
                 implementer_session_id="implementer-1",
                 findings=(),
             )
+
+    def test_review_proposal_excludes_untrusted_runtime_identity(self) -> None:
+        proposal = ReviewProposal(
+            verdict="PASS",
+            head_sha=SHA_B,
+            reviewer_role="spec-evaluator",
+            findings=(),
+        )
+
+        self.assertNotIn("reviewer_session_id", proposal.to_json())
+        self.assertNotIn("implementer_session_id", proposal.to_json())
+        Draft202012Validator(REVIEW_PROPOSAL_SCHEMA).validate(proposal.to_json())
 
         with self.assertRaisesRegex(ValueError, "root_cause_id"):
             ReviewFinding(
@@ -275,6 +322,16 @@ class AppServerProtocolTest(unittest.TestCase):
         packet = json.loads(request["params"]["input"][0]["text"])
         self.assertEqual(SHA_B, packet["head_sha"])
         self.assertEqual("turn-1", result["turn"]["id"])
+
+    def test_review_turn_requires_host_captured_implementer_identity(self) -> None:
+        payload = sample_packet().to_json()
+        payload["implementer_session_id"] = None
+        packet = IterationPacket.from_json(payload)
+        client = AppServerClient(JsonLineTransport(io.StringIO(), io.StringIO()))
+        client.initialized = True
+
+        with self.assertRaisesRegex(ValueError, "trusted implementer"):
+            client.start_review_turn("thread-review-1", packet)
 
     def test_runtime_lock_pins_codex_cli_and_protocol(self) -> None:
         lock = json.loads(

@@ -29,7 +29,7 @@
   ],
   "limits": {
     "max_concurrent_agents": 1,
-    "max_turns_per_invocation": 12,
+    "max_turns_per_invocation": 1,
     "max_turns_per_task": 48,
     "max_wall_clock_seconds": 14400,
     "max_cost_microusd": 5000000,
@@ -38,6 +38,7 @@
   },
   "capabilities": {
     "read_only_observation": true,
+    "local_workspace_write": false,
     "create_branch": false,
     "push_commit": false,
     "create_draft_pull_request": false,

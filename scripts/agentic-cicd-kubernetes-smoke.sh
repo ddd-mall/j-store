@@ -4,6 +4,9 @@ set -euo pipefail
 context=""
 namespace="agentic-cicd"
 timeout_seconds=300
+image=""
+symphony_revision=""
+controller_revision=""
 
 while (($#)); do
   case "$1" in
@@ -17,6 +20,18 @@ while (($#)); do
       ;;
     --timeout-seconds)
       timeout_seconds=${2:?missing timeout}
+      shift 2
+      ;;
+    --image)
+      image=${2:?missing image}
+      shift 2
+      ;;
+    --symphony-revision)
+      symphony_revision=${2:?missing Symphony revision}
+      shift 2
+      ;;
+    --controller-revision)
+      controller_revision=${2:?missing controller revision}
       shift 2
       ;;
     *)
@@ -38,6 +53,10 @@ if [[ ! "$timeout_seconds" =~ ^[0-9]+$ || "$timeout_seconds" -lt 30 ]]; then
   printf '%s\n' 'ERROR: --timeout-seconds must be an integer of at least 30.' >&2
   exit 2
 fi
+if [[ -z "$image" || ! "$symphony_revision" =~ ^[0-9a-f]{40}$ || ! "$controller_revision" =~ ^[0-9a-f]{40}$ ]]; then
+  printf '%s\n' 'ERROR: immutable image and full runtime revisions are required.' >&2
+  exit 2
+fi
 
 kubectl --context "$context" -n "$namespace" rollout status deployment/symphony \
   --timeout="${timeout_seconds}s"
@@ -57,6 +76,24 @@ claim_phase=$(kubectl --context "$context" -n "$namespace" get pvc symphony-stat
 codex_version=$(kubectl --context "$context" -n "$namespace" exec "$pod" -- codex --version)
 [[ "$codex_version" == "codex-cli 0.146.0" ]] || {
   printf 'ERROR: unexpected Codex version: %s\n' "$codex_version" >&2
+  exit 1
+}
+deployed_image=$(kubectl --context "$context" -n "$namespace" get pod "$pod" \
+  -o jsonpath='{.spec.containers[0].image}')
+[[ "$deployed_image" == "$image" ]] || {
+  printf 'ERROR: Pod image is %s, expected %s.\n' "$deployed_image" "$image" >&2
+  exit 1
+}
+actual_symphony_revision=$(kubectl --context "$context" -n "$namespace" exec "$pod" -- \
+  sh -c 'sed -n "s/^SYMPHONY_REVISION=//p" /opt/jstore-agentic-controller/runtime-revisions')
+actual_controller_revision=$(kubectl --context "$context" -n "$namespace" exec "$pod" -- \
+  sh -c 'sed -n "s/^JSTORE_CONTROLLER_REVISION=//p" /opt/jstore-agentic-controller/runtime-revisions')
+[[ "$actual_symphony_revision" == "$symphony_revision" ]] || {
+  printf 'ERROR: Symphony revision is %s, expected %s.\n' "$actual_symphony_revision" "$symphony_revision" >&2
+  exit 1
+}
+[[ "$actual_controller_revision" == "$controller_revision" ]] || {
+  printf 'ERROR: controller revision is %s, expected %s.\n' "$actual_controller_revision" "$controller_revision" >&2
   exit 1
 }
 state=$(kubectl --context "$context" get --raw \

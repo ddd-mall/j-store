@@ -6,11 +6,15 @@
 
 ## 当前状态
 
-- 当前推进分支：`codex/agentic-cicd-kubernetes-level0`
+- 当前进度同步分支：`codex/agentic-cicd-progress-sync`
 - 初始基线：`origin/develop@daf184ab9bb3f3bf811ae2158de704df6762b2a8`
-- 当前可信基线：`origin/develop@73dd00fd64ab35649db58b8df96a5e1c8891d77b`
-- 当前阶段：迭代 3 — 在开发 Kubernetes 集群落地固定运行时 Level 0，随后进行真实只读 Agent 演练
-- 外部阻塞：ruleset 正反例演练、GitHub App 短期只读 token、付费模型 turn 和 disposable Issue 均尚未形成完整证据。
+- 当前可信基线：`origin/develop@beed6dad16bbaa28c884ddba6ee8753f8b68d7d8`
+- 当前阶段：迭代 3 — Kubernetes Level 0 已合并并部署；唯一 Symphony 运行路径、独立评审和真实只读 Agent 演练待完成
+- 远端事实：PR #27、#32 和 #40 已合并；Kubernetes Level 0 已进入 `develop`，开发集群中的单副本仅使用无权限哨兵 token，不代表真实 Agent 闭环完成。
+- 部署目标：专用 CI/CD 试点使用用户指定的开发 Kubernetes 集群；连接信息保留在仓库外。Level 0 namespace、ServiceAccount、PVC、Deployment 和内部 Service 已落地，后续镜像升级、Secret 注入和模型 turn 仍需按精确操作授权。
+- 验证环境：需要 Linux 交付证据时使用用户指定的远端 Linux 开发主机及其原生文件系统；WSL `/mnt/*` 不作为全量质量门禁目录。
+- 外部阻塞：I0-04 ruleset 正反例演练、Symphony 网络依赖安全升级、已暴露远程环境凭据轮换、disposable Issue 和 GitHub App 短期凭据均尚未形成完整证据。一次使用当前 Codex 登录的独立只读模型评审已经获得授权，但尚未对最新候选执行。
+- 分支收敛：旧 `codex/agentic-cicd-orchestration` 远端分支已在 PR #27 合并后删除；本地旧 head 与已合并 head、新 `develop` 均已分叉，只作为原型证据，不整体 merge、rebase 或 cherry-pick。
 
 ## 迭代 0：远端基线可用
 
@@ -78,6 +82,7 @@
 - [x] `I3-03` 运行聚焦测试并调用只读 Quality Gate，保留命令和退出码。
   - 证据：协议测试 12/12、完整门禁 spec-dev 28、governance 31、tooling 47 tests；Gradle 和许可证阶段全部 PASS。
 - [ ] `I3-04` 为固定 head SHA 启动独立 Product Steward/Evaluator 会话。
+  - 当前授权：允许使用当前 Codex 登录执行一次独立只读评审；必须在 I3-08 的最新候选 head 上执行，旧 head 的决定不能复用。
 - [x] `I3-05` findings 结构化并回流下一轮；新提交使旧 PASS 失效。
   - 证据：ReviewDecision schema、host-owned identity/SHA 校验、快照恢复测试和 exact-head PASS 查询。
 - [x] `I3-06` 验证相同根因第三次出现时进入 `agent:fused`。
@@ -85,10 +90,16 @@
 - [ ] `I3-07` 在 disposable Issue 上完成无远端写的端到端演练。
 - [ ] `I3-08` 将 Coordinator、workspace metadata、IterationPacket 和独立 Reviewer 决定接入唯一 Symphony 运行路径；不得建立第二个并行 Supervisor。
   - 依赖：I3-04 和 I3-07 必须通过该真实运行路径取得证据，组件单测不能替代运行闭环。
+  - 重新基线结论：旧本地原型通过 Symphony `after_run` hook 再启动独立 `codex app-server`，形成第二套模型生命周期，不满足本项，不能按完成迁移。
+  - [x] `I3-08A` 建立 host-side 可信阶段桥合同：首次实现不伪造 session，ReviewProposal 不含身份，Symphony TurnReceipt 绑定 exact-head ReviewDecision；见 `../changes/agentic-cicd-symphony-phase-bridge/`。
+  - [ ] `I3-08B` 为锁定 Symphony 源码增加最小 turn-receipt 适配，配置单 turn redispatch，并证明 hook 不启动第二个 App Server。
+    - 第一轮候选完成 exact develop bootstrap、host-owned snapshot、受限 ReviewProposal tool、turn receipt 补丁、双 revision/patch hash 构建合同和不可变 rollout 合同。
+    - 第二轮候选已补齐 validate/GateReceipt、动态 observer/implementer/reviewer sandbox、`max_turns: 1` 和 validate/complete 无模型短路；Level 0 `local_workspace_write=false` 保持不变，尚缺隔离 gate runner、完整 Symphony 构建及真实运行证据。
+  - [ ] `I3-08C` 通过同一路径完成 disposable Issue、独立只读评审、finding 返工和重启恢复证据。
 - [x] `I3-09` 增加固定 Symphony/Codex 运行时预检，不启动服务或模型 turn。
   - 证据：`scripts/check-agentic-cicd-runtime.py`、6 个聚焦测试，以及本机对锁定 Symphony 源码成功、Codex/Elixir 环境漂移失败的确定性报告。
 
-退出条件尚未满足：协议、身份分离、熔断机制和固定运行时预检已具备，但尚未接入真实 Symphony 运行闭环。I3-04、I3-07 和 I3-08 仍需完成；付费模型 turn 和 disposable GitHub Issue 需要后续明确授权。
+退出条件尚未满足：协议、身份分离、熔断机制和固定运行时预检已具备，但尚未接入真实 Symphony 运行闭环。I3-04、I3-07 和 I3-08 仍需完成；独立只读模型评审已有一次授权但尚未执行，创建 disposable GitHub Issue 仍需要对该外部写操作的明确授权。
 
 ## 迭代 4：唯一 Draft PR 与 CI/Review 闭环
 

@@ -2,6 +2,10 @@
   "repository": "openai/symphony",
   "implementation": "elixir",
   "commit": "8001b52e3062495a16e520e4ceaf8f9de868c4d0",
+  "patch": "deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
+  "patch_sha256": "ee236ca9570904ed39e58c2226e7430c7355d944dacca9486d410b737660bfa1",
+  "routing_patch": "deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
+  "routing_patch_sha256": "a6103e0c96bc7311053152d9c29bdc81daa14ab3f28dfee23c3f4a537c45824d",
   "source_url": "https://github.com/openai/symphony/tree/8001b52e3062495a16e520e4ceaf8f9de868c4d0",
   "reviewed_at": "2026-08-13",
   "required_ancestor_commits": [

@@ -8,8 +8,11 @@
 - 可以在临时 workspace 中形成计划和风险报告；
 - 不允许修改代码、提交、推送、创建/更新 PR、发送邮件、合并或发布；
 - `config/agentic-cicd/state-contract.json` 中的 capability flag 是当前能力权威事实。
+- 每个 Issue 最多启动一个只读 observer turn；可信 complete hook 随后把内部 phase 置为 complete，后续轮询在创建 App Server 前短路，不产生重复模型调用。
 
 能力升级必须通过受审 PR 更新合同、测试和本手册；仅扩大 GitHub token 权限不会自动扩大流程授权。
+
+仓库已包含未来阶段路由实现，但 `local_workspace_write=false`，因此 implementer workspace-write 分支不可达。开放该能力前还必须落地隔离 gate runner；Supervisor 和 after hook 禁止直接执行 workspace 中的验证脚本。
 
 ## 当前准入状态
 
@@ -57,7 +60,18 @@
 - 将 `JSTORE_SYMPHONY_REPOSITORY_URL` 设置为只读 clone URL。
 - 使用进程监管器保证单实例；不要同时启动两个指向同一仓库的 Supervisor。
 
-### Ubuntu / WSL 开发预检
+### 开发 Kubernetes 目标环境
+
+- 专用 CI/CD 试点优先部署到用户指定的开发 Kubernetes 集群；主机地址和运维身份保留在仓库外，不得把 SSH 私钥、kubeconfig 或登录材料提交到仓库或复制进 Pod。
+- 集群中已有的单节点项目 Pod 只证明基础调度环境存在，不证明 PR #40、固定 Symphony 运行时、权限边界或恢复流程已经验收。
+- Level 0 使用独立 namespace、单副本 Deployment、专用 ServiceAccount 和持久化状态目录；不得挂载生产 kubeconfig、生产数据库凭据或宿主机用户主目录。
+- ServiceAccount 默认不授予集群级管理、Secrets 写入、生产 namespace、应用 Deployment 修改或任意 `exec` 权限。读取 GitHub 所需的短期 token 通过受控 Secret 注入，并在进入 Codex 子进程前清除。
+- 实际执行 SSH 登录、namespace/ServiceAccount/PVC 变更、镜像导入、`kubectl apply`、扩缩容或 Secret 注入前，必须再次确认精确目标和操作；本节只记录选定的目标环境，不构成部署授权。
+- 部署验证按“固定镜像来源与摘要 → Level 0 预检 → 单 Pod 启动 → 只读 smoke → 重启恢复 → 缩容为 0”执行，并保留命令、退出码、Pod UID、镜像摘要和脱敏日志。
+
+### Linux 开发主机预检与验证
+
+需要 Linux 交付证据时，在用户指定的远端 Linux 开发主机及其原生文件系统上运行；连接信息保留在仓库外。不得把 WSL 对 Windows 工作区的 `/mnt/*` 挂载路径作为全量质量门禁执行目录，避免跨文件系统扫描和 Gradle I/O 限制进度。验证应从精确 `origin/develop` 创建临时副本，只复制候选 diff，不修改远端长期工作目录。
 
 部署前先运行只读预检。它只检查源码提交、安全祖先、工作树、Codex 精确版本和 Elixir 构建工具，不启动 Symphony、Codex thread 或模型 turn：
 
@@ -76,10 +90,11 @@ UV_CACHE_DIR="${TMPDIR:-/tmp}/j-store-uv-cache" \
 
 smoke 会核对 `config/agentic-cicd/codex-app-server.lock.json` 中的精确版本、用同一二进制生成 v2 JSON schema、校验 Implementer/Reviewer 请求并完成初始化握手。它不会创建 thread 或发送模型 turn。
 
-本机 Gradle 验证使用 Ubuntu zsh 配置中记录的 JDK 25：`JAVA_25=/usr/share/java/jdk-25.0.1`。运行服务或 CI 时应在受管环境中显式设置 `JAVA_HOME`，不要依赖交互 shell 的默认 JDK：
+Gradle 验证必须使用 JDK 25。运行服务或 CI 时在受管环境中从实际 `java` 路径显式设置 `JAVA_HOME`，不要依赖交互 shell 的默认 JDK：
 
 ```bash
-export JAVA_HOME=/usr/share/java/jdk-25.0.1
+test "$(java -version 2>&1 | head -n 1)" != ""
+export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
 export PATH="$JAVA_HOME/bin:$PATH"
 ./scripts/quality-gate.sh
 ```
@@ -138,13 +153,16 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 
 脚本在创建固定 Local PV 目录和导入 containerd 镜像时调用 `sudo`；目标主机未配置免密 sudo，操作者需要在交互终端完成认证。不要把 sudo 密码写入命令、环境变量、仓库或日志。
 
-部署脚本先确认 Symphony checkout 位于固定提交且工作树洁净，再将其作为 BuildKit named context 构建固定镜像；本次构建清空 Docker 客户端中可能遗留的代理参数并使用官方软件源，但不修改主机全局代理。随后脚本导入本机 containerd、只创建或更新 `agentic-cicd` 资源和专属 Local PV、执行 server-side dry-run、等待 rollout 并运行 smoke。它不会读取 Secret、访问 `jstore`/`postgresql` namespace 或修改数据库。
+部署脚本先确认 Symphony checkout 位于固定提交且工作树洁净，校验锁定的 phase-bridge patch SHA-256，并要求 j-store 控制器来源为完整且洁净的提交；随后以两个 revision 生成不可变镜像名。构建会清空 Docker 客户端中可能遗留的代理参数并使用官方软件源，但不修改主机全局代理。脚本导入本机 containerd、只创建或更新 `agentic-cicd` 资源和专属 Local PV、执行 server-side dry-run、等待新 Pod UID 并运行带运行时 revision 的 smoke。它不会读取 Secret、访问 `jstore`/`postgresql` namespace 或修改数据库。
 
 复查状态：
 
 ```bash
 ./scripts/agentic-cicd-kubernetes-smoke.sh \
-  --context kubernetes-admin@kubernetes
+  --context kubernetes-admin@kubernetes \
+  --image '<deploy 输出的不可变镜像名>' \
+  --symphony-revision 8001b52e3062495a16e520e4ceaf8f9de868c4d0 \
+  --controller-revision '<受审 j-store 完整提交 SHA>'
 
 kubectl --context kubernetes-admin@kubernetes \
   -n agentic-cicd port-forward service/symphony 4000:4000 \

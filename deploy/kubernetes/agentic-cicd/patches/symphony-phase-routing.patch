@@ -1,0 +1,242 @@
+diff --git a/elixir/lib/symphony_elixir/agentic_cicd.ex b/elixir/lib/symphony_elixir/agentic_cicd.ex
+new file mode 100644
+index 0000000..8df76c1
+--- /dev/null
++++ b/elixir/lib/symphony_elixir/agentic_cicd.ex
+@@ -0,0 +1,75 @@
++defmodule SymphonyElixir.AgenticCicd do
++  @moduledoc """
++  Reads j-store phase policy from the image-owned trusted controller.
++  """
++
++  @controller "/opt/jstore-agentic-controller/controller.py"
++  @allowed_roles ["observer", "implementer", "reviewer", "none"]
++  @allowed_thread_sandboxes ["read-only", "workspace-write"]
++
++  @spec phase_context(Path.t(), map(), String.t() | nil) :: {:ok, map()} | {:error, term()}
++  def phase_context(_workspace, _issue, worker_host) when is_binary(worker_host) do
++    {:error, :agentic_cicd_remote_worker_not_supported}
++  end
++
++  def phase_context(workspace, %{identifier: identifier}, nil)
++      when is_binary(workspace) and is_binary(identifier) do
++    case System.cmd(
++           "/usr/bin/python3",
++           [
++             @controller,
++             "phase-context",
++             "--issue",
++             identifier,
++             "--workspace",
++             workspace
++           ],
++           stderr_to_stdout: true
++         ) do
++      {output, 0} -> decode_context(output)
++      {output, status} -> {:error, {:agentic_cicd_phase_context_failed, status, output}}
++    end
++  end
++
++  def phase_context(_workspace, _issue, _worker_host), do: {:error, :invalid_agentic_cicd_issue}
++
++  defp decode_context(output) do
++    with {:ok, context} when is_map(context) <- Jason.decode(String.trim(output)),
++         :ok <- validate_context(context) do
++      {:ok, context}
++    else
++      {:error, reason} -> {:error, {:invalid_agentic_cicd_phase_context, reason}}
++      _ -> {:error, :invalid_agentic_cicd_phase_context}
++    end
++  end
++
++  defp validate_context(context) do
++    required = [
++      "phase",
++      "role",
++      "run_model",
++      "complete_turn",
++      "thread_sandbox",
++      "turn_sandbox_policy",
++      "head_sha"
++    ]
++
++    cond do
++      Enum.sort(Map.keys(context)) != Enum.sort(required) ->
++        {:error, :unexpected_fields}
++
++      context["role"] not in @allowed_roles ->
++        {:error, :invalid_role}
++
++      context["thread_sandbox"] not in @allowed_thread_sandboxes ->
++        {:error, :invalid_thread_sandbox}
++
++      not is_boolean(context["run_model"]) or not is_boolean(context["complete_turn"]) ->
++        {:error, :invalid_boolean}
++
++      not is_map(context["turn_sandbox_policy"]) ->
++        {:error, :invalid_turn_sandbox_policy}
++
++      not is_binary(context["head_sha"]) or
++          not String.match?(context["head_sha"], ~r/^[0-9a-f]{40}$/) ->
++        {:error, :invalid_head_sha}
++
++      true ->
++        :ok
++    end
++  end
++end
+diff --git a/elixir/lib/symphony_elixir/agent_runner.ex b/elixir/lib/symphony_elixir/agent_runner.ex
+index af31d94..dd4e9b7 100644
+--- a/elixir/lib/symphony_elixir/agent_runner.ex
++++ b/elixir/lib/symphony_elixir/agent_runner.ex
+@@ -6,7 +6,7 @@ defmodule SymphonyElixir.AgentRunner do
+ 
+   require Logger
+   alias SymphonyElixir.Codex.AppServer
+-  alias SymphonyElixir.{Config, PromptBuilder, Tracker, Workspace}
++  alias SymphonyElixir.{AgenticCicd, Config, PromptBuilder, Tracker, Workspace}
+   alias SymphonyElixir.Tracker.Issue
+@@ -50,8 +50,14 @@ defmodule SymphonyElixir.AgentRunner do
+             _ -> nil
+           end
+ 
+-        after_result =
+-          Workspace.run_after_run_hook(workspace, issue, worker_host, turn_receipt)
++        after_result =
++          case run_result do
++            {:skip_model, _phase_context} ->
++              :ok
++
++            _ ->
++              Workspace.run_after_run_hook(workspace, issue, worker_host, turn_receipt)
++          end
+ 
+         case {run_result, after_result} do
+@@ -59,6 +65,9 @@ defmodule SymphonyElixir.AgentRunner do
+           {{:ok, _receipt}, :ok} ->
+             :ok
+ 
++          {{:skip_model, _phase_context}, :ok} ->
++            :ok
++
+           {{:ok, _receipt}, {:error, reason}} ->
+             {:error, reason}
+@@ -102,11 +111,30 @@ defmodule SymphonyElixir.AgentRunner do
+   defp send_worker_runtime_info(_recipient, _issue, _worker_host, _workspace), do: :ok
+ 
+   defp run_codex_turns(workspace, issue, codex_update_recipient, opts, worker_host) do
++    with {:ok, phase_context} <- AgenticCicd.phase_context(workspace, issue, worker_host) do
++      case phase_context do
++        %{"run_model" => true} ->
++          run_codex_model(
++            workspace,
++            issue,
++            codex_update_recipient,
++            opts,
++            worker_host,
++            phase_context
++          )
++
++        %{"run_model" => false} ->
++          {:skip_model, phase_context}
++      end
++    end
++  end
++
++  defp run_codex_model(workspace, issue, codex_update_recipient, opts, worker_host, phase_context) do
+     max_turns = Keyword.get(opts, :max_turns, Config.settings!().agent.max_turns)
+     issue_state_fetcher = Keyword.get(opts, :issue_state_fetcher, &Tracker.fetch_issues_by_ids/1)
++    opts = Keyword.put(opts, :agentic_cicd_context, phase_context)
+ 
+-    with {:ok, session} <- AppServer.start_session(workspace, worker_host: worker_host) do
++    with {:ok, session} <-
++           AppServer.start_session(workspace,
++             worker_host: worker_host,
++             runtime_policy: phase_context
++           ) do
+       try do
+         do_run_codex_turns(session, workspace, issue, codex_update_recipient, opts, issue_state_fetcher, 1, max_turns)
+diff --git a/elixir/lib/symphony_elixir/codex/app_server.ex b/elixir/lib/symphony_elixir/codex/app_server.ex
+index 0c385b2..9d4fa3d 100644
+--- a/elixir/lib/symphony_elixir/codex/app_server.ex
++++ b/elixir/lib/symphony_elixir/codex/app_server.ex
+@@ -44,8 +44,10 @@ defmodule SymphonyElixir.Codex.AppServer do
+ 
+     with {:ok, expanded_workspace} <- validate_workspace_cwd(workspace, worker_host),
+          {:ok, port} <- start_port(expanded_workspace, worker_host, dynamic_tool_binding) do
+       metadata = port_metadata(port, worker_host)
++      runtime_policy = Keyword.get(opts, :runtime_policy)
+ 
+-      with {:ok, session_policies} <- session_policies(expanded_workspace, worker_host),
++      with {:ok, base_policies} <- session_policies(expanded_workspace, worker_host),
++           {:ok, session_policies} <- apply_runtime_policy(base_policies, runtime_policy),
+            {:ok, thread_id} <-
+              do_start_session(port, expanded_workspace, session_policies, dynamic_tool_binding) do
+@@ -305,6 +307,24 @@ defmodule SymphonyElixir.Codex.AppServer do
+     Config.codex_runtime_settings(workspace, remote: true)
+   end
+ 
++  defp apply_runtime_policy(policies, nil), do: {:ok, policies}
++
++  defp apply_runtime_policy(
++         policies,
++         %{
++           "thread_sandbox" => thread_sandbox,
++           "turn_sandbox_policy" => turn_sandbox_policy
++         }
++       )
++       when thread_sandbox in ["read-only", "workspace-write"] and
++              is_map(turn_sandbox_policy) do
++    {:ok,
++     %{
++       policies
++       | thread_sandbox: thread_sandbox,
++         turn_sandbox_policy: turn_sandbox_policy
++     }}
++  end
++
++  defp apply_runtime_policy(_policies, _runtime_policy),
++    do: {:error, :invalid_agentic_cicd_runtime_policy}
++
+   defp do_start_session(port, workspace, session_policies, dynamic_tool_binding) do
+diff --git a/elixir/lib/symphony_elixir/prompt_builder.ex b/elixir/lib/symphony_elixir/prompt_builder.ex
+index 2b19870..b78fd07 100644
+--- a/elixir/lib/symphony_elixir/prompt_builder.ex
++++ b/elixir/lib/symphony_elixir/prompt_builder.ex
+@@ -17,6 +17,7 @@ defmodule SymphonyElixir.PromptBuilder do
+       %{
+         "attempt" => Keyword.get(opts, :attempt),
++        "agentic_cicd" => Keyword.get(opts, :agentic_cicd_context, %{}),
+         "issue" => issue |> Map.from_struct() |> to_solid_map()
+       },
+diff --git a/elixir/lib/symphony_elixir/workspace.ex b/elixir/lib/symphony_elixir/workspace.ex
+index 264cf9b..4fcda21 100644
+--- a/elixir/lib/symphony_elixir/workspace.ex
++++ b/elixir/lib/symphony_elixir/workspace.ex
+@@ -243,7 +243,13 @@ defmodule SymphonyElixir.Workspace do
+         :ok
+ 
+       command ->
+-        run_hook(command, workspace, issue_context, "after_run", worker_host, receipt_environment(turn_receipt))
++        run_hook(
++          command,
++          workspace,
++          issue_context,
++          "after_run",
++          worker_host,
++          hook_environment(issue_context, turn_receipt)
++        )
+     end
+   end
+@@ -447,6 +453,13 @@ defmodule SymphonyElixir.Workspace do
+     {:error, {:workspace_hook_failed, hook_name, status, output}}
+   end
+ 
++  defp hook_environment(issue_context, receipt) do
++    [
++      {"JSTORE_ISSUE_IDENTIFIER", issue_context.issue_identifier}
++      | receipt_environment(receipt)
++    ]
++  end
++
+   defp receipt_environment(nil), do: []

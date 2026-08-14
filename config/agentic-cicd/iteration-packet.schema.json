@@ -80,7 +80,7 @@
       }
     },
     "implementer_session_id": {
-      "type": "string",
+      "type": ["string", "null"],
       "minLength": 1
     }
   },

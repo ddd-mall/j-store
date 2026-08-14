@@ -164,3 +164,142 @@
 | `./scripts/quality-gate.sh` | PASS；spec-dev 28、governance 37、tooling 69 tests，Spotless、50 模块 Licensee、189 个 Gradle 回归任务及 53 个 JAR license verification 全部完成 |
 
 预检失败只说明当前主机不能启动受支持的试点运行时，不影响仓库内纯合同测试；不得通过放宽精确版本或跳过源码构建来伪造通过。预检不会启动 Symphony、App Server thread 或模型 turn，也不会执行 GitHub 写入。
+
+## 2026-08-14：同步最新 develop 后重新基线
+
+### 同步与远端证据
+
+- 执行 `git fetch --prune origin develop` 后，本地 `develop` 与 `origin/develop` 均为 `f2c2521d7d43c657b1cf1cc9d0aa2f74a29a0f36`。
+- 该 SHA 的 `quality`、`static-analysis`、`dependency-vulnerability-scan`、`dependency-license-audit`、`secret-scan`、`qodana` 和 `Qodana for JVM` 七项检查均为 success。
+- PR #27 `feat(agent): establish governed agentic ci/cd orchestration` 已合并，merge commit 为 `62b31dcc3391f965c6a9bfe39d9a18eca59ca5aa`，原远端任务分支已删除。
+- PR #32 `ci(agent): add pinned runtime preflight` 已合并，merge commit 为 `5e790c552206c633e443be74fc03cdfdae764e99`；I3-09 已进入可信基线。
+- PR #40 `feat(agentic-cicd): add Kubernetes Level 0 runtime` 仍为 Draft。当前 head `b134a9a1a8b04b35a4f2b0ca2210144161628542` 的八项 PR 检查全绿且 GitHub 判定可合并，但状态为 `BEHIND`，必须同步最新 `develop` 并重新验证后才能作为集成证据。
+
+### 漂移发现
+
+1. 计划头部仍引用已被最新 `develop` 包含且无独有提交的 `codex/agentic-cicd-continuation`，不能继续作为推进基线。
+2. 本地旧 `codex/agentic-cicd-orchestration@bfc6535f0fff9b49e80e7aca3c0ea377fd97b5ba` 不包含 PR #27 的最终 head，且相对最新 `develop` 为 5/37 提交分叉；整体迁移会带回陈旧进度和覆盖上游运行时预检。
+3. 旧原型的 Symphony `after_run` hook 会启动 `run-agentic-cicd-task.py`，后者再创建独立 `codex app-server`。该结构形成第二套模型生命周期，与 I3-08 的唯一 Symphony Supervisor 约束冲突。
+4. 一次独立只读模型评审已获授权，但授权本身不是完成证据；评审必须绑定重新实现 I3-08 后的精确 head，旧候选的评审结果不能批准新候选。
+
+### 更新后的进度判定
+
+- 保持完成：I0-01 至 I0-03、I1、I2、I3-01 至 I3-03、I3-05、I3-06 和 I3-09。
+- 保持未完成：I0-04、I3-04、I3-07、I3-08，以及 I4 至 I6 的所有退出条件。
+- Kubernetes Level 0 仅为 PR #40 候选能力，不在当前 `develop` 上提前标记完成。
+- 旧原型中的 exact-head 校验、凭据隔离、禁止 force push、幂等键和熔断测试可以作为后续实现参考；不得直接迁移嵌套 App Server 入口或旧状态文档。
+
+### 下一验收切片
+
+1. 先让 PR #40 同步最新 `develop`，重新运行全部 required checks、独立审查和 Symphony 依赖风险复核。
+2. 从届时最新 `origin/develop` 创建新的 I3-08 实施分支，以 Symphony 为唯一 Supervisor 接入 workspace metadata、IterationPacket、确定性门禁和独立 Reviewer 决定。
+3. 对该候选执行已经授权的一次独立只读模型评审；只有 exact-head PASS 才能进入 disposable Issue 演练。
+4. disposable Issue 属于 GitHub 外部写操作，执行 I3-07 前单独确认目标、标签和清理方式；在 I0-04、I3-04、I3-07、I3-08 全部形成证据前不开放 I4 的自动 push/PR 能力。
+
+### 专用 CI/CD 部署目标补充
+
+- 用户指定：如需把 Symphony 集成到专用 CI/CD 主机，使用指定的开发 Kubernetes 集群；连接信息保留在仓库外。该环境已有单节点项目 Pod，可作为 Level 0 部署与恢复演练的目标。
+- 该决定关闭“部署平台选择”问题，但不自动关闭 PR #40 基线落后、固定依赖风险、I3-08 单一 Supervisor 接线或真实 E2E 证据缺口。
+- 当前只记录目标环境。SSH 登录、Kubernetes 写入、ServiceAccount/RBAC、镜像导入、Secret 注入和模型 turn 仍分别受最小权限与精确授权约束。
+- 下一次部署候选应保持单副本、独立 namespace、非生产凭据和可缩容为 0 的恢复边界；现有项目 Pod 不复用为具备额外权限的通用 Agent Pod。
+
+### 远端 Linux 全量验证证据
+
+- 按用户指定的验证边界，停止在 WSL `/mnt/c` 上运行且使用错误 JDK 26 的慢速门禁；该次运行没有完成，不计入通过证据。
+- 在指定 Linux 开发主机的原生 `/tmp` 文件系统创建临时 detached 副本，基线精确为 `origin/develop@f2c2521d7d43c657b1cf1cc9d0aa2f74a29a0f36`，只复制本次四个文档变更；远端长期仓库保持干净，未操作 Kubernetes 资源。
+- 显式使用 JDK `25.0.3` 执行 `./scripts/quality-gate.sh`，最终退出码为 0。
+- 结果：spec-dev 28、governance 39、tooling 69 tests 全部 PASS；source ownership/Spotless、54 个 runtime classpath 依赖解析、54 个模块 Licensee、Gradle 全量回归、57 个 JAR license artifact 验证全部 PASS。
+- 验证日志仅保存在远端临时副本，不包含 GitHub、SSH、Kubernetes 或模型凭据；临时副本不作为部署状态或长期审计存储。
+
+## 2026-08-14：I3-08A Symphony 可信阶段桥
+
+### 设计结论
+
+- 锁定 Symphony 的 `AgentRunner` 在正常 invocation 结束、Issue 仍 active/routable 时由同一 Orchestrator 安排 continuation；将 `agent.max_turns` 收敛为 1 后，后续 invocation 会创建新的 App Server session，不需要第二个 Supervisor。
+- 当前固定源码不会把完成 turn 的 `session_id/thread_id/turn_id` 传给 workspace hook。旧原型从 `after_run` 再启动 App Server 会破坏唯一生命周期，因此下一接线点确定为“最小可信 turn-receipt 适配”，而不是迁移旧入口。
+- 模型输出改为不含运行时身份的 `ReviewProposal`；host-side `SymphonyPhaseBridge` 使用可信 `TurnReceipt`、已保存 implementer session 和 exact head 生成 `ReviewDecision`。
+
+### 本轮实现
+
+- 新增 `ReviewProposal` schema 与 `TurnReceipt`；首次实现 IterationPacket 允许 `implementer_session_id=null`，评审入口则强制已有可信 implementer session。
+- TaskSnapshot 新增 `iteration_phase`、`implementer_session_id`、`pending_review_findings` 和 `last_turn_receipt`，继续使用同目录原子替换恢复。
+- 阶段桥覆盖 implement → review → complete、gate 失败留在实现、FAIL finding 回流、新 head 失效、错误 role/head 和同 session 拒绝。
+- 新增变更规格 `docs/spec/changes/agentic-cicd-symphony-phase-bridge/`，将剩余 I3-08 拆为固定源码适配 `I3-08B` 与真实演练 `I3-08C`；I3-04、I3-07、I3-08 保持未完成。
+
+### 验证证据
+
+| 环境与命令 | 结果 |
+|---|---|
+| Windows 聚焦：合同检查及 protocol/phase bridge/coordinator/governance | PASS，47 tests |
+| Windows tooling discovery | PASS，79 tests |
+| Windows governance discovery | 39 PASS、1 FAIL；失败由忽略目录 `build/w/opf` 中另一个完整 worktree 被递归扫描引起，候选未修改 Gradle 文件；不作为 Linux 交付门禁结论 |
+| 远端 Linux 聚焦：`git diff --check`、合同检查及四组相关测试 | PASS，48 tests |
+| 远端 Linux JDK 25：`./scripts/quality-gate.sh` | PASS，spec-dev 28、governance 40、tooling 79 tests；Spotless、54 个 runtime classpaths、54 个模块 Licensee、Gradle regression 和 57 个 JAR license verification 全部通过 |
+
+远端候选副本基于 `origin/develop@f2c2521d7d43c657b1cf1cc9d0aa2f74a29a0f36`，位于原生 Linux 临时文件系统；未执行 Kubernetes、GitHub 或模型写操作。
+
+### 安全事件与处置要求
+
+一次用于后台启动远程门禁的 PowerShell/SSH 引号错误把远程登录进程环境输出到本任务工具日志，其中包含敏感凭据。仓库文件和上述验证候选未写入这些值，本文也不记录任何值；但日志暴露已经发生，不能仅靠隐藏后续输出消除风险。
+
+在继续部署、创建 disposable Issue 或执行模型 turn 前，必须由凭据所有者撤销/轮换该主机环境中的受影响 provider 与 GitHub 凭据，并从交互 shell 初始化文件迁移到受控的短期 Secret 注入。该处置属于外部密钥操作，当前未擅自执行。
+
+## 2026-08-14：I3-08B 第一轮修复
+
+### 已实现
+
+- 新 workspace 不再依赖 GitHub 默认分支：可信控制器执行 no-checkout clone、强制 fetch `origin/develop`、解析完整 SHA，并从该 SHA 创建 `codex/gh-<number>-task`。
+- bootstrap 同时在 PVC 的 host-owned state root 原子初始化 TaskSnapshot；workspace metadata 被写入 `.git/info/exclude`，不会污染候选提交。
+- 新增受限 ReviewProposal 接收器：只在 review 阶段接受符合 schema 且匹配当前 head 的 payload，拒绝模型伪造 session/thread/turn 身份。
+- 固定 Symphony 补丁把本次 App Server 的 session/thread/turn ID 交给 after hook，并为 GitHub adapter 增加 `submit_review_proposal` host tool；补丁不启动 `codex` 或第二个 App Server。
+- 镜像构建同时锁定 Symphony commit、j-store controller commit 和补丁 SHA-256；WORKFLOW ConfigMap 恢复内容 hash，部署脚本要求不可变镜像名并检查新 Pod UID。
+- Docker build context 使用默认拒绝 allowlist，只包含受信控制器包、控制器入口和锁定补丁，不携带 `.git`、本地缓存或被忽略文件。
+
+### 验证证据
+
+| 检查 | 结果 |
+|---|---|
+| Windows 相关协议、phase bridge、coordinator、runtime controller、Kubernetes、governance | PASS，64 tests |
+| 远端锁定 Symphony patch apply 与 Elixir format | PASS |
+| 远端无依赖 `Code.compile_file` 检查 | PASS；仅报告未加载依赖模块警告 |
+| 指定 Linux 主机原生临时 worktree `./scripts/quality-gate.sh` | PASS；spec-dev 28、governance 40、tooling 95 tests，Spotless、54 个 runtime classpath、54 个 Licensee 模块、Gradle regression 和 57 个 JAR license verification 全部通过 |
+
+### 残余门禁
+
+- 固定 Elixir builder 镜像从 Docker Hub 拉取超时；使用旧 runtime 镜像补装 build-essential 时 apt 也超时，因此完整 Symphony `mix compile/test` 尚无通过证据。
+- 依赖解析再次报告 Bandit、Mint、Phoenix、Plug、Req 等多项高危公告；PB-11 和真实 token 门禁继续阻塞。
+- 当前 WORKFLOW 仍是 Level 0 `max_turns: 12` + read-only。只有动态 implement/review sandbox、阶段输入/完成 hook 和确定性 gate 接通后，才能改为 `max_turns: 1`；提前修改会造成无阶段终止条件的付费重复调度。
+- 未获得本轮 Kubernetes rollout、Secret、GitHub Issue 或模型 turn 的精确写授权，因此没有改动现有 Pod，也未执行真实评审。
+
+## 2026-08-14：I3-08B 第二轮动态阶段修复
+
+### 设计修正
+
+- 发现 Implementer 后由 Supervisor 直接运行 workspace `quality-gate.sh` 会执行候选可修改代码并继承 host 环境，形成凭据和权限边界风险。
+- 状态机增加 `validate`：Implementer turn 只绑定可信 receipt 并冻结当前 head；独立隔离 runner 产生 exact-head GateReceipt 后才进入 review。
+- GateReceipt FAIL 携带确定性 finding 回到 implement；PASS 才开放独立 reviewer。重复 gate ID 和旧 head 均被拒绝。
+
+### 本轮实现
+
+- 新增 phase-context、complete-turn 和 record-gate 控制器入口；所有 hook 固定使用 `/usr/bin/python3` 和镜像内只读控制器。
+- 固定 Symphony routing patch 在启动 App Server 前读取 host-owned phase context，动态选择 observer/read-only、implementer/workspace-write 或 reviewer/read-only；validate/complete 直接短路，不创建模型 session。
+- WORKFLOW 与状态合同收敛为 `max_turns: 1`。Level 0 observer 完成后进入内部 complete，避免 active Issue 重复产生付费 turn。
+- `local_workspace_write=false` 被写入能力合同并随控制器构建进镜像；未来实现路径存在但当前不可达。
+- phase bridge 与 routing 两个补丁分别使用 SHA-256 锁定，Docker 和部署脚本按顺序检查并应用。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| 本地 protocol/phase bridge/coordinator/runtime controller/Kubernetes/governance | PASS，70 tests |
+| 锁定 Symphony 两段 patch 顺序 apply | PASS |
+| patched Elixir format | PASS |
+| patched Elixir 独立模块编译 | PASS；仅有未加载项目依赖的预期 warning |
+| 指定 Linux 主机原生临时 worktree `./scripts/quality-gate.sh` | PASS；spec-dev 28、governance 40、tooling 101 tests，Spotless、54 个 runtime classpath、54 个 Licensee 模块、Gradle regression 和 57 个 JAR license verification 全部通过 |
+
+### 剩余阻塞
+
+- 隔离 gate runner 尚未实现；因此不能把 `local_workspace_write` 改为 true，也不能执行真实 Implementer 修改流程。
+- 固定 Symphony 依赖仍含多项高危公告，完整 `mix compile/test` 和供应链升级尚未完成。
+- routing patch 尚未通过新镜像在 Kubernetes 上进行真实 observer/validate/reviewer invocation；部署、Secret 和模型调用仍需精确授权。
+- pre-commit 候选如何获得稳定、可复核的 Git tree identity 仍需下一 delta；当前 `head_sha` 只适用于未修改的 Level 0 或已形成 Git commit 的候选。

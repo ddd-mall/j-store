@@ -45,6 +45,10 @@ class TaskSnapshot:
     consumed_idempotency_keys: set[str] = field(default_factory=set)
     review_decisions: dict[str, dict[str, Any]] = field(default_factory=dict)
     blocked_reason: str | None = None
+    iteration_phase: str = "implement"
+    implementer_session_id: str | None = None
+    pending_review_findings: list[dict[str, Any]] = field(default_factory=list)
+    last_turn_receipt: dict[str, str] | None = None
 
     def consume_idempotency_key(self, key: str) -> bool:
         normalized = key.strip()
@@ -88,6 +92,14 @@ class TaskSnapshot:
             str(head_sha): dict(decision)
             for head_sha, decision in data.get("review_decisions", {}).items()
         }
+        data["pending_review_findings"] = [
+            dict(finding) for finding in data.get("pending_review_findings", [])
+        ]
+        if data.get("last_turn_receipt") is not None:
+            data["last_turn_receipt"] = {
+                str(key): str(value)
+                for key, value in data["last_turn_receipt"].items()
+            }
         return cls(**data)
 
 
