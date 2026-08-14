@@ -55,9 +55,13 @@ class MicrometerOutboxMonitor(
     private val operationalHealth: OutboxOperationalHealth,
     private val schedulerState: SchedulerExecutionState,
     configuredTransportIds: Set<String> = emptySet(),
+    private val schedulerFailureThreshold: Int = 3,
 ) : OutboxMonitor {
 
     init {
+        require(schedulerFailureThreshold > 0) {
+            "schedulerFailureThreshold must be greater than 0"
+        }
         val transportIds =
             (configuredTransportIds + operationalHealth.snapshot().transports.keys).sorted()
         OutboxEntryStatus.entries.forEach { status ->
@@ -101,6 +105,13 @@ class MicrometerOutboxMonitor(
         registerAlertGauge("lag", "all") { it.lagAlert }
         registerAlertGauge("expired_lock", "all") { it.expiredLockAlert }
         registerAlertGauge("dead_letter", "all") { it.deadLetterAlert }
+        meterRegistry.gauge(
+            "jstore.outbox.alert",
+            listOf(Tag.of("reason", "scheduler_failure"), Tag.of("transportId", "all")),
+            schedulerState,
+        ) {
+            if (it.snapshot().consecutiveFailures >= schedulerFailureThreshold) 1.0 else 0.0
+        }
         transportIds.forEach { transportId ->
             meterRegistry.gauge(
                 "jstore.outbox.oldest_ready.lag",

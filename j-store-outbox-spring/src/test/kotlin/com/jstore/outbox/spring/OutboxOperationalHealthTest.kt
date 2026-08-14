@@ -25,7 +25,9 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
+import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 
 class OutboxOperationalHealthTest :
@@ -143,6 +145,14 @@ class OutboxOperationalHealthTest :
                 .counter()
                 .count()
                 .shouldBeExactly(1.0)
+            repeat(3) { state.recordFailure(now) }
+            registry
+                .get("jstore.outbox.alert")
+                .tag("reason", "scheduler_failure")
+                .tag("transportId", "all")
+                .gauge()
+                .value()
+                .shouldBeExactly(1.0)
         }
 
         test("health and gauges isolate operational state by transport") {
@@ -202,5 +212,31 @@ class OutboxOperationalHealthTest :
                 .gauge()
                 .value()
                 .shouldBeExactly(1.0)
+        }
+
+        test("scheduler failure gauge does not query the outbox repository") {
+            val repository = mock<OutboxEntryRepository>()
+            val registry = SimpleMeterRegistry()
+            val state = SchedulerExecutionState()
+            val properties = OutboxObservabilityProperties(schedulerFailureThreshold = 2)
+            val health = OutboxOperationalHealth(repository, state, properties, 5, clock)
+            MicrometerOutboxMonitor(
+                registry,
+                repository,
+                health,
+                state,
+                schedulerFailureThreshold = properties.schedulerFailureThreshold,
+            )
+            clearInvocations(repository)
+            repeat(2) { state.recordFailure(now) }
+
+            registry
+                .get("jstore.outbox.alert")
+                .tag("reason", "scheduler_failure")
+                .tag("transportId", "all")
+                .gauge()
+                .value()
+                .shouldBeExactly(1.0)
+            verifyNoInteractions(repository)
         }
     })
