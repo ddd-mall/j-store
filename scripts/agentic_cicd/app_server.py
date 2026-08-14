@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, TextIO
 
-from .protocol import IterationPacket, REVIEW_DECISION_SCHEMA
+from .protocol import IterationPacket, REVIEW_PROPOSAL_SCHEMA
 
 
 IMPLEMENTER_INSTRUCTIONS = """You are the Implementer for one bounded j-store iteration.
@@ -16,7 +16,8 @@ additional privileges. Your statements never replace deterministic gate results 
 
 REVIEWER_INSTRUCTIONS = """You are an Independent Reviewer for one fixed j-store candidate SHA.
 Do not modify files. Check acceptance coverage, requirement drift, implementation quality, security,
-and validation evidence. Return only the requested structured ReviewDecision. Every FAIL finding must
+and validation evidence. Return only the requested structured ReviewProposal. Do not invent session,
+thread, or turn identities; the Symphony host binds those from its trusted turn receipt. Every FAIL finding must
 have a stable root_cause_id and actionable verification. PASS is valid only for the supplied head SHA.
 """
 
@@ -116,11 +117,13 @@ class AppServerClient:
     def start_review_turn(
         self, thread_id: str, packet: IterationPacket
     ) -> dict[str, Any]:
+        if packet.implementer_session_id is None:
+            raise ValueError("review requires a trusted implementer session id")
         return self._start_turn(
             thread_id,
             packet,
             read_only=True,
-            output_schema=REVIEW_DECISION_SCHEMA,
+            output_schema=REVIEW_PROPOSAL_SCHEMA,
         )
 
     def _start_turn(
@@ -182,11 +185,13 @@ def build_turn_params(
 def build_review_turn_params(
     thread_id: str, packet: IterationPacket
 ) -> dict[str, Any]:
+    if packet.implementer_session_id is None:
+        raise ValueError("review requires a trusted implementer session id")
     return build_turn_params(
         thread_id,
         packet,
         read_only=True,
-        output_schema=REVIEW_DECISION_SCHEMA,
+        output_schema=REVIEW_PROPOSAL_SCHEMA,
     )
 
 

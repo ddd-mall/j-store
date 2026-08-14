@@ -14,6 +14,9 @@ SYMPHONY_LOCK = REPO_ROOT / "config" / "agentic-cicd" / "symphony.lock.json"
 WORKFLOW = REPO_ROOT / "WORKFLOW.md"
 ISSUE_FORM = REPO_ROOT / ".github" / "ISSUE_TEMPLATE" / "agent-goal.yml"
 RUNBOOK = REPO_ROOT / "docs" / "operations" / "agentic-cicd-runbook.md"
+REVIEW_PROPOSAL = (
+    REPO_ROOT / "config" / "agentic-cicd" / "review-proposal.schema.json"
+)
 
 
 class AgenticCicdContractTest(unittest.TestCase):
@@ -41,6 +44,7 @@ class AgenticCicdContractTest(unittest.TestCase):
         self.assertEqual(1, contract["limits"]["max_concurrent_agents"])
         self.assertFalse(contract["capabilities"]["auto_merge"])
         self.assertFalse(contract["capabilities"]["auto_release"])
+        self.assertFalse(contract["capabilities"]["local_workspace_write"])
         self.assertTrue(all(value > 0 for value in contract["limits"].values()))
 
         known_states = set(labels)
@@ -86,7 +90,7 @@ class AgenticCicdContractTest(unittest.TestCase):
             "token: $JSTORE_SYMPHONY_GITHUB_TOKEN",
             "- agent:queued",
             "max_concurrent_agents: 1",
-            "max_turns: 12",
+            "max_turns: 1",
             "thread_sandbox: read-only",
             "sandbox_approval: true",
             "rules: true",
@@ -120,6 +124,16 @@ class AgenticCicdContractTest(unittest.TestCase):
         self.assertIn("scripts/check-agentic-cicd-runtime.py", governance)
         self.assertIn("check-agentic-cicd-runtime.py", runbook)
         self.assertIn("JSTORE_SYMPHONY_SOURCE", runbook)
+
+    def test_model_review_output_cannot_claim_trusted_runtime_identity(self) -> None:
+        proposal = json.loads(REVIEW_PROPOSAL.read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            {"verdict", "head_sha", "reviewer_role", "findings"},
+            set(proposal["required"]),
+        )
+        self.assertNotIn("reviewer_session_id", proposal["properties"])
+        self.assertNotIn("implementer_session_id", proposal["properties"])
 
     def test_branch_examples_follow_existing_lowercase_branch_policy(self) -> None:
         artifacts = [

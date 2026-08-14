@@ -13,7 +13,6 @@ configMapGenerator:
     files:
       - WORKFLOW.md
 generatorOptions:
-  disableNameSuffixHash: true
   labels:
     app.kubernetes.io/name: symphony
     app.kubernetes.io/part-of: j-store-agentic-cicd
