@@ -91,6 +91,9 @@ jobs:
           --format json
           --output-file osv-results.json
 
+      - name: Set up attestation-capable Buildx builder
+        uses: docker/setup-buildx-action@v4
+
       - name: Build attested OCI archive for container security scanning
         env:
           BUILDX_METADATA_PROVENANCE: max

@@ -482,13 +482,27 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
         self.assertIn("without tag or digest", tagged_repository.stderr)
 
     def test_security_workflow_scans_an_attested_oci_archive(self) -> None:
-        workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "security.yml").read_text(
-            encoding="utf-8"
+        workflow_text = (
+            REPOSITORY_ROOT / ".github" / "workflows" / "security.yml"
+        ).read_text(encoding="utf-8")
+        workflow = yaml.safe_load(workflow_text)
+        steps = workflow["jobs"]["dependency-vulnerability-scan"]["steps"]
+        buildx_setup_index = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("uses") == "docker/setup-buildx-action@v4"
         )
-        self.assertIn("--output type=oci,dest=j-store-security.tar", workflow)
-        self.assertIn("BUILDX_METADATA_PROVENANCE: max", workflow)
-        self.assertIn("scan image --archive", workflow)
-        self.assertNotIn("--load", workflow)
+        attested_build_index = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("name")
+            == "Build attested OCI archive for container security scanning"
+        )
+        self.assertLess(buildx_setup_index, attested_build_index)
+        self.assertIn("--output type=oci,dest=j-store-security.tar", workflow_text)
+        self.assertIn("BUILDX_METADATA_PROVENANCE: max", workflow_text)
+        self.assertIn("scan image --archive", workflow_text)
+        self.assertNotIn("--load", workflow_text)
 
 
 if __name__ == "__main__":
