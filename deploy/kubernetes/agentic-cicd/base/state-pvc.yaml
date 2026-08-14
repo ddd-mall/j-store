@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: symphony-state
+  namespace: agentic-cicd
+spec:
+  storageClassName: ""
+  volumeName: agentic-cicd-symphony-state
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 40Gi
