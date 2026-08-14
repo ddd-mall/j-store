@@ -498,6 +498,12 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
             if step.get("name")
             == "Build attested OCI archive for container security scanning"
         )
+        archive_conversion_index = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("name")
+            == "Convert attested OCI archive for OSV Scanner"
+        )
         container_scan = next(
             step
             for step in steps
@@ -509,13 +515,29 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
         self.assertIn(
             "--output type=oci,dest=j-store-security.tar", attested_build["run"]
         )
-        self.assertIn(
-            "--output type=docker,dest=j-store-security-docker.tar",
-            attested_build["run"],
+        self.assertNotIn("type=docker", attested_build["run"])
+        archive_conversion = steps[archive_conversion_index]
+        self.assertLess(attested_build_index, archive_conversion_index)
+        self.assertLess(archive_conversion_index, steps.index(container_scan))
+        self.assertRegex(
+            archive_conversion["env"]["SKOPEO_IMAGE"],
+            r"^quay\.io/skopeo/stable@sha256:[0-9a-f]{64}$",
         )
+        self.assertIn(
+            "oci-archive:/work/j-store-security.tar",
+            archive_conversion["run"],
+        )
+        self.assertIn(
+            "docker-archive:/output/j-store-security-docker.tar",
+            archive_conversion["run"],
+        )
+        self.assertIn('--network none', archive_conversion["run"])
+        self.assertIn('${GITHUB_WORKSPACE}:/work:ro', archive_conversion["run"])
+        self.assertIn('${RUNNER_TEMP}:/output', archive_conversion["run"])
         self.assertIn("BUILDX_METADATA_PROVENANCE: max", workflow_text)
         self.assertIn(
-            "scan image --archive j-store-security-docker.tar", container_scan["run"]
+            'scan image --archive "$RUNNER_TEMP/j-store-security-docker.tar"',
+            container_scan["run"],
         )
         self.assertNotIn("--load", workflow_text)
 

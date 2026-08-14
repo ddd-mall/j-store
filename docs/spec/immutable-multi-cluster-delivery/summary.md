@@ -12,14 +12,15 @@
   NetworkPolicy；development 保留显式 `local` 开发适配器，PVC/JAR 交付路径已经移除。
 - canary/production 通过容器显式环境变量关闭启动时 Flyway，数据库迁移必须走独立审批；
   目标 schema 强制高风险环境审批并只保留无 tag、无凭据的完整 repository。
-- CI 安全门禁通过一次 BuildKit 构建同时导出带最大 provenance/SBOM attestation 的 OCI
-  archive 和 Docker 格式扫描 archive，并用固定版本 OSV Scanner 扫描后者的最终容器包；
+- CI 安全门禁通过一次 BuildKit 构建导出带最大 provenance/SBOM attestation 的 OCI
+  archive，再由 digest 固定的 Skopeo 将目标平台镜像转换为 Docker 格式扫描 archive，并用
+  固定版本 OSV Scanner 扫描后者的最终容器包；转换只改变归档格式，不重新构建镜像；
   Corretto 25 基础镜像已固定到 OCI image-index digest。
 
 ## 验证证据
 
-- `python3 -m unittest tests.tooling.test_immutable_multi_cluster_delivery tests.tooling.test_kubernetes_application_deployment`：20 项通过。
-- `python3 -m unittest discover -s tests/tooling -p 'test_*.py'`：113 项通过。
+- `python3 -m unittest tests.tooling.test_immutable_multi_cluster_delivery tests.tooling.test_kubernetes_application_deployment`：21 项通过。
+- `python3 -m unittest discover -s tests/tooling -p 'test_*.py'`：114 项通过。
 - `python3 -m unittest discover -s tests/governance -p 'test_*.py'`：43 项通过。
 - `python3 -m unittest discover -s tests/skills/spec-dev -p 'test_*.py'`：28 项通过。
 - 四个环境均通过 `render-kubernetes-application.sh` 使用同一测试 digest 渲染。
@@ -38,4 +39,5 @@ schema 版本、配置版本和结果；
 
 本机执行与 CI 相同的 attested OCI archive 构建时，Docker daemon 拉取
 `docker/buildkit-syft-scanner:stable-1` 超时，未生成 archive，因此 OSV archive 扫描也未在
-本机实跑。普通固定 digest 镜像构建已通过；attestation 与容器扫描仍必须以联网 CI 结果为准。
+本机实跑。digest 固定的 Skopeo 已用本机生成的 OCI archive 完成 Docker archive 转换，且
+产物包含 OSV 所需的 `manifest.json`；完整 attestation 与容器扫描仍必须以联网 CI 结果为准。
