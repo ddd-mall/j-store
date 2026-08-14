@@ -17,6 +17,7 @@ dependencies {
     implementation(project(":j-store-messaging-local-spring"))
     implementation(libs.micrometer.core)
     implementation(libs.spring.boot.core)
+    compileOnly(libs.spring.boot.starter.actuator)
 
     testImplementation(kotlin("test"))
     testImplementation(libs.kotest.runner.junit5)
@@ -27,6 +28,7 @@ dependencies {
     testImplementation(libs.mockito)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.starter.actuator)
     testImplementation(libs.embedded.postgres)
     testImplementation(project(":j-store-order-domain"))
     testImplementation(project(":j-store-integration-contracts"))

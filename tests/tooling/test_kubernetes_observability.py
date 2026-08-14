@@ -152,8 +152,33 @@ class KubernetesObservabilityManifestTest(unittest.TestCase):
             "JStoreAlloyWriteRetries",
             "JStoreLokiUnavailable",
             "JStoreApplicationMetricsTargetDown",
+            "JStoreOutboxReadyLagHigh",
+            "JStoreOutboxDeadLettersPresent",
+            "JStoreOutboxExpiredLocksPresent",
+            "JStoreOutboxSchedulerFailing",
         ):
             self.assertIn(f"alert: {alert}", alert_config)
+
+        rules = {
+            rule["alert"]: rule
+            for group in yaml.safe_load(alert_config)["groups"]
+            for rule in group["rules"]
+        }
+        expected_outbox_metrics = {
+            "JStoreOutboxReadyLagHigh": "jstore_outbox_alert",
+            "JStoreOutboxDeadLettersPresent": "jstore_outbox_alert",
+            "JStoreOutboxExpiredLocksPresent": "jstore_outbox_alert",
+            "JStoreOutboxSchedulerFailing": "jstore_outbox_alert",
+        }
+        for alert, metric in expected_outbox_metrics.items():
+            expression = rules[alert]["expr"]
+            self.assertIn(metric, expression)
+            self.assertNotRegex(
+                expression,
+                r"eventType|aggregateType|aggregateId|messageId|correlationId|userId",
+            )
+        for alert in expected_outbox_metrics:
+            self.assertIn('transportId="all"', rules[alert]["expr"])
 
     def test_services_are_cluster_internal_and_network_policies_default_deny(self) -> None:
         for service in (document for document in self.documents if document.get("kind") == "Service"):

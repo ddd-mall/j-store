@@ -1,1 +1,2 @@
 com.jstore.outbox.spring.OutboxAutoConfiguration
+com.jstore.outbox.spring.OutboxHealthAutoConfiguration

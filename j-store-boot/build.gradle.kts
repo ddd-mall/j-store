@@ -46,6 +46,7 @@ dependencies {
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-messaging-core"))
     implementation(project(":j-store-common-spring"))
+    implementation(project(":j-store-observability-spring"))
     implementation(project(":j-store-messaging-local-spring"))
     implementation(project(":j-store-outbox-core"))
     implementation(project(":j-store-outbox-spring"))
@@ -62,9 +63,6 @@ dependencies {
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.validation)
-    implementation(libs.spring.boot.starter.actuator)
-    implementation(libs.micrometer.tracing.bridge.otel)
-    runtimeOnly(libs.micrometer.registry.prometheus)
     implementation(libs.flyway.core)
     testImplementation(libs.spring.boot.starter.test)
 
