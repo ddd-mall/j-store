@@ -215,10 +215,12 @@ Codex App Server 单独固定为 `codex-cli 0.146.0`、v2 协议和本机 stdio 
 
 - 单 Supervisor；
 - 最大并发 `1`；
-- 每次 Agent invocation 最大 `12` turns；
+- 当前 Level 0 配置每次 Agent invocation 最大 `12` turns；接入阶段桥后改为每次 `1` turn，由同一 Symphony Orchestrator 的 active-state continuation 创建下一独立会话；配置切换前必须完成可信 turn-receipt 适配和阻断测试；
 - Level 0 使用 `read-only` sandbox；进入本地实现迭代后才经受审合同变更为 `workspace-write`；
 - 审批请求、规则变更和 MCP elicitation 默认拒绝并转阻塞；
 - 仅在实现阶段按 allowlist 开放外网；只读观察期禁用网络写能力。
+
+模型评审输出使用不含 session/thread/turn 身份的 `ReviewProposal`。host-side 阶段桥从 Symphony TurnReceipt 取得可信身份，与已保存 implementer session 和 exact head 绑定后才生成 `ReviewDecision`；模型自述不能成为独立性证据。
 
 ## 通知设计
 
@@ -241,11 +243,13 @@ Ready 转换生成稳定幂等键：`ready:<repo>:<pr-number>:<head-sha>`。Noti
 
 ## 部署与恢复
 
-- Supervisor 运行在专用 Linux VM/容器中，使用进程监管器自动拉起。
+- 试点 Supervisor 优先部署到用户指定的开发 Kubernetes 集群；连接信息保留在仓库外，该集群作为专用 CI/CD 运行环境，不承载生产授权。
+- 使用独立 namespace、单副本 Deployment 和专用 ServiceAccount；Level 0 ServiceAccount 不授予集群级管理、生产 namespace、Secrets 写入或应用部署权限。
+- 集群运维入口只用于受控管理，不把 SSH 身份、私钥、kubeconfig 或长期 token 写入仓库、镜像、ConfigMap、Issue 或日志。
+- 同一仓库只允许一个活跃 Supervisor，通过 `replicas: 1`、部署锁和启动自检防止双活；扩容前必须重新设计协调协议并单独批准。
 - MVP 通过 Issue/Workpad、Git、PR 和 workspace 恢复；仅本机临时调度状态可以丢失。
-- 同一仓库只允许一个活跃 Supervisor，通过部署锁和启动自检防止双活。
 - 全局 kill switch 阻止新认领并终止安全停止点上的 Agent，不删除候选数据。
-- 回退只需停止 Supervisor 或移除调度标签；GitHub Actions 和人工开发保持独立运行。
+- 回退优先将 Deployment 缩容为 0 或移除调度标签；保留 PVC、审计日志和任务事实，GitHub Actions 和人工开发保持独立运行。
 
 ## 验证策略
 

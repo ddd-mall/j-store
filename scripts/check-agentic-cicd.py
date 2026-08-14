@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -42,6 +43,9 @@ def validate() -> list[str]:
         review_schema = load_json(
             "config/agentic-cicd/review-decision.schema.json"
         )
+        review_proposal_schema = load_json(
+            "config/agentic-cicd/review-proposal.schema.json"
+        )
         role_routing = load_json("config/agentic-cicd/role-routing.json")
         ruleset = load_json(".github/rulesets/develop.json")
         workflow = load_text("WORKFLOW.md")
@@ -74,6 +78,7 @@ def validate() -> list[str]:
         name
         for name in (
             "create_branch",
+            "local_workspace_write",
             "push_commit",
             "create_draft_pull_request",
             "mark_pull_request_ready",
@@ -96,6 +101,8 @@ def validate() -> list[str]:
         for value in limits.values()
     ):
         failures.append("all Agentic CI/CD limits must be positive integers")
+    elif limits.get("max_turns_per_invocation") != 1:
+        failures.append("each Symphony invocation must be limited to one model turn")
 
     try:
         status_rule = next(
@@ -121,6 +128,33 @@ def validate() -> list[str]:
         "required_ancestor_commits", []
     ):
         failures.append("Symphony lock is missing the GitHub token isolation baseline")
+    patch_relative = lock.get("patch")
+    expected_patch_sha256 = lock.get("patch_sha256")
+    if patch_relative != "deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch":
+        failures.append("Symphony lock must name the reviewed phase bridge patch")
+    elif not re.fullmatch(r"[0-9a-f]{64}", expected_patch_sha256 or ""):
+        failures.append("Symphony patch lock must use a lowercase SHA-256")
+    else:
+        patch_path = REPO_ROOT / patch_relative
+        if not patch_path.is_file():
+            failures.append("Symphony phase bridge patch is missing")
+        elif hashlib.sha256(patch_path.read_bytes()).hexdigest() != expected_patch_sha256:
+            failures.append("Symphony phase bridge patch differs from its lock")
+    routing_patch_relative = lock.get("routing_patch")
+    expected_routing_patch_sha256 = lock.get("routing_patch_sha256")
+    if routing_patch_relative != "deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch":
+        failures.append("Symphony lock must name the reviewed phase routing patch")
+    elif not re.fullmatch(r"[0-9a-f]{64}", expected_routing_patch_sha256 or ""):
+        failures.append("Symphony routing patch lock must use a lowercase SHA-256")
+    else:
+        routing_patch_path = REPO_ROOT / routing_patch_relative
+        if not routing_patch_path.is_file():
+            failures.append("Symphony phase routing patch is missing")
+        elif (
+            hashlib.sha256(routing_patch_path.read_bytes()).hexdigest()
+            != expected_routing_patch_sha256
+        ):
+            failures.append("Symphony phase routing patch differs from its lock")
 
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", app_server_lock.get("codex_cli_version", "")):
         failures.append("Codex App Server lock must use an exact CLI version")
@@ -150,6 +184,22 @@ def validate() -> list[str]:
         failures.append("ReviewDecision schema must allow only PASS or FAIL")
     if review_schema.get("properties", {}).get("head_sha", {}).get("pattern") != "^[0-9a-f]{40}$":
         failures.append("ReviewDecision must bind to a full lowercase head SHA")
+    if set(review_proposal_schema.get("required", [])) != {
+        "verdict",
+        "head_sha",
+        "reviewer_role",
+        "findings",
+    }:
+        failures.append("ReviewProposal must exclude model-supplied runtime identities")
+    packet_identity_type = (
+        iteration_schema.get("properties", {})
+        .get("implementer_session_id", {})
+        .get("type")
+    )
+    if set(packet_identity_type or []) != {"string", "null"}:
+        failures.append(
+            "IterationPacket must allow the first turn to precede its trusted receipt"
+        )
 
     implementer = role_routing.get("implementer", {})
     reviewer = role_routing.get("independent_reviewer", {})
@@ -164,7 +214,10 @@ def validate() -> list[str]:
         "kind: github",
         "- agent:queued",
         "max_concurrent_agents: 1",
-        "max_turns: 12",
+        "max_turns: 1",
+        "/usr/bin/python3 /opt/jstore-agentic-controller/controller.py complete-turn",
+        '{% if agentic_cicd.role == "reviewer" %}',
+        '{% elsif agentic_cicd.role == "implementer" %}',
         "thread_sandbox: read-only",
         "type: readOnly",
         "sandbox_approval: true",

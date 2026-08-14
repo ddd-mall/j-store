@@ -3,7 +3,7 @@ set -euo pipefail
 
 context=""
 namespace="agentic-cicd"
-image="jstore-agentic-cicd:8001b52e-codex-0.146.0"
+image=""
 timeout_seconds=900
 symphony_source="${SYMPHONY_SOURCE:-$HOME/source/symphony}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,7 +19,7 @@ containerd, applies only namespace agentic-cicd, and runs the smoke check.
 
 Options:
   --namespace <name>          Fixed target namespace (default: agentic-cicd)
-  --image <name:tag>          Fixed local image tag
+  --image <name:tag>          Immutable reviewed image tag (normally derived)
   --timeout-seconds <value>   Rollout timeout (default: 900)
   --symphony-source <path>    Clean pinned Symphony checkout
 EOF
@@ -67,10 +67,6 @@ if [[ "$namespace" != "agentic-cicd" ]]; then
   printf '%s\n' 'ERROR: this deployment is fixed to namespace agentic-cicd.' >&2
   exit 2
 fi
-if [[ "$image" != "jstore-agentic-cicd:8001b52e-codex-0.146.0" ]]; then
-  printf '%s\n' 'ERROR: --image must equal the reviewed Level 0 image tag.' >&2
-  exit 2
-fi
 if [[ ! "$timeout_seconds" =~ ^[0-9]+$ || "$timeout_seconds" -lt 60 ]]; then
   printf '%s\n' 'ERROR: --timeout-seconds must be an integer of at least 60.' >&2
   exit 2
@@ -82,6 +78,10 @@ for command in docker git kubectl sudo; do
   }
 done
 expected_symphony_revision=8001b52e3062495a16e520e4ceaf8f9de868c4d0
+patch_path="$manifest_dir/patches/symphony-phase-bridge.patch"
+patch_sha256=ee236ca9570904ed39e58c2226e7430c7355d944dacca9486d410b737660bfa1
+routing_patch_path="$manifest_dir/patches/symphony-phase-routing.patch"
+routing_patch_sha256=a6103e0c96bc7311053152d9c29bdc81daa14ab3f28dfee23c3f4a537c45824d
 actual_symphony_revision=$(git -C "$symphony_source" rev-parse HEAD 2>/dev/null || true)
 if [[ "$actual_symphony_revision" != "$expected_symphony_revision" ]]; then
   printf 'ERROR: Symphony source must be pinned to %s, got %s\n' \
@@ -90,6 +90,40 @@ if [[ "$actual_symphony_revision" != "$expected_symphony_revision" ]]; then
 fi
 if [[ -n "$(git -C "$symphony_source" status --porcelain --untracked-files=all)" ]]; then
   printf 'ERROR: Symphony source must be clean: %s\n' "$symphony_source" >&2
+  exit 2
+fi
+actual_patch_sha256=$(sha256sum "$patch_path" | awk '{print $1}')
+if [[ "$actual_patch_sha256" != "$patch_sha256" ]]; then
+  printf 'ERROR: symphony-phase-bridge.patch must match %s, got %s\n' \
+    "$patch_sha256" "$actual_patch_sha256" >&2
+  exit 2
+fi
+git -C "$symphony_source" apply --recount --check "$patch_path"
+actual_routing_patch_sha256=$(sha256sum "$routing_patch_path" | awk '{print $1}')
+if [[ "$actual_routing_patch_sha256" != "$routing_patch_sha256" ]]; then
+  printf 'ERROR: symphony-phase-routing.patch must match %s, got %s\n' \
+    "$routing_patch_sha256" "$actual_routing_patch_sha256" >&2
+  exit 2
+fi
+temporary_patch_index=$(mktemp "${TMPDIR:-/tmp}/jstore-symphony-patch-index.XXXXXX")
+rm -f -- "$temporary_patch_index"
+GIT_INDEX_FILE="$temporary_patch_index" git -C "$symphony_source" read-tree HEAD
+GIT_INDEX_FILE="$temporary_patch_index" git -C "$symphony_source" apply --cached --recount "$patch_path"
+GIT_INDEX_FILE="$temporary_patch_index" git -C "$symphony_source" apply --cached --recount --check "$routing_patch_path"
+rm -f -- "$temporary_patch_index"
+controller_revision=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || true)
+if [[ ! "$controller_revision" =~ ^[0-9a-f]{40}$ ]]; then
+  printf '%s\n' 'ERROR: j-store controller source has no full Git revision.' >&2
+  exit 2
+fi
+if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=all)" ]]; then
+  printf 'ERROR: j-store controller source must be clean: %s\n' "$repo_root" >&2
+  exit 2
+fi
+expected_image="jstore-agentic-cicd:${expected_symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-0.146.0"
+image=${image:-$expected_image}
+if [[ "$image" != "$expected_image" ]]; then
+  printf 'ERROR: --image must equal the derived immutable tag: %s\n' "$expected_image" >&2
   exit 2
 fi
 sudo ctr --namespace k8s.io images list >/dev/null
@@ -110,6 +144,8 @@ docker build \
   --build-arg https_proxy= \
   --build-arg all_proxy= \
   --build-context "symphony-source=$symphony_source" \
+  --build-arg "SYMPHONY_COMMIT=$expected_symphony_revision" \
+  --build-arg "JSTORE_CONTROLLER_REVISION=$controller_revision" \
   --file "$manifest_dir/image/Dockerfile" \
   --tag "$image" \
   "$repo_root"
@@ -119,17 +155,35 @@ revision=$(docker image inspect "$image" --format '{{ index .Config.Labels "org.
   printf 'ERROR: unexpected Symphony revision label: %s\n' "$revision" >&2
   exit 1
 }
+controller_label=$(docker image inspect "$image" --format '{{ index .Config.Labels "io.jstore.controller.revision" }}')
+[[ "$controller_label" == "$controller_revision" ]] || {
+  printf 'ERROR: unexpected j-store controller revision label: %s\n' "$controller_label" >&2
+  exit 1
+}
 
 docker save --output "$archive" "$image"
 sudo ctr --namespace k8s.io images import "$archive"
 
-kubectl --context "$context" kustomize "$overlay" >"$rendered"
+old_pod_uid=$(kubectl --context "$context" -n "$namespace" get pod \
+  -l app.kubernetes.io/name=symphony -o jsonpath='{.items[0].metadata.uid}' 2>/dev/null || true)
+kubectl --context "$context" kustomize "$overlay" \
+  | sed "s#image: jstore-agentic-cicd:8001b52e-codex-0.146.0#image: $image#" \
+  >"$rendered"
+grep -F "image: $image" "$rendered" >/dev/null
 kubectl --context "$context" apply --dry-run=client -f "$rendered" >/dev/null
 kubectl --context "$context" apply -f "$manifest_dir/base/namespace.yaml" >/dev/null
 kubectl --context "$context" apply --dry-run=server -f "$rendered" >/dev/null
 kubectl --context "$context" apply -f "$rendered" >/dev/null
 kubectl --context "$context" -n "$namespace" rollout status deployment/symphony \
   --timeout="${timeout_seconds}s"
+new_pod_uid=$(kubectl --context "$context" -n "$namespace" get pod \
+  -l app.kubernetes.io/name=symphony -o jsonpath='{.items[0].metadata.uid}')
+if [[ -n "$old_pod_uid" && "$new_pod_uid" == "$old_pod_uid" ]]; then
+  printf 'ERROR: immutable runtime update did not create a new Pod: %s\n' "$new_pod_uid" >&2
+  exit 1
+fi
 
 "$repo_root/scripts/agentic-cicd-kubernetes-smoke.sh" \
-  --context "$context" --namespace "$namespace" --timeout-seconds "$timeout_seconds"
+  --context "$context" --namespace "$namespace" --timeout-seconds "$timeout_seconds" \
+  --image "$image" --symphony-revision "$expected_symphony_revision" \
+  --controller-revision "$controller_revision"

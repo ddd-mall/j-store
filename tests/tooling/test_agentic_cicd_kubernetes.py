@@ -1,5 +1,7 @@
 import subprocess
 import unittest
+import json
+import hashlib
 from pathlib import Path
 
 import yaml
@@ -34,6 +36,15 @@ def by_kind_name(documents: list[dict], kind: str, name: str) -> dict:
         for document in documents
         if document.get("kind") == kind
         and document.get("metadata", {}).get("name") == name
+    )
+
+
+def by_kind_prefix(documents: list[dict], kind: str, prefix: str) -> dict:
+    return next(
+        document
+        for document in documents
+        if document.get("kind") == kind
+        and document.get("metadata", {}).get("name", "").startswith(prefix)
     )
 
 
@@ -91,7 +102,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertEqual("agentic-cicd-symphony-state", pvc["spec"]["volumeName"])
 
     def test_workflow_is_the_trusted_level_zero_contract(self) -> None:
-        generated = by_kind_name(self.base, "ConfigMap", "symphony-workflow")
+        generated = by_kind_prefix(self.base, "ConfigMap", "symphony-workflow-")
         deployed_workflow = generated["data"]["WORKFLOW.md"]
         trusted_workflow = (REPOSITORY_ROOT / "WORKFLOW.md").read_text(encoding="utf-8")
         kubernetes_server_binding = "server:\n  host: 0.0.0.0\n"
@@ -102,7 +113,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         )
         for contract in (
             "max_concurrent_agents: 1",
-            "max_turns: 12",
+            "max_turns: 1",
             "thread_sandbox: read-only",
             "type: readOnly",
             "sandbox_approval: true",
@@ -110,6 +121,26 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "不得自动合并、发布或写生产",
         ):
             self.assertIn(contract, deployed_workflow)
+        self.assertIn(
+            "/usr/bin/python3 /opt/jstore-agentic-controller/controller.py bootstrap-workspace",
+            deployed_workflow,
+        )
+        self.assertIn(
+            "/usr/bin/python3 /opt/jstore-agentic-controller/controller.py complete-turn",
+            deployed_workflow,
+        )
+        self.assertIn('{% if agentic_cicd.role == "reviewer" %}', deployed_workflow)
+        self.assertIn('{% elsif agentic_cicd.role == "implementer" %}', deployed_workflow)
+        self.assertIn("submit_review_proposal", deployed_workflow)
+        self.assertNotIn("git clone --filter=blob:none", deployed_workflow)
+
+        deployment = by_kind_name(self.base, "Deployment", "symphony")
+        workflow_volume = next(
+            volume
+            for volume in deployment["spec"]["template"]["spec"]["volumes"]
+            if volume["name"] == "workflow"
+        )
+        self.assertEqual(generated["metadata"]["name"], workflow_volume["configMap"]["name"])
 
     def test_image_and_development_node_are_explicitly_pinned(self) -> None:
         deployment = by_kind_name(self.development, "Deployment", "symphony")
@@ -151,7 +182,82 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "COPY --from=symphony-source /elixir /build/symphony/elixir",
             dockerfile,
         )
+        self.assertIn("ARG JSTORE_CONTROLLER_REVISION", dockerfile)
+        self.assertIn(
+            "COPY scripts/agentic_cicd /opt/jstore-agentic-controller/agentic_cicd",
+            dockerfile,
+        )
+        self.assertIn(
+            "COPY scripts/agentic-cicd-controller.py /opt/jstore-agentic-controller/controller.py",
+            dockerfile,
+        )
+        self.assertIn(
+            "COPY config/agentic-cicd/state-contract.json /opt/jstore-agentic-controller/state-contract.json",
+            dockerfile,
+        )
+        self.assertIn("io.jstore.controller.revision", dockerfile)
+        self.assertIn(
+            "COPY deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
+            dockerfile,
+        )
+        self.assertIn(
+            "COPY deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
+            dockerfile,
+        )
+        self.assertIn("git apply --recount --check", dockerfile)
+        self.assertIn("git apply --recount /tmp/symphony-phase-bridge.patch", dockerfile)
         self.assertNotIn(":latest", dockerfile)
+
+        dockerignore = (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8")
+        self.assertTrue(dockerignore.startswith("**\n"))
+        self.assertIn("!scripts/agentic_cicd/**", dockerignore)
+        self.assertIn("!scripts/agentic-cicd-controller.py", dockerignore)
+        self.assertIn("!config/agentic-cicd/state-contract.json", dockerignore)
+        self.assertIn(
+            "!deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
+            dockerignore,
+        )
+        self.assertIn(
+            "!deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
+            dockerignore,
+        )
+        self.assertNotIn("!.git", dockerignore)
+
+    def test_symphony_patch_is_pinned_and_exposes_only_trusted_bridge_inputs(self) -> None:
+        patch_path = (
+            REPOSITORY_ROOT
+            / "deploy"
+            / "kubernetes"
+            / "agentic-cicd"
+            / "patches"
+            / "symphony-phase-bridge.patch"
+        )
+        patch = patch_path.read_text(encoding="utf-8")
+        lock = json.loads(
+            (REPOSITORY_ROOT / "config" / "agentic-cicd" / "symphony.lock.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            hashlib.sha256(patch_path.read_bytes()).hexdigest(),
+            lock["patch_sha256"],
+        )
+        self.assertIn("submit_review_proposal", patch)
+        self.assertIn("JSTORE_TURN_SESSION_ID", patch)
+        self.assertIn("JSTORE_TURN_THREAD_ID", patch)
+        self.assertIn("JSTORE_TURN_ID", patch)
+        self.assertNotIn("codex app-server", patch)
+
+        routing_patch_path = patch_path.with_name("symphony-phase-routing.patch")
+        routing_patch = routing_patch_path.read_text(encoding="utf-8")
+        self.assertEqual(
+            hashlib.sha256(routing_patch_path.read_bytes()).hexdigest(),
+            lock["routing_patch_sha256"],
+        )
+        self.assertIn('"run_model" => false', routing_patch)
+        self.assertIn('"thread_sandbox"', routing_patch)
+        self.assertIn("runtime_policy", routing_patch)
+        self.assertNotIn("codex app-server", routing_patch)
 
     def test_dashboard_is_internal_and_probed(self) -> None:
         service = by_kind_name(self.base, "Service", "symphony")
@@ -185,6 +291,17 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("--build-arg http_proxy=", deploy)
         self.assertIn('--build-context "symphony-source=$symphony_source"', deploy)
         self.assertIn("git -C \"$symphony_source\" status --porcelain", deploy)
+        self.assertIn("git -C \"$repo_root\" status --porcelain", deploy)
+        self.assertIn("JSTORE_CONTROLLER_REVISION", deploy)
+        self.assertIn("old_pod_uid", deploy)
+        self.assertIn("new_pod_uid", deploy)
+        self.assertIn("image: $image", deploy)
+        self.assertIn("io.jstore.controller.revision", deploy)
+        self.assertIn("org.opencontainers.image.revision", deploy)
+        self.assertIn("symphony-phase-bridge.patch", deploy)
+        self.assertIn("symphony-phase-routing.patch", deploy)
+        self.assertIn("patch_sha256", deploy)
+        self.assertIn("runtime-revisions", smoke)
         self.assertIn("scale deployment/symphony --replicas=0", stop)
         self.assertNotIn("delete pvc", stop)
         for state_field in ('\"running\"', '\"counts\"', '\"codex_totals\"'):

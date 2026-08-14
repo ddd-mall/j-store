@@ -1,0 +1,14 @@
+**
+!scripts/
+!scripts/agentic_cicd/
+!scripts/agentic_cicd/**
+!scripts/agentic-cicd-controller.py
+!config/
+!config/agentic-cicd/
+!config/agentic-cicd/state-contract.json
+!deploy/
+!deploy/kubernetes/
+!deploy/kubernetes/agentic-cicd/
+!deploy/kubernetes/agentic-cicd/patches/
+!deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch
+!deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch

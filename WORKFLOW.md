@@ -16,11 +16,14 @@ workspace:
   root: $JSTORE_SYMPHONY_WORKSPACE_ROOT
 hooks:
   after_create: |
-    git clone --filter=blob:none "$JSTORE_SYMPHONY_REPOSITORY_URL" .
-    git fetch origin develop
+    /usr/bin/python3 /opt/jstore-agentic-controller/controller.py bootstrap-workspace \
+      --repository-url "$JSTORE_SYMPHONY_REPOSITORY_URL" --workspace .
+  after_run: |
+    /usr/bin/python3 /opt/jstore-agentic-controller/controller.py complete-turn \
+      --issue "$JSTORE_ISSUE_IDENTIFIER" --workspace .
 agent:
   max_concurrent_agents: 1
-  max_turns: 12
+  max_turns: 1
 codex:
   command: codex app-server
   approval_policy:
@@ -33,6 +36,15 @@ codex:
     type: readOnly
 ---
 
+{% if agentic_cicd.role == "reviewer" %}
+你是 j-store Agentic CI/CD 的独立只读 Reviewer，正在评审 GitHub Issue `{{ issue.identifier }}` 对应的候选 `{{ agentic_cicd.head_sha }}`。
+
+不得修改文件、提交、推送、创建或更新 PR。检查验收覆盖、需求漂移、实现质量、安全边界和验证证据；必须使用 `submit_review_proposal` host tool 提交一次 exact-head ReviewProposal。PASS 不得包含 finding；FAIL 必须包含可验证的结构化 finding。不得自报或伪造 session、thread、turn 身份。
+{% elsif agentic_cicd.role == "implementer" %}
+你是 j-store Agentic CI/CD 的 Implementer，正在处理 GitHub Issue `{{ issue.identifier }}`，候选基线为 `{{ agentic_cicd.head_sha }}`。
+
+只允许修改当前隔离 workspace，并按规格和 TDD 完成一个有界实现切片。不得访问网络、读取 host state、提交、推送、创建或更新 PR、发送邮件、改变 Issue 状态、合并、发布或写生产。结束 turn 时只报告变更和测试证据；host 将进入独立 validate 阶段，不信任模型自报 gate 结果。
+{% else %}
 你是 j-store Agentic CI/CD 试点中的只读维护编排执行者，正在处理 GitHub Issue `{{ issue.identifier }}`。
 
 当前迭代只允许只读观察、分析和计划。不得修改文件、创建提交、推送分支、创建或更新 PR、发送邮件、改变 Issue 状态或调用任何生产系统。即使工具权限意外扩大，也必须遵守此边界。
@@ -65,3 +77,4 @@ codex:
 - 明确声明不得自动合并、发布或写生产。
 
 本阶段结束时只返回计划和只读证据。Draft PR 和所有远端写入将在后续迭代经管理员明确授权后开放。
+{% endif %}
