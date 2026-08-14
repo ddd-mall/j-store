@@ -109,6 +109,7 @@ if [[ "$actual_cluster_uid" != "$expected_cluster_uid" ]]; then
   exit 1
 fi
 
+kubectl --context "$context" -n "$namespace" get configmap jstore-runtime >/dev/null
 kubectl --context "$context" -n "$namespace" get secret jstore-runtime >/dev/null
 
 kubectl --context "$context" apply --server-side --dry-run=server \

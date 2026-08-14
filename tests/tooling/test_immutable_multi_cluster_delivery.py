@@ -1,6 +1,11 @@
+import copy
 import json
+import os
 import re
+import shutil
 import subprocess
+import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -63,13 +68,20 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
                 self.assertEqual("IfNotPresent", container["imagePullPolicy"])
                 self.assertTrue(container["securityContext"]["readOnlyRootFilesystem"])
                 self.assertFalse(pod_spec["automountServiceAccountToken"])
-                env_from_names = {
-                    reference.get("configMapRef", reference.get("secretRef"))["name"]
+                config_map_names = {
+                    reference["configMapRef"]["name"]
                     for reference in container["envFrom"]
+                    if "configMapRef" in reference
+                }
+                secret_names = {
+                    reference["secretRef"]["name"]
+                    for reference in container["envFrom"]
+                    if "secretRef" in reference
                 }
                 self.assertEqual(
-                    {"jstore-deployment", "jstore-runtime"}, env_from_names
+                    {"jstore-deployment", "jstore-runtime"}, config_map_names
                 )
+                self.assertEqual({"jstore-runtime"}, secret_names)
 
                 kinds = {document["kind"] for document in documents}
                 self.assertNotIn("Namespace", kinds)
@@ -82,13 +94,38 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
                 self.assertNotIn(":latest", serialized)
 
                 runtime = by_kind_name(documents, "ConfigMap", "jstore-deployment")
+                expected_profiles = (
+                    "local,observability,outbox-observability"
+                    if environment == "development"
+                    else "production"
+                )
                 self.assertEqual(
-                    "production",
+                    expected_profiles,
                     runtime["data"]["SPRING_PROFILES_ACTIVE"],
                 )
                 self.assertEqual(
                     environment,
                     runtime["data"]["JSTORE_DEPLOYMENT_ENVIRONMENT"],
+                )
+
+                application_policy = by_kind_name(
+                    documents, "NetworkPolicy", "application"
+                )
+                redis_destinations = [
+                    destination
+                    for rule in application_policy["spec"]["egress"]
+                    if any(port["port"] == 6379 for port in rule["ports"])
+                    for destination in rule["to"]
+                ]
+                self.assertEqual(
+                    [
+                        {
+                            "podSelector": {
+                                "matchLabels": {"app.kubernetes.io/name": "redis"}
+                            }
+                        }
+                    ],
+                    redis_destinations,
                 )
 
     def test_canary_and_production_are_high_availability_rollouts(self) -> None:
@@ -106,9 +143,34 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
                 )
                 pdb = by_kind_name(documents, "PodDisruptionBudget", "j-store")
                 self.assertEqual(1, pdb["spec"]["minAvailable"])
+                runtime = by_kind_name(documents, "ConfigMap", "jstore-deployment")
+                self.assertEqual("false", runtime["data"]["SPRING_FLYWAY_ENABLED"])
+                explicit_environment = {
+                    item["name"]: item["value"]
+                    for item in deployment["spec"]["template"]["spec"]["containers"][0][
+                        "env"
+                    ]
+                }
+                self.assertEqual("false", explicit_environment["SPRING_FLYWAY_ENABLED"])
 
     def test_renderer_requires_and_injects_an_immutable_digest(self) -> None:
         renderer = REPOSITORY_ROOT / "scripts" / "render-kubernetes-application.sh"
+        invalid_environment = subprocess.run(
+            [
+                "bash",
+                str(renderer),
+                "--environment",
+                "staging",
+                "--image",
+                IMAGE,
+            ],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(2, invalid_environment.returncode)
+        self.assertIn("unsupported environment", invalid_environment.stderr)
+
         rejected = subprocess.run(
             [
                 "bash",
@@ -226,11 +288,172 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
                 / "cluster-targets.example.json"
             ).read_text(encoding="utf-8")
         )
-        Draft202012Validator(schema).validate(example)
+        validator = Draft202012Validator(schema)
+        validator.validate(example)
         self.assertEqual(set(ENVIRONMENTS), set(example["targets"]))
+        self.assertTrue(
+            all("registry" not in target for target in example["targets"].values())
+        )
         serialized = json.dumps(example).lower()
         for forbidden in ("password", "token", "kubeconfig", "privatekey"):
             self.assertNotIn(forbidden, serialized)
+
+        unsafe_configs = []
+
+        production_without_approval = copy.deepcopy(example)
+        production_without_approval["targets"]["production"]["requiresApproval"] = False
+        unsafe_configs.append(
+            ("production approval disabled", production_without_approval)
+        )
+
+        canary_without_approval = copy.deepcopy(example)
+        canary_without_approval["targets"]["canary"]["requiresApproval"] = False
+        unsafe_configs.append(("canary approval disabled", canary_without_approval))
+
+        tagged_repository = copy.deepcopy(example)
+        tagged_repository["targets"]["production"]["repository"] += ":latest"
+        unsafe_configs.append(("tagged repository", tagged_repository))
+
+        embedded_credentials = copy.deepcopy(example)
+        embedded_credentials["targets"]["production"]["registry"] = (
+            "https://user:password@registry.production.internal"
+        )
+        unsafe_configs.append(("embedded registry credentials", embedded_credentials))
+
+        for name, candidate in unsafe_configs:
+            with self.subTest(name=name):
+                self.assertTrue(list(validator.iter_errors(candidate)))
+
+    def run_deployer(
+        self,
+        *,
+        current_context: str = "jstore-production",
+        actual_cluster_uid: str = "11111111-1111-1111-1111-111111111111",
+        config_map_exists: bool = True,
+        secret_exists: bool = True,
+    ) -> tuple[subprocess.CompletedProcess[str], list[str]]:
+        real_kubectl = shutil.which("kubectl")
+        self.assertIsNotNone(real_kubectl)
+
+        with tempfile.TemporaryDirectory() as directory:
+            temp_root = Path(directory)
+            bin_dir = temp_root / "bin"
+            bin_dir.mkdir()
+            log_path = temp_root / "kubectl.log"
+            fake_kubectl = bin_dir / "kubectl"
+            fake_kubectl.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env bash
+                    set -euo pipefail
+
+                    if [[ "${1:-}" == "kustomize" ]]; then
+                      exec "$REAL_KUBECTL" "$@"
+                    fi
+
+                    printf '%s\n' "$*" >>"$FAKE_KUBECTL_LOG"
+                    if [[ "$*" == "config current-context" ]]; then
+                      printf '%s\n' "$FAKE_CURRENT_CONTEXT"
+                    elif [[ "$*" == *"get namespace kube-system"* ]]; then
+                      printf '%s' "$FAKE_CLUSTER_UID"
+                    elif [[ "$*" == *"get configmap jstore-runtime"* ]]; then
+                      [[ "$FAKE_CONFIG_MAP_EXISTS" == "true" ]]
+                    elif [[ "$*" == *"get secret jstore-runtime"* ]]; then
+                      [[ "$FAKE_SECRET_EXISTS" == "true" ]]
+                    elif [[ "$*" == *" apply "* || "$*" == *" rollout status "* ]]; then
+                      exit 0
+                    else
+                      printf 'unexpected fake kubectl invocation: %s\n' "$*" >&2
+                      exit 2
+                    fi
+                    """
+                ),
+                encoding="utf-8",
+            )
+            fake_kubectl.chmod(0o755)
+
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "PATH": f"{bin_dir}{os.pathsep}{environment['PATH']}",
+                    "REAL_KUBECTL": str(real_kubectl),
+                    "FAKE_KUBECTL_LOG": str(log_path),
+                    "FAKE_CURRENT_CONTEXT": current_context,
+                    "FAKE_CLUSTER_UID": actual_cluster_uid,
+                    "FAKE_CONFIG_MAP_EXISTS": (
+                        "true" if config_map_exists else "false"
+                    ),
+                    "FAKE_SECRET_EXISTS": "true" if secret_exists else "false",
+                }
+            )
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(REPOSITORY_ROOT / "scripts" / "deploy-kubernetes-application.sh"),
+                    "--context",
+                    "jstore-production",
+                    "--expected-cluster-uid",
+                    "11111111-1111-1111-1111-111111111111",
+                    "--environment",
+                    "production",
+                    "--namespace",
+                    "jstore",
+                    "--image",
+                    IMAGE,
+                ],
+                cwd=REPOSITORY_ROOT,
+                env=environment,
+                capture_output=True,
+                text=True,
+            )
+            calls = log_path.read_text(encoding="utf-8").splitlines()
+            return result, calls
+
+    def test_deployer_rejects_wrong_context_before_apply(self) -> None:
+        result, calls = self.run_deployer(current_context="jstore-development")
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("must equal the current kubectl context", result.stderr)
+        self.assertFalse(any(" apply " in f" {call} " for call in calls))
+
+    def test_deployer_rejects_wrong_cluster_uid_before_apply(self) -> None:
+        result, calls = self.run_deployer(
+            actual_cluster_uid="22222222-2222-2222-2222-222222222222"
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("target cluster UID mismatch", result.stderr)
+        self.assertFalse(any(" apply " in f" {call} " for call in calls))
+
+    def test_deployer_requires_the_external_secret_before_apply(self) -> None:
+        result, calls = self.run_deployer(secret_exists=False)
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertFalse(any(" apply " in f" {call} " for call in calls))
+
+    def test_deployer_requires_the_external_runtime_config_before_apply(self) -> None:
+        result, calls = self.run_deployer(config_map_exists=False)
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertFalse(any(" apply " in f" {call} " for call in calls))
+
+    def test_deployer_dry_runs_before_apply_and_rollout(self) -> None:
+        result, calls = self.run_deployer()
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        dry_run_index = next(
+            index for index, call in enumerate(calls) if "--dry-run=server" in call
+        )
+        apply_index = next(
+            index
+            for index, call in enumerate(calls)
+            if " apply " in f" {call} " and "--dry-run=server" not in call
+        )
+        rollout_index = next(
+            index for index, call in enumerate(calls) if " rollout status " in f" {call} "
+        )
+        self.assertLess(dry_run_index, apply_index)
+        self.assertLess(apply_index, rollout_index)
 
     def test_candidate_builder_builds_once_with_sbom_and_provenance(self) -> None:
         builder_path = REPOSITORY_ROOT / "scripts" / "build-oci-candidate.sh"

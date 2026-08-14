@@ -6,4 +6,6 @@
 - [x] 增加确定性渲染和部署脚本，校验 context、cluster UID、digest 与 server-side dry-run。
 - [x] 增加容器候选构建接口和供应链证据契约，确保 build once/promote by digest。
 - [x] 删除无引用的旧 `latest + Never` 部署清单并更新运行手册。
+- [x] 分离 canary/production 数据库迁移与应用 rollout，并强制高风险目标审批配置。
+- [x] 用可执行 fake `kubectl` 测试 context、cluster UID、Secret 和 dry-run/apply 顺序。
 - [x] 运行定向测试和 `./scripts/quality-gate.sh`，记录未执行的真实 registry/隧道验证。

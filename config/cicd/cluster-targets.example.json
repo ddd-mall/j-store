@@ -6,7 +6,6 @@
       "context": "jstore-development",
       "expectedClusterUid": "00000000-0000-0000-0000-000000000001",
       "namespace": "jstore",
-      "registry": "registry.development.internal",
       "repository": "registry.development.internal/j-store/application",
       "tunnelProfile": "development",
       "requiresApproval": false
@@ -15,7 +14,6 @@
       "context": "jstore-integration",
       "expectedClusterUid": "00000000-0000-0000-0000-000000000002",
       "namespace": "jstore",
-      "registry": "registry.integration.internal",
       "repository": "registry.integration.internal/j-store/application",
       "tunnelProfile": "integration",
       "requiresApproval": false
@@ -24,7 +22,6 @@
       "context": "jstore-canary",
       "expectedClusterUid": "00000000-0000-0000-0000-000000000003",
       "namespace": "jstore",
-      "registry": "registry.canary.internal",
       "repository": "registry.canary.internal/j-store/application",
       "tunnelProfile": "canary",
       "requiresApproval": true
@@ -33,7 +30,6 @@
       "context": "jstore-production",
       "expectedClusterUid": "00000000-0000-0000-0000-000000000004",
       "namespace": "jstore",
-      "registry": "registry.production.internal",
       "repository": "registry.production.internal/j-store/application",
       "tunnelProfile": "production",
       "requiresApproval": true

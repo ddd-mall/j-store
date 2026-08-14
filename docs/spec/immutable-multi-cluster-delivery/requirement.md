@@ -31,17 +31,20 @@ CI/CD 只选择目标集群、环境和网络配置。
 4. 仓库必须提供四个可确定渲染的环境 overlay。生产和灰度使用 RollingUpdate、至少
    两个副本、PDB、拓扑分散和优雅终止；开发与集成可以使用较小资源，但不得改变应用
    制品。
-5. 部署入口必须拒绝 tag-only 镜像，校验显式 Kubernetes context、目标集群 UID、环境
-   与 namespace，并在写入前完成 server-side dry-run。
+5. 部署入口必须拒绝任何包含 tag 的镜像引用，只接受完整
+   `repository@sha256:digest`，并校验显式 Kubernetes context、目标集群 UID、环境与
+   namespace，在写入前完成 server-side dry-run。
 6. 部署入口不得建立隧道或持有跨集群路由。CI/CD 在调用部署入口前建立单目标隧道，
    完成后关闭；一次 Job 不得同时连接两个集群。
-7. 每个目标集群必须通过外部 Secret 管理或等价平台能力预置 `jstore-runtime` Secret。
-   应用流水线不得生成、回读或输出业务凭据。
+7. 每个目标集群必须预置 `jstore-runtime` ConfigMap 保存非敏感运行参数，并通过外部 Secret
+   管理或等价平台能力预置同名 Secret。应用流水线不得生成、回读或输出业务凭据。
 8. registry 地址可以因网络不同而变化，但复制后的 OCI manifest digest 必须与候选
    digest 相同，并在部署前验证签名或 provenance。
 9. 回滚必须部署上一个已验证 digest，不得移动 tag、重建旧提交或恢复 PVC JAR。
 10. 灰度集群只有在统一外部流量控制面能向其分配真实受控流量时才可称为 canary；否则
     只能作为 production-like 验证环境。
+11. canary 和 production 的应用 rollout 必须禁用启动时 Flyway；数据库迁移由独立、显式
+    审批的 CI/CD 阶段在应用部署前完成，不能把镜像回滚误当作数据库回滚。
 
 ## 质量目标
 
@@ -50,6 +53,7 @@ CI/CD 只选择目标集群、环境和网络配置。
 - **可审计性**：部署记录包含 commit、digest、环境、cluster UID、配置版本和结果。
 - **恢复性**：任一环境可以仅用上一 digest 回滚，不依赖源码重新构建。
 - **最小权限**：应用部署身份不能创建数据库账号、读取 Secret 内容或修改其它 namespace。
+- **迁移安全**：生产数据库变更与应用 rollout 分离审批、执行和记录，失败时停止晋级。
 
 ## 非目标
 

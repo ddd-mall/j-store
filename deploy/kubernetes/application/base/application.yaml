@@ -41,6 +41,8 @@ spec:
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
+                name: jstore-runtime
+            - configMapRef:
                 name: jstore-deployment
             - secretRef:
                 name: jstore-runtime

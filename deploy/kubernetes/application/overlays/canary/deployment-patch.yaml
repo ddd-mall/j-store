@@ -15,6 +15,11 @@ spec:
         app.kubernetes.io/environment: canary
         jstore.logs/environment: canary
     spec:
+      containers:
+        - name: application
+          env:
+            - name: SPRING_FLYWAY_ENABLED
+              value: "false"
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname

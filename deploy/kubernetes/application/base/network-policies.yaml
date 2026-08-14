@@ -54,8 +54,8 @@ spec:
       ports:
         - {protocol: TCP, port: 5432}
     - to:
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              kubernetes.io/metadata.name: redis
+              app.kubernetes.io/name: redis
       ports:
         - {protocol: TCP, port: 6379}
