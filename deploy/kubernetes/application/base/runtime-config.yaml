@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: jstore-deployment
 data:
-  SPRING_PROFILES_ACTIVE: runtime,observability
+  SPRING_PROFILES_ACTIVE: production
   JSTORE_SERVICE_VERSION: replace-by-renderer
   JSTORE_DEPLOYMENT_ENVIRONMENT: replace-by-overlay
   JSTORE_TRACING_SAMPLING_PROBABILITY: "1.0"

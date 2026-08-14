@@ -323,6 +323,7 @@ class OutboxAutoConfiguration {
         outboxOperationalHealth: OutboxOperationalHealth,
         schedulerExecutionState: SchedulerExecutionState,
         integrationPublicationPlanner: IntegrationPublicationPlanner,
+        observabilityProperties: OutboxObservabilityProperties,
     ): OutboxMonitor {
         val meterRegistry = meterRegistryProvider.getIfAvailable() ?: return NoopOutboxMonitor
         return MicrometerOutboxMonitor(
@@ -331,6 +332,7 @@ class OutboxAutoConfiguration {
             outboxOperationalHealth,
             schedulerExecutionState,
             integrationPublicationPlanner.requiredTransportIds() + OutboxTransportIds.LOCAL_DOMAIN,
+            observabilityProperties.schedulerFailureThreshold,
         )
     }
 

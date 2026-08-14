@@ -147,11 +147,12 @@ class OutboxAutoConfigurationTest :
             val beanFactory = StaticListableBeanFactory(mapOf("meterRegistry" to registry))
             val repository = mock<OutboxEntryRepository>()
             val schedulerState = SchedulerExecutionState()
+            val observabilityProperties = OutboxObservabilityProperties()
             val health =
                 OutboxOperationalHealth(
                     repository,
                     schedulerState,
-                    OutboxObservabilityProperties(),
+                    observabilityProperties,
                     maxRetryCount = 8,
                 )
 
@@ -163,6 +164,7 @@ class OutboxAutoConfigurationTest :
                         health,
                         schedulerState,
                         IntegrationPublicationPlanner(defaultTargets = listOf("local")),
+                        observabilityProperties,
                     )
 
             monitor.shouldBeInstanceOf<MicrometerOutboxMonitor>()

@@ -35,7 +35,7 @@ import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfigura
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.web.client.RestClient
 
-class ObservabilityAutoConfigurationTest {
+class ObservabilityRuntimeContractTest {
     private val runner =
         ApplicationContextRunner()
             .withConfiguration(

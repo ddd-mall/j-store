@@ -83,7 +83,7 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
 
                 runtime = by_kind_name(documents, "ConfigMap", "jstore-deployment")
                 self.assertEqual(
-                    "runtime,observability",
+                    "production",
                     runtime["data"]["SPRING_PROFILES_ACTIVE"],
                 )
                 self.assertEqual(
@@ -174,13 +174,13 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
             / "resources"
             / "application.properties"
         ).read_text(encoding="utf-8")
-        runtime = (
+        production = (
             REPOSITORY_ROOT
             / "j-store-boot"
             / "src"
             / "main"
             / "resources"
-            / "application-runtime.properties"
+            / "application-production.properties"
         ).read_text(encoding="utf-8")
         dockerfile = (REPOSITORY_ROOT / "j-store-boot" / "Dockerfile").read_text(
             encoding="utf-8"
@@ -194,7 +194,7 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
             "${JSTORE_REDIS_HOST}",
             "${JSTORE_REDIS_PASSWORD}",
         ):
-            self.assertIn(required, runtime)
+            self.assertIn(required, production)
         first_line = dockerfile.splitlines()[0]
         self.assertRegex(first_line, r"^FROM .+@sha256:[0-9a-f]{64}$")
 

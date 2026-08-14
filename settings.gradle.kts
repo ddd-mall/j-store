@@ -12,6 +12,8 @@ include("j-store-common-core")
 
 include("j-store-common-spring")
 
+include("j-store-observability-spring")
+
 include("j-store-messaging-core")
 
 include("j-store-outbox-core")

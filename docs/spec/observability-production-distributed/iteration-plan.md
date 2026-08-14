@@ -31,11 +31,11 @@ J-Store 当前仍由 `j-store-boot` 组合多个有界上下文，业务侧不�
 
 | ID | 原优先级 | 当前状态 | 当前证据与剩余差距 | 计划归属 |
 |---|---|---|---|---|
-| OBS-01 | P0 | 部分解决 | `j-store-boot` 已有 Actuator、Prometheus Registry、Micrometer Tracing；ServiceMonitor 和 Outbox dashboard 已存在。仍缺 Outbox `HealthIndicator`、真实可触发告警与生产端点访问边界。 | 迭代 1 |
+| OBS-01 | P0 | 部分解决 | `j-store-boot` 已有 Actuator、Prometheus Registry、Micrometer Tracing、Outbox `HealthIndicator` 和四条 Outbox 告警规则。仍缺真实 Alertmanager 路由演练与生产端点访问边界。 | 迭代 1 |
 | LOG-01 | P0 | 工程已解决 | ECS JSON、集中采集参考栈、字段/脱敏规范和 7 天开发保留已存在。生产保留、删除、成本和多租户仍待批准。 | 迭代 0、5、8 |
 | TRC-01 | P0 | 部分解决 | 已有 W3C 传播和本地 tracer，但没有 OTLP exporter/Collector/Trace 后端证据，也没有 HTTP→JDBC/Redis→Outbox→异步处理完整链路验证。 | 迭代 2 |
 | OPS-01 | P0 | 工程已解决 | 旧 `latest + Never` 清单和 PVC/JAR 通用交付已删除；当前应用 base 使用 OCI digest，四环境 overlay 均有探针/安全边界，canary/production 使用双副本、RollingUpdate、PDB 与拓扑分散。真实 registry、隧道和生产 rollout 证据仍由迭代 3 门禁补齐。 | 迭代 3 |
-| CFG-01 | P0 | 工程已解决 | 默认配置不再强制 `local`；Kubernetes 使用无开发默认值的 `runtime,observability`，runtime Hikari pool 和服务名统一为 `j-store`。本地 compose 仍显式选择 `local`，不进入交付镜像的默认行为。 | 迭代 1、3 |
+| CFG-01 | P0 | 工程已解决 | 默认配置不再强制 `local`；Kubernetes 只激活无开发默认值的 `production` profile，并通过 profile group 组合 `observability,outbox-observability`。production Hikari identity 和服务名统一为 `j-store`；本地 compose 显式选择 `local`，不进入交付镜像默认行为。 | 迭代 1、3 |
 | REL-01 | P1 | 未解决 | 用户远程查询只有 connect/read timeout；没有总时间预算、Circuit Breaker、Bulkhead、限流、受控重试、降级语义和对应指标。 | 迭代 6 |
 | DR-01 | P1 | 证据缺失 | Flyway 测试不能证明生产备份。仓库没有 PostgreSQL/Redis HA、PITR、恢复演练或批准的 RPO/RTO 证据；外部平台已有能力不能在未核验时记为不存在或已完成。 | 迭代 4、7 |
 | CAP-01 | P1 | 未解决 | 没有交易链路 SLI/SLO、容量模型、基准压测、HPA/PDB；单实例 Hikari 上限 20，横向扩容可能先耗尽数据库连接。 | 迭代 0、3、6 |
@@ -48,7 +48,7 @@ J-Store 当前仍由 `j-store-boot` 组合多个有界上下文，业务侧不�
 | ID | 优先级 | 差距与影响 | 解除条件 |
 |---|---|---|---|
 | TRC-02 | P0 | 当前 `micrometer-tracing-bridge-otel` 能建立 Trace，但仓库没有 OTLP exporter 配置和后端，span 无法形成集中链路证据。 | 选定唯一 SDK/Agent owner，接入 OTLP Collector 与 Trace 后端，并通过完整交易链路测试。 |
-| OBS-02 | P0 | `OutboxOperationalHealth` 是快照模型，不是 Actuator `HealthIndicator`；积压可能有指标但健康端点不可见。 | 增加独立 health component；不得加入 liveness，是否加入 readiness 由接流语义决定。 |
+| OBS-02 | P0 | 工程实现已关闭：`OutboxOperationalHealth` 已由独立 Actuator `HealthIndicator` 适配，并仅进入 operations group，不进入 liveness/readiness。环境验收仍待隔离集群运行证据。 | 在预生产验证 operations group 与探针行为，保持共享故障不触发级联重启。 |
 | DEP-01 | P0 | 工程契约已完成，环境证据缺失：不可变镜像、双副本、RollingUpdate、PDB、拓扑分散、优雅终止和旧清单清理已经落地，但尚无隔离 registry copy、签名验证和真实生产 rollout/rollback 证据。 | 在隔离集成环境用同一 digest 完成 build、copy、verify、canary、production rollout 与 rollback 演练。 |
 | LOKI-01 | P0 | Loki、gateway、Prometheus、Grafana 单副本，Loki 使用 filesystem/RWO PVC、内存 ring、replication factor 1。 | distributed Loki、对象存储、多副本/故障域、HA 查询与告警路径通过演练。 |
 | DR-02 | P0 | “有备份”与“可在目标时间恢复”没有证据，日志对象存储和业务数据库均无恢复演练。 | 用隔离环境执行可校验恢复并达到批准 RPO/RTO。 |
@@ -61,6 +61,15 @@ J-Store 当前仍由 `j-store-boot` 组合多个有界上下文，业务侧不�
 - Kubernetes 应用清单已收敛为一套 OCI base 和四环境 overlay；生产结论仍需 registry、隧道、签名、rollout 与 rollback 的运行证据。
 - 生产阻断不只在日志后端。数据库连接预算、外部依赖韧性、PITR/恢复和业务 SLO 仍必须沿同一关键路径治理。
 - 外部 Grafana、Prometheus、PostgreSQL 或 Redis 可能已有托管 HA/备份能力；在获得配置、SLA 和演练证据前统一标记为“证据缺失”，不推断其不存在。
+
+### 2.5 2026-08-14 首轮实施进度
+
+`docs/spec/changes/observability-production-foundation/` 已完成迭代 1 的应用侧首个切片：显式 production profile、Outbox HealthIndicator/operations health group，以及四条复用应用阈值的低基数 Outbox 告警规则。通用 Actuator、Tracing、Prometheus 和 HTTP correlation 运行时已抽取为不依赖业务/Outbox/JPA 的 `j-store-observability-spring`；Outbox HealthIndicator 已下沉至组件自身模块，并验证无 Web/Actuator 时安全退化。代码、Kubernetes 契约、全仓测试、依赖/许可证、SBOM/OSV 和 Prometheus 规则语法均形成通过证据。
+
+该切片关闭 CFG-01 和 OBS-02 的工程实现；后续不可变多集群交付又补齐 production overlay、
+端点 NetworkPolicy 和高可用发布契约，但仍不等于生产环境验收。真实 Alertmanager 路由、
+隔离 registry/集群 rollout、网络策略数据面和故障演练尚未完成。当前最高优先级转为 Trace
+OTLP 闭环，以及 SLO、容量和恢复契约。
 
 ## 3. 推荐目标架构
 

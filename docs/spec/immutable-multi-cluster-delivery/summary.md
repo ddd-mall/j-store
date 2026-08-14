@@ -17,12 +17,12 @@
 
 - `python3 -m unittest tests.tooling.test_immutable_multi_cluster_delivery tests.tooling.test_kubernetes_application_deployment`：16 项通过。
 - `python3 -m unittest discover -s tests/tooling -p 'test_*.py'`：85 项通过。
-- `python3 -m unittest discover -s tests/governance -p 'test_*.py'`：39 项通过。
+- `python3 -m unittest discover -s tests/governance -p 'test_*.py'`：42 项通过。
 - `python3 -m unittest discover -s tests/skills/spec-dev -p 'test_*.py'`：28 项通过。
 - 四个环境均通过 `render-kubernetes-application.sh` 使用同一测试 digest 渲染。
 - 三个交付脚本通过 `bash -n`，`git diff --check` 通过。
-- `./scripts/quality-gate.sh` 全部通过，包括 203 个 Gradle 回归任务、54 个模块许可证审计和
-  57 个发布 JAR 的 Apache-2.0 制品校验。
+- `./scripts/quality-gate.sh` 全部通过，包括 Gradle 回归测试、55 个模块许可证审计和
+  58 个发布 JAR 的 Apache-2.0 制品校验。
 - `docker build --tag j-store-immutable-delivery-check j-store-boot` 成功；验证镜像随后已从本机删除。
 
 ## 环境外证据

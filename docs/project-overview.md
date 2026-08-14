@@ -31,6 +31,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-dependencies-platform`: 全模块共享的 Java Platform，统一导入 Spring Boot、JUnit、OpenTelemetry 及获批安全 BOM/constraint；不承载运行时代码。详细规则见 [依赖管理规范](steering/dependency-management-guidelines.md)。
 - `j-store-common-core`: 不依赖 Spring 的共享领域基础类型、错误、Result、领域事件、地理地址、日志、工具类。
 - `j-store-common-spring`: 仅保留通用 Spring 地理地址服务实现，不承载消息或 Outbox 基础设施。
+- `j-store-observability-spring`: 通用 Spring Boot 可观测性运行时，统一 Actuator、Micrometer Tracing、Prometheus 依赖和 Servlet correlation 自动配置；不依赖业务上下文、Outbox、JPA，也不强制引入 Web 运行时。
 - `j-store-messaging-core`: 框架无关的集成消息、handler、publisher、envelope 与 transport SPI。
 - `j-store-outbox-core`: 框架无关的 Outbox 记录、仓储端口、目标规划和按 `transportId` 的路由 SPI。
 - `j-store-messaging-local-spring`: 进程内领域事件与集成消息总线的 Spring 实现。
@@ -130,6 +131,7 @@ boot/interface -> application -> domain -> common-core
 ./gradlew :j-store-accounting-domain:test :j-store-accounting-application:test :j-store-accounting-boot:test
 ./gradlew :j-store-messaging-core:test :j-store-outbox-core:test
 ./gradlew :j-store-messaging-local-spring:test :j-store-outbox-spring:test
+./gradlew :j-store-observability-spring:test
 ./gradlew :j-store-authentication-spring-sdk:test
 ./gradlew :j-store-boot:bootJar
 ```
