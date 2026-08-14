@@ -6,11 +6,11 @@
 
 ## 当前状态
 
-- 当前推进分支：`codex/agentic-cicd-continuation`
+- 当前推进分支：`codex/agentic-cicd-kubernetes-level0`
 - 初始基线：`origin/develop@daf184ab9bb3f3bf811ae2158de704df6762b2a8`
-- 当前可信基线：`origin/develop@2542ee92a50bf87c427637d81d6445e4b2cea1db`
-- 当前阶段：迭代 3 — 组件级协议和独立评审合同已实现，固定运行时预检和真实 Agent 演练待完成
-- 外部阻塞：ruleset 正反例演练、固定 Symphony/Codex 构建环境、付费模型 turn 和 disposable Issue 均尚未形成完整证据。
+- 当前可信基线：`origin/develop@73dd00fd64ab35649db58b8df96a5e1c8891d77b`
+- 当前阶段：迭代 3 — 在开发 Kubernetes 集群落地固定运行时 Level 0，随后进行真实只读 Agent 演练
+- 外部阻塞：ruleset 正反例演练、GitHub App 短期只读 token、付费模型 turn 和 disposable Issue 均尚未形成完整证据。
 
 ## 迭代 0：远端基线可用
 

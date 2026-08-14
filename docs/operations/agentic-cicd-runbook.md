@@ -114,6 +114,54 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 
 由于当前 `WORKFLOW.md` 禁止远端写，Workpad 在 Level 0 可以只写入部署端审计日志。开放 Issue comment write 后才回写唯一 `## Codex Workpad` 评论。
 
+## 开发 Kubernetes 集成环境
+
+内部开发集群 `jstore-dev-k8s` 承载首个 Level 0 实例。实际地址由操作者的 SSH/kubeconfig 管理，不写入仓库；部署边界和可复现证据见 `docs/spec/changes/agentic-cicd-kubernetes-level0/`。
+
+当前 profile：
+
+- kube context：`kubernetes-admin@kubernetes`，仅用于人工 bootstrap；不会挂入 Symphony Pod。
+- namespace：`agentic-cicd`，与 `jstore`、`postgresql` 和 `monitoring` 隔离。
+- 节点：`k8s-master`，单副本、单并发。
+- 状态：专属 Local PV `/var/lib/jstore-agentic-cicd`，回收策略 `Retain`；不具备跨节点 HA。
+- dashboard：ClusterIP `symphony:4000`，默认不创建 Ingress。
+- dashboard bind：部署副本只在受信根 `WORKFLOW.md` 上增加 `server.host: 0.0.0.0`，使 Pod 探针和 ClusterIP 可访问；无 NodePort、LoadBalancer 或 Ingress。
+- 首次 smoke：使用非秘密哨兵 token `level0-no-github-access`，GitHub 会拒绝请求，因此不能取得 Issue 或触发 Codex turn。
+
+从同步到该主机的受审候选执行：
+
+```bash
+./scripts/agentic-cicd-kubernetes-deploy.sh \
+  --context kubernetes-admin@kubernetes \
+  --symphony-source "$HOME/source/symphony"
+```
+
+脚本在创建固定 Local PV 目录和导入 containerd 镜像时调用 `sudo`；目标主机未配置免密 sudo，操作者需要在交互终端完成认证。不要把 sudo 密码写入命令、环境变量、仓库或日志。
+
+部署脚本先确认 Symphony checkout 位于固定提交且工作树洁净，再将其作为 BuildKit named context 构建固定镜像；本次构建清空 Docker 客户端中可能遗留的代理参数并使用官方软件源，但不修改主机全局代理。随后脚本导入本机 containerd、只创建或更新 `agentic-cicd` 资源和专属 Local PV、执行 server-side dry-run、等待 rollout 并运行 smoke。它不会读取 Secret、访问 `jstore`/`postgresql` namespace 或修改数据库。
+
+复查状态：
+
+```bash
+./scripts/agentic-cicd-kubernetes-smoke.sh \
+  --context kubernetes-admin@kubernetes
+
+kubectl --context kubernetes-admin@kubernetes \
+  -n agentic-cicd port-forward service/symphony 4000:4000 \
+  --address 127.0.0.1
+```
+
+停止实例并保留 workspace/log：
+
+```bash
+./scripts/agentic-cicd-kubernetes-stop.sh \
+  --context kubernetes-admin@kubernetes
+```
+
+重新运行 deploy 脚本会恢复单副本。删除 PVC、PV、namespace 或宿主机目录属于物料清理，不是普通停止动作，必须在审计日志后人工执行。
+
+真实只读观察前，管理员需要为专用 GitHub App 生成短期 installation token，通过不入库的 overlay/Secret 注入 `JSTORE_SYMPHONY_GITHUB_TOKEN`，并移除哨兵值。不得把个人 token、管理员 kubeconfig 或宿主机 Codex 登录目录挂入 Pod。
+
 ## 停止与 kill switch
 
 - 首选从 Issue 移除 `agent:queued` 或关闭 Issue，使任务失去调度资格。
