@@ -1,0 +1,219 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from scripts.agentic_cicd.coordinator import SnapshotStore, TaskSnapshot
+from scripts.agentic_cicd.phase_bridge import (
+    PHASE_COMPLETE,
+    PHASE_IMPLEMENT,
+    PHASE_REVIEW,
+    PHASE_VALIDATE,
+    IterationInputs,
+    PhaseBridgeError,
+    SymphonyPhaseBridge,
+)
+from scripts.agentic_cicd.protocol import (
+    GateReceipt,
+    ReviewFinding,
+    ReviewProposal,
+    TurnReceipt,
+)
+
+
+SHA_A = "a" * 40
+SHA_B = "b" * 40
+SHA_C = "c" * 40
+
+
+def inputs() -> IterationInputs:
+    return IterationInputs(
+        objective="Implement the accepted behavior.",
+        acceptance=("AC-01",),
+        ci_failures=(),
+        attempts_by_root_cause={},
+        budget_remaining={"turns": 4},
+        validation_commands=("./scripts/quality-gate.sh",),
+    )
+
+
+def receipt(role: str, session: str, head: str = SHA_B) -> TurnReceipt:
+    return TurnReceipt(
+        session_id=session,
+        thread_id=f"thread-{session}",
+        turn_id=f"turn-{session}",
+        role=role,
+        head_sha=head,
+    )
+
+
+class SymphonyPhaseBridgeTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = SymphonyPhaseBridge()
+        self.snapshot = TaskSnapshot(
+            issue_identifier="GH-123",
+            state="queued",
+            base_sha=SHA_A,
+            head_sha=SHA_B,
+        )
+
+    def test_first_packet_has_no_model_invented_implementer_identity(self) -> None:
+        packet = self.bridge.prepare_packet(self.snapshot, inputs())
+
+        self.assertEqual(PHASE_IMPLEMENT, self.snapshot.iteration_phase)
+        self.assertIsNone(packet.implementer_session_id)
+
+    def test_implementation_receipt_freezes_candidate_before_separate_gate(self) -> None:
+        self.bridge.complete_implementation(
+            self.snapshot,
+            receipt("implementer", "session-implementer"),
+        )
+
+        self.assertEqual(PHASE_VALIDATE, self.snapshot.iteration_phase)
+        with self.assertRaisesRegex(PhaseBridgeError, "validate"):
+            self.bridge.prepare_packet(self.snapshot, inputs())
+
+        self.bridge.complete_validation(
+            self.snapshot,
+            GateReceipt("gate-1", "PASS", SHA_B, ()),
+        )
+        packet = self.bridge.prepare_packet(self.snapshot, inputs())
+        self.assertEqual(PHASE_REVIEW, self.snapshot.iteration_phase)
+        self.assertEqual("session-implementer", packet.implementer_session_id)
+        self.assertEqual(
+            "thread-session-implementer",
+            self.snapshot.last_turn_receipt["thread_id"],
+        )
+
+    def test_gate_failure_returns_deterministic_finding_to_implementation(self) -> None:
+        finding = ReviewFinding(
+            root_cause_id="gate:test-failure",
+            severity="high",
+            evidence="The deterministic test command exited with status 1.",
+            impact="The candidate cannot enter review.",
+            expected_behavior="All required validation commands pass.",
+            verification="Run the isolated gate again.",
+        )
+        self.bridge.complete_implementation(
+            self.snapshot,
+            receipt("implementer", "failed-session"),
+        )
+        self.bridge.complete_validation(
+            self.snapshot,
+            GateReceipt("gate-2", "FAIL", SHA_B, (finding,)),
+        )
+
+        packet = self.bridge.prepare_packet(self.snapshot, inputs())
+        self.assertEqual(PHASE_IMPLEMENT, self.snapshot.iteration_phase)
+        self.assertIsNone(self.snapshot.implementer_session_id)
+        self.assertIsNone(packet.implementer_session_id)
+        self.assertEqual((finding,), packet.review_findings)
+
+    def test_stale_or_duplicate_gate_receipt_cannot_advance(self) -> None:
+        self.bridge.complete_implementation(
+            self.snapshot,
+            receipt("implementer", "session-implementer"),
+        )
+
+        with self.assertRaisesRegex(PhaseBridgeError, "candidate head"):
+            self.bridge.complete_validation(
+                self.snapshot,
+                GateReceipt("gate-stale", "PASS", SHA_C, ()),
+            )
+
+        gate = GateReceipt("gate-current", "PASS", SHA_B, ())
+        self.bridge.complete_validation(self.snapshot, gate)
+        self.snapshot.iteration_phase = PHASE_VALIDATE
+        with self.assertRaisesRegex(PhaseBridgeError, "already consumed"):
+            self.bridge.complete_validation(self.snapshot, gate)
+
+    def test_review_pass_is_bound_to_distinct_receipt_and_exact_head(self) -> None:
+        self.bridge.complete_implementation(
+            self.snapshot,
+            receipt("implementer", "session-implementer"),
+        )
+        self.bridge.complete_validation(
+            self.snapshot, GateReceipt("gate-review-pass", "PASS", SHA_B, ())
+        )
+        decision = self.bridge.complete_review(
+            self.snapshot,
+            receipt("reviewer", "session-reviewer"),
+            ReviewProposal("PASS", SHA_B, "spec-evaluator", ()),
+        )
+
+        self.assertEqual(PHASE_COMPLETE, self.snapshot.iteration_phase)
+        self.assertEqual("session-reviewer", decision.reviewer_session_id)
+        self.assertEqual("session-implementer", decision.implementer_session_id)
+        self.assertTrue(self.snapshot.has_review_pass_for(SHA_B))
+
+    def test_review_fail_returns_structured_findings_to_next_implementation(self) -> None:
+        finding = ReviewFinding(
+            root_cause_id="acceptance:missing-test",
+            severity="high",
+            evidence="The acceptance rule has no executable test.",
+            impact="A regression could pass the gate.",
+            expected_behavior="Add a focused regression test.",
+            verification="Run the focused test.",
+        )
+        self.bridge.complete_implementation(
+            self.snapshot,
+            receipt("implementer", "session-implementer"),
+        )
+        self.bridge.complete_validation(
+            self.snapshot, GateReceipt("gate-review-fail", "PASS", SHA_B, ())
+        )
+        self.bridge.complete_review(
+            self.snapshot,
+            receipt("reviewer", "session-reviewer"),
+            ReviewProposal("FAIL", SHA_B, "product-steward", (finding,)),
+        )
+
+        packet = self.bridge.prepare_packet(self.snapshot, inputs())
+        self.assertEqual(PHASE_IMPLEMENT, self.snapshot.iteration_phase)
+        self.assertIsNone(packet.implementer_session_id)
+        self.assertEqual((finding,), packet.review_findings)
+
+    def test_same_session_or_stale_head_cannot_approve(self) -> None:
+        self.bridge.complete_implementation(
+            self.snapshot,
+            receipt("implementer", "same-session"),
+        )
+        self.bridge.complete_validation(
+            self.snapshot, GateReceipt("gate-same-session", "PASS", SHA_B, ())
+        )
+
+        with self.assertRaisesRegex(PhaseBridgeError, "must differ"):
+            self.bridge.complete_review(
+                self.snapshot,
+                receipt("reviewer", "same-session"),
+                ReviewProposal("PASS", SHA_B, "spec-evaluator", ()),
+            )
+        with self.assertRaisesRegex(PhaseBridgeError, "candidate head"):
+            self.bridge.complete_review(
+                self.snapshot,
+                receipt("reviewer", "new-session"),
+                ReviewProposal("PASS", SHA_C, "spec-evaluator", ()),
+            )
+
+    def test_new_head_invalidates_old_pass_and_phase_survives_restart(self) -> None:
+        self.bridge.complete_implementation(
+            self.snapshot,
+            receipt("implementer", "session-implementer"),
+        )
+        self.bridge.complete_validation(
+            self.snapshot, GateReceipt("gate-restart", "PASS", SHA_B, ())
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            store = SnapshotStore(Path(directory) / "snapshot.json")
+            store.save(self.snapshot)
+            restored = store.load()
+
+        self.assertEqual(PHASE_REVIEW, restored.iteration_phase)
+        self.bridge.invalidate_for_new_head(restored, SHA_C)
+        self.assertEqual(PHASE_IMPLEMENT, restored.iteration_phase)
+        self.assertIsNone(restored.implementer_session_id)
+
+
+if __name__ == "__main__":
+    unittest.main()

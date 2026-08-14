@@ -48,6 +48,8 @@ spec:
               value: /var/lib/symphony/home
             - name: JSTORE_SYMPHONY_WORKSPACE_ROOT
               value: /var/lib/symphony/workspaces
+            - name: JSTORE_AGENTIC_CICD_STATE_ROOT
+              value: /var/lib/symphony/controller
             - name: JSTORE_SYMPHONY_REPOSITORY_URL
               value: https://github.com/ddd-mall/j-store.git
             - name: JSTORE_SYMPHONY_GITHUB_TOKEN

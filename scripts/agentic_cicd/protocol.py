@@ -12,6 +12,7 @@ FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
 ROOT_CAUSE_ID = re.compile(r"[a-z0-9][a-z0-9:._/-]{2,127}\Z")
 SEVERITIES = {"low", "medium", "high", "critical"}
 REVIEWER_ROLES = {"product-steward", "spec-evaluator", "security-supply-chain"}
+TURN_ROLES = {"observer", "implementer", "reviewer"}
 
 
 def _nonblank(value: str, field_name: str) -> str:
@@ -75,6 +76,49 @@ class ReviewFinding:
 
 
 @dataclass(frozen=True)
+class GateReceipt:
+    """Trusted result produced by an isolated deterministic gate runner."""
+
+    gate_id: str
+    verdict: str
+    head_sha: str
+    findings: tuple[ReviewFinding, ...]
+
+    def __post_init__(self) -> None:
+        _nonblank(self.gate_id, "gate_id")
+        if self.verdict not in {"PASS", "FAIL"}:
+            raise ValueError("gate verdict must be PASS or FAIL")
+        _full_sha(self.head_sha, "head_sha")
+        if self.verdict == "PASS" and self.findings:
+            raise ValueError("gate PASS cannot contain findings")
+        if self.verdict == "FAIL" and not self.findings:
+            raise ValueError("gate FAIL must contain at least one finding")
+
+    @classmethod
+    def from_json(cls, payload: dict[str, Any]) -> "GateReceipt":
+        required = {"gate_id", "verdict", "head_sha", "findings"}
+        if set(payload) != required:
+            raise ValueError("gate receipt fields do not match the contract")
+        if not all(
+            isinstance(payload[field], str)
+            for field in ("gate_id", "verdict", "head_sha")
+        ):
+            raise ValueError("gate receipt scalar fields must be strings")
+        if not isinstance(payload["findings"], list) or not all(
+            isinstance(value, dict) for value in payload["findings"]
+        ):
+            raise ValueError("gate findings must be an array of objects")
+        return cls(
+            gate_id=payload["gate_id"],
+            verdict=payload["verdict"],
+            head_sha=payload["head_sha"],
+            findings=tuple(
+                ReviewFinding.from_json(dict(value)) for value in payload["findings"]
+            ),
+        )
+
+
+@dataclass(frozen=True)
 class IterationPacket:
     issue_identifier: str
     objective: str
@@ -86,7 +130,7 @@ class IterationPacket:
     attempts_by_root_cause: dict[str, int]
     budget_remaining: dict[str, int]
     validation_commands: tuple[str, ...]
-    implementer_session_id: str
+    implementer_session_id: str | None
 
     def __post_init__(self) -> None:
         if not ISSUE_IDENTIFIER.fullmatch(self.issue_identifier):
@@ -94,7 +138,8 @@ class IterationPacket:
         _nonblank(self.objective, "objective")
         _full_sha(self.base_sha, "base_sha")
         _full_sha(self.head_sha, "head_sha")
-        _nonblank(self.implementer_session_id, "implementer_session_id")
+        if self.implementer_session_id is not None:
+            _nonblank(self.implementer_session_id, "implementer_session_id")
         if not self.acceptance:
             raise ValueError("acceptance must contain at least one criterion")
         for criterion in self.acceptance:
@@ -154,10 +199,13 @@ class IterationPacket:
             "objective",
             "base_sha",
             "head_sha",
-            "implementer_session_id",
         ):
             if not isinstance(payload[field_name], str):
                 raise ValueError(f"{field_name} must be a string")
+        if payload["implementer_session_id"] is not None and not isinstance(
+            payload["implementer_session_id"], str
+        ):
+            raise ValueError("implementer_session_id must be a string or null")
         for field_name in (
             "acceptance",
             "review_findings",
@@ -199,7 +247,77 @@ class IterationPacket:
             validation_commands=tuple(
                 str(value) for value in payload["validation_commands"]
             ),
-            implementer_session_id=str(payload["implementer_session_id"]),
+            implementer_session_id=payload["implementer_session_id"],
+        )
+
+
+@dataclass(frozen=True)
+class TurnReceipt:
+    """Trusted Symphony receipt captured outside the model output."""
+
+    session_id: str
+    thread_id: str
+    turn_id: str
+    role: str
+    head_sha: str
+
+    def __post_init__(self) -> None:
+        for field_name in ("session_id", "thread_id", "turn_id"):
+            _nonblank(getattr(self, field_name), field_name)
+        if self.role not in TURN_ROLES:
+            raise ValueError(f"role must be one of {sorted(TURN_ROLES)}")
+        _full_sha(self.head_sha, "head_sha")
+
+
+@dataclass(frozen=True)
+class ReviewProposal:
+    """Untrusted reviewer output before host-owned identities are attached."""
+
+    verdict: str
+    head_sha: str
+    reviewer_role: str
+    findings: tuple[ReviewFinding, ...]
+
+    def __post_init__(self) -> None:
+        if self.verdict not in {"PASS", "FAIL"}:
+            raise ValueError("verdict must be PASS or FAIL")
+        _full_sha(self.head_sha, "head_sha")
+        if self.reviewer_role not in REVIEWER_ROLES:
+            raise ValueError(f"reviewer_role must be one of {sorted(REVIEWER_ROLES)}")
+        if self.verdict == "PASS" and self.findings:
+            raise ValueError("PASS cannot contain findings")
+        if self.verdict == "FAIL" and not self.findings:
+            raise ValueError("FAIL must contain at least one finding")
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "verdict": self.verdict,
+            "head_sha": self.head_sha,
+            "reviewer_role": self.reviewer_role,
+            "findings": [finding.to_json() for finding in self.findings],
+        }
+
+    @classmethod
+    def from_json(cls, payload: dict[str, Any]) -> "ReviewProposal":
+        required = {"verdict", "head_sha", "reviewer_role", "findings"}
+        if set(payload) != required:
+            raise ValueError("review proposal fields do not match the contract")
+        if not all(
+            isinstance(payload[field], str)
+            for field in ("verdict", "head_sha", "reviewer_role")
+        ):
+            raise ValueError("review proposal scalar fields must be strings")
+        if not isinstance(payload["findings"], list) or not all(
+            isinstance(value, dict) for value in payload["findings"]
+        ):
+            raise ValueError("findings must be an array of objects")
+        return cls(
+            verdict=payload["verdict"],
+            head_sha=payload["head_sha"],
+            reviewer_role=payload["reviewer_role"],
+            findings=tuple(
+                ReviewFinding.from_json(dict(value)) for value in payload["findings"]
+            ),
         )
 
 
@@ -325,3 +443,4 @@ def _load_schema(name: str) -> dict[str, Any]:
 
 ITERATION_PACKET_SCHEMA = _load_schema("iteration-packet.schema.json")
 REVIEW_DECISION_SCHEMA = _load_schema("review-decision.schema.json")
+REVIEW_PROPOSAL_SCHEMA = _load_schema("review-proposal.schema.json")
