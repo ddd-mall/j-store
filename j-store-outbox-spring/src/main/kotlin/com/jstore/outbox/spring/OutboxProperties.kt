@@ -32,8 +32,10 @@ data class OutboxProperties(
     val lockTimeoutMillis: Long = 300000,
     val workerId: String = "",
     val retentionDays: Int = 7,
+    val consumptionRetentionDays: Int = 14,
     val cleanupBatchSize: Int = 500,
-    val cleanupCron: String = "0 0 3 * * ?",
+    val cleanupMaxBatchesPerRun: Int = 10,
+    val cleanupIntervalMillis: Long = 60000,
     val eventTypeScanPackages: List<String> = listOf("com.jstore"),
     val asyncMulticasterFailFast: Boolean = false,
 ) {
@@ -59,7 +61,16 @@ data class OutboxProperties(
         require(retentionDays >= 0) {
             "jstore.outbox.retention-days must be greater than or equal to 0"
         }
+        require(consumptionRetentionDays >= retentionDays) {
+            "jstore.outbox.consumption-retention-days must be greater than or equal to retention-days"
+        }
         require(cleanupBatchSize > 0) { "jstore.outbox.cleanup-batch-size must be greater than 0" }
+        require(cleanupMaxBatchesPerRun > 0) {
+            "jstore.outbox.cleanup-max-batches-per-run must be greater than 0"
+        }
+        require(cleanupIntervalMillis > 0) {
+            "jstore.outbox.cleanup-interval-millis must be greater than 0"
+        }
         require(eventTypeScanPackages.isNotEmpty()) {
             "jstore.outbox.event-type-scan-packages must not be empty"
         }

@@ -16,6 +16,7 @@
  */
 package com.jstore.outbox.spring
 
+import com.jstore.messaging.MessageConsumptionRetentionRepository
 import com.jstore.outbox.*
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -29,21 +30,57 @@ import org.slf4j.LoggerFactory
 class OutboxCleaner(
     private val outboxEntryRepository: OutboxEntryRepository,
     private val properties: OutboxProperties,
+    private val consumptionRetentionRepository: MessageConsumptionRetentionRepository,
 ) {
     private val logger = LoggerFactory.getLogger(OutboxCleaner::class.java)
 
     fun cleanup() {
         try {
             val before = Instant.now().minus(properties.retentionDays.toLong(), ChronoUnit.DAYS)
-            val deleted =
+            val outboxCleanup = drainBatches {
                 outboxEntryRepository.deletePublishedBefore(before, properties.cleanupBatchSize)
+            }
+            val consumptionBefore =
+                Instant.now().minus(properties.consumptionRetentionDays.toLong(), ChronoUnit.DAYS)
+            val consumptionCleanup = drainBatches {
+                consumptionRetentionRepository.deleteConsumptionsBefore(
+                    consumptionBefore,
+                    properties.cleanupBatchSize,
+                )
+            }
+            val streamCleanup = drainBatches {
+                consumptionRetentionRepository.deleteInactiveStreamPositionsBefore(
+                    consumptionBefore,
+                    properties.cleanupBatchSize,
+                )
+            }
             logger.info(
-                "Outbox cleanup completed: deleted={}, retentionDays={}",
-                deleted,
+                "Outbox cleanup completed: outboxDeleted={}, consumptionDeleted={}, streamPositionsDeleted={}, batches={}/{}/{}, retentionDays={}, consumptionRetentionDays={}",
+                outboxCleanup.deleted,
+                consumptionCleanup.deleted,
+                streamCleanup.deleted,
+                outboxCleanup.batches,
+                consumptionCleanup.batches,
+                streamCleanup.batches,
                 properties.retentionDays,
+                properties.consumptionRetentionDays,
             )
         } catch (e: Exception) {
             logger.error("Outbox cleanup encountered an unexpected error", e)
         }
     }
+
+    private fun drainBatches(deleteBatch: () -> Int): CleanupResult {
+        var deleted = 0
+        var batches = 0
+        while (batches < properties.cleanupMaxBatchesPerRun) {
+            val batchDeleted = deleteBatch()
+            deleted += batchDeleted
+            batches++
+            if (batchDeleted < properties.cleanupBatchSize) break
+        }
+        return CleanupResult(deleted, batches)
+    }
+
+    private data class CleanupResult(val deleted: Int, val batches: Int)
 }

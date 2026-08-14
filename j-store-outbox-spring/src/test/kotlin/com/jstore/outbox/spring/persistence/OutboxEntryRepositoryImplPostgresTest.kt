@@ -21,6 +21,7 @@ import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.messaging.BuiltInMessageConsumerIds
 import com.jstore.messaging.MessageConsumptionRepository
+import com.jstore.messaging.MessageConsumptionRetentionRepository
 import com.jstore.messaging.MessageDeliveryOrder
 import com.jstore.messaging.MessageSequenceGapException
 import com.jstore.messaging.tryStart
@@ -66,6 +67,9 @@ class OutboxEntryRepositoryImplPostgresTest {
     @Autowired private lateinit var dataSource: DataSource
 
     @Autowired private lateinit var consumptionRepository: MessageConsumptionRepository
+
+    @Autowired
+    private lateinit var consumptionRetentionRepository: MessageConsumptionRetentionRepository
 
     @Autowired private lateinit var streamSequenceAllocator: OutboxStreamSequenceAllocator
 
@@ -254,6 +258,171 @@ class OutboxEntryRepositoryImplPostgresTest {
                 )
             }!!
         )
+    }
+
+    @Test
+    fun `new ordered consumer rejects a first message that skips the stream prefix`() {
+        kotlin.test.assertFailsWith<MessageSequenceGapException> {
+            TransactionTemplate(transactionManager).execute {
+                consumptionRepository.tryStartOrdered(
+                    "new-broker-consumer",
+                    "message-2",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder("kafka", "Order:new-consumer", 2),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `local ordered consumer cannot skip an unfinished predecessor without a cursor`() {
+        repository.save(
+            entry(
+                id = "pending-1",
+                status = OutboxEntryStatus.FAILED,
+                transportId = OutboxTransportIds.LOCAL,
+                orderingKey = "Order:missing-cursor",
+                sequenceNo = 1,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.LOCAL_INTEGRATION,
+            )
+        )
+
+        kotlin.test.assertFailsWith<MessageSequenceGapException> {
+            TransactionTemplate(transactionManager).execute {
+                consumptionRepository.tryStartOrdered(
+                    BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS,
+                    "message-2",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder(
+                        OutboxTransportIds.LOCAL,
+                        "Order:missing-cursor",
+                        2,
+                    ),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `retention deletes old consumption details in bounded batches`() {
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                repeat(3) { index ->
+                    statement.executeUpdate(
+                        "INSERT INTO domain_event_consumption " +
+                            "(listener_id, event_id, event_name, event_version, consumed_at) " +
+                            "VALUES ('listener', 'old-$index', 'order.event', 1, " +
+                            "TIMESTAMPTZ '2025-01-01 00:00:00+00')"
+                    )
+                }
+                statement.executeUpdate(
+                    "INSERT INTO domain_event_consumption " +
+                        "(listener_id, event_id, event_name, event_version, consumed_at) " +
+                        "VALUES ('listener', 'recent', 'order.event', 1, NOW())"
+                )
+            }
+        }
+
+        val deleted =
+            consumptionRetentionRepository.deleteConsumptionsBefore(
+                Instant.parse("2026-01-01T00:00:00Z"),
+                2,
+            )
+
+        assertEquals(2, deleted)
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT COUNT(*) FROM domain_event_consumption").use {
+                    it.next()
+                    assertEquals(2, it.getInt(1))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `retention keeps active stream and restores an idle stream from its next actual sequence`() {
+        val old = "TIMESTAMPTZ '2025-01-01 00:00:00+00'"
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "INSERT INTO message_stream_consumption " +
+                        "(consumer_id, transport_id, ordering_key, last_sequence_no, updated_at) " +
+                        "VALUES ('${BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS}', " +
+                        "'local', 'Order:idle', 8, $old), " +
+                        "('${BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS}', " +
+                        "'local', 'Order:active', 8, $old)"
+                )
+            }
+        }
+        repository.save(
+            entry(
+                id = "active-9",
+                status = OutboxEntryStatus.FAILED,
+                transportId = "local",
+                orderingKey = "Order:active",
+                sequenceNo = 9,
+                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+                deliveryTarget = OutboxDeliveryTarget.LOCAL_INTEGRATION,
+            )
+        )
+
+        val deleted =
+            consumptionRetentionRepository.deleteInactiveStreamPositionsBefore(
+                Instant.parse("2026-01-01T00:00:00Z"),
+                10,
+            )
+
+        assertEquals(1, deleted)
+        val accepted =
+            TransactionTemplate(transactionManager).execute {
+                consumptionRepository.tryStartOrdered(
+                    BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS,
+                    "idle-9",
+                    "order.event",
+                    1,
+                    MessageDeliveryOrder("local", "Order:idle", 9),
+                )
+            }
+        assertTrue(accepted!!)
+    }
+
+    @Test
+    fun `retention keeps external consumer cursors without a local producer watermark`() {
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "INSERT INTO message_stream_consumption " +
+                        "(consumer_id, transport_id, ordering_key, last_sequence_no, updated_at) " +
+                        "VALUES ('broker-consumer', 'kafka', 'Order:external', 8, " +
+                        "TIMESTAMPTZ '2025-01-01 00:00:00+00')"
+                )
+            }
+        }
+
+        val deleted =
+            consumptionRetentionRepository.deleteInactiveStreamPositionsBefore(
+                Instant.parse("2026-01-01T00:00:00Z"),
+                10,
+            )
+
+        assertEquals(0, deleted)
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement
+                    .executeQuery(
+                        "SELECT last_sequence_no FROM message_stream_consumption " +
+                            "WHERE consumer_id = 'broker-consumer'"
+                    )
+                    .use { rows ->
+                        assertTrue(rows.next())
+                        assertEquals(8, rows.getLong(1))
+                    }
+            }
+        }
     }
 
     @Test
@@ -1090,7 +1259,7 @@ class OutboxEntryRepositoryImplPostgresTest {
         @Bean
         fun messageConsumptionRepository(
             entityManager: EntityManager
-        ): MessageConsumptionRepository = MessageConsumptionRepositoryImpl(entityManager)
+        ): MessageConsumptionRepositoryImpl = MessageConsumptionRepositoryImpl(entityManager)
 
         @Bean
         fun outboxStreamSequenceAllocator(

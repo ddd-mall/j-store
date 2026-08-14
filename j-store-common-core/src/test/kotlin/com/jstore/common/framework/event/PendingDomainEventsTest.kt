@@ -71,6 +71,27 @@ class PendingDomainEventsTest {
     }
 
     @Test
+    fun `transactional publisher acknowledges only after commit callback`() {
+        val event = TestEvent()
+        val aggregate = TestAggregate().apply { record(event) }
+        var afterCommit: (() -> Unit)? = null
+        val publisher =
+            object : DomainEventPublisher {
+                override fun publishEvent(event: DomainEvent) = Unit
+
+                override fun afterPublicationCommitted(acknowledgement: () -> Unit) {
+                    afterCommit = acknowledgement
+                }
+            }
+
+        aggregate.publishPendingEvents(publisher)
+
+        assertEquals(listOf(event), aggregate.pendingDomainEvents())
+        afterCommit!!.invoke()
+        assertEquals(emptyList(), aggregate.pendingDomainEvents())
+    }
+
+    @Test
     fun `pending events are submitted as one ordered batch`() {
         val events = listOf(TestEvent(), TestEvent())
         val aggregate = TestAggregate().apply { events.forEach(::record) }
