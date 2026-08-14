@@ -17,6 +17,20 @@
   固定版本 OSV Scanner 扫描后者的最终容器包；转换只改变归档格式，不重新构建镜像；
   Corretto 25 基础镜像已固定到 OCI image-index digest。
 
+## 基础镜像供应链变更
+
+- 原镜像 `amazoncorretto:25-al2023-headless@sha256:f388f9e66b3ba56109683d63539ee7b65797ad35ae191753ea98435c9d5f18f5`
+  的最终镜像扫描检出 `pip 21.3.1` 和 `setuptools 59.6.0` 共 20 项漏洞；两个 wheel 由
+  `python3-libs` 强依赖，不能在不破坏 RPM 包状态和 `dnf` 的情况下卸载。
+- 新镜像为 `amazoncorretto:25-alpine3.24@sha256:027310590da693629c2cf704d2f87e9359c33ee2f02bcaa777680b2f4b94f4c7`，
+  上游版本为 Corretto 25.0.4.7.1、Alpine 3.24.1；该 index 包含 linux/amd64 和
+  linux/arm64/v8 manifest。OSV Scanner 2.4.0 对基础镜像和最终应用镜像 archive 扫描均为
+  0 个漏洞。
+- Corretto APK 声明 `GPL-2.0-only WITH Classpath-exception-2.0`；Java 25.0.4 运行检查通过。
+  最终镜像以 UID/GID 10001 启动 Spring Boot、Tomcat 和 JPA，到连接未提供的本机 PostgreSQL
+  时才停止，未出现 musl/native library 错误。若后续集群兼容性验证失败，回滚到上述 AL2023
+  digest 并保持安全门禁失败，不能带漏洞晋级。
+
 ## 验证证据
 
 - `python3 -m unittest tests.tooling.test_immutable_multi_cluster_delivery tests.tooling.test_kubernetes_application_deployment`：21 项通过。

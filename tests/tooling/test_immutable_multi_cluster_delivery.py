@@ -258,7 +258,11 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
         ):
             self.assertIn(required, production)
         first_line = dockerfile.splitlines()[0]
-        self.assertRegex(first_line, r"^FROM .+@sha256:[0-9a-f]{64}$")
+        self.assertEqual(
+            "FROM amazoncorretto:25-alpine3.24@sha256:"
+            "027310590da693629c2cf704d2f87e9359c33ee2f02bcaa777680b2f4b94f4c7",
+            first_line,
+        )
 
     def test_legacy_latest_manifest_is_removed(self) -> None:
         self.assertFalse((REPOSITORY_ROOT / "j-store-boot" / "k8s-deployment.yaml").exists())
