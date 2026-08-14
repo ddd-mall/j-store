@@ -101,6 +101,7 @@ jobs:
           ./gradlew :j-store-boot:bootJar --no-daemon --console=plain
           docker buildx build \
             --output type=oci,dest=j-store-security.tar \
+            --output type=docker,dest=j-store-security-docker.tar \
             --provenance=mode=max \
             --sbom=true \
             --metadata-file container-build-metadata.json \
@@ -110,7 +111,7 @@ jobs:
       - name: Scan container operating-system and application packages
         run: >-
           "$RUNNER_TEMP/osv-scanner" scan image --archive
-          j-store-security.tar
+          j-store-security-docker.tar
           --format json
           --output-file osv-container-results.json
 

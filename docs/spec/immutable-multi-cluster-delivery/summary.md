@@ -12,8 +12,9 @@
   NetworkPolicy；development 保留显式 `local` 开发适配器，PVC/JAR 交付路径已经移除。
 - canary/production 通过容器显式环境变量关闭启动时 Flyway，数据库迁移必须走独立审批；
   目标 schema 强制高风险环境审批并只保留无 tag、无凭据的完整 repository。
-- CI 安全门禁生成带最大 provenance 和 SBOM attestation 的 OCI archive，并用固定版本 OSV
-  Scanner 扫描最终容器包；Corretto 25 基础镜像已固定到 OCI image-index digest。
+- CI 安全门禁通过一次 BuildKit 构建同时导出带最大 provenance/SBOM attestation 的 OCI
+  archive 和 Docker 格式扫描 archive，并用固定版本 OSV Scanner 扫描后者的最终容器包；
+  Corretto 25 基础镜像已固定到 OCI image-index digest。
 
 ## 验证证据
 

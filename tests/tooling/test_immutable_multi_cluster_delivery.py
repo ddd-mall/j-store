@@ -498,10 +498,25 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
             if step.get("name")
             == "Build attested OCI archive for container security scanning"
         )
+        container_scan = next(
+            step
+            for step in steps
+            if step.get("name")
+            == "Scan container operating-system and application packages"
+        )
+        attested_build = steps[attested_build_index]
         self.assertLess(buildx_setup_index, attested_build_index)
-        self.assertIn("--output type=oci,dest=j-store-security.tar", workflow_text)
+        self.assertIn(
+            "--output type=oci,dest=j-store-security.tar", attested_build["run"]
+        )
+        self.assertIn(
+            "--output type=docker,dest=j-store-security-docker.tar",
+            attested_build["run"],
+        )
         self.assertIn("BUILDX_METADATA_PROVENANCE: max", workflow_text)
-        self.assertIn("scan image --archive", workflow_text)
+        self.assertIn(
+            "scan image --archive j-store-security-docker.tar", container_scan["run"]
+        )
         self.assertNotIn("--load", workflow_text)
 
 
