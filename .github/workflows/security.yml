@@ -53,7 +53,7 @@ jobs:
 
   dependency-vulnerability-scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
     env:
@@ -91,6 +91,26 @@ jobs:
           --format json
           --output-file osv-results.json
 
+      - name: Build attested OCI archive for container security scanning
+        env:
+          BUILDX_METADATA_PROVENANCE: max
+        run: |
+          ./gradlew :j-store-boot:bootJar --no-daemon --console=plain
+          docker buildx build \
+            --output type=oci,dest=j-store-security.tar \
+            --provenance=mode=max \
+            --sbom=true \
+            --metadata-file container-build-metadata.json \
+            --tag "j-store-security:${GITHUB_SHA}" \
+            j-store-boot
+
+      - name: Scan container operating-system and application packages
+        run: >-
+          "$RUNNER_TEMP/osv-scanner" scan image --archive
+          j-store-security.tar
+          --format json
+          --output-file osv-container-results.json
+
       - name: Upload dependency vulnerability report
         if: always()
         uses: actions/upload-artifact@v7
@@ -98,6 +118,8 @@ jobs:
           name: osv-results-${{ github.run_id }}
           path: |
             osv-results.json
+            osv-container-results.json
+            container-build-metadata.json
             j-store-boot/build/reports/cyclonedx-direct/bom.json
           if-no-files-found: ignore
           retention-days: 14

@@ -1,5 +1,9 @@
 # J-Store Kubernetes 开发部署设计
 
+> 历史说明：本设计记录无 registry 时的开发验证方案。当前权威交付设计见
+> [`immutable-multi-cluster-delivery`](../immutable-multi-cluster-delivery/design.md)，正式应用部署
+> 不再使用 PVC/JAR。
+
 ## 拓扑
 
 ```mermaid

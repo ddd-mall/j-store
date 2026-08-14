@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://j-store.local/schemas/cluster-target.schema.json",
+  "title": "J-Store isolated cluster deployment targets",
+  "type": "object",
+  "required": ["version", "targets"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"const": 1},
+    "targets": {
+      "type": "object",
+      "required": ["development", "integration", "canary", "production"],
+      "additionalProperties": false,
+      "properties": {
+        "development": {"$ref": "#/$defs/target"},
+        "integration": {"$ref": "#/$defs/target"},
+        "canary": {"$ref": "#/$defs/target"},
+        "production": {"$ref": "#/$defs/target"}
+      }
+    }
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "required": [
+        "context",
+        "expectedClusterUid",
+        "namespace",
+        "registry",
+        "repository",
+        "tunnelProfile",
+        "requiresApproval"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "context": {"type": "string", "minLength": 1},
+        "expectedClusterUid": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        },
+        "namespace": {"const": "jstore"},
+        "registry": {"type": "string", "minLength": 1},
+        "repository": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._:/-]*$"
+        },
+        "tunnelProfile": {"type": "string", "minLength": 1},
+        "requiresApproval": {"type": "boolean"}
+      }
+    }
+  }
+}

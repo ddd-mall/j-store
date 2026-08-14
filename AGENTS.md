@@ -40,6 +40,7 @@
 
 - [docs/operations/agent-automation-runbook.md](docs/operations/agent-automation-runbook.md)：建议的周期任务、触发器、输出和人工接管规则。
 - [docs/operations/agentic-cicd-runbook.md](docs/operations/agentic-cicd-runbook.md)：Symphony/Codex 编排的能力级别、运行配置、安全边界、停止与恢复步骤。
+- [docs/operations/immutable-multi-cluster-delivery.md](docs/operations/immutable-multi-cluster-delivery.md)：不可变 OCI 制品在物理隔离但基础设施同构的多集群之间构建、晋级、部署与回滚的操作契约。
 
 ## 权威来源与冲突处理
 

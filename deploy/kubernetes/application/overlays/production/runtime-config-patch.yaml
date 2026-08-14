@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jstore-deployment
+data:
+  JSTORE_DEPLOYMENT_ENVIRONMENT: production
+  JSTORE_TRACING_SAMPLING_PROBABILITY: "0.1"
