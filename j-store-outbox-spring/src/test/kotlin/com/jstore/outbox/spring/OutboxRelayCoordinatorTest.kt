@@ -130,7 +130,7 @@ class OutboxRelayCoordinatorTest :
             verify(observer).recordFailure()
         }
 
-        test("executor rejection is not reported as a successful drain") {
+        test("executor rejection is reported as a failed drain") {
             val observer = mock<OutboxRelayExecutionObserver>()
             val coordinator =
                 OutboxRelayCoordinator(
@@ -142,7 +142,7 @@ class OutboxRelayCoordinatorTest :
             coordinator.requestDrain()
 
             verify(observer, never()).recordSuccess()
-            verify(observer, never()).recordFailure()
+            verify(observer).recordFailure()
         }
     })
 

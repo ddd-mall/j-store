@@ -18,6 +18,7 @@ package com.jstore.outbox.spring.persistence
 
 import com.jstore.messaging.BuiltInMessageConsumerIds
 import com.jstore.messaging.MessageConsumptionRepository
+import com.jstore.messaging.MessageConsumptionRetentionRepository
 import com.jstore.messaging.MessageDeliveryOrder
 import com.jstore.messaging.MessageSequenceGapException
 import jakarta.persistence.EntityManager
@@ -26,7 +27,7 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 open class MessageConsumptionRepositoryImpl(private val entityManager: EntityManager) :
-    MessageConsumptionRepository {
+    MessageConsumptionRepository, MessageConsumptionRetentionRepository {
 
     @Transactional(propagation = Propagation.MANDATORY)
     open override fun tryStart(
@@ -68,7 +69,7 @@ open class MessageConsumptionRepositoryImpl(private val entityManager: EntityMan
                 """
                 INSERT INTO message_stream_consumption
                     (consumer_id, transport_id, ordering_key, last_sequence_no, updated_at)
-                VALUES (:consumerId, :transportId, :orderingKey, 0, :now)
+                VALUES (:consumerId, :transportId, :orderingKey, :initialSequenceNo, :now)
                 ON CONFLICT (consumer_id, transport_id, ordering_key) DO NOTHING
                 """
                     .trimIndent()
@@ -76,6 +77,7 @@ open class MessageConsumptionRepositoryImpl(private val entityManager: EntityMan
             .setParameter("consumerId", consumerId)
             .setParameter("transportId", deliveryOrder.transportId)
             .setParameter("orderingKey", deliveryOrder.orderingKey)
+            .setParameter("initialSequenceNo", initialSequenceNo(consumerId, deliveryOrder))
             .setParameter("now", now)
             .executeUpdate()
         val lastSequence =
@@ -134,6 +136,93 @@ open class MessageConsumptionRepositoryImpl(private val entityManager: EntityMan
             .setParameter("orderingKey", deliveryOrder.orderingKey)
             .executeUpdate()
         return accepted
+    }
+
+    @Transactional
+    open override fun deleteConsumptionsBefore(before: Instant, batchSize: Int): Int {
+        require(batchSize > 0) { "batchSize must be positive" }
+        return entityManager
+            .createNativeQuery(
+                """
+                DELETE FROM domain_event_consumption
+                WHERE ctid IN (
+                    SELECT ctid
+                    FROM domain_event_consumption
+                    WHERE consumed_at < :before
+                    ORDER BY consumed_at
+                    LIMIT :batchSize
+                    FOR UPDATE SKIP LOCKED
+                )
+                """
+                    .trimIndent()
+            )
+            .setParameter("before", before)
+            .setParameter("batchSize", batchSize)
+            .executeUpdate()
+    }
+
+    @Transactional
+    open override fun deleteInactiveStreamPositionsBefore(
+        before: Instant,
+        batchSize: Int,
+    ): Int {
+        require(batchSize > 0) { "batchSize must be positive" }
+        return entityManager
+            .createNativeQuery(
+                """
+                DELETE FROM message_stream_consumption consumption
+                WHERE (consumer_id, transport_id, ordering_key) IN (
+                    SELECT candidate.consumer_id,
+                           candidate.transport_id,
+                           candidate.ordering_key
+                    FROM message_stream_consumption candidate
+                    WHERE candidate.updated_at < :before
+                      AND candidate.consumer_id = :localConsumerId
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM outbox_entry entry
+                          WHERE entry.transport_id = candidate.transport_id
+                            AND entry.ordering_key = candidate.ordering_key
+                            AND entry.status <> 'PUBLISHED'
+                      )
+                    ORDER BY candidate.updated_at
+                    LIMIT :batchSize
+                    FOR UPDATE OF candidate SKIP LOCKED
+                )
+                """
+                    .trimIndent()
+            )
+            .setParameter("before", before)
+            .setParameter("batchSize", batchSize)
+            .setParameter("localConsumerId", BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS)
+            .executeUpdate()
+    }
+
+    private fun initialSequenceNo(
+        consumerId: String,
+        deliveryOrder: MessageDeliveryOrder,
+    ): Long {
+        if (consumerId != BuiltInMessageConsumerIds.LOCAL_INTEGRATION_BUS) return 0
+        val hasUnfinishedPredecessor =
+            (entityManager
+                .createNativeQuery(
+                    """
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM outbox_entry entry
+                        WHERE entry.transport_id = :transportId
+                          AND entry.ordering_key = :orderingKey
+                          AND entry.sequence_no < :sequenceNo
+                          AND entry.status <> 'PUBLISHED'
+                    )
+                    """
+                        .trimIndent()
+                )
+                .setParameter("transportId", deliveryOrder.transportId)
+                .setParameter("orderingKey", deliveryOrder.orderingKey)
+                .setParameter("sequenceNo", deliveryOrder.sequenceNo)
+                .singleResult as Boolean)
+        return if (hasUnfinishedPredecessor) 0 else deliveryOrder.sequenceNo - 1
     }
 
     private fun localOutboxPublishedPrefixEnd(deliveryOrder: MessageDeliveryOrder): Long =

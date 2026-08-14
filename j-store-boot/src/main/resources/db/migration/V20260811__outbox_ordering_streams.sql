@@ -56,6 +56,9 @@ CREATE TABLE message_stream_consumption (
     PRIMARY KEY (consumer_id, transport_id, ordering_key)
 );
 
+CREATE INDEX idx_message_stream_consumption_retention
+    ON message_stream_consumption (updated_at, consumer_id, transport_id, ordering_key);
+
 INSERT INTO outbox_stream_position (transport_id, ordering_key, last_sequence_no)
 SELECT transport_id, ordering_key, MAX(sequence_no)
 FROM outbox_entry
