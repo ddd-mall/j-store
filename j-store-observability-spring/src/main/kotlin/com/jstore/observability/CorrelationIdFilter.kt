@@ -24,11 +24,9 @@ import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
-import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.servlet.HandlerMapping
 
-@Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 class CorrelationIdFilter : OncePerRequestFilter() {
     override fun doFilterInternal(

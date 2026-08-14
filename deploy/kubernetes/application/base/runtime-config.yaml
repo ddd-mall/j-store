@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: jstore-runtime
 data:
-  SPRING_PROFILES_ACTIVE: local,observability
+  SPRING_PROFILES_ACTIVE: local,observability,outbox-observability
   JSTORE_DB_URL: jdbc:postgresql://postgresql.postgresql.svc.cluster.local:5432/j_store_codex?currentSchema=develop
   JSTORE_DB_USER: jstore_app
   JSTORE_REDIS_HOST: redis

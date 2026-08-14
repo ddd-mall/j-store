@@ -51,3 +51,39 @@ data:
             annotations:
               summary: A J-Store metrics target is unavailable
               description: A selected J-Store Pod has failed Prometheus scrapes for five minutes.
+
+          - alert: JStoreOutboxReadyLagHigh
+            expr: max(jstore_outbox_alert{reason="lag",transportId="all"}) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: J-Store Outbox ready entries are delayed
+              description: The oldest globally ready Outbox entry has exceeded the configured application threshold for five minutes.
+
+          - alert: JStoreOutboxDeadLettersPresent
+            expr: max(jstore_outbox_alert{reason="dead_letter",transportId="all"}) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: J-Store Outbox contains dead letters
+              description: At least one Outbox entry has reached the configured dead-letter threshold.
+
+          - alert: JStoreOutboxExpiredLocksPresent
+            expr: max(jstore_outbox_alert{reason="expired_lock",transportId="all"}) > 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: J-Store Outbox contains expired delivery locks
+              description: Outbox delivery locks have exceeded the configured expiration threshold.
+
+          - alert: JStoreOutboxSchedulerFailing
+            expr: max(jstore_outbox_alert{reason="scheduler_failure",transportId="all"}) > 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: J-Store Outbox scheduler is repeatedly failing
+              description: Consecutive Outbox scheduler failures have reached the configured application threshold.
