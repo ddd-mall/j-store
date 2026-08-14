@@ -26,3 +26,16 @@
 可整体 revert 本独立变更，但回滚会恢复已知漏洞。当前没有观察到二进制、启动、桥接、
 许可证或供应链回归。剩余风险是本地环境为 macOS，而 CI 使用 Linux；通过使用同一 SBOM
 生成任务和同版 OSV Scanner 缩小差异，最终仍以远端 required checks 为准。
+
+## 合并后补强
+
+- 增加 `verifyDependencyResolution`，遍历 50 个生产运行时配置；当前仅解析到
+  `log4j-bom`、`log4j-api`、`log4j-to-slf4j`，版本均为 2.25.5。
+- 通过临时初始化脚本把 API 与 SLF4J 桥接强制降到 2.24.3 后，解析契约按预期失败并列出
+  所有受影响模块，证明门禁验证的是 Gradle 最终结果而非 catalog 文本。
+- `quality-gate.sh` 在依赖许可证阶段前执行解析契约；Python 治理测试守护任务与门禁接线。
+- BOM 查询指南不再复制具体版本，改为指向 catalog、统一 Platform、`dependencyInsight`、
+  生产 SBOM 与 CI 固定漏洞扫描流程。
+- 补强后的 `./scripts/quality-gate.sh` 六阶段通过：28 项 spec-dev、39 项 governance、
+  69 项 tooling 测试、Spotless、50 个模块许可证审计、189 个 Gradle 回归任务及 53 个发布
+  JAR 许可证验证均成功。

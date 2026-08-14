@@ -119,6 +119,58 @@ subprojects {
     }
 }
 
+tasks.register("verifyDependencyResolution") {
+    group = "verification"
+    description = "Verifies approved dependency families resolve consistently at runtime."
+
+    doLast {
+        val approvedLog4jVersion = libs.versions.log4j.get()
+        val resolvedLog4j = subprojects.flatMap { candidate ->
+            val runtimeClasspath = candidate.configurations.findByName("runtimeClasspath")
+            if (runtimeClasspath == null || !runtimeClasspath.isCanBeResolved) {
+                emptyList()
+            } else {
+                runtimeClasspath.incoming.resolutionResult.allComponents.mapNotNull { component ->
+                    component.moduleVersion
+                        ?.takeIf { it.group == "org.apache.logging.log4j" }
+                        ?.let { "${candidate.path}\t${it.name}\t${it.version}" }
+                }
+            }
+        }
+
+        check(resolvedLog4j.isNotEmpty()) {
+            "No Log4j components were found in production runtime classpaths."
+        }
+
+        val unexpectedVersions = resolvedLog4j.filterNot {
+            it.substringAfterLast('\t') == approvedLog4jVersion
+        }
+        check(unexpectedVersions.isEmpty()) {
+            "Unexpected Log4j runtime versions:\n${unexpectedVersions.distinct().sorted().joinToString("\n")}"
+        }
+
+        val bootComponents =
+            resolvedLog4j
+                .filter { it.startsWith(":j-store-boot\t") }
+                .map { it.split('\t')[1] }
+                .toSet()
+        val requiredBootComponents = setOf("log4j-api", "log4j-to-slf4j")
+        check(bootComponents.containsAll(requiredBootComponents)) {
+            "j-store-boot is missing required Log4j runtime components: " +
+                (requiredBootComponents - bootComponents).sorted().joinToString()
+        }
+
+        val verifiedModules = resolvedLog4j.map { it.substringBefore('\t') }.toSet().size
+        val verifiedComponents = resolvedLog4j.map { it.split('\t')[1] }.toSet().sorted()
+        logger.lifecycle(
+            "Verified Log4j {} across {} runtime classpaths: {}.",
+            approvedLog4jVersion,
+            verifiedModules,
+            verifiedComponents.joinToString(),
+        )
+    }
+}
+
 tasks.register("verifyLicenseArtifacts") {
     group = "verification"
     description = "Verifies every Gradle JAR contains the canonical Apache-2.0 license."

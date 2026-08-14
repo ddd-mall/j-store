@@ -137,6 +137,15 @@ class DependencyManagementContractTest(unittest.TestCase):
         for contract in required_contracts:
             self.assertIn(contract, guideline)
 
+    def test_resolved_dependency_versions_are_verified_by_the_quality_gate(self) -> None:
+        root_build = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        quality_gate = (REPO_ROOT / "scripts" / "quality-gate.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('tasks.register("verifyDependencyResolution")', root_build)
+        self.assertIn("verifyDependencyResolution", quality_gate)
+
 
 if __name__ == "__main__":
     unittest.main()
