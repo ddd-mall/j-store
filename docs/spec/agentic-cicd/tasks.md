@@ -6,15 +6,35 @@
 
 ## 当前状态
 
-- 当前进度同步分支：`codex/agentic-cicd-progress-sync`
+- 当前计划分支：`codex/agentic-cicd-local-candidate-plan`
 - 初始基线：`origin/develop@daf184ab9bb3f3bf811ae2158de704df6762b2a8`
-- 当前可信基线：`origin/develop@beed6dad16bbaa28c884ddba6ee8753f8b68d7d8`
-- 当前阶段：迭代 3 — Kubernetes Level 0 已合并并部署；唯一 Symphony 运行路径、独立评审和真实只读 Agent 演练待完成
-- 远端事实：PR #27、#32 和 #40 已合并；Kubernetes Level 0 已进入 `develop`，开发集群中的单副本仅使用无权限哨兵 token，不代表真实 Agent 闭环完成。
-- 部署目标：专用 CI/CD 试点使用用户指定的开发 Kubernetes 集群；连接信息保留在仓库外。Level 0 namespace、ServiceAccount、PVC、Deployment 和内部 Service 已落地，后续镜像升级、Secret 注入和模型 turn 仍需按精确操作授权。
+- 当前可信基线：`origin/develop@ab92f349c4949755d1a9dedef168f8f388f8ed23`
+- 当前阶段：迭代 3L — Level 1 本地候选闭环规划；先关闭候选身份、隔离 Gate Runner、Symphony 供应链和真实恢复证据，再考虑远端 PR 自动化。
+- 远端事实：PR #27、#32、#40 和 #42 已合并；Kubernetes Level 0、可信阶段桥、单 turn 路由、GateReceipt 合同和不可变部署基础已进入 `develop`。PR #44 同时补齐了业务应用不可变 OCI/multi-cluster 交付契约，但不能替代 Agentic CI/CD 的真实模型与恢复证据。
+- 能力事实：`read_only_observation=true`、`local_workspace_write=false`，远端 branch/push/PR、邮件、合并、发布和生产写全部关闭。当前 Level 0 observer 只执行一个只读 turn 后 complete，不构成实现—验证—独立评审闭环。
+- 下一阶段规格：`../changes/agentic-cicd-local-candidate-loop/`。Level 1 只允许本地 workspace 写入、不可变候选冻结、隔离 gate和独立只读评审；不开放任何远端候选写入。
+- 部署目标：继续使用用户指定的开发 Kubernetes 集群；连接信息保留在仓库外。部署新 Supervisor/Dispatcher、创建 Job/RBAC、注入 Secret、创建 Issue和启动模型 turn仍需分别取得精确授权。
 - 验证环境：需要 Linux 交付证据时使用用户指定的远端 Linux 开发主机及其原生文件系统；WSL `/mnt/*` 不作为全量质量门禁目录。
-- 外部阻塞：I0-04 ruleset 正反例演练、Symphony 网络依赖安全升级、已暴露远程环境凭据轮换、disposable Issue 和 GitHub App 短期凭据均尚未形成完整证据。一次使用当前 Codex 登录的独立只读模型评审已经获得授权，但尚未对最新候选执行。
+- 外部阻塞：I0-04 ruleset正反例演练、Symphony 网络依赖安全升级与完整 `mix compile/test`、已暴露远程环境凭据轮换、disposable Issue、GitHub App短期凭据和真实模型 turn均尚未形成完整证据。既有一次独立只读评审授权不自动授权新候选或外部写入。
 - 分支收敛：旧 `codex/agentic-cicd-orchestration` 远端分支已在 PR #27 合并后删除；本地旧 head 与已合并 head、新 `develop` 均已分叉，只作为原型证据，不整体 merge、rebase 或 cherry-pick。
+
+## 下一阶段执行顺序：迭代 3L
+
+目标：在保持所有远端写能力关闭的条件下，通过唯一 Symphony 生命周期完成一次可恢复、可审计的本地候选闭环。详细验收、设计和任务见 `../changes/agentic-cicd-local-candidate-loop/`。
+
+1. **集群网络准备**：为现有 Flannel增加并验证 policy-only NetworkPolicy执行器，先审计并回归现有 jstore策略；不替换 CNI。
+2. **合同收敛**：拆分本地 workspace branch与远端 branch能力，定义 CandidateRevision和 GateRequest/GateReceipt；Level 0行为保持不变。
+3. **供应链资格**：升级或缓解固定 Symphony依赖风险，在 Linux完成完整 compile/test和独立安全评审，构建不可变 Supervisor/Gate镜像。
+4. **节点镜像分发**：Registry不可用时，将同一 OCI archive按 digest导入 master/worker1并核对实际 image ID。
+5. **候选冻结**：使用可信临时 Git index覆盖 tracked/untracked/删除/mode，生成不修改 workspace index的内容寻址候选制品。
+6. **隔离门禁**：由无 GitHub凭据的独立 Dispatcher在 worker1创建无 token、禁网、受限资源的 Gate Job；Supervisor/hook不执行候选代码。
+7. **阶段接线**：只开启 local workspace write、candidate freeze和 isolated gate；reviewer消费同一 CandidateRevision，remote push/PR继续关闭。
+8. **开发集群验收**：先无模型 smoke，再经精确授权执行 disposable Issue、真实模型、finding回流、熔断和重启恢复。
+9. **人工收口**：缩容为 0并保留审计证据；只有全部 Level 1验收通过后，才单独规划迭代 4最小远端写能力。
+
+阶段顺序是硬依赖：不得以 Pod Ready、组件单测或私有网络低敏感度跳过供应链、候选身份、Gate隔离和真实恢复证据。
+
+目标集群评估补充：当前 Flannel配置没有可验证的 NetworkPolicy执行器，`agentic-cicd`又强制 restricted Pod Security，不能用特权 init在 Pod内替代网络隔离。因此隔离门禁之前新增集群网络准备：以独立、可回滚变更部署 policy-only执行器，验证现有 jstore策略影响；Supervisor继续使用 master Local PV，Gate Job在 worker1通过只读 Artifact Broker消费 CandidateRevision。
 
 ## 迭代 0：远端基线可用
 
@@ -93,9 +113,10 @@
   - 重新基线结论：旧本地原型通过 Symphony `after_run` hook 再启动独立 `codex app-server`，形成第二套模型生命周期，不满足本项，不能按完成迁移。
   - [x] `I3-08A` 建立 host-side 可信阶段桥合同：首次实现不伪造 session，ReviewProposal 不含身份，Symphony TurnReceipt 绑定 exact-head ReviewDecision；见 `../changes/agentic-cicd-symphony-phase-bridge/`。
   - [ ] `I3-08B` 为锁定 Symphony 源码增加最小 turn-receipt 适配，配置单 turn redispatch，并证明 hook 不启动第二个 App Server。
-    - 第一轮候选完成 exact develop bootstrap、host-owned snapshot、受限 ReviewProposal tool、turn receipt 补丁、双 revision/patch hash 构建合同和不可变 rollout 合同。
-    - 第二轮候选已补齐 validate/GateReceipt、动态 observer/implementer/reviewer sandbox、`max_turns: 1` 和 validate/complete 无模型短路；Level 0 `local_workspace_write=false` 保持不变，尚缺隔离 gate runner、完整 Symphony 构建及真实运行证据。
+    - PR #42 已把 exact develop bootstrap、host-owned snapshot、受限 ReviewProposal tool、turn receipt、validate/GateReceipt、动态 sandbox、`max_turns: 1`、双 revision/patch hash和不可变 rollout合同合入 `develop`。
+    - 仍未完成：稳定 CandidateRevision、隔离 Gate Runner、完整 Symphony构建/测试、依赖安全处置和新镜像真实运行证据；这些工作由迭代 3L承接，不能因仓库实现已合并而勾选完成。
   - [ ] `I3-08C` 通过同一路径完成 disposable Issue、独立只读评审、finding 返工和重启恢复证据。
+    - 必须使用迭代 3L生成的同一 CandidateRevision完成 gate和review；Level 0 observer turn不能替代本项。
 - [x] `I3-09` 增加固定 Symphony/Codex 运行时预检，不启动服务或模型 turn。
   - 证据：`scripts/check-agentic-cicd-runtime.py`、6 个聚焦测试，以及本机对锁定 Symphony 源码成功、Codex/Elixir 环境漂移失败的确定性报告。
 

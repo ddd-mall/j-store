@@ -142,6 +142,22 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 - dashboard：ClusterIP `symphony:4000`，默认不创建 Ingress。
 - dashboard bind：部署副本只在受信根 `WORKFLOW.md` 上增加 `server.host: 0.0.0.0`，使 Pod 探针和 ClusterIP 可访问；无 NodePort、LoadBalancer 或 Ingress。
 - 首次 smoke：使用非秘密哨兵 token `level0-no-github-access`，GitHub 会拒绝请求，因此不能取得 Issue 或触发 Codex turn。
+- NetworkPolicy执行器：Flannel保持不变，独立 `kube-router-firewall` DaemonSet只运行 firewall controller；固定镜像和回滚约束见 `deploy/kubernetes/agentic-cicd/network-policy-engine/`。`kube-network-policies`曾因返回流量兼容性在实机失败，不能恢复使用。
+- Gate基础设施：`agentic-cicd-gates` namespace已启用 restricted Pod Security、ResourceQuota、LimitRange和 default-deny；`agentic-cicd/gate-dispatcher`只可在该 namespace管理 Job、观察 Pod和读取日志。Artifact Broker和正式 Dispatcher Deployment尚未部署，当前能力仍为 Level 0。
+
+NetworkPolicy执行器使用独立入口部署；它会运行 preflight、server dry-run、两节点 rollout、跨节点 ingress/egress正反例以及现有业务回归，失败自动回滚：
+
+```bash
+./scripts/agentic-cicd-network-policy-deploy.sh \
+  --context kubernetes-admin@kubernetes
+```
+
+人工 kill switch保留 Gate namespace和状态，只停止执行器并清理两个节点的 kube-router规则。脚本只接受当前 kube-proxy iptables且不存在其它 kube-router的拓扑，清理后验证 kube-proxy和 j-store健康：
+
+```bash
+./scripts/agentic-cicd-network-policy-rollback.sh \
+  --context kubernetes-admin@kubernetes
+```
 
 从同步到该主机的受审候选执行：
 

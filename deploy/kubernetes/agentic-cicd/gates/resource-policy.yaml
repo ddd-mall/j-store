@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gate-budget
+  namespace: agentic-cicd-gates
+spec:
+  hard:
+    count/jobs.batch: "2"
+    count/pods: "2"
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    requests.ephemeral-storage: 8Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    limits.ephemeral-storage: 16Gi
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: gate-defaults
+  namespace: agentic-cicd-gates
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+        ephemeral-storage: 256Mi
+      default:
+        cpu: "1"
+        memory: 1Gi
+        ephemeral-storage: 2Gi
+      max:
+        cpu: "4"
+        memory: 8Gi
+        ephemeral-storage: 16Gi

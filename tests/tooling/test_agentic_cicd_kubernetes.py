@@ -17,6 +17,16 @@ DEVELOPMENT = (
     / "overlays"
     / "development-local-image"
 )
+NETWORK_POLICY_ENGINE = (
+    REPOSITORY_ROOT
+    / "deploy"
+    / "kubernetes"
+    / "agentic-cicd"
+    / "network-policy-engine"
+)
+GATES = (
+    REPOSITORY_ROOT / "deploy" / "kubernetes" / "agentic-cicd" / "gates"
+)
 
 
 def render(path: Path) -> list[dict]:
@@ -53,6 +63,8 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.base = render(BASE)
         cls.development = render(DEVELOPMENT)
+        cls.network_policy_engine = render(NETWORK_POLICY_ENGINE)
+        cls.gates = render(GATES)
 
     def test_resources_are_isolated_and_do_not_embed_secrets(self) -> None:
         namespace = by_kind_name(self.base, "Namespace", "agentic-cicd")
@@ -306,6 +318,121 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertNotIn("delete pvc", stop)
         for state_field in ('\"running\"', '\"counts\"', '\"codex_totals\"'):
             self.assertIn(state_field, smoke)
+
+    def test_policy_engine_is_pinned_and_has_read_only_cluster_rbac(self) -> None:
+        daemonset = by_kind_name(
+            self.network_policy_engine, "DaemonSet", "kube-router-firewall"
+        )
+        pod = daemonset["spec"]["template"]["spec"]
+        container = pod["containers"][0]
+        self.assertTrue(pod["hostNetwork"])
+        self.assertEqual(
+            "docker.m.daocloud.io/cloudnativelabs/kube-router@sha256:0991f2cc7aaabe107b51c0c554d6b843f0483fd319b94f437fab638470c47c22",
+            container["image"],
+        )
+        self.assertNotIn(":latest", container["image"])
+        self.assertIn("--run-router=false", container["args"])
+        self.assertIn("--run-firewall=true", container["args"])
+        self.assertIn("--run-service-proxy=false", container["args"])
+        self.assertFalse(any(volume["name"] == "cni-conf-dir" for volume in pod["volumes"]))
+        self.assertNotIn("initContainers", pod)
+        self.assertTrue(container["securityContext"]["privileged"])
+
+        role = by_kind_name(
+            self.network_policy_engine, "ClusterRole", "jstore-kube-router-firewall"
+        )
+        self.assertEqual(
+            {"get", "list", "watch"},
+            {verb for rule in role["rules"] for verb in rule["verbs"]},
+        )
+        resources = {resource for rule in role["rules"] for resource in rule["resources"]}
+        self.assertEqual(
+            {
+                "endpoints",
+                "endpointslices",
+                "namespaces",
+                "networkpolicies",
+                "nodes",
+                "pods",
+                "services",
+            },
+            resources,
+        )
+
+    def test_gate_namespace_is_restricted_bounded_and_default_denied(self) -> None:
+        namespace = by_kind_name(self.gates, "Namespace", "agentic-cicd-gates")
+        self.assertEqual(
+            "restricted",
+            namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"],
+        )
+        quota = by_kind_name(self.gates, "ResourceQuota", "gate-budget")
+        self.assertEqual("2", quota["spec"]["hard"]["count/pods"])
+        self.assertEqual("4", quota["spec"]["hard"]["limits.cpu"])
+        self.assertEqual("8Gi", quota["spec"]["hard"]["limits.memory"])
+
+        policy = by_kind_name(self.gates, "NetworkPolicy", "default-deny")
+        self.assertEqual({}, policy["spec"]["podSelector"])
+        self.assertEqual({"Ingress", "Egress"}, set(policy["spec"]["policyTypes"]))
+        self.assertNotIn("ingress", policy["spec"])
+        self.assertNotIn("egress", policy["spec"])
+
+        runner = by_kind_name(self.gates, "ServiceAccount", "gate-runner")
+        self.assertFalse(runner["automountServiceAccountToken"])
+        self.assertFalse(any(document.get("kind") == "Secret" for document in self.gates))
+
+    def test_gate_dispatcher_rbac_cannot_read_secrets_or_exec(self) -> None:
+        role = by_kind_name(self.gates, "Role", "gate-dispatcher")
+        resources = {resource for rule in role["rules"] for resource in rule["resources"]}
+        self.assertEqual({"jobs", "pods", "pods/log"}, resources)
+        self.assertNotIn("secrets", resources)
+        self.assertNotIn("pods/exec", resources)
+        binding = by_kind_name(self.gates, "RoleBinding", "gate-dispatcher")
+        self.assertEqual("agentic-cicd", binding["subjects"][0]["namespace"])
+
+    def test_offline_gate_smoke_has_no_token_or_network_and_is_bounded(self) -> None:
+        job_path = GATES / "offline-smoke-job.yaml"
+        job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+        self.assertEqual("Job", job["kind"])
+        self.assertEqual(0, job["spec"]["backoffLimit"])
+        self.assertEqual(60, job["spec"]["activeDeadlineSeconds"])
+        pod = job["spec"]["template"]["spec"]
+        self.assertFalse(pod["automountServiceAccountToken"])
+        self.assertEqual("gate-runner", pod["serviceAccountName"])
+        self.assertEqual("k8s-worker1", pod["nodeSelector"]["kubernetes.io/hostname"])
+        container = pod["containers"][0]
+        self.assertTrue(container["securityContext"]["readOnlyRootFilesystem"])
+        self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
+        self.assertEqual(["ALL"], container["securityContext"]["capabilities"]["drop"])
+        self.assertIn("GATE_OFFLINE_SMOKE_PASS", container["args"][0])
+
+    def test_preflight_requires_policy_engine_by_default(self) -> None:
+        preflight = (
+            REPOSITORY_ROOT / "scripts" / "agentic-cicd-kubernetes-preflight.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"$(kubectl config current-context)" != "$context"', preflight)
+        self.assertIn('allow_missing_engine=false', preflight)
+        self.assertIn('network-policy-engine=', preflight)
+        self.assertIn('symphony-rbac=create-jobs:no', preflight)
+        self.assertNotIn("get secret", preflight)
+        self.assertNotIn("-n postgresql", preflight)
+
+    def test_policy_engine_scripts_are_context_bound_and_rollback_cleans_nodes(self) -> None:
+        deploy = (
+            REPOSITORY_ROOT / "scripts" / "agentic-cicd-network-policy-deploy.sh"
+        ).read_text(encoding="utf-8")
+        rollback = (
+            REPOSITORY_ROOT / "scripts" / "agentic-cicd-network-policy-rollback.sh"
+        ).read_text(encoding="utf-8")
+        for script in (deploy, rollback):
+            self.assertIn('"$(kubectl config current-context)" != "$context"', script)
+            self.assertIn('engine="kube-router-firewall"', script)
+            self.assertNotIn("get secret", script)
+            self.assertNotIn("delete namespace", script)
+        self.assertIn("agentic-cicd-network-policy-smoke.sh", deploy)
+        self.assertIn("agentic-cicd-network-policy-rollback.sh", deploy)
+        self.assertIn("--cleanup-config", (NETWORK_POLICY_ENGINE / "cleanup-jobs.yaml").read_text(encoding="utf-8"))
+        self.assertIn("kube-router-firewall-cleanup-master", rollback)
+        self.assertIn("kube-router-firewall-cleanup-worker1", rollback)
 
 
 if __name__ == "__main__":

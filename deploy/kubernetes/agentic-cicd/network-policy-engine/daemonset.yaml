@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-router-firewall
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: kube-router-firewall
+    app.kubernetes.io/component: network-policy-engine
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-router-firewall
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-router-firewall
+        app.kubernetes.io/component: network-policy-engine
+        app.kubernetes.io/part-of: j-store-agentic-cicd
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: kube-router-firewall
+      automountServiceAccountToken: true
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: kube-router
+          image: docker.m.daocloud.io/cloudnativelabs/kube-router@sha256:0991f2cc7aaabe107b51c0c554d6b843f0483fd319b94f437fab638470c47c22
+          imagePullPolicy: IfNotPresent
+          args:
+            - --run-router=false
+            - --run-firewall=true
+            - --run-service-proxy=false
+            - --hostname-override=$(NODE_NAME)
+            - --iptables-sync-period=30s
+            - --metrics-port=0
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 20244
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 50Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - NET_ADMIN
+          volumeMounts:
+            - name: lib-modules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: xtables-lock
+              mountPath: /run/xtables.lock
+      volumes:
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+            type: Directory
+        - name: xtables-lock
+          hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate

@@ -1,0 +1,92 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kube-router-firewall-cleanup-master
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: kube-router-firewall-cleanup
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-router-firewall-cleanup
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: k8s-master
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      hostNetwork: true
+      containers:
+        - name: cleanup
+          image: docker.m.daocloud.io/cloudnativelabs/kube-router@sha256:0991f2cc7aaabe107b51c0c554d6b843f0483fd319b94f437fab638470c47c22
+          imagePullPolicy: IfNotPresent
+          args:
+            - --cleanup-config
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: lib-modules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: xtables-lock
+              mountPath: /run/xtables.lock
+      volumes:
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+            type: Directory
+        - name: xtables-lock
+          hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kube-router-firewall-cleanup-worker1
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: kube-router-firewall-cleanup
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-router-firewall-cleanup
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: k8s-worker1
+      hostNetwork: true
+      containers:
+        - name: cleanup
+          image: docker.m.daocloud.io/cloudnativelabs/kube-router@sha256:0991f2cc7aaabe107b51c0c554d6b843f0483fd319b94f437fab638470c47c22
+          imagePullPolicy: IfNotPresent
+          args:
+            - --cleanup-config
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: lib-modules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: xtables-lock
+              mountPath: /run/xtables.lock
+      volumes:
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+            type: Directory
+        - name: xtables-lock
+          hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate

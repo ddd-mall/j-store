@@ -16,7 +16,10 @@
 - [x] `PB-14` 在 Symphony patch 中按可信 phase 动态选择 workspace-write/read-only，并在 validate/complete 阶段启动 App Server 前短路。
 - [ ] `PB-15` 将 WORKFLOW 收敛为 `max_turns: 1`，接入可信 complete-turn hook，并验证无第二 App Server、无候选代码 host 执行。
 
-## 2026-08-14 实施进度
+## 2026-08-15 实施进度
+
+- PR #42 已将可信阶段编排候选合入 `develop@6f0cbf3c403e02db98ce59adfc126898b8fbdc0c`；这证明仓库侧合同已集成，不证明 PB-07 至 PB-12、PB-15 的运行时退出条件完成。
+- 下一阶段由 `../agentic-cicd-local-candidate-loop/` 承接稳定 CandidateRevision、隔离 Gate Runner、Symphony完整供应链资格和 disposable Issue恢复演练。
 
 - `PB-07`：已形成锁定补丁候选，暴露可信 turn receipt 环境和受限 `submit_review_proposal` host tool；已通过 patch apply、Elixir format 和独立文件编译，尚缺完整 Symphony Mix 构建/测试。
 - `PB-08`：已将控制器构建入口固定到镜像 `/opt/jstore-agentic-controller`，并实现 exact `origin/develop` bootstrap、任务分支和 host-owned snapshot 初始化；动态阶段路由、`max_turns: 1` 与 implement/review sandbox 切换尚未接通。
