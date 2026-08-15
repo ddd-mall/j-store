@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..8df76c1
 --- /dev/null
 +++ b/elixir/lib/symphony_elixir/agentic_cicd.ex
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,91 @@
 +defmodule SymphonyElixir.AgenticCicd do
 +  @moduledoc """
 +  Reads j-store phase policy from the image-owned trusted controller.
@@ -57,7 +57,9 @@ index 0000000..8df76c1
 +      "complete_turn",
 +      "thread_sandbox",
 +      "turn_sandbox_policy",
-+      "head_sha"
++      "head_sha",
++      "candidate_revision",
++      "model_workspace"
 +    ]
 +
 +    cond do
@@ -79,6 +81,14 @@ index 0000000..8df76c1
 +      not is_binary(context["head_sha"]) or
 +          not String.match?(context["head_sha"], ~r/^[0-9a-f]{40}$/) ->
 +        {:error, :invalid_head_sha}
++
++      context["candidate_revision"] != nil and
++          (not is_binary(context["candidate_revision"]) or
++             not String.match?(context["candidate_revision"], ~r/^[0-9a-f]{64}$/)) ->
++        {:error, :invalid_candidate_revision}
++
++      not is_binary(context["model_workspace"]) or context["model_workspace"] == "" ->
++        {:error, :invalid_model_workspace}
 +
 +      true ->
 +        :ok
@@ -121,7 +131,7 @@ index af31d94..dd4e9b7 100644
 +
            {{:ok, _receipt}, {:error, reason}} ->
              {:error, reason}
-@@ -102,11 +111,30 @@ defmodule SymphonyElixir.AgentRunner do
+@@ -102,11 +111,31 @@ defmodule SymphonyElixir.AgentRunner do
    defp send_worker_runtime_info(_recipient, _issue, _worker_host, _workspace), do: :ok
  
    defp run_codex_turns(workspace, issue, codex_update_recipient, opts, worker_host) do
@@ -144,13 +154,14 @@ index af31d94..dd4e9b7 100644
 +  end
 +
 +  defp run_codex_model(workspace, issue, codex_update_recipient, opts, worker_host, phase_context) do
++    model_workspace = phase_context["model_workspace"]
      max_turns = Keyword.get(opts, :max_turns, Config.settings!().agent.max_turns)
      issue_state_fetcher = Keyword.get(opts, :issue_state_fetcher, &Tracker.fetch_issues_by_ids/1)
 +    opts = Keyword.put(opts, :agentic_cicd_context, phase_context)
  
 -    with {:ok, session} <- AppServer.start_session(workspace, worker_host: worker_host) do
 +    with {:ok, session} <-
-+           AppServer.start_session(workspace,
++           AppServer.start_session(model_workspace,
 +             worker_host: worker_host,
 +             runtime_policy: phase_context
 +           ) do

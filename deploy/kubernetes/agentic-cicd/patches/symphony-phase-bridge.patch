@@ -147,17 +147,18 @@ index ce88d3b..0dd1ef8 100644
    @allowed_methods ["GET", "POST", "PATCH", "PUT", "DELETE"]
    @github_api_description """
    Execute a GitHub REST API request using Symphony's configured auth.
-@@ -32,6 +34,51 @@ defmodule SymphonyElixir.GitHub.AgentTool do
+@@ -32,6 +34,53 @@ defmodule SymphonyElixir.GitHub.AgentTool do
        }
      }
    }
 +  @review_proposal_input_schema %{
 +    "type" => "object",
 +    "additionalProperties" => false,
-+    "required" => ["verdict", "head_sha", "reviewer_role", "findings"],
++    "required" => ["verdict", "head_sha", "candidate_revision", "reviewer_role", "findings"],
 +    "properties" => %{
 +      "verdict" => %{"type" => "string", "enum" => ["PASS", "FAIL"]},
 +      "head_sha" => %{"type" => "string", "pattern" => "^[0-9a-f]{40}$"},
++      "candidate_revision" => %{"type" => "string", "pattern" => "^[0-9a-f]{64}$"},
 +      "reviewer_role" => %{
 +        "type" => "string",
 +        "enum" => ["product-steward", "security-supply-chain", "spec-evaluator"]
@@ -209,7 +210,7 @@ index ce88d3b..0dd1ef8 100644
 +      },
 +      %{
 +        "name" => @review_proposal_tool,
-+        "description" => "Submit one exact-head review proposal to trusted host-owned state.",
++        "description" => "Submit one exact-CandidateRevision review proposal to trusted host-owned state.",
 +        "inputSchema" => @review_proposal_input_schema
        }
      ]

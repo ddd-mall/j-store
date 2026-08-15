@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from .candidate import CandidateRevision, CandidateSnapshotter
 from .coordinator import SnapshotStore, TaskSnapshot
 from .phase_bridge import (
     PHASE_COMPLETE,
@@ -16,7 +18,7 @@ from .phase_bridge import (
     PHASE_VALIDATE,
     SymphonyPhaseBridge,
 )
-from .protocol import GateReceipt, ReviewProposal, TurnReceipt
+from .protocol import GateReceipt, GateRequest, ReviewProposal, TurnReceipt
 
 
 ISSUE_WORKSPACE = re.compile(r"GH-([1-9][0-9]*)\Z")
@@ -122,6 +124,12 @@ class ReviewProposalStore:
         proposal = ReviewProposal.from_json(payload)
         if proposal.head_sha != snapshot.head_sha:
             raise ValueError("review proposal does not match candidate head")
+        if (
+            snapshot.candidate_revision is None
+            or proposal.candidate_revision
+            != snapshot.candidate_revision["candidate_revision"]
+        ):
+            raise ValueError("review proposal does not match candidate revision")
 
         destination = self.state_root / "proposals" / f"{issue_identifier}.json"
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -189,6 +197,8 @@ class PhaseContext:
     thread_sandbox: str
     turn_sandbox_policy: dict
     head_sha: str
+    candidate_revision: str | None
+    model_workspace: str
 
     def to_json(self) -> dict:
         return {
@@ -199,6 +209,8 @@ class PhaseContext:
             "thread_sandbox": self.thread_sandbox,
             "turn_sandbox_policy": dict(self.turn_sandbox_policy),
             "head_sha": self.head_sha,
+            "candidate_revision": self.candidate_revision,
+            "model_workspace": self.model_workspace,
         }
 
 
@@ -229,12 +241,20 @@ class _TaskStateAccess:
 class PhaseContextStore(_TaskStateAccess):
     """Selects model execution policy from trusted task state and capability level."""
 
-    def __init__(self, state_root: Path, *, workspace_write_enabled: bool):
+    def __init__(
+        self,
+        state_root: Path,
+        *,
+        workspace_write_enabled: bool,
+        artifact_root: Path | None = None,
+    ):
         super().__init__(state_root)
         self.workspace_write_enabled = workspace_write_enabled
+        self.artifact_root = artifact_root.resolve() if artifact_root else None
 
     def load(self, issue_identifier: str, workspace: Path) -> PhaseContext:
-        _store, snapshot = self._load_bound_snapshot(issue_identifier, workspace)
+        store, snapshot = self._load_bound_snapshot(issue_identifier, workspace)
+        resolved_workspace = workspace.resolve()
         phase = snapshot.iteration_phase
         if phase == PHASE_IMPLEMENT and not self.workspace_write_enabled:
             return PhaseContext(
@@ -245,6 +265,8 @@ class PhaseContextStore(_TaskStateAccess):
                 thread_sandbox="read-only",
                 turn_sandbox_policy={"type": "readOnly", "networkAccess": False},
                 head_sha=snapshot.head_sha or "",
+                candidate_revision=None,
+                model_workspace=str(resolved_workspace),
             )
         if phase == PHASE_IMPLEMENT:
             return PhaseContext(
@@ -259,10 +281,39 @@ class PhaseContextStore(_TaskStateAccess):
                     "networkAccess": False,
                 },
                 head_sha=snapshot.head_sha or "",
+                candidate_revision=None,
+                model_workspace=str(resolved_workspace),
             )
         if phase == PHASE_REVIEW:
             if not snapshot.implementer_session_id:
                 raise RuntimeError("review phase has no trusted implementer receipt")
+            if snapshot.candidate_revision is None or snapshot.gate_receipt is None:
+                raise RuntimeError("review phase has no exact candidate gate evidence")
+            if self.artifact_root is None:
+                raise RuntimeError("review phase requires candidate artifact storage")
+            revision = CandidateRevision.from_json(snapshot.candidate_revision)
+            if snapshot.review_workspace is None:
+                review_root = self.artifact_root / "reviews"
+                review_root.mkdir(parents=True, exist_ok=True)
+                destination = review_root / (
+                    f"{revision.candidate_revision}-{secrets.token_hex(8)}"
+                )
+                CandidateSnapshotter(resolved_workspace, self.artifact_root).materialize(
+                    revision, destination
+                )
+                self._make_read_only(destination)
+                snapshot.review_workspace = str(destination)
+                store.save(snapshot)
+            review_workspace = Path(snapshot.review_workspace)
+            if (
+                review_workspace.is_symlink()
+                or not review_workspace.is_dir()
+                or review_workspace.parent != self.artifact_root / "reviews"
+            ):
+                raise RuntimeError("review workspace is missing or unsafe")
+            CandidateSnapshotter(
+                resolved_workspace, self.artifact_root
+            ).verify_materialized(revision, review_workspace)
             return PhaseContext(
                 phase=phase,
                 role="reviewer",
@@ -271,6 +322,8 @@ class PhaseContextStore(_TaskStateAccess):
                 thread_sandbox="read-only",
                 turn_sandbox_policy={"type": "readOnly", "networkAccess": False},
                 head_sha=snapshot.head_sha or "",
+                candidate_revision=revision.candidate_revision,
+                model_workspace=str(review_workspace),
             )
         if phase in {PHASE_VALIDATE, PHASE_COMPLETE}:
             return PhaseContext(
@@ -281,8 +334,23 @@ class PhaseContextStore(_TaskStateAccess):
                 thread_sandbox="read-only",
                 turn_sandbox_policy={"type": "readOnly", "networkAccess": False},
                 head_sha=snapshot.head_sha or "",
+                candidate_revision=(
+                    snapshot.candidate_revision["candidate_revision"]
+                    if snapshot.candidate_revision is not None
+                    else None
+                ),
+                model_workspace=str(resolved_workspace),
             )
         raise RuntimeError(f"unsupported iteration phase: {phase}")
+
+    @staticmethod
+    def _make_read_only(root: Path) -> None:
+        for path in sorted(root.rglob("*"), reverse=True):
+            if path.is_symlink():
+                continue
+            mode = path.stat().st_mode
+            os.chmod(path, 0o555 if path.is_dir() or mode & 0o111 else 0o444)
+        os.chmod(root, 0o555)
 
 
 class TurnStateController(_TaskStateAccess):
@@ -314,10 +382,20 @@ class TurnStateController(_TaskStateAccess):
             turn_id=turn_id,
             role=role,
             head_sha=snapshot.head_sha or "",
+            candidate_revision=(
+                snapshot.candidate_revision["candidate_revision"]
+                if role == "reviewer" and snapshot.candidate_revision is not None
+                else None
+            ),
         )
         bridge = SymphonyPhaseBridge()
         consumed_proposal: Path | None = None
         if role == "implementer":
+            snapshot.candidate_revision = None
+            snapshot.gate_request = None
+            snapshot.gate_receipt = None
+            snapshot.review_workspace = None
+            snapshot.review_decisions = {}
             bridge.complete_implementation(snapshot, receipt)
         elif role == "observer":
             bridge.complete_observation(snapshot, receipt)
@@ -335,16 +413,167 @@ class TurnStateController(_TaskStateAccess):
             consumed_proposal.unlink()
 
 
+class GateRequestStore(_TaskStateAccess):
+    """Atomically binds one host-owned gate request to a frozen candidate."""
+
+    def __init__(
+        self,
+        state_root: Path,
+        *,
+        allowed_runner_images: set[str],
+        allowed_validation_commands: set[tuple[str, ...]],
+        maximum_timeout_seconds: int,
+        gate_enabled: bool = False,
+    ):
+        super().__init__(state_root)
+        self.allowed_runner_images = frozenset(allowed_runner_images)
+        self.allowed_validation_commands = frozenset(allowed_validation_commands)
+        self.maximum_timeout_seconds = maximum_timeout_seconds
+        self.gate_enabled = gate_enabled
+
+    def record(self, issue_identifier: str, payload: dict) -> GateRequest:
+        request = GateRequest.from_json(payload)
+        if not self.gate_enabled:
+            raise RuntimeError("isolated gate capability is disabled")
+        if request.issue_identifier != issue_identifier:
+            raise RuntimeError("gate request issue does not match task")
+        if request.runner_image not in self.allowed_runner_images:
+            raise RuntimeError("gate runner image is not allowlisted")
+        if request.validation_commands not in self.allowed_validation_commands:
+            raise RuntimeError("gate validation commands are not in the trusted policy")
+        if request.timeout_seconds > self.maximum_timeout_seconds:
+            raise RuntimeError("gate timeout exceeds the trusted policy")
+        store = SnapshotStore(self.state_root / "tasks" / f"{issue_identifier}.json")
+        snapshot = store.load()
+        if snapshot.state not in {"queued", "waiting_ci"}:
+            raise RuntimeError("task state does not accept a gate request")
+        if snapshot.iteration_phase != PHASE_VALIDATE:
+            raise RuntimeError("gate request is accepted only in validate phase")
+        if snapshot.candidate_revision != request.candidate_revision.to_json():
+            raise RuntimeError("gate request does not match frozen candidate")
+        if f"gate:{request.gate_id}" in snapshot.consumed_idempotency_keys:
+            raise RuntimeError("gate_id was already consumed")
+        if snapshot.gate_request is not None:
+            existing = GateRequest.from_json(snapshot.gate_request)
+            if existing == request:
+                return existing
+            raise RuntimeError("validate phase already binds a different gate request")
+        snapshot.gate_request = request.to_json()
+        snapshot.gate_receipt = None
+        store.save(snapshot)
+        return request
+
+
 class GateReceiptStore(_TaskStateAccess):
-    """Consumes a host-supplied deterministic gate receipt for the frozen head."""
+    """Consumes a trusted deterministic receipt for the active GateRequest."""
+
+    def __init__(
+        self,
+        state_root: Path,
+        *,
+        contract_path: Path,
+        gate_enabled: bool = False,
+    ):
+        super().__init__(state_root)
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        limit = contract.get("limits", {}).get("infrastructure_retries")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 0:
+            raise ValueError("state contract infrastructure_retries is invalid")
+        self.infrastructure_retry_limit = limit
+        self.gate_enabled = gate_enabled
 
     def record(self, issue_identifier: str, payload: dict) -> None:
         if ISSUE_WORKSPACE.fullmatch(issue_identifier) is None:
             raise ValueError("issue identifier must match GH-<positive-number>")
+        if not self.gate_enabled:
+            raise RuntimeError("isolated gate capability is disabled")
         store = SnapshotStore(
             self.state_root / "tasks" / f"{issue_identifier}.json"
         )
         snapshot = store.load()
         receipt = GateReceipt.from_json(payload)
+        if snapshot.state not in {"queued", "waiting_ci"}:
+            raise RuntimeError("task state does not accept a gate receipt")
+        if snapshot.gate_request is None:
+            raise RuntimeError("gate receipt has no active request")
+        request = GateRequest.from_json(snapshot.gate_request)
+        if (
+            receipt.gate_id != request.gate_id
+            or receipt.issue_identifier != request.issue_identifier
+            or receipt.candidate_revision != request.candidate_revision
+            or receipt.runner_image != request.runner_image
+            or receipt.command_policy_sha256 != request.command_policy_sha256
+        ):
+            raise RuntimeError("gate receipt does not match the active request")
+        snapshot.gate_receipt = receipt.to_json()
+        if receipt.verdict == "INFRASTRUCTURE_FAILURE":
+            if not snapshot.consume_idempotency_key(f"gate:{receipt.gate_id}"):
+                raise RuntimeError("gate receipt was already consumed")
+            if snapshot.infrastructure_retries >= self.infrastructure_retry_limit:
+                snapshot.state = "blocked"
+                snapshot.blocked_reason = "infrastructure-retry-limit"
+                snapshot.claim_id = None
+            else:
+                snapshot.infrastructure_retries += 1
+            snapshot.gate_request = None
+            store.save(snapshot)
+            return
         SymphonyPhaseBridge().complete_validation(snapshot, receipt)
         store.save(snapshot)
+
+
+class CandidateRevisionStore(_TaskStateAccess):
+    """Freezes one implementer worktree into host-owned immutable artifacts."""
+
+    def __init__(
+        self,
+        state_root: Path,
+        *,
+        artifact_root: Path | None = None,
+        freeze_enabled: bool = False,
+    ):
+        super().__init__(state_root)
+        self.artifact_root = (
+            (self.state_root / "candidates")
+            if artifact_root is None
+            else artifact_root.resolve()
+        )
+        self.freeze_enabled = freeze_enabled
+
+    def freeze(self, issue_identifier: str, workspace: Path) -> CandidateRevision:
+        if not self.freeze_enabled:
+            raise RuntimeError("candidate freeze capability is disabled")
+        store, snapshot = self._load_bound_snapshot(issue_identifier, workspace)
+        if snapshot.iteration_phase != PHASE_VALIDATE:
+            raise RuntimeError("candidate freeze is accepted only in validate phase")
+        if snapshot.base_sha is None:
+            raise RuntimeError("task snapshot has no trusted base SHA")
+        self._validate_runtime_metadata(snapshot, workspace.resolve())
+        revision = CandidateSnapshotter(
+            workspace, self.artifact_root
+        ).freeze(snapshot.base_sha)
+        if snapshot.candidate_revision is not None:
+            existing = CandidateRevision.from_json(snapshot.candidate_revision)
+            if existing != revision:
+                raise RuntimeError("validate phase already binds a different candidate")
+            return existing
+        snapshot.candidate_revision = revision.to_json()
+        snapshot.gate_request = None
+        snapshot.gate_receipt = None
+        snapshot.review_decisions = {}
+        store.save(snapshot)
+        return revision
+
+    @staticmethod
+    def _validate_runtime_metadata(snapshot: TaskSnapshot, workspace: Path) -> None:
+        metadata_path = workspace / METADATA_DIRECTORY / METADATA_FILE
+        if not metadata_path.is_file() or metadata_path.is_symlink():
+            raise RuntimeError("trusted workspace metadata is missing or unsafe")
+        payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+        expected = {
+            "issue_identifier": snapshot.issue_identifier,
+            "base_sha": snapshot.base_sha,
+            "branch": snapshot.branch,
+        }
+        if payload != expected:
+            raise RuntimeError("trusted workspace metadata does not match task state")

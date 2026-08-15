@@ -20,11 +20,14 @@ from agentic_cicd.app_server import (  # noqa: E402
     build_review_thread_params,
 )
 from agentic_cicd.protocol import (  # noqa: E402
+    GATE_RECEIPT_SCHEMA,
+    GATE_REQUEST_SCHEMA,
     ITERATION_PACKET_SCHEMA,
     REVIEW_DECISION_SCHEMA,
     REVIEW_PROPOSAL_SCHEMA,
     IterationPacket,
     GateReceipt,
+    GateRequest,
     ReviewDecision,
     ReviewFinding,
     ReviewLedger,
@@ -32,10 +35,42 @@ from agentic_cicd.protocol import (  # noqa: E402
     parse_review_decision,
 )
 from agentic_cicd.coordinator import SnapshotStore, TaskSnapshot  # noqa: E402
+from agentic_cicd.candidate import CandidateRevision  # noqa: E402
 
 
 SHA_A = "a" * 40
 SHA_B = "b" * 40
+IMAGE = "registry.example/gate@sha256:" + "d" * 64
+
+
+def sample_candidate() -> CandidateRevision:
+    artifact, policy = "1" * 64, "2" * 64
+    return CandidateRevision(
+        SHA_A, SHA_B, artifact, policy,
+        CandidateRevision.calculate_revision(SHA_A, SHA_B, artifact, policy),
+    )
+
+
+def sample_gate_request() -> GateRequest:
+    commands = ("./scripts/quality-gate.sh",)
+    return GateRequest(
+        gate_id="gate-123", issue_identifier="GH-123", candidate_revision=sample_candidate(),
+        runner_image=IMAGE, command_policy_sha256=GateRequest.calculate_command_policy_sha256(commands),
+        validation_commands=commands, timeout_seconds=600,
+        requested_at="2026-08-15T00:00:00Z",
+    )
+
+
+def sample_gate_receipt(verdict: str = "PASS", findings: tuple[ReviewFinding, ...] = ()) -> GateReceipt:
+    request = sample_gate_request()
+    return GateReceipt(
+        gate_id=request.gate_id, issue_identifier=request.issue_identifier,
+        candidate_revision=request.candidate_revision, runner_image=request.runner_image,
+        command_policy_sha256=request.command_policy_sha256, verdict=verdict,
+        started_at="2026-08-15T00:00:01Z", finished_at="2026-08-15T00:00:02Z",
+        exit_code=0 if verdict == "PASS" else (1 if verdict == "FAIL" else None),
+        log_sha256="f" * 64, job_uid="job-uid", pod_uid="pod-uid", findings=findings,
+    )
 
 
 def sample_packet() -> IterationPacket:
@@ -55,28 +90,30 @@ def sample_packet() -> IterationPacket:
 
 
 class ProtocolContractTest(unittest.TestCase):
-    def test_gate_receipt_binds_exact_head_and_failure_evidence(self) -> None:
-        pass_receipt = GateReceipt("gate-1", "PASS", SHA_B, ())
-        self.assertEqual(SHA_B, pass_receipt.head_sha)
+    def test_gate_contracts_bind_exact_candidate_and_runtime_identity(self) -> None:
+        request = sample_gate_request()
+        pass_receipt = sample_gate_receipt()
+        self.assertEqual(sample_candidate(), pass_receipt.candidate_revision)
+        self.assertEqual(request, GateRequest.from_json(request.to_json()))
+        self.assertEqual(pass_receipt, GateReceipt.from_json(pass_receipt.to_json()))
+        Draft202012Validator(GATE_REQUEST_SCHEMA).validate(request.to_json())
+        Draft202012Validator(GATE_RECEIPT_SCHEMA).validate(pass_receipt.to_json())
+
+        changed = request.to_json()
+        changed["validation_commands"] = ["./gradlew test"]
+        with self.assertRaisesRegex(ValueError, "does not bind"):
+            GateRequest.from_json(changed)
 
         with self.assertRaisesRegex(ValueError, "FAIL"):
-            GateReceipt("gate-2", "FAIL", SHA_B, ())
+            sample_gate_receipt("FAIL")
         with self.assertRaisesRegex(ValueError, "PASS"):
-            GateReceipt(
-                "gate-3",
-                "PASS",
-                SHA_B,
-                (
-                    ReviewFinding(
-                        "gate:unexpected",
-                        "high",
-                        "evidence",
-                        "impact",
-                        "expected",
-                        "verification",
-                    ),
-                ),
-            )
+            sample_gate_receipt("PASS", (ReviewFinding("gate:unexpected", "high", "evidence", "impact", "expected", "verification"),))
+
+    def test_infrastructure_failure_is_not_candidate_evidence(self) -> None:
+        receipt = sample_gate_receipt("INFRASTRUCTURE_FAILURE")
+        self.assertIsNone(receipt.exit_code)
+        with self.assertRaisesRegex(ValueError, "infrastructure failure"):
+            sample_gate_receipt("INFRASTRUCTURE_FAILURE", (ReviewFinding("gate:infra", "high", "evidence", "impact", "expected", "verify"),))
 
     def test_iteration_packet_rejects_noncanonical_identity_and_sha(self) -> None:
         payload = sample_packet().to_json()
@@ -128,6 +165,7 @@ class ProtocolContractTest(unittest.TestCase):
                 reviewer_session_id="implementer-1",
                 implementer_session_id="implementer-1",
                 findings=(),
+                candidate_revision=sample_candidate().candidate_revision,
             )
 
         finding = ReviewFinding(
@@ -146,6 +184,7 @@ class ProtocolContractTest(unittest.TestCase):
                 reviewer_session_id="reviewer-1",
                 implementer_session_id="implementer-1",
                 findings=(finding,),
+                candidate_revision=sample_candidate().candidate_revision,
             )
 
     def test_fail_requires_structured_findings_with_stable_root_cause(self) -> None:
@@ -157,6 +196,7 @@ class ProtocolContractTest(unittest.TestCase):
                 reviewer_session_id="reviewer-1",
                 implementer_session_id="implementer-1",
                 findings=(),
+                candidate_revision=sample_candidate().candidate_revision,
             )
 
     def test_review_proposal_excludes_untrusted_runtime_identity(self) -> None:
@@ -165,6 +205,7 @@ class ProtocolContractTest(unittest.TestCase):
             head_sha=SHA_B,
             reviewer_role="spec-evaluator",
             findings=(),
+            candidate_revision=sample_candidate().candidate_revision,
         )
 
         self.assertNotIn("reviewer_session_id", proposal.to_json())
@@ -190,12 +231,13 @@ class ProtocolContractTest(unittest.TestCase):
             reviewer_session_id="reviewer-1",
             implementer_session_id="implementer-1",
             findings=(),
+            candidate_revision=sample_candidate().candidate_revision,
         )
 
         ledger.record(decision)
 
-        self.assertTrue(ledger.has_pass_for(SHA_B))
-        self.assertFalse(ledger.has_pass_for("c" * 40))
+        self.assertTrue(ledger.has_pass_for(sample_candidate().candidate_revision))
+        self.assertFalse(ledger.has_pass_for("c" * 64))
         Draft202012Validator(REVIEW_DECISION_SCHEMA).validate(decision.to_json())
 
     def test_review_decision_survives_snapshot_recovery_but_not_a_new_head(self) -> None:
@@ -207,6 +249,7 @@ class ProtocolContractTest(unittest.TestCase):
             reviewer_session_id="reviewer-1",
             implementer_session_id="implementer-1",
             findings=(),
+            candidate_revision=sample_candidate().candidate_revision,
         )
         snapshot.record_review_decision(decision)
 
@@ -215,8 +258,8 @@ class ProtocolContractTest(unittest.TestCase):
             store.save(snapshot)
             restored = store.load()
 
-        self.assertTrue(restored.has_review_pass_for(SHA_B))
-        self.assertFalse(restored.has_review_pass_for("c" * 40))
+        self.assertTrue(restored.has_review_pass_for(sample_candidate().candidate_revision))
+        self.assertFalse(restored.has_review_pass_for("c" * 64))
 
     def test_host_rejects_model_claiming_another_head_or_reviewer_identity(self) -> None:
         decision = ReviewDecision(
@@ -226,12 +269,14 @@ class ProtocolContractTest(unittest.TestCase):
             reviewer_session_id="reviewer-claimed",
             implementer_session_id="implementer-1",
             findings=(),
+            candidate_revision=sample_candidate().candidate_revision,
         ).to_json()
 
         with self.assertRaisesRegex(ValueError, "review session"):
             parse_review_decision(
                 decision,
                 expected_head_sha=SHA_B,
+                expected_candidate_revision=sample_candidate().candidate_revision,
                 reviewer_session_id="reviewer-actual",
                 implementer_session_id="implementer-1",
             )
@@ -241,6 +286,7 @@ class ProtocolContractTest(unittest.TestCase):
             parse_review_decision(
                 decision,
                 expected_head_sha="c" * 40,
+                expected_candidate_revision=sample_candidate().candidate_revision,
                 reviewer_session_id="reviewer-actual",
                 implementer_session_id="implementer-1",
             )

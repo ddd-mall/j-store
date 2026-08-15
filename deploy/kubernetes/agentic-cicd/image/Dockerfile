@@ -44,6 +44,8 @@ RUN ln -s /usr/local/lib/node_modules/@openai/codex/bin/codex.js /usr/local/bin/
 COPY --from=builder /build/symphony/elixir/bin/symphony /usr/local/bin/symphony
 COPY scripts/agentic_cicd /opt/jstore-agentic-controller/agentic_cicd
 COPY scripts/agentic-cicd-controller.py /opt/jstore-agentic-controller/controller.py
+COPY scripts/agentic-artifact-broker.py /opt/jstore-agentic-controller/artifact-broker.py
+COPY scripts/agentic-gate-dispatcher.py /opt/jstore-agentic-controller/gate-dispatcher.py
 COPY config/agentic-cicd/state-contract.json /opt/jstore-agentic-controller/state-contract.json
 RUN printf 'SYMPHONY_REVISION=%s\nJSTORE_CONTROLLER_REVISION=%s\n' \
       "$SYMPHONY_COMMIT" "$JSTORE_CONTROLLER_REVISION" \

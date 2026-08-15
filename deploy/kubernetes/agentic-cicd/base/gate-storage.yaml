@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: agentic-cicd-candidate-artifacts
+  labels:
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /var/lib/jstore-agentic-candidates
+  claimRef:
+    namespace: agentic-cicd
+    name: candidate-artifacts
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k8s-master]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: candidate-artifacts
+  namespace: agentic-cicd
+spec:
+  storageClassName: ""
+  volumeName: agentic-cicd-candidate-artifacts
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: agentic-cicd-gate-requests
+  labels:
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /var/lib/jstore-agentic-gate-requests
+  claimRef:
+    namespace: agentic-cicd
+    name: gate-requests
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k8s-master]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gate-requests
+  namespace: agentic-cicd
+spec:
+  storageClassName: ""
+  volumeName: agentic-cicd-gate-requests
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: agentic-cicd-gate-receipts
+  labels:
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /var/lib/jstore-agentic-gate-receipts
+  claimRef:
+    namespace: agentic-cicd
+    name: gate-receipts
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k8s-master]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gate-receipts
+  namespace: agentic-cicd
+spec:
+  storageClassName: ""
+  volumeName: agentic-cicd-gate-receipts
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: agentic-cicd-artifact-leases
+  labels:
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  capacity:
+    storage: 128Mi
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /var/lib/jstore-agentic-artifact-leases
+  claimRef:
+    namespace: agentic-cicd
+    name: artifact-leases
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k8s-master]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: artifact-leases
+  namespace: agentic-cicd
+spec:
+  storageClassName: ""
+  volumeName: agentic-cicd-artifact-leases
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 128Mi

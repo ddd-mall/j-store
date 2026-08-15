@@ -9,6 +9,9 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from repository_files import repository_files
 SPDX_COPYRIGHT = "SPDX-FileCopyrightText: 2024-2026 潘少峰 (Peter Pan)"
 SPDX_LICENSE = "SPDX-License-Identifier: Apache-2.0"
 
@@ -16,23 +19,10 @@ SPDX_LICENSE = "SPDX-License-Identifier: Apache-2.0"
 class LicenseGovernanceContractTest(unittest.TestCase):
     def test_all_java_and_kotlin_files_have_spdx_ownership(self) -> None:
         offenders: list[str] = []
-        tracked_sources = subprocess.run(
-            [
-                "git",
-                "ls-files",
-                "-z",
-                "--cached",
-                "--others",
-                "--exclude-standard",
-                "--",
-                "*.java",
-                "*.kt",
-            ],
-            cwd=REPO_ROOT,
-            check=True,
-            capture_output=True,
-        ).stdout.decode("utf-8").split("\0")
-        for relative_path in filter(None, tracked_sources):
+        tracked_sources = repository_files(REPO_ROOT)
+        for relative_path in tracked_sources:
+            if not relative_path.endswith((".java", ".kt")):
+                continue
             path = REPO_ROOT / relative_path
             if not path.is_file():
                 continue
@@ -52,7 +42,7 @@ class LicenseGovernanceContractTest(unittest.TestCase):
         self.assertIn("alias(libs.plugins.licensee) apply false", build_script)
         self.assertIn('into("META-INF")', build_script)
         self.assertIn('tasks.register("verifyLicenseArtifacts")', build_script)
-        self.assertIn("python scripts/check-file-ownership.py", quality_gate)
+        self.assertIn('python "$tool_root/check-file-ownership.py"', quality_gate)
         self.assertIn("./gradlew licensee", quality_gate)
         self.assertIn("verifyLicenseArtifacts", quality_gate)
         self.assertIn("dependency-license-audit:", security_workflow)

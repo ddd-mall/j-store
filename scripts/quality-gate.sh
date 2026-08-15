@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="${JSTORE_REPOSITORY_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+tool_root="${JSTORE_QUALITY_TOOL_ROOT:-$repo_root/scripts}"
 cd "$repo_root"
 
 if command -v python3 >/dev/null 2>&1; then
@@ -14,7 +15,7 @@ else
 fi
 
 printf '%s\n' '[1/6] Repository governance'
-./scripts/check-agent-governance.sh
+"$tool_root/check-agent-governance.sh"
 
 printf '%s\n' '[2/6] Spec-dev and governance contract tests'
 if command -v uv >/dev/null 2>&1; then
@@ -38,9 +39,9 @@ fi
 printf '%s\n' '[3/6] Source ownership and formatting'
 if command -v uv >/dev/null 2>&1; then
   UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
-    python scripts/check-file-ownership.py
+    python "$tool_root/check-file-ownership.py"
 else
-  "$python_bin" scripts/check-file-ownership.py
+  "$python_bin" "$tool_root/check-file-ownership.py"
 fi
 ./gradlew spotlessCheck --no-daemon --console=plain
 

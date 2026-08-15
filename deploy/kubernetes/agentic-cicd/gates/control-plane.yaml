@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: artifact-broker
+  namespace: agentic-cicd
+  labels: &brokerLabels
+    app.kubernetes.io/name: artifact-broker
+    app.kubernetes.io/component: artifact-broker
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: artifact-broker
+  template:
+    metadata:
+      labels: *brokerLabels
+    spec:
+      serviceAccountName: artifact-broker
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: k8s-master
+      securityContext: &podSecurity
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 11001
+        fsGroup: 11001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: broker
+          image: jstore-agentic-cicd:8001b52e-codex-0.146.0
+          imagePullPolicy: Never
+          command: [/usr/bin/python3, /opt/jstore-agentic-controller/artifact-broker.py]
+          args:
+            - --artifact-root
+            - /var/lib/candidate-artifacts
+            - --lease-root
+            - /var/lib/artifact-leases
+          ports:
+            - name: http
+              containerPort: 8081
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 250m, memory: 256Mi}
+          securityContext: &containerSecurity
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: candidate-artifacts, mountPath: /var/lib/candidate-artifacts, readOnly: true}
+            - {name: artifact-leases, mountPath: /var/lib/artifact-leases}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: candidate-artifacts
+          persistentVolumeClaim: {claimName: candidate-artifacts, readOnly: true}
+        - name: artifact-leases
+          persistentVolumeClaim: {claimName: artifact-leases}
+        - name: tmp
+          emptyDir: {sizeLimit: 64Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: artifact-broker
+  namespace: agentic-cicd
+spec:
+  clusterIP: 10.96.200.81
+  selector:
+    app.kubernetes.io/name: artifact-broker
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gate-dispatcher
+  namespace: agentic-cicd
+  labels: &dispatcherLabels
+    app.kubernetes.io/name: gate-dispatcher
+    app.kubernetes.io/component: gate-dispatcher
+    app.kubernetes.io/part-of: j-store-agentic-cicd
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gate-dispatcher
+  template:
+    metadata:
+      labels: *dispatcherLabels
+    spec:
+      serviceAccountName: gate-dispatcher
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: k8s-master
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10002
+        runAsGroup: 11001
+        fsGroup: 11001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: dispatcher
+          image: jstore-agentic-cicd:8001b52e-codex-0.146.0
+          imagePullPolicy: Never
+          command: [/usr/bin/python3, /opt/jstore-agentic-controller/gate-dispatcher.py]
+          args:
+            - --exchange-root
+            - /var/lib/gate-exchange
+            - --gate-policy
+            - /etc/agentic-cicd/gate-policy.json
+            - --broker-url
+            - http://10.96.200.81:8081
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 250m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: gate-requests, mountPath: /var/lib/gate-exchange/requests, readOnly: true}
+            - {name: gate-receipts, mountPath: /var/lib/gate-exchange/receipts}
+            - {name: artifact-leases, mountPath: /var/lib/gate-exchange/leases}
+            - {name: gate-policy, mountPath: /etc/agentic-cicd, readOnly: true}
+            - {name: dispatcher-token, mountPath: /var/run/secrets/dispatcher, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: gate-requests
+          persistentVolumeClaim: {claimName: gate-requests, readOnly: true}
+        - name: gate-receipts
+          persistentVolumeClaim: {claimName: gate-receipts}
+        - name: artifact-leases
+          persistentVolumeClaim: {claimName: artifact-leases}
+        - name: gate-policy
+          configMap: {name: gate-policy}
+        - name: dispatcher-token
+          projected:
+            defaultMode: 0400
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  audience: https://kubernetes.default.svc
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - {key: ca.crt, path: ca.crt}
+        - name: tmp
+          emptyDir: {sizeLimit: 64Mi}

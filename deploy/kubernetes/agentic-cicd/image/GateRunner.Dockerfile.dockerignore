@@ -1,0 +1,7 @@
+.git
+.gradle
+.idea
+.kotlin
+**/build
+**/.DS_Store
+deploy/kubernetes/agentic-cicd/image/GateRunner.Dockerfile.dockerignore

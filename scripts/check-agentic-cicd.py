@@ -3,12 +3,17 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import re
 import sys
 from pathlib import Path
 
+from agentic_cicd.capabilities import validate_capabilities
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
+REPO_ROOT = Path(
+    os.environ.get("JSTORE_REPOSITORY_ROOT", Path(__file__).resolve().parents[1])
+).resolve()
 
 
 def load_json(relative_path: str) -> dict:
@@ -39,6 +44,18 @@ def validate() -> list[str]:
         )
         iteration_schema = load_json(
             "config/agentic-cicd/iteration-packet.schema.json"
+        )
+        candidate_schema = load_json(
+            "config/agentic-cicd/candidate-revision.schema.json"
+        )
+        gate_request_schema = load_json(
+            "config/agentic-cicd/gate-request.schema.json"
+        )
+        gate_receipt_schema = load_json(
+            "config/agentic-cicd/gate-receipt.schema.json"
+        )
+        gate_policy_schema = load_json(
+            "config/agentic-cicd/gate-policy.schema.json"
         )
         review_schema = load_json(
             "config/agentic-cicd/review-decision.schema.json"
@@ -73,27 +90,11 @@ def validate() -> list[str]:
                 f"transition targets are unknown for {source}: {sorted(unknown_targets)}"
             )
 
-    capabilities = contract.get("capabilities", {})
-    forbidden_enabled = [
-        name
-        for name in (
-            "create_branch",
-            "local_workspace_write",
-            "push_commit",
-            "create_draft_pull_request",
-            "mark_pull_request_ready",
-            "send_email",
-            "auto_approve",
-            "auto_merge",
-            "auto_release",
-            "production_write",
+    failures.extend(
+        validate_capabilities(
+            contract.get("capability_level"), contract.get("capabilities")
         )
-        if capabilities.get(name) is not False
-    ]
-    if forbidden_enabled:
-        failures.append(
-            "Level 0 capabilities must remain disabled: " + ", ".join(forbidden_enabled)
-        )
+    )
 
     limits = contract.get("limits", {})
     if not limits or any(
@@ -180,13 +181,46 @@ def validate() -> list[str]:
     }
     if set(iteration_schema.get("required", [])) != expected_packet_fields:
         failures.append("IterationPacket schema is missing required planning inputs")
+    expected_candidate_fields = {
+        "artifact_sha256",
+        "base_sha",
+        "candidate_revision",
+        "snapshot_policy_sha256",
+        "tree_sha",
+    }
+    if (
+        set(candidate_schema.get("required", [])) != expected_candidate_fields
+        or candidate_schema.get("additionalProperties") is not False
+    ):
+        failures.append("CandidateRevision schema must bind only trusted identity fields")
+    expected_gate_binding = {
+        "gate_id", "issue_identifier", "candidate_revision", "runner_image",
+        "command_policy_sha256",
+    }
+    if not expected_gate_binding.issubset(set(gate_request_schema.get("required", []))):
+        failures.append("GateRequest schema must bind candidate and runner identity")
+    expected_receipt_evidence = expected_gate_binding | {
+        "verdict", "started_at", "finished_at", "exit_code", "log_sha256",
+        "job_uid", "pod_uid", "findings",
+    }
+    if set(gate_receipt_schema.get("required", [])) != expected_receipt_evidence:
+        failures.append("GateReceipt schema must contain exact runtime evidence")
+    if set(gate_receipt_schema.get("properties", {}).get("verdict", {}).get("enum", [])) != {"PASS", "FAIL", "INFRASTRUCTURE_FAILURE"}:
+        failures.append("GateReceipt must classify candidate and infrastructure failures")
+    if set(gate_policy_schema.get("required", [])) != {
+        "runner_image", "fetch_image", "validation_commands", "timeout_seconds"
+    }:
+        failures.append("GatePolicy must bind immutable images, commands, and timeout")
     if set(review_schema.get("properties", {}).get("verdict", {}).get("enum", [])) != {"PASS", "FAIL"}:
         failures.append("ReviewDecision schema must allow only PASS or FAIL")
     if review_schema.get("properties", {}).get("head_sha", {}).get("pattern") != "^[0-9a-f]{40}$":
         failures.append("ReviewDecision must bind to a full lowercase head SHA")
+    if review_schema.get("properties", {}).get("candidate_revision", {}).get("pattern") != "^[0-9a-f]{64}$":
+        failures.append("ReviewDecision must bind to a full CandidateRevision")
     if set(review_proposal_schema.get("required", [])) != {
         "verdict",
         "head_sha",
+        "candidate_revision",
         "reviewer_role",
         "findings",
     }:

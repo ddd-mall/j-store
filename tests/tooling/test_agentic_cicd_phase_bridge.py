@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from scripts.agentic_cicd.coordinator import SnapshotStore, TaskSnapshot
+from scripts.agentic_cicd.candidate import CandidateRevision
 from scripts.agentic_cicd.phase_bridge import (
     PHASE_COMPLETE,
     PHASE_IMPLEMENT,
@@ -25,6 +26,30 @@ from scripts.agentic_cicd.protocol import (
 SHA_A = "a" * 40
 SHA_B = "b" * 40
 SHA_C = "c" * 40
+IMAGE = "registry.example/gate@sha256:" + "d" * 64
+POLICY = "e" * 64
+
+
+def candidate(tree: str = SHA_B) -> CandidateRevision:
+    artifact = "1" * 64
+    policy = "2" * 64
+    return CandidateRevision(
+        base_sha=SHA_A,
+        tree_sha=tree,
+        artifact_sha256=artifact,
+        snapshot_policy_sha256=policy,
+        candidate_revision=CandidateRevision.calculate_revision(SHA_A, tree, artifact, policy),
+    )
+
+
+def gate(gate_id: str, verdict: str, findings: tuple[ReviewFinding, ...] = (), revision: CandidateRevision | None = None) -> GateReceipt:
+    return GateReceipt(
+        gate_id=gate_id, issue_identifier="GH-123", candidate_revision=revision or candidate(),
+        runner_image=IMAGE, command_policy_sha256=POLICY, verdict=verdict,
+        started_at="2026-08-15T00:00:00Z", finished_at="2026-08-15T00:01:00Z",
+        exit_code=0 if verdict == "PASS" else 1, log_sha256="f" * 64,
+        job_uid=f"job-{gate_id}", pod_uid=f"pod-{gate_id}", findings=findings,
+    )
 
 
 def inputs() -> IterationInputs:
@@ -45,6 +70,7 @@ def receipt(role: str, session: str, head: str = SHA_B) -> TurnReceipt:
         turn_id=f"turn-{session}",
         role=role,
         head_sha=head,
+        candidate_revision=(candidate().candidate_revision if role == "reviewer" else None),
     )
 
 
@@ -56,6 +82,7 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
             state="queued",
             base_sha=SHA_A,
             head_sha=SHA_B,
+            candidate_revision=candidate().to_json(),
         )
 
     def test_first_packet_has_no_model_invented_implementer_identity(self) -> None:
@@ -76,7 +103,7 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
 
         self.bridge.complete_validation(
             self.snapshot,
-            GateReceipt("gate-1", "PASS", SHA_B, ()),
+            gate("gate-1", "PASS"),
         )
         packet = self.bridge.prepare_packet(self.snapshot, inputs())
         self.assertEqual(PHASE_REVIEW, self.snapshot.iteration_phase)
@@ -101,7 +128,7 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
         )
         self.bridge.complete_validation(
             self.snapshot,
-            GateReceipt("gate-2", "FAIL", SHA_B, (finding,)),
+            gate("gate-2", "FAIL", (finding,)),
         )
 
         packet = self.bridge.prepare_packet(self.snapshot, inputs())
@@ -116,17 +143,17 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
             receipt("implementer", "session-implementer"),
         )
 
-        with self.assertRaisesRegex(PhaseBridgeError, "candidate head"):
+        with self.assertRaisesRegex(PhaseBridgeError, "candidate revision"):
             self.bridge.complete_validation(
                 self.snapshot,
-                GateReceipt("gate-stale", "PASS", SHA_C, ()),
+                gate("gate-stale", "PASS", revision=candidate(SHA_C)),
             )
 
-        gate = GateReceipt("gate-current", "PASS", SHA_B, ())
-        self.bridge.complete_validation(self.snapshot, gate)
+        current_gate = gate("gate-current", "PASS")
+        self.bridge.complete_validation(self.snapshot, current_gate)
         self.snapshot.iteration_phase = PHASE_VALIDATE
         with self.assertRaisesRegex(PhaseBridgeError, "already consumed"):
-            self.bridge.complete_validation(self.snapshot, gate)
+            self.bridge.complete_validation(self.snapshot, current_gate)
 
     def test_review_pass_is_bound_to_distinct_receipt_and_exact_head(self) -> None:
         self.bridge.complete_implementation(
@@ -134,18 +161,18 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
             receipt("implementer", "session-implementer"),
         )
         self.bridge.complete_validation(
-            self.snapshot, GateReceipt("gate-review-pass", "PASS", SHA_B, ())
+            self.snapshot, gate("gate-review-pass", "PASS")
         )
         decision = self.bridge.complete_review(
             self.snapshot,
             receipt("reviewer", "session-reviewer"),
-            ReviewProposal("PASS", SHA_B, "spec-evaluator", ()),
+            ReviewProposal("PASS", SHA_B, "spec-evaluator", (), candidate().candidate_revision),
         )
 
         self.assertEqual(PHASE_COMPLETE, self.snapshot.iteration_phase)
         self.assertEqual("session-reviewer", decision.reviewer_session_id)
         self.assertEqual("session-implementer", decision.implementer_session_id)
-        self.assertTrue(self.snapshot.has_review_pass_for(SHA_B))
+        self.assertTrue(self.snapshot.has_review_pass_for(candidate().candidate_revision))
 
     def test_review_fail_returns_structured_findings_to_next_implementation(self) -> None:
         finding = ReviewFinding(
@@ -161,12 +188,12 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
             receipt("implementer", "session-implementer"),
         )
         self.bridge.complete_validation(
-            self.snapshot, GateReceipt("gate-review-fail", "PASS", SHA_B, ())
+            self.snapshot, gate("gate-review-fail", "PASS")
         )
         self.bridge.complete_review(
             self.snapshot,
             receipt("reviewer", "session-reviewer"),
-            ReviewProposal("FAIL", SHA_B, "product-steward", (finding,)),
+            ReviewProposal("FAIL", SHA_B, "product-steward", (finding,), candidate().candidate_revision),
         )
 
         packet = self.bridge.prepare_packet(self.snapshot, inputs())
@@ -180,20 +207,26 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
             receipt("implementer", "same-session"),
         )
         self.bridge.complete_validation(
-            self.snapshot, GateReceipt("gate-same-session", "PASS", SHA_B, ())
+            self.snapshot, gate("gate-same-session", "PASS")
         )
 
         with self.assertRaisesRegex(PhaseBridgeError, "must differ"):
             self.bridge.complete_review(
                 self.snapshot,
                 receipt("reviewer", "same-session"),
-                ReviewProposal("PASS", SHA_B, "spec-evaluator", ()),
+                ReviewProposal("PASS", SHA_B, "spec-evaluator", (), candidate().candidate_revision),
+            )
+        with self.assertRaisesRegex(PhaseBridgeError, "candidate revision"):
+            self.bridge.complete_review(
+                self.snapshot,
+                receipt("reviewer", "new-session"),
+                ReviewProposal("PASS", SHA_B, "spec-evaluator", (), "9" * 64),
             )
         with self.assertRaisesRegex(PhaseBridgeError, "candidate head"):
             self.bridge.complete_review(
                 self.snapshot,
                 receipt("reviewer", "new-session"),
-                ReviewProposal("PASS", SHA_C, "spec-evaluator", ()),
+                ReviewProposal("PASS", SHA_C, "spec-evaluator", (), candidate().candidate_revision),
             )
 
     def test_new_head_invalidates_old_pass_and_phase_survives_restart(self) -> None:
@@ -202,7 +235,7 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
             receipt("implementer", "session-implementer"),
         )
         self.bridge.complete_validation(
-            self.snapshot, GateReceipt("gate-restart", "PASS", SHA_B, ())
+            self.snapshot, gate("gate-restart", "PASS")
         )
         with tempfile.TemporaryDirectory() as directory:
             store = SnapshotStore(Path(directory) / "snapshot.json")

@@ -79,9 +79,9 @@ for command in docker git kubectl sudo; do
 done
 expected_symphony_revision=8001b52e3062495a16e520e4ceaf8f9de868c4d0
 patch_path="$manifest_dir/patches/symphony-phase-bridge.patch"
-patch_sha256=ee236ca9570904ed39e58c2226e7430c7355d944dacca9486d410b737660bfa1
+patch_sha256=bbaad0e4ad04377b5b64238f7fabbfd383915cf60692f321493dd5f3372bcb8a
 routing_patch_path="$manifest_dir/patches/symphony-phase-routing.patch"
-routing_patch_sha256=a6103e0c96bc7311053152d9c29bdc81daa14ab3f28dfee23c3f4a537c45824d
+routing_patch_sha256=4914e4a5e20008c8c6b87ce835892499477cfb82fa5b944cd2efce00f024eb18
 actual_symphony_revision=$(git -C "$symphony_source" rev-parse HEAD 2>/dev/null || true)
 if [[ "$actual_symphony_revision" != "$expected_symphony_revision" ]]; then
   printf 'ERROR: Symphony source must be pinned to %s, got %s\n' \
@@ -131,12 +131,15 @@ sudo install -d -o 10001 -g 10001 -m 0750 /var/lib/jstore-agentic-cicd
 
 archive=$(mktemp "${TMPDIR:-/tmp}/jstore-agentic-cicd-image.XXXXXX.tar")
 rendered=$(mktemp "${TMPDIR:-/tmp}/jstore-agentic-cicd-rendered.XXXXXX.yaml")
+metadata=$(mktemp "${TMPDIR:-/tmp}/jstore-agentic-cicd-metadata.XXXXXX.json")
 cleanup() {
-  rm -f -- "$archive" "$rendered"
+  rm -f -- "$archive" "$rendered" "$metadata"
 }
 trap cleanup EXIT
 
 docker build \
+  --provenance=false \
+  --metadata-file "$metadata" \
   --build-arg HTTP_PROXY= \
   --build-arg HTTPS_PROXY= \
   --build-arg ALL_PROXY= \
@@ -149,6 +152,18 @@ docker build \
   --file "$manifest_dir/image/Dockerfile" \
   --tag "$image" \
   "$repo_root"
+image_digest=$(python3 - "$metadata" <<'PY'
+import json
+import re
+import sys
+
+digest = json.load(open(sys.argv[1], encoding="utf-8")).get("containerimage.digest", "")
+if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+    raise SystemExit("controller build metadata has no immutable image digest")
+print(digest)
+PY
+)
+image_ref="$image@$image_digest"
 docker run --rm --entrypoint codex "$image" --version | grep -Fx 'codex-cli 0.146.0'
 revision=$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
 [[ "$revision" == "8001b52e3062495a16e520e4ceaf8f9de868c4d0" ]] || {
@@ -167,9 +182,9 @@ sudo ctr --namespace k8s.io images import "$archive"
 old_pod_uid=$(kubectl --context "$context" -n "$namespace" get pod \
   -l app.kubernetes.io/name=symphony -o jsonpath='{.items[0].metadata.uid}' 2>/dev/null || true)
 kubectl --context "$context" kustomize "$overlay" \
-  | sed "s#image: jstore-agentic-cicd:8001b52e-codex-0.146.0#image: $image#" \
+  | sed "s#image: jstore-agentic-cicd:8001b52e-codex-0.146.0#image: $image_ref#" \
   >"$rendered"
-grep -F "image: $image" "$rendered" >/dev/null
+grep -F "image: $image_ref" "$rendered" >/dev/null
 kubectl --context "$context" apply --dry-run=client -f "$rendered" >/dev/null
 kubectl --context "$context" apply -f "$manifest_dir/base/namespace.yaml" >/dev/null
 kubectl --context "$context" apply --dry-run=server -f "$rendered" >/dev/null
@@ -185,5 +200,5 @@ fi
 
 "$repo_root/scripts/agentic-cicd-kubernetes-smoke.sh" \
   --context "$context" --namespace "$namespace" --timeout-seconds "$timeout_seconds" \
-  --image "$image" --symphony-revision "$expected_symphony_revision" \
+  --image "$image_ref" --symphony-revision "$expected_symphony_revision" \
   --controller-revision "$controller_revision"

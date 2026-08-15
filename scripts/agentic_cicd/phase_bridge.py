@@ -104,11 +104,15 @@ class SymphonyPhaseBridge:
         receipt: GateReceipt,
     ) -> None:
         self._require_phase(snapshot, PHASE_VALIDATE)
-        if receipt.head_sha != snapshot.head_sha:
-            raise PhaseBridgeError("gate receipt does not match candidate head")
+        if snapshot.candidate_revision is None:
+            raise PhaseBridgeError("gate receipt has no frozen candidate")
+        if receipt.candidate_revision.to_json() != snapshot.candidate_revision:
+            raise PhaseBridgeError("gate receipt does not match candidate revision")
         idempotency_key = f"gate:{receipt.gate_id}"
         if not snapshot.consume_idempotency_key(idempotency_key):
             raise PhaseBridgeError("gate receipt was already consumed")
+        if receipt.verdict == "INFRASTRUCTURE_FAILURE":
+            raise PhaseBridgeError("infrastructure failure must be handled by the host")
         if receipt.verdict == "PASS":
             snapshot.iteration_phase = PHASE_REVIEW
         else:
@@ -132,6 +136,13 @@ class SymphonyPhaseBridge:
             raise PhaseBridgeError("reviewer session must differ from implementer session")
         if proposal.head_sha != snapshot.head_sha:
             raise PhaseBridgeError("review proposal does not match candidate head")
+        if snapshot.candidate_revision is None:
+            raise PhaseBridgeError("review has no frozen candidate")
+        candidate_identity = snapshot.candidate_revision["candidate_revision"]
+        if receipt.candidate_revision != candidate_identity:
+            raise PhaseBridgeError("review receipt does not match candidate revision")
+        if proposal.candidate_revision != candidate_identity:
+            raise PhaseBridgeError("review proposal does not match candidate revision")
 
         decision = ReviewDecision(
             verdict=proposal.verdict,
@@ -140,6 +151,7 @@ class SymphonyPhaseBridge:
             reviewer_session_id=receipt.session_id,
             implementer_session_id=snapshot.implementer_session_id,
             findings=proposal.findings,
+            candidate_revision=candidate_identity,
         )
         snapshot.record_review_decision(decision)
         snapshot.last_turn_receipt = self._receipt_json(receipt)
@@ -151,6 +163,7 @@ class SymphonyPhaseBridge:
                 finding.to_json() for finding in decision.findings
             ]
             snapshot.implementer_session_id = None
+            snapshot.review_workspace = None
             snapshot.iteration_phase = PHASE_IMPLEMENT
         return decision
 
@@ -162,6 +175,11 @@ class SymphonyPhaseBridge:
             return
         snapshot.head_sha = head_sha
         snapshot.implementer_session_id = None
+        snapshot.candidate_revision = None
+        snapshot.gate_request = None
+        snapshot.gate_receipt = None
+        snapshot.review_workspace = None
+        snapshot.review_decisions = {}
         snapshot.iteration_phase = PHASE_IMPLEMENT
 
     @staticmethod
@@ -188,13 +206,21 @@ class SymphonyPhaseBridge:
             )
         if receipt.head_sha != snapshot.head_sha:
             raise PhaseBridgeError("turn receipt does not match candidate head")
+        if expected_role == "reviewer":
+            if snapshot.candidate_revision is None:
+                raise PhaseBridgeError("review receipt has no frozen candidate")
+            if receipt.candidate_revision != snapshot.candidate_revision["candidate_revision"]:
+                raise PhaseBridgeError("review receipt does not match candidate revision")
 
     @staticmethod
     def _receipt_json(receipt: TurnReceipt) -> dict[str, str]:
-        return {
+        payload = {
             "session_id": receipt.session_id,
             "thread_id": receipt.thread_id,
             "turn_id": receipt.turn_id,
             "role": receipt.role,
             "head_sha": receipt.head_sha,
         }
+        if receipt.candidate_revision is not None:
+            payload["candidate_revision"] = receipt.candidate_revision
+        return payload

@@ -3,6 +3,8 @@
 !scripts/agentic_cicd/
 !scripts/agentic_cicd/**
 !scripts/agentic-cicd-controller.py
+!scripts/agentic-artifact-broker.py
+!scripts/agentic-gate-dispatcher.py
 !config/
 !config/agentic-cicd/
 !config/agentic-cicd/state-contract.json
