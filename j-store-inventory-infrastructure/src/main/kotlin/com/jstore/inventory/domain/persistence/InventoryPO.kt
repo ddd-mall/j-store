@@ -50,7 +50,8 @@ class StockPositionPO(
 class StockReservationPO(
     @Id @Column(length = 256) var id: String = "",
     @Column(name = "business_key", nullable = false, length = 256) var businessKey: String = "",
-    @Column(name = "order_id", nullable = false) var orderId: Long = 0,
+    @Column(name = "trade_id", nullable = false) var tradeId: Long = 0,
+    @Column(name = "order_plan_id", nullable = false) var orderPlanId: Long = 0,
     @Column(name = "sale_authorization_id", nullable = false, length = 128)
     var saleAuthorizationId: String = "",
     @Column(name = "sku_id", nullable = false) var skuId: Long = 0,

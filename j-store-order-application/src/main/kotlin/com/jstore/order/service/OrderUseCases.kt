@@ -17,6 +17,7 @@
 package com.jstore.order.service
 
 import com.jstore.common.errors.BusinessError
+import com.jstore.common.geo.I18nGeoAddress
 import com.jstore.common.properties.Price
 import com.jstore.common.query.Page
 import com.jstore.common.utils.Result
@@ -32,7 +33,6 @@ import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.SuccessfulRefundItem
 import com.jstore.order.domain.order.command.OrderCancelCMD
-import com.jstore.order.domain.order.command.OrderCreateCMD
 import java.time.Instant
 
 /**
@@ -42,8 +42,6 @@ interface OrderUseCase {
     fun getOrderById(buyerId: Long, orderId: OrderId): Result<Order, BusinessError>
 
     fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order>
-
-    fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError>
 
     fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError>
 
@@ -84,6 +82,48 @@ interface OrderUseCase {
 
     fun cancelOrder(buyerId: Long, cmd: OrderCancelCMD): Result<Unit, BusinessError>
 }
+
+/** Trusted, non-HTTP creation/cancellation port used only by the Trade checkout boundary. */
+interface InternalOrderCreationUseCase {
+    fun createOrder(cmd: CreateOrderFromTradeCommand): Result<Order, BusinessError>
+
+    fun cancelOrder(orderPlanId: Long, reason: String): Result<Unit, BusinessError>
+}
+
+data class CreateOrderFromTradeItem(
+    val spuId: Long,
+    val skuId: Long,
+    val offerId: Long,
+    val storeId: Long,
+    val offerVersion: Long,
+    val fulfillmentNodeId: String,
+    val channelId: String,
+    val goodsName: String,
+    val skuDescription: String,
+    val quantity: Int,
+    val unitPrice: Price,
+    val catalogSnapshotVersion: Long,
+)
+
+data class CreateOrderFromTradeCommand(
+    val tradeId: Long,
+    val orderPlanId: Long,
+    val planDigest: String,
+    val merchantId: Long,
+    val buyerId: Long,
+    val buyerName: String,
+    val buyerPhone: String?,
+    val recipientName: String,
+    val recipientPhone: String?,
+    val recipientEmail: String?,
+    val shippingAddress: I18nGeoAddress,
+    val detailAddress: String,
+    val postalCode: String?,
+    val customsFields: Map<String, String>,
+    val items: List<CreateOrderFromTradeItem>,
+    val payableAmount: Price,
+    val currency: String,
+)
 
 interface AfterSaleUseCase {
     fun findById(id: AfterSaleId): Result<AfterSale, BusinessError>

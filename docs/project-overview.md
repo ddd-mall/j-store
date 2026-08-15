@@ -46,7 +46,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-shop-api`: Store/Offer 对外的销售要约快照查询契约。
 - `j-store-shop-domain/application/infrastructure/boot`: 店铺、商户成员和 `SalesOffer`；销售状态、成交价、渠道、有效期、限购与履约策略由此上下文权威管理，并签发持久化 `SaleAuthorization`。
 - `j-store-inventory-domain/application/infrastructure/boot`: ATP 库存镜像、安全库存、渠道隔离量与订单 `StockReservation`；只有预留成功才构成库存承诺。
-- `j-store-trade-domain/application/infrastructure/boot`: Trade Process、成交快照、销售授权与库存预留 Saga、失败补偿和取消释放；向 Order 只发布最终交易承诺结果。
+- `j-store-trade-domain/application/infrastructure/boot`: Trade Process、`POST /api/checkouts` 用户入口、成交快照、销售授权与库存预留 Saga、失败补偿和取消释放。公开 Order 边界不再提供创建接口。
 - `j-store-warehouse-domain/application/infrastructure/boot`: WMS 实物库存权威及单调版本库存事件；Inventory 消费其事件维护销售库存镜像。
 - `j-store-payment-domain/application/infrastructure/boot`: 支付单与退款用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-fulfillment-domain/application/infrastructure/boot`: 履约单用例、JPA/Outbox 以及 Spring 事务装配。
@@ -60,7 +60,8 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 ## 当前实现重点
 
-- 订单：订单行冻结 Catalog 与 Offer 快照，持久化 `PENDING_OFFER → OFFER_AUTHORIZED → CONFIRMED/FAILED` Saga 状态；先取得销售授权，再请求 ATP 库存预留。
+- Trade / Checkout：认证买家从 `/api/checkouts` 提交直接购买意图；Trade 创建独立 `tradeId`，派生可信商户和履约分组，以 `tradeId + orderPlanId` 协调销售授权、ATP 预留、承诺后 Order 创建及唯一 SettlementPlan。
+- 订单：订单行冻结 Catalog 与 Offer 快照，保留单订单生命周期、查询、取消及支付/履约/退款投影；不再暴露用户创建入口，也不再作为 Checkout Saga 的身份或协调者。
 - Catalog：SPU、稳定 SKU、结构化 Product Type、类目/品牌引用、本地化内容、商品款式、草稿/发布/归档和完整资料快照；商品价格不通过 Catalog API 进入交易决策。
 - Store/Offer：一个 SKU 可按店铺、渠道、市场分别定价和启停；授权时用数据库悲观锁校验店铺、Offer 版本、价格、有效期和限购，并签发有时效、可幂等、可释放的业务凭证。
 - Inventory/ATP：按 `onHand - reserved - safetyStock - isolatedQuantity` 计算可承诺量；授权过期或 ATP 不足时拒绝预留。
@@ -68,7 +69,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - 用户：用户注册、登录、强制下线、昵称和密码值对象、JWT 与 Redis token 基础设施，以及供业务上下文读取标量资料的本地/远程双部署查询能力。
 - 订单用户快照：创建订单只接受认证上下文的用户 ID，通过 Order 本地 ACL 查询 ACTIVE 用户并冻结昵称和手机号；收货人联系方式保持独立语义。
 - 店铺：商户、商户成员、角色权限、成员管理用例和其它上下文复用的商户授权服务。
-- 支付与履约：支付单、退款、履约单的领域模型、集成消息处理、JPA/Outbox 与事务装配。
+- 支付与履约：首期按 `settlementPlanId + installmentId` 幂等创建 TradePayment，并保留退款、履约单的领域模型、集成消息处理、JPA/Outbox 与事务装配；支付渠道受理和策略化履约放行仍是后续切片。
 - 会计：账户、会计期间、分录、结算单等领域模型、JPA 仓储实现与事务装配。
 - 事件基础设施：进程内领域事件监听、版本化集成消息，以及按一个或多个稳定 `transportId`（如 `local`、`kafka`、`rabbitmq`）规划的 Outbox 投递、消费幂等和监控；Outbox 使用提交后单飞唤醒与轮询兜底，领域事件在事务提交后确认，并对历史投递与消费状态执行有预算的持续清理。
 - 接口层：各上下文 `*-boot` 持有自己的 Controller 与 Spring 配置，根 `j-store-boot` 负责组合运行时。

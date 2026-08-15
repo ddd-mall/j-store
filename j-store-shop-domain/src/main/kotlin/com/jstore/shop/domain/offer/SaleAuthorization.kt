@@ -28,7 +28,8 @@ import java.time.Instant
 class SaleAuthorization
 private constructor(
     override val id: SaleAuthorizationId,
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val offerId: SalesOfferId,
     val storeId: StoreId,
     val merchantId: MerchantId,
@@ -54,14 +55,15 @@ private constructor(
         if (_status == SaleAuthorizationStatus.RELEASED) return Success(false)
         if (_status != SaleAuthorizationStatus.AUTHORIZED) return Failure(OfferErrors.ILLEGAL_STATE)
         _status = SaleAuthorizationStatus.RELEASED
-        raise(SaleAuthorizationReleasedEvent(id, orderId, now))
+        raise(SaleAuthorizationReleasedEvent(id, tradeId, orderPlanId, now))
         return Success(true)
     }
 
     companion object {
         fun authorized(
             id: SaleAuthorizationId,
-            orderId: Long,
+            tradeId: Long,
+            orderPlanId: Long,
             offerId: SalesOfferId,
             storeId: StoreId,
             merchantId: MerchantId,
@@ -75,7 +77,8 @@ private constructor(
         ) =
             SaleAuthorization(
                 id,
-                orderId,
+                tradeId,
+                orderPlanId,
                 offerId,
                 storeId,
                 merchantId,
@@ -92,7 +95,8 @@ private constructor(
 
         fun reconstitute(
             id: SaleAuthorizationId,
-            orderId: Long,
+            tradeId: Long,
+            orderPlanId: Long,
             offerId: SalesOfferId,
             storeId: StoreId,
             merchantId: MerchantId,
@@ -108,7 +112,8 @@ private constructor(
         ) =
             SaleAuthorization(
                 id,
-                orderId,
+                tradeId,
+                orderPlanId,
                 offerId,
                 storeId,
                 merchantId,

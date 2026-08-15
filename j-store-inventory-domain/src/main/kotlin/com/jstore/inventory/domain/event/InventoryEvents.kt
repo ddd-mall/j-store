@@ -24,7 +24,8 @@ import java.time.Instant
 
 @DomainEventType(name = "inventory.stock-reserved", version = 1)
 data class StockReservedEvent(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val authorizationIds: List<String>,
     val reservationIds: List<String>,
     val reservationExpiresAt: Instant,
@@ -33,13 +34,14 @@ data class StockReservedEvent(
 ) : DomainEvent {
     override val eventName = "inventory.stock-reserved"
     override val eventVersion = 1
-    override val aggregateType = "OrderStockReservation"
-    override val aggregateId = orderId.toString()
+    override val aggregateType = "TradeStockReservation"
+    override val aggregateId = orderPlanId.toString()
 }
 
 @DomainEventType(name = "inventory.stock-reservation-failed", version = 1)
 data class StockReservationFailedEvent(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val authorizationIds: List<String>,
     val reason: String,
     override val occurredAt: Instant = Instant.now(),
@@ -47,14 +49,15 @@ data class StockReservationFailedEvent(
 ) : DomainEvent {
     override val eventName = "inventory.stock-reservation-failed"
     override val eventVersion = 1
-    override val aggregateType = "OrderStockReservation"
-    override val aggregateId = orderId.toString()
+    override val aggregateType = "TradeStockReservation"
+    override val aggregateId = orderPlanId.toString()
 }
 
 @DomainEventType(name = "inventory.stock-reservation-released", version = 1)
 data class StockReservationReleasedEvent(
     val reservationId: StockReservationId,
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {

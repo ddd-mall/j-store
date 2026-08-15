@@ -49,7 +49,8 @@ interface OfferAuthorizationUseCase {
     fun authorize(command: AuthorizeSaleCommand): Result<List<SaleAuthorization>, BusinessError>
 
     fun release(
-        orderId: Long,
+        tradeId: Long,
+        orderPlanId: Long,
         authorizationIds: List<String>,
         now: Instant,
     ): Result<Unit, BusinessError>
@@ -65,7 +66,7 @@ class OfferAuthorizationService(
     override fun authorize(
         command: AuthorizeSaleCommand
     ): Result<List<SaleAuthorization>, BusinessError> {
-        val existing = authorizationRepository.findByOrderId(command.orderId)
+        val existing = authorizationRepository.findByOrderPlanId(command.orderPlanId)
         if (existing.isNotEmpty()) return Success(existing)
         if (
             command.items.isEmpty() ||
@@ -102,7 +103,8 @@ class OfferAuthorizationService(
                     }
                     val result =
                         offer.authorize(
-                            orderId = command.orderId,
+                            tradeId = command.tradeId,
+                            orderPlanId = command.orderPlanId,
                             quantity = item.quantity,
                             expectedPriceFen = item.unitPriceFen,
                             now = command.occurredAt,
@@ -119,7 +121,8 @@ class OfferAuthorizationService(
         }
         publisher.publishEvent(
             SaleAuthorizedEvent(
-                command.orderId,
+                command.tradeId,
+                command.orderPlanId,
                 authorizations.map {
                     AuthorizedSaleLine(
                         it.id.value,
@@ -137,7 +140,8 @@ class OfferAuthorizationService(
     }
 
     override fun release(
-        orderId: Long,
+        tradeId: Long,
+        orderPlanId: Long,
         authorizationIds: List<String>,
         now: Instant,
     ): Result<Unit, BusinessError> {
@@ -145,7 +149,7 @@ class OfferAuthorizationService(
             val authorization =
                 authorizationRepository.findById(SaleAuthorizationId(rawId))
                     ?: return Failure(OfferErrors.AUTHORIZATION_NOT_FOUND)
-            if (authorization.orderId != orderId)
+            if (authorization.tradeId != tradeId || authorization.orderPlanId != orderPlanId)
                 return Failure(OfferErrors.AUTHORIZATION_NOT_FOUND)
             authorization.release(now).onFailure {
                 return Failure(it)
@@ -169,7 +173,8 @@ class AuthorizeSaleCommandHandler(
             is Failure ->
                 publisher.publishEvent(
                     SaleAuthorizationRejectedEvent(
-                        message.orderId,
+                        message.tradeId,
+                        message.orderPlanId,
                         result.error.message,
                         message.occurredAt,
                     )
@@ -183,9 +188,16 @@ class ReleaseSaleAuthorizationCommandHandler(private val useCase: OfferAuthoriza
     override fun handlerId() = "store.release-sale-authorization.v1"
 
     override fun handle(message: ReleaseSaleAuthorizationCommand) {
-        useCase.release(message.orderId, message.authorizationIds, message.occurredAt).onFailure {
-            throw IllegalStateException(it.message)
-        }
+        useCase
+            .release(
+                message.tradeId,
+                message.orderPlanId,
+                message.authorizationIds,
+                message.occurredAt,
+            )
+            .onFailure {
+                throw IllegalStateException(it.message)
+            }
     }
 }
 

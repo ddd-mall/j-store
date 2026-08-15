@@ -57,7 +57,7 @@ class InventoryTransactionBoundaryTest {
             InventoryBootConfiguration()
                 .reserveInventoryHandler(service, publisher, transactionManager)
 
-        handler.handle(ReserveInventoryCommand(1, emptyList(), "source", 2, Instant.EPOCH))
+        handler.handle(ReserveInventoryCommand(1, 11, emptyList(), "source", 2, Instant.EPOCH))
 
         assertEquals(1, transactionManager.commits)
     }
@@ -80,7 +80,7 @@ class InventoryTransactionBoundaryTest {
 
         override fun findByBusinessKey(businessKey: String): StockReservation? = null
 
-        override fun findByOrderId(orderId: Long): List<StockReservation> = emptyList()
+        override fun findByOrderPlanId(orderPlanId: Long): List<StockReservation> = emptyList()
     }
 
     private class RecordingTransactionManager : AbstractPlatformTransactionManager() {

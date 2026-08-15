@@ -41,8 +41,20 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
+import org.springframework.web.bind.annotation.PostMapping
 
 class OrderControllerStatusContractTest {
+    @Test
+    fun `order public boundary does not expose a creation endpoint`() {
+        val publicPosts =
+            OrderController::class.java.declaredMethods.filter {
+                it.getAnnotation(PostMapping::class.java) != null
+            }
+
+        assertFalse(publicPosts.any { it.name == "createOrder" })
+        assertFalse(OrderUseCase::class.java.methods.any { it.name == "createOrder" })
+    }
+
     @Test
     fun `single order response exposes three dimensions and refund summary`() {
         val service = mock(OrderUseCase::class.java)

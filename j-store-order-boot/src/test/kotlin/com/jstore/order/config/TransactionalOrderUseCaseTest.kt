@@ -16,8 +16,8 @@
  */
 package com.jstore.order.config
 
-import com.jstore.order.domain.order.command.OrderCreateCMD
-import com.jstore.order.service.OrderUseCase
+import com.jstore.order.service.CreateOrderFromTradeCommand
+import com.jstore.order.service.InternalOrderCreationUseCase
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,7 +38,7 @@ class TransactionalOrderUseCaseTest {
             val jdbc = JdbcTemplate(dataSource)
             jdbc.execute("create table business_write(id bigint primary key)")
             jdbc.execute("create table outbox_write(id bigint primary key)")
-            val delegate = mock<OrderUseCase>()
+            val delegate = mock<InternalOrderCreationUseCase>()
             doAnswer {
                     assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
                     jdbc.update("insert into business_write(id) values (1)")
@@ -48,13 +48,13 @@ class TransactionalOrderUseCaseTest {
                 .`when`(delegate)
                 .createOrder(any())
             val useCase =
-                TransactionalOrderUseCase(
+                TransactionalInternalOrderCreationUseCase(
                     delegate,
                     DataSourceTransactionManager(dataSource),
                 )
 
             assertFailsWith<IllegalStateException> {
-                useCase.createOrder(mock<OrderCreateCMD>())
+                useCase.createOrder(mock<CreateOrderFromTradeCommand>())
             }
 
             assertEquals(

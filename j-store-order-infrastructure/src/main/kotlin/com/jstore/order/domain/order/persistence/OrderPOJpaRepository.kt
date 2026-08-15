@@ -32,4 +32,6 @@ interface OrderPOJpaRepository : JpaRepository<OrderPO, Long> {
     fun findByBuyerUid(buyerUid: Long): List<OrderPO>
 
     fun findByBuyerUid(buyerUid: Long, pageable: Pageable): Page<OrderPO>
+
+    fun findBySourceOrderPlanId(sourceOrderPlanId: Long): OrderPO?
 }

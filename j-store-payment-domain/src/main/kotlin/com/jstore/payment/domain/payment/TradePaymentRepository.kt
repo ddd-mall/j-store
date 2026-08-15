@@ -14,8 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.trade.domain
+package com.jstore.payment.domain.payment
 
 import com.jstore.common.framework.AggregateRepository
 
-interface TradeProcessRepository : AggregateRepository<TradeProcessId, TradeProcess>
+interface TradePaymentRepository : AggregateRepository<TradePaymentId, TradePayment> {
+    fun findByInstallment(settlementPlanId: Long, installmentId: String): TradePayment?
+}

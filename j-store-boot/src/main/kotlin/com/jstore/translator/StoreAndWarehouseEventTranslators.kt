@@ -35,7 +35,8 @@ class SaleAuthorizedIntegrationTranslator(private val publisher: IntegrationMess
     override fun onDomainEvent(event: SaleAuthorizedEvent) {
         publisher.publish(
             SaleAuthorizedIntegrationEvent(
-                orderId = event.orderId,
+                tradeId = event.tradeId,
+                orderPlanId = event.orderPlanId,
                 items =
                     event.items.map {
                         ContractAuthorizedSaleItem(
@@ -63,7 +64,8 @@ class SaleAuthorizationRejectedIntegrationTranslator(
     override fun onDomainEvent(event: SaleAuthorizationRejectedEvent) {
         publisher.publish(
             SaleAuthorizationFailedIntegrationEvent(
-                event.orderId,
+                event.tradeId,
+                event.orderPlanId,
                 event.reason,
                 event.eventId,
                 event.occurredAt,

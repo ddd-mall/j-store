@@ -41,7 +41,7 @@ class OfferAuthorizationServiceTest {
         val service = service(offer, authorizations, published)
 
         val first = assertIs<Success<List<SaleAuthorization>>>(service.authorize(command()))
-        assertEquals("ORDER-100-OFFER-1", first.value.single().id.value)
+        assertEquals("TRADE-100-PLAN-1001-OFFER-1", first.value.single().id.value)
         assertEquals("CN-NORTH-1", first.value.single().fulfillmentPolicy.preferredNodeId.value)
         assertEquals(1, authorizations.values.size)
         assertEquals(1, published.filterIsInstance<SaleAuthorizedEvent>().size)
@@ -80,7 +80,8 @@ class OfferAuthorizationServiceTest {
 
     private fun command() =
         AuthorizeSaleCommand(
-            orderId = 100,
+            tradeId = 100,
+            orderPlanId = 1001,
             merchantId = 7,
             items =
                 listOf(
@@ -126,6 +127,6 @@ private class FakeAuthorizations : SaleAuthorizationRepository {
 
     override fun findById(id: SaleAuthorizationId): SaleAuthorization? = values[id]
 
-    override fun findByOrderId(orderId: Long): List<SaleAuthorization> =
-        values.values.filter { it.orderId == orderId }
+    override fun findByOrderPlanId(orderPlanId: Long): List<SaleAuthorization> =
+        values.values.filter { it.orderPlanId == orderPlanId }
 }

@@ -30,20 +30,23 @@ import com.jstore.order.domain.aftersale.*
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderFactoryImpl
 import com.jstore.order.domain.order.OrderRepository
+import com.jstore.order.domain.order.TrustedOrderFactory
+import com.jstore.order.domain.order.TrustedOrderFactoryImpl
 import com.jstore.order.service.AfterSaleApplicationService
 import com.jstore.order.service.AfterSaleUseCase
 import com.jstore.order.service.FulfillmentDeliveredOrderHandler
 import com.jstore.order.service.FulfillmentDispatchedOrderHandler
 import com.jstore.order.service.FulfillmentPreparedOrderHandler
+import com.jstore.order.service.InternalOrderCreationUseCase
 import com.jstore.order.service.OrderService
-import com.jstore.order.service.OrderTradeCommitmentFailedEventHandler
-import com.jstore.order.service.OrderTradeCommittedEventHandler
 import com.jstore.order.service.OrderUseCase
 import com.jstore.order.service.PaymentCapturedOrderHandler
 import com.jstore.order.service.PaymentRefundFailedOrderHandler
 import com.jstore.order.service.PaymentRefundSucceededOrderHandler
 import com.jstore.shop.api.OfferSnapshotQueryService
+import com.jstore.trade.service.TradeOrderCreationGateway
 import com.jstore.user.api.UserProfileQueryService
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -90,14 +93,20 @@ class OrderBootConfiguration {
         orderRepository: OrderRepository,
         domainEventPublisher: DomainEventPublisher,
         userService: UserService,
+        trustedOrderFactory: TrustedOrderFactory,
     ): OrderService {
         return OrderService(
             orderFactory,
             orderRepository,
             domainEventPublisher,
             userService,
+            trustedOrderFactory,
         )
     }
+
+    @Bean
+    fun trustedOrderFactory(snowFlakSequence: SnowFlakSequence): TrustedOrderFactory =
+        TrustedOrderFactoryImpl(snowFlakSequence)
 
     @Bean
     @Primary
@@ -105,6 +114,18 @@ class OrderBootConfiguration {
         orderApplicationService: OrderService,
         transactionManager: PlatformTransactionManager,
     ): OrderUseCase = TransactionalOrderUseCase(orderApplicationService, transactionManager)
+
+    @Bean
+    fun internalOrderCreationUseCase(
+        orderApplicationService: OrderService,
+        transactionManager: PlatformTransactionManager,
+    ): InternalOrderCreationUseCase =
+        TransactionalInternalOrderCreationUseCase(orderApplicationService, transactionManager)
+
+    @Bean
+    fun tradeOrderCreationGateway(
+        @Qualifier("internalOrderCreationUseCase") orders: InternalOrderCreationUseCase
+    ): TradeOrderCreationGateway = TradeOrderCreationAdapter(orders)
 
     @Bean
     fun paymentCapturedOrderHandler(service: OrderUseCase) = PaymentCapturedOrderHandler(service)
@@ -130,13 +151,6 @@ class OrderBootConfiguration {
     @Bean
     fun paymentRefundFailedOrderHandler(afterSales: AfterSaleUseCase) =
         PaymentRefundFailedOrderHandler(afterSales)
-
-    @Bean
-    fun orderTradeCommittedHandler(service: OrderUseCase) = OrderTradeCommittedEventHandler(service)
-
-    @Bean
-    fun orderTradeCommitmentFailedHandler(service: OrderUseCase) =
-        OrderTradeCommitmentFailedEventHandler(service)
 
     @Bean
     fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory =

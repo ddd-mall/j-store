@@ -14,78 +14,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.trade.domain
+package com.jstore.payment.domain.payment
 
 import com.jstore.common.properties.Price
-import com.jstore.common.utils.Success
-import com.jstore.trade.domain.persistence.TradeProcessPOJpaRepository
+import com.jstore.payment.domain.payment.persistence.TradePaymentPOJpaRepository
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import jakarta.persistence.EntityManager
 import jakarta.persistence.EntityManagerFactory
-import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
+import kotlin.test.assertFails
 import kotlin.test.assertNotNull
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactory
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter
 
-class TradeProcessRepositoryPostgresTest {
+class TradePaymentRepositoryPostgresTest {
     @Test
-    fun `committed trade process survives PostgreSQL round trip`() =
-        database { entityManagerFactory ->
-            transaction(entityManagerFactory) { entityManager ->
-                val repository = repository(entityManager)
-                val expiresAt = Instant.parse("2026-08-14T12:00:00Z")
-                val trade =
-                    TradeProcess.start(
-                        TradeProcessId(100),
-                        100,
-                        7,
-                        listOf(
-                            TradeItemSnapshot(
-                                10,
-                                3,
-                                20,
-                                21,
-                                2,
-                                4,
-                                5,
-                                "CN-NORTH-1",
-                                "ONLINE",
-                                Price.ofFen(990),
-                            )
-                        ),
-                        Price.ofFen(1980),
-                        "CNY",
-                    )
-                assertIs<Success<Boolean>>(
-                    trade.recordSaleAuthorized(listOf(TradeAuthorization("auth-1", 10, expiresAt)))
+    fun `trade payment allocation survives PostgreSQL round trip`() = database { factory ->
+        transaction(factory) { entityManager ->
+            val repository = repository(entityManager)
+            repository.save(
+                TradePayment.prepare(
+                    TradePaymentId(8001),
+                    9001,
+                    9901,
+                    "FULL",
+                    Price.ofFen(3000),
+                    "CNY",
+                    listOf(
+                        PaymentAllocationSnapshot(9101, 7001, 7, Price.ofFen(1000)),
+                        PaymentAllocationSnapshot(9102, 7002, 8, Price.ofFen(2000)),
+                    ),
                 )
-                assertIs<Success<Boolean>>(
-                    trade.recordInventoryReserved(
-                        listOf("reservation-1"),
-                        expiresAt.minusSeconds(10),
-                    )
-                )
+            )
+            entityManager.flush()
+            entityManager.clear()
 
-                repository.save(trade)
-                entityManager.flush()
-                entityManager.clear()
-
-                val restored = assertNotNull(repository.findById(TradeProcessId(100)))
-                assertEquals(TradeProcessStatus.COMMITTED, restored.status)
-                assertEquals(listOf("auth-1"), restored.authorizations.map { it.authorizationId })
-                assertEquals(listOf("reservation-1"), restored.reservationIds)
-                assertEquals(1980, restored.payableAmount.fen)
-            }
+            val restored = assertNotNull(repository.findByInstallment(9901, "FULL"))
+            assertEquals(9001, restored.tradeId)
+            assertEquals(3000, restored.payableAmount.fen)
+            assertEquals(listOf(1000L, 2000L), restored.allocations.map { it.amount.fen })
         }
 
-    private fun repository(entityManager: EntityManager): TradeProcessRepositoryImpl {
+        assertFails {
+            transaction(factory) { entityManager ->
+                repository(entityManager)
+                    .save(
+                        TradePayment.prepare(
+                            TradePaymentId(8002),
+                            9001,
+                            9901,
+                            "FULL",
+                            Price.ofFen(3000),
+                            "CNY",
+                            listOf(
+                                PaymentAllocationSnapshot(9101, 7001, 7, Price.ofFen(1000)),
+                                PaymentAllocationSnapshot(9102, 7002, 8, Price.ofFen(2000)),
+                            ),
+                        )
+                    )
+                entityManager.flush()
+            }
+        }
+    }
+
+    private fun repository(entityManager: EntityManager): TradePaymentRepositoryImpl {
         val factory = JpaRepositoryFactory(entityManager)
-        return TradeProcessRepositoryImpl(
-            factory.getRepository(TradeProcessPOJpaRepository::class.java)
+        return TradePaymentRepositoryImpl(
+            factory.getRepository(TradePaymentPOJpaRepository::class.java)
         )
     }
 
@@ -110,7 +107,7 @@ class TradeProcessRepositoryPostgresTest {
                 LocalContainerEntityManagerFactoryBean().apply {
                     dataSource = postgres.postgresDatabase
                     jpaVendorAdapter = HibernateJpaVendorAdapter()
-                    setPackagesToScan("com.jstore.trade.domain.persistence")
+                    setPackagesToScan("com.jstore.payment.domain.payment.persistence")
                     setJpaPropertyMap(mapOf("hibernate.hbm2ddl.auto" to "create-drop"))
                     afterPropertiesSet()
                 }

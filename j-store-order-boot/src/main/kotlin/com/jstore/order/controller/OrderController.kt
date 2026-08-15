@@ -19,7 +19,6 @@ package com.jstore.order.controller
 import com.jstore.authentication.annotation.CurrentUserId
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.fold
 import com.jstore.order.domain.order.*
@@ -36,32 +35,6 @@ import org.springframework.web.bind.annotation.*
 class OrderController(private val orderService: OrderUseCase) {
 
     // ---- Request DTOs ----
-
-    data class CreateOrderRequest(
-        val merchantId: Long,
-        val recipientInfo: RecipientInfoRequest,
-        val items: List<OrderItemRequest>,
-    )
-
-    data class RecipientInfoRequest(
-        val consigneeName: String,
-        val countryCode: String,
-        val contactPhone: String? = null,
-        val contactEmail: String? = null,
-        val shippingDistrictCode: String,
-        val shippingDetailAddress: String,
-        val postalCode: String? = null,
-        val customsFields: Map<String, String> = emptyMap(),
-    )
-
-    data class OrderItemRequest(
-        val offerId: Long,
-        val offerVersion: Long,
-        val spuId: Long,
-        val skuId: Long,
-        val quantity: Int,
-        val snapshotVersion: Long,
-    )
 
     data class CancelOrderRequest(
         val category: CancellationCategory,
@@ -121,45 +94,6 @@ class OrderController(private val orderService: OrderUseCase) {
     )
 
     // ---- 买家接口 ----
-
-    @PostMapping
-    fun createOrder(
-        @CurrentUserId userId: UserId,
-        @RequestBody request: CreateOrderRequest,
-    ): ResponseEntity<*> {
-        val cmd =
-            OrderCreateCMD(
-                buyerUid = userId.value,
-                merchantId = request.merchantId,
-                recipientInfo =
-                    OrderCreateCMD.RecipientInfoCMD(
-                        consigneeName = request.recipientInfo.consigneeName,
-                        countryCode = request.recipientInfo.countryCode,
-                        consigneeContractInfo =
-                            OrderCreateCMD.ContractInfoCMD(
-                                phoneNumber =
-                                    request.recipientInfo.contactPhone?.let { PhoneNumber(it) },
-                                emailAddress = request.recipientInfo.contactEmail,
-                            ),
-                        shippingDistrictCode = request.recipientInfo.shippingDistrictCode,
-                        shippingDetailAddress = request.recipientInfo.shippingDetailAddress,
-                        postalCode = request.recipientInfo.postalCode,
-                        customsFields = request.recipientInfo.customsFields,
-                    ),
-                items =
-                    request.items.map {
-                        OrderCreateCMD.OrderItemCMD(
-                            spuId = it.spuId,
-                            skuId = it.skuId,
-                            quantity = it.quantity,
-                            snapshotVersion = it.snapshotVersion,
-                            offerId = it.offerId,
-                            offerVersion = it.offerVersion,
-                        )
-                    },
-            )
-        return orderService.createOrder(cmd).toResponse { it.toOrderResponse() }
-    }
 
     @GetMapping("/{orderId}")
     fun getOrder(
