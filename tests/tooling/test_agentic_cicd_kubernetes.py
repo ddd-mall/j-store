@@ -225,6 +225,15 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             dockerfile,
         )
         self.assertIn("io.jstore.controller.revision", dockerfile)
+        for label in (
+            "io.jstore.symphony.patch.sha256",
+            "io.jstore.symphony.routing-patch.sha256",
+            "io.jstore.symphony.dependency-lock.sha256",
+            "io.jstore.workflow.sha256",
+            "io.jstore.base.elixir",
+            "io.jstore.base.node",
+        ):
+            self.assertIn(label, dockerfile)
         self.assertIn(
             "COPY deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
             dockerfile,
@@ -233,9 +242,66 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "COPY deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
             dockerfile,
         )
+        self.assertIn(
+            "COPY deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock",
+            dockerfile,
+        )
         self.assertIn("git apply --recount --check", dockerfile)
         self.assertIn("git apply --recount /tmp/symphony-phase-bridge.patch", dockerfile)
+        self.assertIn("/tmp/symphony-mix.lock /build/symphony/elixir/mix.lock", dockerfile)
         self.assertNotIn(":latest", dockerfile)
+
+        audit_script = (
+            REPOSITORY_ROOT / "scripts" / "agentic-cicd-symphony-audit.sh"
+        ).read_text(encoding="utf-8")
+        for check in (
+            'archive "$symphony_revision"',
+            "git apply --recount --check",
+            "mix compile --warnings-as-errors",
+            "mix test",
+            "mix hex.audit",
+            "mix escript.build",
+            "symphony-dependencies.tsv",
+            "controller_fixture_sha256",
+            '"$audit_root/controller-fixture"',
+            '"$audit_root/evidence"',
+            'verify_sha256 "$source_tree/elixir/mix.lock"',
+            "codex-cli $codex_version",
+        ):
+            self.assertIn(check, audit_script)
+        self.assertIn(
+            "hexpm/elixir:1.19.5-erlang-28.3-debian-bookworm-20260202-slim@sha256:",
+            audit_script,
+        )
+        self.assertIn(
+            "node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436",
+            audit_script,
+        )
+        self.assertIn("@openai/codex@$codex_version", audit_script)
+
+        build_script = (
+            REPOSITORY_ROOT
+            / "scripts"
+            / "agentic-cicd-controller-image-build.sh"
+        ).read_text(encoding="utf-8")
+        for evidence in (
+            "--sbom=true",
+            "--provenance=mode=max",
+            "runtime_manifest_digest",
+            "phase_bridge_patch_sha256",
+            "phase_routing_patch_sha256",
+            "dependency_lock_sha256",
+            "workflow_sha256",
+            "CONTROLLER_IMAGE_ARCHIVE_SHA256",
+            'verify_sha256 "$repo_root/$patch_relative"',
+            'verify_sha256 "$repo_root/$routing_patch_relative"',
+            'verify_sha256 "$repo_root/$dependency_lock_relative"',
+            'archive "$symphony_revision"',
+            'symphony-source=$symphony_context',
+        ):
+            self.assertIn(evidence, build_script)
+        self.assertNotIn(":latest", build_script)
+        self.assertNotIn('symphony-source=$symphony_source', build_script)
 
         dockerignore = (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8")
         self.assertTrue(dockerignore.startswith("**\n"))
@@ -250,6 +316,10 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         )
         self.assertIn(
             "!deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
+            dockerignore,
+        )
+        self.assertIn(
+            "!deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock",
             dockerignore,
         )
         self.assertNotIn("!.git", dockerignore)
@@ -284,6 +354,16 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertEqual(
             hashlib.sha256(routing_patch_path.read_bytes()).hexdigest(),
             lock["routing_patch_sha256"],
+        )
+        dependency_lock_path = routing_patch_path.with_name("symphony-mix.lock")
+        self.assertEqual(
+            hashlib.sha256(dependency_lock_path.read_bytes()).hexdigest(),
+            lock["dependency_lock_sha256"],
+        )
+        fixture_path = REPOSITORY_ROOT / lock["test_fixture"]
+        self.assertEqual(
+            hashlib.sha256(fixture_path.read_bytes()).hexdigest(),
+            lock["test_fixture_sha256"],
         )
         self.assertIn('"run_model" => false', routing_patch)
         self.assertIn('"thread_sandbox"', routing_patch)
@@ -401,6 +481,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("symphony-phase-bridge.patch", deploy)
         self.assertIn("symphony-phase-routing.patch", deploy)
         self.assertIn("patch_sha256", deploy)
+        self.assertIn("dependency_lock_sha256", deploy)
         self.assertIn("--dry-run=server", gate_deploy)
         self.assertIn("@sha256:", gate_deploy)
         self.assertIn("run-quality-gate", gate_deploy)

@@ -156,6 +156,36 @@ def validate() -> list[str]:
             != expected_routing_patch_sha256
         ):
             failures.append("Symphony phase routing patch differs from its lock")
+    dependency_lock_relative = lock.get("dependency_lock")
+    expected_dependency_lock_sha256 = lock.get("dependency_lock_sha256")
+    if dependency_lock_relative != "deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock":
+        failures.append("Symphony lock must name the reviewed dependency lock")
+    elif not re.fullmatch(r"[0-9a-f]{64}", expected_dependency_lock_sha256 or ""):
+        failures.append("Symphony dependency lock must use a lowercase SHA-256")
+    else:
+        dependency_lock_path = REPO_ROOT / dependency_lock_relative
+        if not dependency_lock_path.is_file():
+            failures.append("Symphony dependency lock is missing")
+        elif (
+            hashlib.sha256(dependency_lock_path.read_bytes()).hexdigest()
+            != expected_dependency_lock_sha256
+        ):
+            failures.append("Symphony dependency lock differs from its lock")
+    test_fixture_relative = lock.get("test_fixture")
+    expected_test_fixture_sha256 = lock.get("test_fixture_sha256")
+    if test_fixture_relative != "deploy/kubernetes/agentic-cicd/test-fixtures/controller.py":
+        failures.append("Symphony lock must name the reviewed controller fixture")
+    elif not re.fullmatch(r"[0-9a-f]{64}", expected_test_fixture_sha256 or ""):
+        failures.append("Symphony controller fixture lock must use a lowercase SHA-256")
+    else:
+        test_fixture_path = REPO_ROOT / test_fixture_relative
+        if not test_fixture_path.is_file():
+            failures.append("Symphony controller fixture is missing")
+        elif (
+            hashlib.sha256(test_fixture_path.read_bytes()).hexdigest()
+            != expected_test_fixture_sha256
+        ):
+            failures.append("Symphony controller fixture differs from its lock")
 
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", app_server_lock.get("codex_cli_version", "")):
         failures.append("Codex App Server lock must use an exact CLI version")

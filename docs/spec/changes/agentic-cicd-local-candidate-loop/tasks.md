@@ -29,10 +29,12 @@
 
 ## 切片 A：Symphony 供应链资格
 
-- [ ] `LC-04` 审计锁定 Symphony commit及其依赖，形成单独的运行时升级/缓解候选。
+- [x] `LC-04` 审计锁定 Symphony commit及其依赖，形成单独的运行时升级/缓解候选。
   - 证据：上游 commit、漏洞与许可证清单、兼容性、回滚 commit和独立安全评审。
+  - 2026-08-16证据：锁定上游 `8001b52e...4d0` 的原始依赖有27个Hex公告；审查后的39项依赖锁清除全部公告，许可证仅MIT、Apache-2.0和BSD-2-Clause，并记录兼容修正、既有部署回滚digest与独立复评。完整记录见 `evidence/2026-08-16-symphony-supply-chain-audit.md`。
 - [ ] `LC-05` 在指定 Linux 主机原生文件系统完成两段 patch顺序应用、`mix compile`、`mix test`、依赖审计和 Codex 精确版本 smoke。
   - 网络策略：优先既有代理；不可用时使用官方镜像/软件源；需要登录时停止并向用户申请。
+  - 2026-08-16候选证据：固定Elixir构建器中按顺序应用两段补丁及只读依赖锁，`mix compile --warnings-as-errors`、296项测试、Hex审计、escript构建和 `codex-cli 0.146.0` 精确smoke全部PASS；待提交后的最新routing patch摘要由审计JSON重新绑定后完成。
 - [ ] `LC-06` 构建不可变 Supervisor 候选，固定 Symphony/j-store revision、patch hash、Codex 版本、基础镜像 digest和 WORKFLOW hash。
   - 证据：镜像 digest、OCI labels、SBOM/来源记录和无浮动 tag 检查。
 

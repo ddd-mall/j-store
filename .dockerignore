@@ -14,3 +14,4 @@
 !deploy/kubernetes/agentic-cicd/patches/
 !deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch
 !deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch
+!deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock

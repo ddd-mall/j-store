@@ -76,3 +76,11 @@ validate恢复演练再次调度同一 CandidateRevision，并在主 Gate容器�
 首版验收手工构造review snapshot并跨Issue复用Gate receipt，且只证明直接写入被权限位拒绝；独立合同和安全复评均判定FAIL。修复后，`PhaseContextStore`在启动Reviewer前重新解析并校验PASS request/receipt的Issue、gate ID、runner、命令策略和完整CandidateRevision；`TurnStateController`在接受review turn前再次逐文件验证物化archive，因而即使同UID先chmod再篡改也不能生成PASS decision。
 
 候选controller代码已在Symphony Pod的临时路径中完成无模型复验：正式`GateReceiptStore`以同Issue输入执行validate→review；直接写和完成前篡改分别被权限位与exact-archive复验拒绝；同session仍被拒绝，独立session最终绑定同一revision。该验收未启动Codex/App Server或模型，未写正式Supervisor task state，未创建Gate Job或远程Git/GitHub状态。可重放脚本、精确request/receipt和脱敏输出保存在`evidence/2026-08-16-lc14-reviewer-smoke.md`。由于新代码尚未进入部署镜像，LC-14保持未完成；真实模型Reviewer与review阶段重启仍分别保留给LC-21和LC-22。
+
+## 2026-08-16 Symphony 供应链资格
+
+上游锁定commit的原始依赖审计得到27个Hex公告，包含Bandit、Mint、Phoenix、Plug、Req和HPAX的HIGH级网络/资源耗尽风险。缓解候选以单独只读`mix.lock`升级受影响包及必要传递约束，保留`yaml_elixir 2.12.0`，并把Ecto 3.14下的空`codex.command`拒绝改为显式合同。39项依赖许可证只包含MIT、Apache-2.0和BSD-2-Clause。
+
+指定Linux主机以固定Elixir构建器从洁净上游Git archive按顺序应用两段补丁。最终结果为296项Mix测试零失败、Hex公告为零、escript构建PASS和`codex-cli 0.146.0`精确smoke PASS；仓库完整`./scripts/quality-gate.sh`亦PASS。独立规格复评确认LC-04/LC-05证据充分，并指出首版LC-06构建入口未把实际patch/lock内容重新散列后再写入labels；该缺口已改为构建前fail-closed复验。完整公告、升级、许可证、兼容性和回滚记录见`evidence/2026-08-16-symphony-supply-chain-audit.md`。
+
+LC-06仍保持未完成，直到洁净提交产生实际runtime manifest digest、完整OCI labels、SPDX SBOM和SLSA provenance，并验证两份attestation的subject绑定同一runtime digest。Level 0能力与全部远端写继续关闭。
