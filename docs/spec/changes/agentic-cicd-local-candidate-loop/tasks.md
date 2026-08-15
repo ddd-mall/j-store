@@ -56,9 +56,9 @@
   - 2026-08-16证据：正式 Job固定到 worker1，两个 init均退出 0，主 Gate在无 token、默认禁网和只读受信入口下完成全量质量门禁；持久 receipt为 `PASS` / exit 0 / findings空，并记录 Job/Pod UID、日志摘要和精确 runner digest。
 - [x] `LC-12A` 增加 master只读 Artifact Broker和短时一次性 fetch合同；Gate Job在 worker1校验 CandidateRevision archive SHA后离线执行，不挂载 Supervisor PVC。
   - 2026-08-16证据：worker1 fetch init通过 master Broker一次性 lease取得 artifact `0e257854...6d4edac`，校验并物化 CandidateRevision `ec915c1c...0c4358`；主容器只使用 emptyDir副本，未挂载 Supervisor state/PVC。
-- [ ] `LC-13` 将 validate 阶段改为只消费可信 GateReceipt；Supervisor、after hook和 controller进程不得执行 candidate命令。
+- [x] `LC-13` 将 validate 阶段改为只消费可信 GateReceipt；Supervisor、after hook和 controller进程不得执行 candidate命令。
   - 退出证据：恶意候选 fixture 无法读取控制面凭据、host state或联系集群/API，且失败只污染一次性 Job。
-  - 当前进度：ValidatePhaseDriver、mailbox和GateReceipt消费接线已实现，可信进程无candidate subprocess入口；实机 Gate运行中替换 Dispatcher后复用原 Job/Pod UID、不重复调度，并生成 exact-candidate PASS receipt和 cleanup marker。真实恶意候选 fixture仍待集群验收。
+  - 2026-08-16证据：ValidatePhaseDriver、mailbox和GateReceipt消费接线已实现，可信进程无candidate subprocess入口；实机 Gate运行中替换 Dispatcher后复用原 Job/Pod UID、不重复调度，并生成 exact-candidate PASS receipt和 cleanup marker。恶意 CandidateRevision `ee392b53...acff17` 在主 Gate容器中主动验证 GitHub/Artifact/Kubernetes凭据、Symphony/gate/candidate host state均不可见，API、j-store、Redis、PostgreSQL均不可达；其非零退出只产生绑定新revision的单一 FAIL receipt，一次性 Job随后清理。
 
 ## 切片 D：Level 1 阶段接线
 
@@ -76,7 +76,7 @@
 - [ ] `LC-20` 经精确授权注入短期只读 GitHub App token并创建/标记 disposable Issue；完成只读 observer 单 turn。
 - [ ] `LC-21` 经模型费用授权完成本地候选成功路径：Implementer → CandidateRevision → Gate PASS → 独立 Reviewer exact-candidate PASS；GitHub 无远程候选分支或 PR。
 - [ ] `LC-22` 使用可信 fixture完成 Gate FAIL、Review FAIL、new revision、同根因熔断以及 implement/validate/review 三个恢复点演练。
-  - 当前进度：validate恢复点已完成实机演练；Dispatcher在主 Gate运行期间重启后仅恢复原 Job UID `b3458e86-e7dc-44b0-a025-109a633a8138` 和 Pod UID `97791ba7-8f11-4b93-857d-cd181123e835`，最终回执 PASS。implement/review恢复、Review FAIL、new revision和熔断仍未完成。
+  - 当前进度：validate恢复点、Gate FAIL和new revision已完成实机演练；Dispatcher在主 Gate运行期间重启后仅恢复原 Job UID `b3458e86-e7dc-44b0-a025-109a633a8138` 和 Pod UID `97791ba7-8f11-4b93-857d-cd181123e835`，最终回执 PASS；两个不同恶意revision分别得到自己的FAIL receipt。implement/review恢复、Review FAIL和熔断仍未完成。
 - [ ] `LC-23` 移除调度资格并缩容为 0，保留 PVC/日志；生成 `summary.md` 映射 AC-LC-01 至 AC-LC-12。
 
 ## Level 1 退出条件
