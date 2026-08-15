@@ -120,7 +120,7 @@ if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=all)" ]]; t
   printf 'ERROR: j-store controller source must be clean: %s\n' "$repo_root" >&2
   exit 2
 fi
-expected_image="jstore-agentic-cicd:${expected_symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-0.146.0"
+expected_image="docker.io/library/jstore-agentic-cicd:${expected_symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-0.146.0"
 image=${image:-$expected_image}
 if [[ "$image" != "$expected_image" ]]; then
   printf 'ERROR: --image must equal the derived immutable tag: %s\n' "$expected_image" >&2
@@ -178,6 +178,14 @@ controller_label=$(docker image inspect "$image" --format '{{ index .Config.Labe
 
 docker save --output "$archive" "$image"
 sudo ctr --namespace k8s.io images import "$archive"
+sudo ctr --namespace k8s.io images tag "$image" "$image_ref" >/dev/null
+if ! sudo ctr --namespace k8s.io images list | awk \
+  -v ref="$image_ref" -v digest="$image_digest" \
+  '$1 == ref && $3 == digest {found=1} END {exit !found}'; then
+  printf 'ERROR: controller image has no digest-qualified alias %s\n' \
+    "$image_ref" >&2
+  exit 1
+fi
 
 old_pod_uid=$(kubectl --context "$context" -n "$namespace" get pod \
   -l app.kubernetes.io/name=symphony -o jsonpath='{.items[0].metadata.uid}' 2>/dev/null || true)

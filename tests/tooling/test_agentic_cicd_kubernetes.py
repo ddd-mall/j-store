@@ -391,6 +391,8 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("new_pod_uid", deploy)
         self.assertIn("image: $image", deploy)
         self.assertIn("io.jstore.controller.revision", deploy)
+        self.assertIn('expected_image="docker.io/library/jstore-agentic-cicd:', deploy)
+        self.assertIn('images tag "$image" "$image_ref"', deploy)
         self.assertIn("org.opencontainers.image.revision", deploy)
         self.assertIn("symphony-phase-bridge.patch", deploy)
         self.assertIn("symphony-phase-routing.patch", deploy)
@@ -417,12 +419,81 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("--provenance=false", build)
         self.assertIn("type=oci,dest=", build)
         self.assertIn("containerimage.digest", build)
+        self.assertIn('tag="docker.io/library/jstore-agentic-gate:', build)
         self.assertIn("source repository must be clean", build)
         self.assertIn('"$actual_sha256" != "$expected_sha256"', image_import)
         self.assertIn("ctr --namespace k8s.io images import", image_import)
         self.assertIn("--image-ref", image_import)
         self.assertIn("ctr --namespace k8s.io images list", image_import)
         self.assertIn("$3 == digest", image_import)
+        self.assertIn('containerd_image_tag="docker.io/library/$image_tag"', image_import)
+
+    def test_gate_image_import_accepts_containerd_normalized_short_name(self) -> None:
+        script = REPOSITORY_ROOT / "scripts" / "agentic-cicd-gate-image-import.sh"
+        digest = "sha256:" + "a" * 64
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "gate.oci.tar"
+            archive.write_bytes(b"reviewed archive")
+            archive_sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            (bin_dir / "sudo").write_text(
+                "#!/bin/sh\nexec \"$@\"\n", encoding="utf-8"
+            )
+            (bin_dir / "tar").write_text(
+                "#!/bin/sh\nprintf 'oci-layout\\nindex.json\\n'\n", encoding="utf-8"
+            )
+            (bin_dir / "ctr").write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$*\" >> \"$CTR_LOG\"\n"
+                "case \"$*\" in\n"
+                "  *'content list') printf '%s\\n' '"
+                + digest
+                + "' ;;\n"
+                "  *'images list') printf '%s\\n' "
+                "'REF TYPE DIGEST SIZE PLATFORMS LABELS' "
+                "'docker.io/library/jstore-agentic-gate:test application/vnd.oci.image.manifest.v1+json "
+                + digest
+                + " 1B linux/amd64 -' "
+                "'docker.io/library/jstore-agentic-gate:test@"
+                + digest
+                + " application/vnd.oci.image.manifest.v1+json "
+                + digest
+                + " 1B linux/amd64 -' ;;\n"
+                "esac\n",
+                encoding="utf-8",
+            )
+            for executable in bin_dir.iterdir():
+                executable.chmod(0o755)
+            environment = os.environ.copy()
+            environment["PATH"] = f"{bin_dir}:{environment['PATH']}"
+            ctr_log = root / "ctr.log"
+            environment["CTR_LOG"] = str(ctr_log)
+            result = subprocess.run(
+                [
+                    str(script),
+                    "--archive",
+                    str(archive),
+                    "--sha256",
+                    archive_sha256,
+                    "--image-ref",
+                    f"jstore-agentic-gate:test@{digest}",
+                ],
+                cwd=REPOSITORY_ROOT,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            ctr_calls = ctr_log.read_text(encoding="utf-8")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("docker.io/library/jstore-agentic-gate:test", result.stdout)
+        self.assertIn(
+            "images tag docker.io/library/jstore-agentic-gate:test "
+            f"docker.io/library/jstore-agentic-gate:test@{digest}",
+            ctr_calls,
+        )
 
     def test_policy_engine_is_pinned_and_has_read_only_cluster_rbac(self) -> None:
         daemonset = by_kind_name(
@@ -506,6 +577,16 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertFalse(dispatcher_pod["automountServiceAccountToken"])
         self.assertEqual("artifact-broker", broker_pod["serviceAccountName"])
         self.assertEqual("gate-dispatcher", dispatcher_pod["serviceAccountName"])
+        for pod in (broker_pod, dispatcher_pod):
+            self.assertEqual("k8s-master", pod["nodeSelector"]["kubernetes.io/hostname"])
+            self.assertIn(
+                {
+                    "key": "node-role.kubernetes.io/control-plane",
+                    "operator": "Exists",
+                    "effect": "NoSchedule",
+                },
+                pod["tolerations"],
+            )
         self.assertEqual(1, len(broker_pod["containers"]))
         self.assertEqual(1, len(dispatcher_pod["containers"]))
 

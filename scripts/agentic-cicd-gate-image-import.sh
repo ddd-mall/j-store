@@ -49,6 +49,10 @@ if [[ ! -f "$archive" || ! "$expected_sha256" =~ ^[0-9a-f]{64}$ \
 fi
 image_tag=${image_ref%@*}
 image_digest=${image_ref##*@}
+containerd_image_tag=$image_tag
+if [[ "$image_tag" != */* ]]; then
+  containerd_image_tag="docker.io/library/$image_tag"
+fi
 for command in ctr sha256sum sudo tar; do
   command -v "$command" >/dev/null || {
     printf 'ERROR: required command is missing: %s\n' "$command" >&2
@@ -69,12 +73,22 @@ if ! sudo ctr --namespace k8s.io content list | awk '{print $1}' | grep -Fx "$im
   exit 1
 fi
 if ! sudo ctr --namespace k8s.io images list | awk \
-  -v tag="$image_tag" -v digest="$image_digest" \
+  -v tag="$containerd_image_tag" -v digest="$image_digest" \
   '$1 == tag && $3 == digest {found=1} END {exit !found}'; then
   printf 'ERROR: imported image %s is not bound to %s\n' \
-    "$image_tag" "$image_digest" >&2
+    "$containerd_image_tag" "$image_digest" >&2
+  exit 1
+fi
+containerd_image_ref="$containerd_image_tag@$image_digest"
+sudo ctr --namespace k8s.io images tag \
+  "$containerd_image_tag" "$containerd_image_ref" >/dev/null
+if ! sudo ctr --namespace k8s.io images list | awk \
+  -v ref="$containerd_image_ref" -v digest="$image_digest" \
+  '$1 == ref && $3 == digest {found=1} END {exit !found}'; then
+  printf 'ERROR: imported image has no digest-qualified alias %s\n' \
+    "$containerd_image_ref" >&2
   exit 1
 fi
 printf 'PASS: imported verified OCI archive %s\n' "$actual_sha256"
 printf 'PASS: node %s maps %s to manifest %s\n' \
-  "$(hostname)" "$image_tag" "$image_digest"
+  "$(hostname)" "$containerd_image_ref" "$image_digest"

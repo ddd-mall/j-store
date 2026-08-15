@@ -53,7 +53,7 @@ if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=all)" ]]; t
 fi
 
 output_dir=$(mkdir -p "$output_dir" && cd "$output_dir" && pwd)
-tag="jstore-agentic-gate:jstore-${revision:0:12}"
+tag="docker.io/library/jstore-agentic-gate:jstore-${revision:0:12}"
 archive="$output_dir/jstore-agentic-gate-${revision:0:12}.oci.tar"
 metadata="$output_dir/jstore-agentic-gate-${revision:0:12}.metadata.json"
 environment="$output_dir/jstore-agentic-gate-${revision:0:12}.env"
