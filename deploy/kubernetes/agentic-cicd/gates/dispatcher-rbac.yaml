@@ -1,0 +1,44 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gate-dispatcher
+  namespace: agentic-cicd-gates
+rules:
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods/log
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gate-dispatcher
+  namespace: agentic-cicd-gates
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gate-dispatcher
+subjects:
+  - kind: ServiceAccount
+    name: gate-dispatcher
+    namespace: agentic-cicd
