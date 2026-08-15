@@ -86,3 +86,5 @@ validate恢复演练再次调度同一 CandidateRevision，并在主 Gate容器�
 LC-06仍保持未完成，直到洁净提交产生实际runtime manifest digest、完整OCI labels、SPDX SBOM和SLSA provenance，并验证两份attestation的subject绑定同一runtime digest。Level 0能力与全部远端写继续关闭。
 
 随后提交`89c7b462...be401`在指定Linux主机完成最新两阶段隔离审计：第一阶段在执行被审代码前生成零公告与许可证证据，第二阶段不挂载证据目录并完成296项测试、escript和Codex精确版本smoke；各阶段前后均复验依赖锁。审计JSON绑定routing patch `b60be305...7535`且自身SHA-256为`736c8a35...8954`，因此LC-05证据门关闭。
+
+最新洁净controller `3a537df4...24f52`随后从固定Git archive构建。可加载runtime与attested OCI输出得到相同manifest `sha256:305a2b8a...4d1a9`；镜像labels完整绑定Symphony/j-store revision、两段patch、dependency lock、Codex、两个基础镜像和WORKFLOW。构建器从OCI中各提取唯一SPDX与SLSA statement，并确认两者subject绑定该runtime digest；制品摘要与回滚边界保存在`evidence/2026-08-16-controller-image-build.md`，LC-06证据门关闭。

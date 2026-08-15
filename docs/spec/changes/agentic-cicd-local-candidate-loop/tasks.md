@@ -35,8 +35,9 @@
 - [x] `LC-05` 在指定 Linux 主机原生文件系统完成两段 patch顺序应用、`mix compile`、`mix test`、依赖审计和 Codex 精确版本 smoke。
   - 网络策略：优先既有代理；不可用时使用官方镜像/软件源；需要登录时停止并向用户申请。
   - 2026-08-16证据：提交 `89c7b462...be401` 的两阶段审计JSON绑定最新routing patch `b60be305...7535`、依赖锁、fixture和两个基础镜像；`mix compile --warnings-as-errors`、296项测试、Hex审计、escript构建和 `codex-cli 0.146.0` 精确smoke全部PASS。报告SHA-256为 `736c8a35...8954`。
-- [ ] `LC-06` 构建不可变 Supervisor 候选，固定 Symphony/j-store revision、patch hash、Codex 版本、基础镜像 digest和 WORKFLOW hash。
+- [x] `LC-06` 构建不可变 Supervisor 候选，固定 Symphony/j-store revision、patch hash、Codex 版本、基础镜像 digest和 WORKFLOW hash。
   - 证据：镜像 digest、OCI labels、SBOM/来源记录和无浮动 tag 检查。
+  - 2026-08-16证据：controller `3a537df4...24f52` 构建的runtime manifest为 `sha256:305a2b8a...4d1a9`；实际labels逐项匹配，唯一SPDX与SLSA statement均绑定该digest，Docker archive和三份来源制品均记录独立SHA-256。详见 `evidence/2026-08-16-controller-image-build.md`。
 
 ## 切片 B：不可变候选身份
 
