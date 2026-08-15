@@ -172,11 +172,20 @@ verify_runtime_image() {
 verify_runtime_image artifact-broker "$old_broker_uid"
 verify_runtime_image gate-dispatcher "$old_dispatcher_uid"
 
-supervisor_token=$(kubectl --context "$context" auth can-i create jobs \
-  --as=system:serviceaccount:agentic-cicd:symphony -n agentic-cicd-gates)
-dispatcher_secret=$(kubectl --context "$context" auth can-i get secrets \
-  --as=system:serviceaccount:agentic-cicd:gate-dispatcher -n agentic-cicd-gates)
-if [[ "$supervisor_token" != "no" || "$dispatcher_secret" != "no" ]]; then
+if supervisor_token=$(kubectl --context "$context" auth can-i create jobs \
+  --as=system:serviceaccount:agentic-cicd:symphony -n agentic-cicd-gates); then
+  supervisor_status=0
+else
+  supervisor_status=$?
+fi
+if dispatcher_secret=$(kubectl --context "$context" auth can-i get secrets \
+  --as=system:serviceaccount:agentic-cicd:gate-dispatcher -n agentic-cicd-gates); then
+  dispatcher_status=0
+else
+  dispatcher_status=$?
+fi
+if [[ "$supervisor_token" != "no" || "$supervisor_status" -ne 1 \
+  || "$dispatcher_secret" != "no" || "$dispatcher_status" -ne 1 ]]; then
   printf '%s\n' 'ERROR: deployed RBAC exceeds the Level 1 boundary.' >&2
   exit 1
 fi
