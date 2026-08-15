@@ -61,10 +61,19 @@ Ecto 3.14不再使原先依赖`validate_required/2`的空字符串断言失败�
 
 ## Linux验证结果
 
-在指定开发Linux主机的原生文件系统中完成：
+提交 `89c7b46288db59af49a1f1873a3b6ba6c3cbe401` 在指定开发Linux主机的原生文件系统中以两阶段隔离审计完成。生成的 `symphony-audit.json` SHA-256为 `736c8a35bdc6b74b8316b8879352b9eb8f5b7aec0613e2d6390026af9c718954`，其中绑定：
+
+- Symphony revision `8001b52e3062495a16e520e4ceaf8f9de868c4d0`；
+- phase bridge patch `bbaad0e4ad04377b5b64238f7fabbfd383915cf60692f321493dd5f3372bcb8a`；
+- phase routing patch `b60be30500e95f7fd8d61ea4f73cab4b618e646f541ede6f67e8e0f3eac27535`；
+- dependency lock `9e22b8a3a5cb3ff49fb14899e224a0ac8dc08523e75b7835724071f00593890a`；
+- controller fixture `865d5188861ad7c02c45d65d3d79a27d9cdbbe6b5fd8bd8e8e16438e254c5e7d`；
+- 固定Elixir与Node基础镜像digest及 Codex `0.146.0`。
+
+许可证清单输出SHA-256为 `2a81324b800b193747fb988323c8b443ee98b8b34c467bd0f11497391a6df64d`。精确运行结果：
 
 ```text
-Running ExUnit with seed: 55690, max_cases: 32
+Running ExUnit with seed: 765420, max_cases: 32
 296 tests, 0 failures, 6 skipped
 No retired or security advisory packages found
 Generated escript bin/symphony with MIX_ENV=dev
