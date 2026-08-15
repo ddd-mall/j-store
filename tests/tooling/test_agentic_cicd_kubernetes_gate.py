@@ -140,6 +140,7 @@ class KubernetesGateTest(unittest.TestCase):
             ["/usr/bin/python3", "/opt/jstore-gate/fetch-candidate.py"],
             fetch["command"],
         )
+        self.assertEqual("/tmp", fetch["workingDir"])
         self.assertNotIn("ARTIFACT_TOKEN", str(pod["containers"][0]))
         self.assertEqual("Never", pod["containers"][0]["imagePullPolicy"])
         self.assertEqual("Never", pod["initContainers"][0]["imagePullPolicy"])

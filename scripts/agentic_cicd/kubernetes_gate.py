@@ -209,6 +209,7 @@ class GateJobSpecBuilder:
                                     "/usr/bin/python3",
                                     "/opt/jstore-gate/fetch-candidate.py",
                                 ],
+                                "workingDir": "/tmp",
                                 "args": [
                                     "--artifact-url",
                                     f"{self.broker_url}/artifacts/{artifact}",
