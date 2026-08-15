@@ -393,6 +393,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("io.jstore.controller.revision", deploy)
         self.assertIn('expected_image="docker.io/library/jstore-agentic-cicd:', deploy)
         self.assertIn('images tag "$image" "$image_ref"', deploy)
+        self.assertIn('image_ref="$image_repository@$image_digest"', deploy)
         self.assertIn("org.opencontainers.image.revision", deploy)
         self.assertIn("symphony-phase-bridge.patch", deploy)
         self.assertIn("symphony-phase-routing.patch", deploy)
@@ -420,15 +421,17 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("type=oci,dest=", build)
         self.assertIn("containerimage.digest", build)
         self.assertIn('tag="docker.io/library/jstore-agentic-gate:', build)
+        self.assertIn('"GATE_IMAGE_REF=$repository@$digest"', build)
         self.assertIn("source repository must be clean", build)
         self.assertIn('"$actual_sha256" != "$expected_sha256"', image_import)
         self.assertIn("ctr --namespace k8s.io images import", image_import)
+        self.assertIn("--image-tag", image_import)
         self.assertIn("--image-ref", image_import)
         self.assertIn("ctr --namespace k8s.io images list", image_import)
         self.assertIn("$3 == digest", image_import)
-        self.assertIn('containerd_image_tag="docker.io/library/$image_tag"', image_import)
+        self.assertIn('containerd_image_tag=$image_tag', image_import)
 
-    def test_gate_image_import_accepts_containerd_normalized_short_name(self) -> None:
+    def test_gate_image_import_binds_build_tag_to_canonical_digest_ref(self) -> None:
         script = REPOSITORY_ROOT / "scripts" / "agentic-cicd-gate-image-import.sh"
         digest = "sha256:" + "a" * 64
         with tempfile.TemporaryDirectory() as temporary:
@@ -456,7 +459,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
                 "'docker.io/library/jstore-agentic-gate:test application/vnd.oci.image.manifest.v1+json "
                 + digest
                 + " 1B linux/amd64 -' "
-                "'docker.io/library/jstore-agentic-gate:test@"
+                "'docker.io/library/jstore-agentic-gate@"
                 + digest
                 + " application/vnd.oci.image.manifest.v1+json "
                 + digest
@@ -477,8 +480,28 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
                     str(archive),
                     "--sha256",
                     archive_sha256,
+                    "--image-tag",
+                    "docker.io/library/jstore-agentic-gate:test",
                     "--image-ref",
-                    f"jstore-agentic-gate:test@{digest}",
+                    f"docker.io/library/jstore-agentic-gate@{digest}",
+                ],
+                cwd=REPOSITORY_ROOT,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            mismatch = subprocess.run(
+                [
+                    str(script),
+                    "--archive",
+                    str(archive),
+                    "--sha256",
+                    archive_sha256,
+                    "--image-tag",
+                    "docker.io/library/other-gate:test",
+                    "--image-ref",
+                    f"docker.io/library/jstore-agentic-gate@{digest}",
                 ],
                 cwd=REPOSITORY_ROOT,
                 env=environment,
@@ -488,17 +511,19 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             )
             ctr_calls = ctr_log.read_text(encoding="utf-8")
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("docker.io/library/jstore-agentic-gate:test", result.stdout)
+        self.assertIn(f"docker.io/library/jstore-agentic-gate@{digest}", result.stdout)
         self.assertIn(
             "images tag docker.io/library/jstore-agentic-gate:test "
-            f"docker.io/library/jstore-agentic-gate:test@{digest}",
+            f"docker.io/library/jstore-agentic-gate@{digest}",
             ctr_calls,
         )
         self.assertIn(
-            f"images label docker.io/library/jstore-agentic-gate:test@{digest} "
+            f"images label docker.io/library/jstore-agentic-gate@{digest} "
             "io.cri-containerd.image=managed",
             ctr_calls,
         )
+        self.assertEqual(2, mismatch.returncode)
+        self.assertIn("use different repositories", mismatch.stderr)
 
     def test_policy_engine_is_pinned_and_has_read_only_cluster_rbac(self) -> None:
         daemonset = by_kind_name(

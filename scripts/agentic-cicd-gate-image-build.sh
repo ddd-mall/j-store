@@ -92,6 +92,7 @@ if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
 print(digest)
 PY
 )
+repository=${tag%:*}
 tar -tf "$temporary_archive" | grep -Fx 'oci-layout' >/dev/null
 tar -tf "$temporary_archive" | grep -Fx 'index.json' >/dev/null
 archive_sha256=$(sha256sum "$temporary_archive" | awk '{print $1}')
@@ -100,7 +101,7 @@ mv "$temporary_metadata" "$metadata"
 printf '%s\n' \
   "GATE_IMAGE_TAG=$tag" \
   "GATE_IMAGE_DIGEST=$digest" \
-  "GATE_IMAGE_REF=${tag%@*}@$digest" \
+  "GATE_IMAGE_REF=$repository@$digest" \
   "GATE_IMAGE_ARCHIVE=$archive" \
   "GATE_IMAGE_ARCHIVE_SHA256=$archive_sha256" \
   "JSTORE_CONTROLLER_REVISION=$revision" \

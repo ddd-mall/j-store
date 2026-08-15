@@ -163,7 +163,8 @@ if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
 print(digest)
 PY
 )
-image_ref="$image@$image_digest"
+image_repository=${image%:*}
+image_ref="$image_repository@$image_digest"
 docker run --rm --entrypoint codex "$image" --version | grep -Fx 'codex-cli 0.146.0'
 revision=$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
 [[ "$revision" == "8001b52e3062495a16e520e4ceaf8f9de868c4d0" ]] || {

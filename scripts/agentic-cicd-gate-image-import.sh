@@ -4,12 +4,13 @@ set -euo pipefail
 archive=""
 expected_sha256=""
 image_digest=""
+image_tag=""
 image_ref=""
 
 usage() {
   cat <<'EOF'
 Usage: agentic-cicd-gate-image-import.sh --archive <path> --sha256 <digest> \
-  --image-ref <name:tag@sha256:digest>
+  --image-tag <name:revision> --image-ref <name@sha256:digest>
 
 Verifies one reviewed OCI archive and imports it into the local Kubernetes
 containerd namespace. Run the same archive on every eligible Gate node.
@@ -30,6 +31,10 @@ while (($#)); do
       image_ref=${2:?missing image reference}
       shift 2
       ;;
+    --image-tag)
+      image_tag=${2:?missing image tag}
+      shift 2
+      ;;
     --help|-h)
       usage
       exit 0
@@ -43,15 +48,19 @@ while (($#)); do
 done
 
 if [[ ! -f "$archive" || ! "$expected_sha256" =~ ^[0-9a-f]{64}$ \
-  || ! "$image_ref" =~ ^[a-z0-9._/-]+(:[a-zA-Z0-9._-]+)?@sha256:[0-9a-f]{64}$ ]]; then
+  || ! "$image_tag" =~ ^[a-z0-9._/-]+:[a-zA-Z0-9._-]+$ \
+  || ! "$image_ref" =~ ^[a-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]]; then
   usage >&2
   exit 2
 fi
-image_tag=${image_ref%@*}
 image_digest=${image_ref##*@}
 containerd_image_tag=$image_tag
-if [[ "$image_tag" != */* ]]; then
-  containerd_image_tag="docker.io/library/$image_tag"
+containerd_image_repository=${containerd_image_tag%:*}
+containerd_image_ref="$containerd_image_repository@$image_digest"
+if [[ "$containerd_image_ref" != "$image_ref" ]]; then
+  printf 'ERROR: image tag %s and digest reference %s use different repositories\n' \
+    "$image_tag" "$image_ref" >&2
+  exit 2
 fi
 for command in ctr sha256sum sudo tar; do
   command -v "$command" >/dev/null || {
@@ -79,7 +88,6 @@ if ! sudo ctr --namespace k8s.io images list | awk \
     "$containerd_image_tag" "$image_digest" >&2
   exit 1
 fi
-containerd_image_ref="$containerd_image_tag@$image_digest"
 sudo ctr --namespace k8s.io images tag \
   "$containerd_image_tag" "$containerd_image_ref" >/dev/null
 sudo ctr --namespace k8s.io images label \

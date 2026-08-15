@@ -186,6 +186,7 @@ Gate Runner 只能从受审、洁净的 j-store 提交构建。构建入口运�
 ./scripts/agentic-cicd-gate-image-import.sh \
   --archive /absolute/reviewed/output/jstore-agentic-gate-<revision>.oci.tar \
   --sha256 '<build 输出的 archive SHA-256>' \
+  --image-tag '<build 输出的 GATE_IMAGE_TAG>' \
   --image-ref '<build 输出的 GATE_IMAGE_REF>'
 ```
 
