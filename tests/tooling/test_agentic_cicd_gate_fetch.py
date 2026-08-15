@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import os
 import tarfile
 import tempfile
 import unittest
@@ -68,6 +69,25 @@ class GateFetchTest(unittest.TestCase):
             2 * 1024 * 1024,
             (self.root / "large-workspace" / "candidate.txt").stat().st_size,
         )
+
+    def test_workspace_directories_remain_group_writable_under_restrictive_umask(self) -> None:
+        payload = archive("nested/candidate.txt")
+        source = self.root / "nested.tar"
+        source.write_bytes(payload)
+        workspace = self.root / "nested-workspace"
+        previous_umask = os.umask(0o022)
+        try:
+            fetch_candidate(
+                artifact_url=source.as_uri(),
+                artifact_sha256=hashlib.sha256(payload).hexdigest(),
+                token="a" * 32,
+                workspace=workspace,
+            )
+        finally:
+            os.umask(previous_umask)
+
+        self.assertEqual(0o770, workspace.stat().st_mode & 0o777)
+        self.assertEqual(0o770, (workspace / "nested").stat().st_mode & 0o777)
 
     @patch("scripts.agentic_cicd.gate_fetch.MAXIMUM_ARCHIVE_MEMBERS", 2)
     def test_rejects_many_small_files_before_materializing_workspace(self) -> None:

@@ -69,6 +69,7 @@ def fetch_candidate(
 
 def _extract_verified_archive(archive_path: Path, workspace: Path) -> list[str]:
     workspace.mkdir(mode=0o770)
+    workspace.chmod(0o770)
     try:
         repository_files: list[str] = []
         with tarfile.open(archive_path, mode="r:") as archive:
@@ -135,6 +136,7 @@ def _create_safe_parents(root: Path, parent: Path) -> None:
         current /= part
         try:
             current.mkdir(mode=0o770)
+            current.chmod(0o770)
         except FileExistsError:
             metadata = current.lstat()
             if not stat.S_ISDIR(metadata.st_mode):
