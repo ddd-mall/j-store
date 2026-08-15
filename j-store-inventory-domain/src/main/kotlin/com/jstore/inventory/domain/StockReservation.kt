@@ -27,7 +27,8 @@ import java.time.Instant
 class StockReservation(
     override val id: StockReservationId,
     val businessKey: String,
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val saleAuthorizationId: String,
     val skuId: SkuId,
     val fulfillmentNodeId: FulfillmentNodeId,
@@ -44,7 +45,8 @@ class StockReservation(
     init {
         require(
             businessKey.isNotBlank() &&
-                orderId > 0 &&
+                tradeId > 0 &&
+                orderPlanId > 0 &&
                 saleAuthorizationId.isNotBlank() &&
                 quantity > 0
         )
@@ -65,7 +67,7 @@ class StockReservation(
             return Failure(InventoryErrors.ILLEGAL_RESERVATION_STATE)
         }
         _status = StockReservationStatus.RELEASED
-        raise(StockReservationReleasedEvent(id, orderId, now))
+        raise(StockReservationReleasedEvent(id, tradeId, orderPlanId, now))
         return Success(true)
     }
 }

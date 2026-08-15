@@ -46,6 +46,7 @@ class InventoryRepositoryPostgresTest {
                 StockReservation(
                     StockReservationId("ORDER-51-SKU-41-NODE-DEFAULT"),
                     "ORDER-51-SKU-41-NODE-DEFAULT",
+                    501,
                     51,
                     "AUTH-51",
                     SkuId(41),
@@ -73,7 +74,7 @@ class InventoryRepositoryPostgresTest {
             assertEquals(3, reservation.quantity)
             assertEquals(
                 listOf(reservation.id),
-                repositories.reservations.findByOrderId(51).map { it.id },
+                repositories.reservations.findByOrderPlanId(51).map { it.id },
             )
         }
     }

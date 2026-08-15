@@ -23,6 +23,7 @@ import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.aftersale.AfterSaleId
+import com.jstore.order.domain.order.event.OrderCancelledByTradeEvent
 import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCompletedEvent
 import com.jstore.order.domain.order.event.OrderCreatedEvent
@@ -52,6 +53,9 @@ class OrderImpl(
     private val refundFacts: MutableList<RefundFact> = mutableListOf(),
     override val createTime: LocalDateTime = LocalDateTime.now(),
     private var _updateTime: LocalDateTime = LocalDateTime.now(),
+    override val sourceTradeId: Long? = null,
+    override val sourceOrderPlanId: Long? = null,
+    override val sourcePlanDigest: String? = null,
 ) : EventRecordingAggregateRoot<OrderId>(), Order {
     override val items: List<OrderItem>
         get() = _items.toList()
@@ -93,6 +97,14 @@ class OrderImpl(
         require(_refundedAmount <= _paidAmount)
         require(_paidAmount <= amountSnapshot.payableAmount)
         require((_paymentReference == null) == (_paidAmount == Price.ZERO))
+        require(
+            listOf(sourceTradeId, sourceOrderPlanId, sourcePlanDigest).all { it == null } ||
+                (sourceTradeId != null &&
+                    sourceTradeId > 0 &&
+                    sourceOrderPlanId != null &&
+                    sourceOrderPlanId > 0 &&
+                    !sourcePlanDigest.isNullOrBlank())
+        )
     }
 
     internal fun recordCreated() {
@@ -264,6 +276,27 @@ class OrderImpl(
             mutableItems().forEach { it.markCanceled() }
             raise(OrderCancelledEvent(id, reason.description))
         }
+
+    override fun cancelFromTrade(reason: String): Result<Unit, BusinessError> {
+        if (reason.isBlank() || sourceTradeId == null || sourceOrderPlanId == null) {
+            return Failure(OrderErrors.CANCEL_REASON_INVALID)
+        }
+        return transition(
+            (_tradeStatus == TradeStatus.CREATED || _tradeStatus == TradeStatus.ACTIVE) && unpaid(),
+            "Trade 撤销订单",
+        ) {
+            _tradeStatus = TradeStatus.CLOSED
+            mutableItems().forEach { it.markCanceled() }
+            raise(
+                OrderCancelledByTradeEvent(
+                    id,
+                    sourceTradeId,
+                    sourceOrderPlanId,
+                    reason,
+                )
+            )
+        }
+    }
 
     override fun refundEligibility(): Result<RefundEligibility, BusinessError> {
         if (

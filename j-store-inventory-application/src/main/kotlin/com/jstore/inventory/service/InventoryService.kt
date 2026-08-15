@@ -52,9 +52,9 @@ data class StockReservationResult(
 interface InventoryUseCase {
     fun reserve(command: ReserveInventoryCommand): Result<StockReservationResult, BusinessError>
 
-    fun confirm(orderId: Long): Result<Unit, BusinessError>
+    fun confirm(tradeId: Long, orderPlanId: Long): Result<Unit, BusinessError>
 
-    fun release(orderId: Long): Result<Unit, BusinessError>
+    fun release(tradeId: Long, orderPlanId: Long): Result<Unit, BusinessError>
 
     fun applyPhysicalStock(
         message: PhysicalStockChangedIntegrationEvent
@@ -88,7 +88,7 @@ class InventoryService(
                     first.copy(quantity = lines.sumOf { it.quantity })
                 }
                 .sortedWith(compareBy({ it.skuId }, { it.fulfillmentNodeId }))
-        val existing = reservations.findByOrderId(command.orderId)
+        val existing = reservations.findByOrderPlanId(command.orderPlanId)
         if (existing.isNotEmpty()) {
             return Success(
                 StockReservationResult(
@@ -117,12 +117,13 @@ class InventoryService(
                 return Failure(it)
             }
             val businessKey =
-                "ORDER-${command.orderId}-SKU-${item.skuId}-NODE-${item.fulfillmentNodeId}"
+                "TRADE-${command.tradeId}-PLAN-${command.orderPlanId}-SKU-${item.skuId}-NODE-${item.fulfillmentNodeId}"
             val reservation =
                 StockReservation(
                     id = StockReservationId(businessKey),
                     businessKey = businessKey,
-                    orderId = command.orderId,
+                    tradeId = command.tradeId,
+                    orderPlanId = command.orderPlanId,
                     saleAuthorizationId = item.authorizationId,
                     skuId = SkuId(item.skuId),
                     fulfillmentNodeId = FulfillmentNodeId(item.fulfillmentNodeId),
@@ -146,8 +147,10 @@ class InventoryService(
         command.acceptBefore?.let { !now.isBefore(it) } == true ||
             command.items.any { !now.isBefore(it.expiresAt) }
 
-    override fun confirm(orderId: Long): Result<Unit, BusinessError> {
-        val records = reservations.findByOrderId(orderId)
+    override fun confirm(tradeId: Long, orderPlanId: Long): Result<Unit, BusinessError> {
+        val records = reservations.findByOrderPlanId(orderPlanId)
+        if (records.any { it.tradeId != tradeId })
+            return Failure(InventoryErrors.RESERVATION_NOT_FOUND)
         if (records.isEmpty()) return Failure(InventoryErrors.RESERVATION_NOT_FOUND)
         val keys = records.map {
             StockPositionId("${it.skuId.value}@${it.fulfillmentNodeId.value}")
@@ -169,8 +172,10 @@ class InventoryService(
         return Success(Unit)
     }
 
-    override fun release(orderId: Long): Result<Unit, BusinessError> {
-        val records = reservations.findByOrderId(orderId)
+    override fun release(tradeId: Long, orderPlanId: Long): Result<Unit, BusinessError> {
+        val records = reservations.findByOrderPlanId(orderPlanId)
+        if (records.any { it.tradeId != tradeId })
+            return Failure(InventoryErrors.RESERVATION_NOT_FOUND)
         if (records.isEmpty()) return Success(Unit)
         val active = records.filter { it.status.name == "RESERVED" }
         val keys = active.map { StockPositionId("${it.skuId.value}@${it.fulfillmentNodeId.value}") }
@@ -220,7 +225,8 @@ class ReserveInventoryCommandHandler(
             is Success ->
                 publisher.publishEvent(
                     StockReservedEvent(
-                        orderId = message.orderId,
+                        tradeId = message.tradeId,
+                        orderPlanId = message.orderPlanId,
                         authorizationIds = result.value.authorizationIds,
                         reservationIds = result.value.reservationIds,
                         reservationExpiresAt = result.value.expiresAt,
@@ -229,7 +235,8 @@ class ReserveInventoryCommandHandler(
             is Failure ->
                 publisher.publishEvent(
                     StockReservationFailedEvent(
-                        message.orderId,
+                        message.tradeId,
+                        message.orderPlanId,
                         message.items.map { it.authorizationId }.distinct(),
                         result.error.message,
                     )
@@ -243,7 +250,9 @@ class ConfirmInventoryCommandHandler(private val useCase: InventoryUseCase) :
     override fun handlerId() = "inventory.confirm-reservation.v2"
 
     override fun handle(message: ConfirmInventoryCommand) {
-        useCase.confirm(message.orderId).onFailure { throw IllegalStateException(it.message) }
+        useCase.confirm(message.tradeId, message.orderPlanId).onFailure {
+            throw IllegalStateException(it.message)
+        }
     }
 }
 
@@ -252,7 +261,9 @@ class ReleaseInventoryCommandHandler(private val useCase: InventoryUseCase) :
     override fun handlerId() = "inventory.release-reservation.v2"
 
     override fun handle(message: ReleaseInventoryCommand) {
-        useCase.release(message.orderId).onFailure { throw IllegalStateException(it.message) }
+        useCase.release(message.tradeId, message.orderPlanId).onFailure {
+            throw IllegalStateException(it.message)
+        }
     }
 }
 

@@ -49,7 +49,8 @@ class OfferTransactionBoundaryTest {
 
                 override fun findById(id: SaleAuthorizationId): SaleAuthorization? = null
 
-                override fun findByOrderId(orderId: Long): List<SaleAuthorization> = emptyList()
+                override fun findByOrderPlanId(orderPlanId: Long): List<SaleAuthorization> =
+                    emptyList()
             }
         val service =
             OfferAuthorizationService(
@@ -61,7 +62,7 @@ class OfferTransactionBoundaryTest {
         val handler =
             OfferBootConfiguration().authorizeSaleHandler(service, publisher, transactionManager)
 
-        handler.handle(AuthorizeSaleCommand(1, 2, emptyList(), "source", Instant.EPOCH))
+        handler.handle(AuthorizeSaleCommand(1, 11, 2, emptyList(), "source", Instant.EPOCH))
 
         assertEquals(1, transactionManager.commits)
     }

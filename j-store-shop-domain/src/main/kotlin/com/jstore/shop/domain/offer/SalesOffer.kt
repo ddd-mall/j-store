@@ -91,7 +91,8 @@ class SalesOffer(
     }
 
     fun authorize(
-        orderId: Long,
+        tradeId: Long,
+        orderPlanId: Long,
         quantity: Int,
         expectedPriceFen: Long,
         now: Instant,
@@ -107,8 +108,9 @@ class SalesOffer(
         }
         return Success(
             SaleAuthorization.authorized(
-                id = SaleAuthorizationId("ORDER-$orderId-OFFER-${id.value}"),
-                orderId = orderId,
+                id = SaleAuthorizationId("TRADE-$tradeId-PLAN-$orderPlanId-OFFER-${id.value}"),
+                tradeId = tradeId,
+                orderPlanId = orderPlanId,
                 offerId = id,
                 storeId = storeId,
                 merchantId = merchantId,

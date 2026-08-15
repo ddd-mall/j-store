@@ -114,13 +114,14 @@ class SaleAuthorizationRepositoryImpl(private val jpa: SaleAuthorizationPOJpaRep
     override fun findById(id: SaleAuthorizationId): SaleAuthorization? =
         jpa.findById(id.value).orElse(null)?.let(::toDomain)
 
-    override fun findByOrderId(orderId: Long): List<SaleAuthorization> =
-        jpa.findAllByOrderIdOrderByOfferId(orderId).map(::toDomain)
+    override fun findByOrderPlanId(orderPlanId: Long): List<SaleAuthorization> =
+        jpa.findAllByOrderPlanIdOrderByOfferId(orderPlanId).map(::toDomain)
 
     private fun toPO(auth: SaleAuthorization) =
         SaleAuthorizationPO(
             id = auth.id.value,
-            orderId = auth.orderId,
+            tradeId = auth.tradeId,
+            orderPlanId = auth.orderPlanId,
             offerId = auth.offerId.value,
             storeId = auth.storeId.value,
             merchantId = auth.merchantId.value,
@@ -139,7 +140,8 @@ class SaleAuthorizationRepositoryImpl(private val jpa: SaleAuthorizationPOJpaRep
     private fun toDomain(po: SaleAuthorizationPO) =
         SaleAuthorization.reconstitute(
             SaleAuthorizationId(po.id),
-            po.orderId,
+            po.tradeId,
+            po.orderPlanId,
             SalesOfferId(po.offerId),
             StoreId(po.storeId),
             MerchantId(po.merchantId),

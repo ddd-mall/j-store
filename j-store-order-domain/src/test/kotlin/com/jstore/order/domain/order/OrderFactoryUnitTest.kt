@@ -127,7 +127,8 @@ class OrderFactoryUnitTest :
             val result = factory.create(cmd, UserInfo(1L, PhoneNumber("+8613800138000"), "买家"))
 
             result.shouldBeInstanceOf<Success<Order>>()
-            result.value.tradeStatus shouldBe TradeStatus.CREATED
+            result.value.tradeStatus shouldBe TradeStatus.ACTIVE
+            result.value.commitmentStatus shouldBe CommitmentStatus.CONFIRMED
             result.value.paymentStatus shouldBe PaymentStatus.UNPAID
             result.value.fulfillmentStatus shouldBe FulfillmentStatus.UNFULFILLED
             capturedCountryCode shouldBe "CN"

@@ -32,9 +32,10 @@ import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.SuccessfulRefundItem
 import com.jstore.order.domain.order.command.OrderCancelCMD
-import com.jstore.order.domain.order.command.OrderCreateCMD
 import com.jstore.order.service.AfterSaleOrderAccess
 import com.jstore.order.service.AfterSaleUseCase
+import com.jstore.order.service.CreateOrderFromTradeCommand
+import com.jstore.order.service.InternalOrderCreationUseCase
 import com.jstore.order.service.OrderUseCase
 import java.time.Instant
 import org.springframework.transaction.PlatformTransactionManager
@@ -55,8 +56,6 @@ class TransactionalOrderUseCase(
     override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> = read {
         delegate.pageListByUserId(uid, currentPage, pageSize)
     }
-
-    override fun createOrder(cmd: OrderCreateCMD) = write { delegate.createOrder(cmd) }
 
     override fun confirmTradeCommitment(orderId: OrderId) = write {
         delegate.confirmTradeCommitment(orderId)
@@ -105,6 +104,19 @@ class TransactionalOrderUseCase(
     private fun <T> read(block: () -> T): T = requireNotNull(read.execute { block() })
 
     private fun <T> write(block: () -> T): T = requireNotNull(write.execute { block() })
+}
+
+class TransactionalInternalOrderCreationUseCase(
+    private val delegate: InternalOrderCreationUseCase,
+    transactionManager: PlatformTransactionManager,
+) : InternalOrderCreationUseCase {
+    private val write = TransactionTemplate(transactionManager)
+
+    override fun createOrder(cmd: CreateOrderFromTradeCommand) =
+        requireNotNull(write.execute { delegate.createOrder(cmd) })
+
+    override fun cancelOrder(orderPlanId: Long, reason: String) =
+        requireNotNull(write.execute { delegate.cancelOrder(orderPlanId, reason) })
 }
 
 /** Spring transaction boundary for after-sale commands and consistent reads. */

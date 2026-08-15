@@ -19,28 +19,9 @@ package com.jstore.payment.service
 import com.jstore.common.errors.BusinessErrorException
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.getOrThrow
-import com.jstore.contracts.commerce.CreatePaymentForOrderCommand
 import com.jstore.contracts.commerce.RequestPaymentRefundCommand
 import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.payment.domain.payment.PaymentRefundItem
-
-class CreatePaymentForOrderCommandHandler(private val payments: PaymentUseCase) :
-    IntegrationMessageHandler<CreatePaymentForOrderCommand> {
-    override fun handlerId() = "payment.create-for-order.v1"
-
-    override fun handle(message: CreatePaymentForOrderCommand) {
-        payments
-            .createForOrder(
-                PaymentOrderRequest(
-                    message.orderId,
-                    message.merchantId,
-                    Price.ofFen(message.payableAmountFen),
-                    message.currency,
-                )
-            )
-            .getOrThrow(::BusinessErrorException)
-    }
-}
 
 class RequestPaymentRefundCommandHandler(private val payments: PaymentUseCase) :
     IntegrationMessageHandler<RequestPaymentRefundCommand> {

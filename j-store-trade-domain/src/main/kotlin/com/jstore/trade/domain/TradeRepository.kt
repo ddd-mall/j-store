@@ -14,8 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.trade.domain.persistence
+package com.jstore.trade.domain
 
-import org.springframework.data.jpa.repository.JpaRepository
+import com.jstore.common.framework.AggregateRepository
 
-interface TradeProcessPOJpaRepository : JpaRepository<TradeProcessPO, Long>
+interface TradeRepository : AggregateRepository<TradeId, Trade> {
+    fun findByCheckoutRequest(buyerParty: BuyerPartySnapshot, checkoutRequestId: String): Trade?
+
+    fun findByOrderPlanId(orderPlanId: TradeOrderPlanId): Trade?
+}

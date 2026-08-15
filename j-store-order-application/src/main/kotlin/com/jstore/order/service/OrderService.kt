@@ -35,6 +35,9 @@ import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.SuccessfulRefundItem
+import com.jstore.order.domain.order.TrustedOrderDraft
+import com.jstore.order.domain.order.TrustedOrderFactory
+import com.jstore.order.domain.order.TrustedOrderItemDraft
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import java.time.Instant
@@ -45,7 +48,8 @@ class OrderService(
     private val orderRepository: OrderRepository,
     private val domainEventPublisher: DomainEventPublisher,
     private val userService: UserService,
-) : OrderUseCase {
+    private val trustedOrderFactory: TrustedOrderFactory? = null,
+) : OrderUseCase, InternalOrderCreationUseCase {
 
     /** 根据ID查询订单 */
     override fun getOrderById(buyerId: Long, orderId: OrderId): Result<Order, BusinessError> {
@@ -59,8 +63,8 @@ class OrderService(
         return orderRepository.pageListByUserId(uid, currentPage, pageSize)
     }
 
-    /** 创建订单 */
-    override fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError> {
+    /** 旧的领域测试/内部构造入口；公开 HTTP 创建已删除。 */
+    fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError> {
         cmd.validate().onFailure {
             return Failure(it)
         }
@@ -71,6 +75,73 @@ class OrderService(
             order.publishPendingEvents(domainEventPublisher)
         }
     }
+
+    override fun createOrder(cmd: CreateOrderFromTradeCommand): Result<Order, BusinessError> {
+        orderRepository.findBySourceOrderPlanId(cmd.orderPlanId)?.let { existing ->
+            return if (
+                existing.sourceTradeId == cmd.tradeId && existing.sourcePlanDigest == cmd.planDigest
+            )
+                Success(existing)
+            else Failure(OrderErrors.TRADE_PLAN_CONFLICT)
+        }
+        val factory = trustedOrderFactory ?: return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
+        return factory.create(cmd.toDraft()).onSuccess { order ->
+            orderRepository.add(order)
+            order.publishPendingEvents(domainEventPublisher)
+        }
+    }
+
+    override fun cancelOrder(orderPlanId: Long, reason: String): Result<Unit, BusinessError> {
+        if (reason.isBlank()) return Failure(OrderErrors.CANCEL_REASON_INVALID)
+        val order =
+            orderRepository.findBySourceOrderPlanId(orderPlanId)
+                ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        if (order.tradeStatus == com.jstore.order.domain.order.TradeStatus.CLOSED) {
+            return Success(Unit)
+        }
+        order.cancelFromTrade(reason).onFailure {
+            return Failure(it)
+        }
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+        return Success(Unit)
+    }
+
+    private fun CreateOrderFromTradeCommand.toDraft() =
+        TrustedOrderDraft(
+            tradeId,
+            orderPlanId,
+            planDigest,
+            merchantId,
+            buyerId,
+            buyerName,
+            buyerPhone,
+            recipientName,
+            recipientPhone,
+            recipientEmail,
+            shippingAddress,
+            detailAddress,
+            postalCode,
+            customsFields,
+            items.map {
+                TrustedOrderItemDraft(
+                    it.spuId,
+                    it.skuId,
+                    it.offerId,
+                    it.storeId,
+                    it.offerVersion,
+                    it.fulfillmentNodeId,
+                    it.channelId,
+                    it.goodsName,
+                    it.skuDescription,
+                    it.quantity,
+                    it.unitPrice,
+                    it.catalogSnapshotVersion,
+                )
+            },
+            payableAmount,
+            currency,
+        )
 
     /** Trade 完整承诺成功回调。 */
     override fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError> {

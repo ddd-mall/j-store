@@ -29,6 +29,11 @@ import java.time.LocalDateTime
 interface Order : AggregateRoot<OrderId>, RecordsDomainEvents {
     override val id: OrderId
 
+    /** Trade 来源键；历史或非 Trade 测试夹具可为空。 */
+    val sourceTradeId: Long?
+    val sourceOrderPlanId: Long?
+    val sourcePlanDigest: String?
+
     /** 结算和履约主体。订单内所有行项必须属于该商户。 */
     val merchantId: MerchantId
 
@@ -94,6 +99,9 @@ interface Order : AggregateRoot<OrderId>, RecordsDomainEvents {
 
     /** 买家主动取消订单（未支付阶段） */
     fun cancel(reason: CancellationReason): Result<Unit, BusinessError>
+
+    /** Trade Saga 补偿撤销；与买家主动取消使用不同的领域事实，避免循环补偿。 */
+    fun cancelFromTrade(reason: String): Result<Unit, BusinessError>
 
     fun refundEligibility(): Result<RefundEligibility, BusinessError>
 

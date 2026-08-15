@@ -19,8 +19,8 @@ package com.jstore.translator
 import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.contracts.commerce.*
 import com.jstore.messaging.IntegrationMessagePublisher
+import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.event.OrderCancelledEvent
-import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
 import org.springframework.stereotype.Component
 
@@ -30,67 +30,20 @@ import org.springframework.stereotype.Component
  * 职责：纯格式转换，不包含任何业务逻辑 位于 boot 组装层，是两个限界上下文之间的桥梁
  */
 @Component
-class OrderCreatedToTradeTranslator(
-    private val integrationMessagePublisher: IntegrationMessagePublisher
-) : DomainEventListener<OrderCreatedEvent> {
-    override fun listenerId(): String = "translator.order-created.to-trade.v1"
-
-    override fun onDomainEvent(event: OrderCreatedEvent) {
-        integrationMessagePublisher.publish(
-            StartTradeProcessCommand(
-                orderId = event.orderId.value,
-                items =
-                    event.items.map {
-                        ContractSaleItem(
-                            offerId = it.offerId,
-                            storeId = it.storeId,
-                            spuId = it.spuId,
-                            skuId = it.skuId,
-                            quantity = it.quantity,
-                            catalogSnapshotVersion = it.catalogSnapshotVersion,
-                            offerVersion = it.offerVersion,
-                            fulfillmentNodeId = it.fulfillmentNodeId,
-                            channelId = it.channelId,
-                            unitPriceFen = it.unitPrice.fen,
-                        )
-                    },
-                sourceMessageId = event.eventId,
-                merchantId = event.merchantId.value,
-                payableAmountFen = event.payableAmount.fen,
-                currency = event.currency,
-                occurredAtValue = event.occurredAt,
-            )
-        )
-    }
-}
-
-@Component
-class OrderPaidToStockConfirmTranslator(
-    private val integrationMessagePublisher: IntegrationMessagePublisher
-) : DomainEventListener<OrderPaidEvent> {
-    override fun listenerId(): String = "translator.order-paid.to-stock-confirm-requested"
-
-    override fun onDomainEvent(event: OrderPaidEvent) {
-        integrationMessagePublisher.publish(
-            ConfirmInventoryCommand(
-                orderId = event.orderId.value,
-                items = event.items.map { ContractItem(skuId = it.skuId, quantity = it.quantity) },
-                sourceMessageId = event.eventId,
-                occurredAtValue = event.occurredAt,
-            )
-        )
-    }
-}
-
-@Component
 class OrderCancelledToTradeTranslator(
-    private val integrationMessagePublisher: IntegrationMessagePublisher
+    private val orders: OrderRepository,
+    private val integrationMessagePublisher: IntegrationMessagePublisher,
 ) : DomainEventListener<OrderCancelledEvent> {
     override fun listenerId(): String = "translator.order-cancelled.to-trade.v1"
 
     override fun onDomainEvent(event: OrderCancelledEvent) {
+        val order = requireNotNull(orders.findById(event.orderId))
+        val tradeId = order.sourceTradeId ?: return
+        val orderPlanId = order.sourceOrderPlanId ?: return
         integrationMessagePublisher.publish(
             OrderCancelledIntegrationEvent(
+                tradeId = tradeId,
+                orderPlanId = orderPlanId,
                 orderId = event.orderId.value,
                 reason = event.reason,
                 sourceMessageId = event.eventId,
@@ -110,6 +63,29 @@ class OrderPaidToTradeTranslator(
         integrationMessagePublisher.publish(
             OrderPaidIntegrationEvent(
                 orderId = event.orderId.value,
+                sourceMessageId = event.eventId,
+                occurredAtValue = event.occurredAt,
+            )
+        )
+    }
+}
+
+@Component
+class OrderPaidToStockConfirmTranslator(
+    private val orders: OrderRepository,
+    private val integrationMessagePublisher: IntegrationMessagePublisher,
+) : DomainEventListener<OrderPaidEvent> {
+    override fun listenerId(): String = "translator.order-paid.to-stock-confirm-requested.v2"
+
+    override fun onDomainEvent(event: OrderPaidEvent) {
+        val order = requireNotNull(orders.findById(event.orderId))
+        val tradeId = order.sourceTradeId ?: return
+        val orderPlanId = order.sourceOrderPlanId ?: return
+        integrationMessagePublisher.publish(
+            ConfirmInventoryCommand(
+                tradeId = tradeId,
+                orderPlanId = orderPlanId,
+                items = event.items.map { ContractItem(skuId = it.skuId, quantity = it.quantity) },
                 sourceMessageId = event.eventId,
                 occurredAtValue = event.occurredAt,
             )

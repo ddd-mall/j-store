@@ -23,7 +23,6 @@ import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
-import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -38,16 +37,21 @@ import jakarta.persistence.UniqueConstraint
 import jakarta.persistence.Version
 import java.math.BigDecimal
 import java.time.LocalDateTime
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 
 @Entity
 @Table(name = "orders")
 class OrderPO(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id") var id: Long = 0,
+    @Id @Column(name = "id") var id: Long = 0,
+    @Column(name = "source_trade_id") var sourceTradeId: Long? = null,
+    @Column(name = "source_order_plan_id", unique = true) var sourceOrderPlanId: Long? = null,
+    @Column(name = "source_plan_digest", length = 80) var sourcePlanDigest: String? = null,
     @Column(name = "merchant_id", nullable = false) var merchantId: Long = 0,
     @Column(name = "buyer_uid", nullable = false) var buyerUid: Long = 0,
     @Column(name = "buyer_phone", length = 20) var buyerPhone: String? = null,
     @Column(name = "buyer_name", length = 64) var buyerName: String? = null,
-    @Convert(converter = RecipientInfoPOConverter::class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "recipient_info", columnDefinition = "jsonb")
     var recipientInfo: RecipientInfoPO? = null,
     @Enumerated(EnumType.STRING)
@@ -87,10 +91,10 @@ class OrderPO(
     @Column(name = "update_time", nullable = false)
     var updateTime: LocalDateTime = LocalDateTime.now(),
     @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
-    @JoinColumn(name = "order_id")
+    @JoinColumn(name = "order_id", nullable = false)
     var items: MutableList<OrderItemPO> = mutableListOf(),
     @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
-    @JoinColumn(name = "order_id")
+    @JoinColumn(name = "order_id", nullable = false)
     var refundFacts: MutableList<OrderRefundFactPO> = mutableListOf(),
 )
 
@@ -115,7 +119,7 @@ class OrderRefundFactPO(
 @Entity
 @Table(name = "order_items")
 class OrderItemPO(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id") var id: Long = 0,
+    @Id @Column(name = "id") var id: Long = 0,
     @Column(name = "order_id", nullable = false, insertable = false, updatable = false)
     var orderId: Long = 0,
     @Column(name = "offer_id", nullable = false) var offerId: Long = 0,

@@ -16,12 +16,17 @@
  */
 package com.jstore.trade.config
 
+import com.jstore.common.geo.GeoAddressService
+import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.contracts.commerce.*
+import com.jstore.goods.api.GoodsSnapshotQueryService
 import com.jstore.messaging.IntegrationMessage
 import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.messaging.IntegrationMessagePublisher
-import com.jstore.trade.domain.TradeProcessRepository
+import com.jstore.shop.api.OfferSnapshotQueryService
+import com.jstore.trade.domain.TradeRepository
 import com.jstore.trade.service.*
+import com.jstore.user.api.UserProfileQueryService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.transaction.PlatformTransactionManager
@@ -30,59 +35,81 @@ import org.springframework.transaction.support.TransactionTemplate
 @Configuration
 class TradeBootConfiguration {
     @Bean
-    fun tradeProcessUseCase(
-        processes: TradeProcessRepository,
-        publisher: IntegrationMessagePublisher,
-    ): TradeProcessUseCase = TradeProcessApplicationService(processes, publisher)
+    fun checkoutPreparationGateway(
+        offers: OfferSnapshotQueryService,
+        goods: GoodsSnapshotQueryService,
+        users: UserProfileQueryService,
+        addresses: GeoAddressService,
+    ): CheckoutPreparationGateway = OfferCheckoutPreparationAdapter(offers, goods, users, addresses)
 
     @Bean
-    fun startTradeProcessHandler(
-        trades: TradeProcessUseCase,
+    fun checkoutUseCase(
+        preparation: CheckoutPreparationGateway,
+        trades: TradeRepository,
+        sequence: SnowFlakSequence,
+        publisher: IntegrationMessagePublisher,
         transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<StartTradeProcessCommand> =
-        transactional(StartTradeProcessHandler(trades), transactionManager)
+    ): CheckoutUseCase =
+        TransactionalCheckoutUseCase(
+            CheckoutApplicationService(
+                preparation,
+                trades,
+                { sequence.nextId() },
+                TradeAuthorizationMessageGateway(publisher),
+            ),
+            transactionManager,
+        )
+
+    @Bean
+    fun tradeSagaUseCase(
+        trades: TradeRepository,
+        sequence: SnowFlakSequence,
+        orders: TradeOrderCreationGateway,
+        settlement: TradeSettlementGateway,
+        publisher: IntegrationMessagePublisher,
+    ): TradeSagaUseCase =
+        TradeSagaApplicationService(
+            trades,
+            { sequence.nextId() },
+            orders,
+            settlement,
+            publisher,
+        )
 
     @Bean
     fun saleAuthorizedTradeHandler(
-        trades: TradeProcessUseCase,
+        trades: TradeSagaUseCase,
         transactionManager: PlatformTransactionManager,
     ): IntegrationMessageHandler<SaleAuthorizedIntegrationEvent> =
-        transactional(SaleAuthorizedTradeHandler(trades), transactionManager)
-
-    @Bean
-    fun saleAuthorizationFailedTradeHandler(
-        trades: TradeProcessUseCase,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<SaleAuthorizationFailedIntegrationEvent> =
-        transactional(SaleAuthorizationFailedTradeHandler(trades), transactionManager)
+        transactional(TradePlanSaleAuthorizedHandler(trades), transactionManager)
 
     @Bean
     fun inventoryReservedTradeHandler(
-        trades: TradeProcessUseCase,
+        trades: TradeSagaUseCase,
         transactionManager: PlatformTransactionManager,
     ): IntegrationMessageHandler<InventoryReservedIntegrationEvent> =
-        transactional(InventoryReservedTradeHandler(trades), transactionManager)
+        transactional(TradePlanInventoryReservedHandler(trades), transactionManager)
+
+    @Bean
+    fun saleAuthorizationFailedTradeHandler(
+        trades: TradeSagaUseCase,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<SaleAuthorizationFailedIntegrationEvent> =
+        transactional(TradePlanSaleAuthorizationFailedHandler(trades), transactionManager)
 
     @Bean
     fun inventoryReservationFailedTradeHandler(
-        trades: TradeProcessUseCase,
+        trades: TradeSagaUseCase,
         transactionManager: PlatformTransactionManager,
     ): IntegrationMessageHandler<InventoryReservationFailedIntegrationEvent> =
-        transactional(InventoryReservationFailedTradeHandler(trades), transactionManager)
+        transactional(TradePlanInventoryReservationFailedHandler(trades), transactionManager)
 
     @Bean
     fun orderCancelledTradeHandler(
-        trades: TradeProcessUseCase,
+        trades: TradeSagaUseCase,
         transactionManager: PlatformTransactionManager,
     ): IntegrationMessageHandler<OrderCancelledIntegrationEvent> =
-        transactional(OrderCancelledTradeHandler(trades), transactionManager)
-
-    @Bean
-    fun orderPaidTradeHandler(
-        trades: TradeProcessUseCase,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<OrderPaidIntegrationEvent> =
-        transactional(OrderPaidTradeHandler(trades), transactionManager)
+        transactional(TradeOrderCancelledHandler(trades), transactionManager)
 
     private fun <T : IntegrationMessage> transactional(
         delegate: IntegrationMessageHandler<T>,

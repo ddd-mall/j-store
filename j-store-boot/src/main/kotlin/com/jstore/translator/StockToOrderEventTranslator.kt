@@ -38,7 +38,8 @@ class StockReservedToOrderConfirmedTranslator(
     override fun onDomainEvent(event: StockReservedEvent) {
         integrationMessagePublisher.publish(
             InventoryReservedIntegrationEvent(
-                orderId = event.orderId,
+                tradeId = event.tradeId,
+                orderPlanId = event.orderPlanId,
                 authorizationIds = event.authorizationIds,
                 reservationIds = event.reservationIds,
                 sourceMessageId = event.eventId,
@@ -59,7 +60,8 @@ class StockReservationFailedToOrderInsufficientTranslator(
     override fun onDomainEvent(event: StockReservationFailedEvent) {
         integrationMessagePublisher.publish(
             InventoryReservationFailedIntegrationEvent(
-                event.orderId,
+                event.tradeId,
+                event.orderPlanId,
                 event.authorizationIds,
                 event.reason,
                 event.eventId,

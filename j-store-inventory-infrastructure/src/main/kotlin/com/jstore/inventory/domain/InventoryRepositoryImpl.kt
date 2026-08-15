@@ -82,14 +82,15 @@ class StockReservationRepositoryImpl(private val jpa: StockReservationPOJpaRepos
     override fun findByBusinessKey(businessKey: String): StockReservation? =
         jpa.findByBusinessKey(businessKey)?.let(::toDomain)
 
-    override fun findByOrderId(orderId: Long): List<StockReservation> =
-        jpa.findAllByOrderIdOrderBySkuIdAsc(orderId).map(::toDomain)
+    override fun findByOrderPlanId(orderPlanId: Long): List<StockReservation> =
+        jpa.findAllByOrderPlanIdOrderBySkuIdAsc(orderPlanId).map(::toDomain)
 
     private fun toPO(record: StockReservation) =
         StockReservationPO(
             id = record.id.value,
             businessKey = record.businessKey,
-            orderId = record.orderId,
+            tradeId = record.tradeId,
+            orderPlanId = record.orderPlanId,
             saleAuthorizationId = record.saleAuthorizationId,
             skuId = record.skuId.value,
             fulfillmentNodeId = record.fulfillmentNodeId.value,
@@ -103,7 +104,8 @@ class StockReservationRepositoryImpl(private val jpa: StockReservationPOJpaRepos
         StockReservation(
             StockReservationId(po.id),
             po.businessKey,
-            po.orderId,
+            po.tradeId,
+            po.orderPlanId,
             po.saleAuthorizationId,
             SkuId(po.skuId),
             FulfillmentNodeId(po.fulfillmentNodeId),

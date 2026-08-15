@@ -52,7 +52,7 @@ class OfferRepositoryPostgresTest {
             repositories.offers.save(offer(now))
             repositories.authorizations.save(
                 assertIs<Success<SaleAuthorization>>(
-                        offer(now).authorize(31, 2, 1299, now, 1, Duration.ofMinutes(10))
+                        offer(now).authorize(301, 31, 2, 1299, now, 1, Duration.ofMinutes(10))
                     )
                     .value
             )
@@ -63,13 +63,16 @@ class OfferRepositoryPostgresTest {
             val restoredOffer = assertNotNull(repositories.offers.findById(SalesOfferId(12)))
             val restoredAuthorization =
                 assertNotNull(
-                    repositories.authorizations.findById(SaleAuthorizationId("ORDER-31-OFFER-12"))
+                    repositories.authorizations.findById(
+                        SaleAuthorizationId("TRADE-301-PLAN-31-OFFER-12")
+                    )
                 )
             assertEquals("Main Store", restoredStore.name)
             assertEquals(1299, restoredOffer.price.fen)
             assertEquals("ONLINE", restoredOffer.channel.channelId)
             assertEquals(2, restoredAuthorization.quantity)
-            assertEquals(31, restoredAuthorization.orderId)
+            assertEquals(301, restoredAuthorization.tradeId)
+            assertEquals(31, restoredAuthorization.orderPlanId)
         }
     }
 

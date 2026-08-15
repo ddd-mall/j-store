@@ -31,9 +31,9 @@ class SalesOfferTest {
         val now = Instant.parse("2026-08-05T00:00:00Z")
         val offer = activeOffer(now)
 
-        assertIs<Success<SaleAuthorization>>(offer.authorize(100, 1, 3_900, now))
+        assertIs<Success<SaleAuthorization>>(offer.authorize(100, 1001, 1, 3_900, now))
         assertIs<Success<Unit>>(offer.suspend())
-        assertIs<Failure<*>>(offer.authorize(101, 1, 3_900, now.plusSeconds(1)))
+        assertIs<Failure<*>>(offer.authorize(101, 1002, 1, 3_900, now.plusSeconds(1)))
     }
 
     @Test
@@ -43,11 +43,11 @@ class SalesOfferTest {
 
         assertEquals(
             OfferErrors.VERSION_MISMATCH,
-            (offer.authorize(100, 1, 3_900, now, 99) as Failure<BusinessError>).error,
+            (offer.authorize(100, 1001, 1, 3_900, now, 99) as Failure<BusinessError>).error,
         )
         assertEquals(
             OfferErrors.PRICE_MISMATCH,
-            (offer.authorize(100, 1, 4_000, now) as Failure<BusinessError>).error,
+            (offer.authorize(100, 1001, 1, 4_000, now) as Failure<BusinessError>).error,
         )
     }
 
