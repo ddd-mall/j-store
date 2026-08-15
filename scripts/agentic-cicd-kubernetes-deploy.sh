@@ -179,10 +179,12 @@ controller_label=$(docker image inspect "$image" --format '{{ index .Config.Labe
 docker save --output "$archive" "$image"
 sudo ctr --namespace k8s.io images import "$archive"
 sudo ctr --namespace k8s.io images tag "$image" "$image_ref" >/dev/null
+sudo ctr --namespace k8s.io images label \
+  "$image_ref" io.cri-containerd.image=managed >/dev/null
 if ! sudo ctr --namespace k8s.io images list | awk \
   -v ref="$image_ref" -v digest="$image_digest" \
-  '$1 == ref && $3 == digest {found=1} END {exit !found}'; then
-  printf 'ERROR: controller image has no digest-qualified alias %s\n' \
+  '$1 == ref && $3 == digest && index($0, "io.cri-containerd.image=managed") {found=1} END {exit !found}'; then
+  printf 'ERROR: controller image has no CRI-managed digest-qualified alias %s\n' \
     "$image_ref" >&2
   exit 1
 fi

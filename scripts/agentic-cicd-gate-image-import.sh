@@ -82,10 +82,12 @@ fi
 containerd_image_ref="$containerd_image_tag@$image_digest"
 sudo ctr --namespace k8s.io images tag \
   "$containerd_image_tag" "$containerd_image_ref" >/dev/null
+sudo ctr --namespace k8s.io images label \
+  "$containerd_image_ref" io.cri-containerd.image=managed >/dev/null
 if ! sudo ctr --namespace k8s.io images list | awk \
   -v ref="$containerd_image_ref" -v digest="$image_digest" \
-  '$1 == ref && $3 == digest {found=1} END {exit !found}'; then
-  printf 'ERROR: imported image has no digest-qualified alias %s\n' \
+  '$1 == ref && $3 == digest && index($0, "io.cri-containerd.image=managed") {found=1} END {exit !found}'; then
+  printf 'ERROR: imported image has no CRI-managed digest-qualified alias %s\n' \
     "$containerd_image_ref" >&2
   exit 1
 fi

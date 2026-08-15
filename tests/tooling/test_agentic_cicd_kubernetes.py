@@ -460,7 +460,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
                 + digest
                 + " application/vnd.oci.image.manifest.v1+json "
                 + digest
-                + " 1B linux/amd64 -' ;;\n"
+                + " 1B linux/amd64 io.cri-containerd.image=managed' ;;\n"
                 "esac\n",
                 encoding="utf-8",
             )
@@ -492,6 +492,11 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn(
             "images tag docker.io/library/jstore-agentic-gate:test "
             f"docker.io/library/jstore-agentic-gate:test@{digest}",
+            ctr_calls,
+        )
+        self.assertIn(
+            f"images label docker.io/library/jstore-agentic-gate:test@{digest} "
+            "io.cri-containerd.image=managed",
             ctr_calls,
         )
 
