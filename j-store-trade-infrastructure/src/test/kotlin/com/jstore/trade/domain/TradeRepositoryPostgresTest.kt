@@ -25,6 +25,7 @@ import com.jstore.trade.domain.persistence.TradePOJpaRepository
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import jakarta.persistence.EntityManager
 import jakarta.persistence.EntityManagerFactory
+import java.time.Instant
 import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,7 +41,25 @@ class TradeRepositoryPostgresTest {
         database { factory ->
             transaction(factory) { entityManager ->
                 val repository = repository(entityManager)
-                repository.save(trade())
+                val trade = trade()
+                val plan = trade.orderPlans.single()
+                val expiresAt = Instant.parse("2030-01-01T00:00:00Z")
+                trade.recordSaleAuthorized(
+                    plan.id,
+                    listOf(TradeAuthorization("A-1", plan.items.single().offerId, expiresAt)),
+                )
+                trade.recordInventoryReserved(plan.id, listOf("R-1"), expiresAt)
+                trade.startOrderCreation()
+                trade.recordOrderCreated(plan.id, 7001)
+                trade.prepareSettlement(SettlementPlanId(9901))
+                trade.recordPaymentPrepared(
+                    SettlementPlanId(9901),
+                    "FULL",
+                    8001,
+                    Price.ofFen(1000),
+                    "CNY",
+                )
+                repository.save(trade)
                 entityManager.flush()
                 entityManager.clear()
 
@@ -49,6 +68,8 @@ class TradeRepositoryPostgresTest {
                 assertEquals("110105", restored.recipient.shippingAddress.getLeafCode())
                 assertEquals("商品", restored.orderPlans.single().items.single().goodsName)
                 assertEquals(9101, restored.orderPlans.single().id.value)
+                assertEquals(TradeStatus.PAYMENT_READY, restored.status)
+                assertEquals(8001, restored.paymentIdFor("FULL"))
             }
 
             assertFails {

@@ -98,6 +98,16 @@ data class OrderCancelledEvent(
     override val eventId: String = newDomainEventId(),
 ) : OrderDomainEvent(orderId, occurredAt, eventId, "order.cancelled", 1)
 
+@DomainEventType(name = "order.cancellation-requested", version = 1)
+data class OrderCancellationRequestedEvent(
+    override val orderId: OrderId,
+    val tradeId: Long,
+    val orderPlanId: Long,
+    val reason: String,
+    override val occurredAt: Instant = Instant.now(),
+    override val eventId: String = newDomainEventId(),
+) : OrderDomainEvent(orderId, occurredAt, eventId, "order.cancellation-requested", 1)
+
 @DomainEventType(name = "order.cancelled-by-trade", version = 1)
 data class OrderCancelledByTradeEvent(
     override val orderId: OrderId,

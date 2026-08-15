@@ -27,6 +27,16 @@ import kotlin.test.assertFalse
 
 class CheckoutControllerContractTest {
     @Test
+    fun `ready checkout response includes the payment action`() {
+        val response = CheckoutController(CapturingCheckoutUseCase()).find(UserId(42), 9001)
+        val body = response.body as CheckoutController.CheckoutResponse
+
+        assertEquals(200, response.statusCode.value())
+        assertEquals(8001, body.payment?.paymentId)
+        assertEquals("opaque-payment-action", body.payment?.payAction)
+    }
+
+    @Test
     fun `authenticated buyer is supplied by security context and response points to checkout`() {
         val useCase = CapturingCheckoutUseCase()
         val controller = CheckoutController(useCase)
@@ -63,5 +73,19 @@ private class CapturingCheckoutUseCase : CheckoutUseCase {
         Success(CheckoutAccepted(9001, listOf(9001))).also { this.command = command }
 
     override fun find(buyerId: Long, tradeId: Long) =
-        Success(com.jstore.trade.service.CheckoutView(tradeId, "PROCESSING", listOf(tradeId)))
+        Success(
+            com.jstore.trade.service.CheckoutView(
+                tradeId,
+                "PAYMENT_READY",
+                listOf(tradeId),
+                com.jstore.trade.service.CheckoutPaymentView(
+                    8001,
+                    "READY",
+                    1000,
+                    "CNY",
+                    "opaque-payment-action",
+                    java.time.Instant.parse("2030-01-01T00:00:00Z"),
+                ),
+            )
+        )
 }

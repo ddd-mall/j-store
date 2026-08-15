@@ -33,6 +33,44 @@ import kotlin.test.assertNull
 
 class TradeTest {
     @Test
+    fun `payment reference is recorded against the matching installment instead of the first one`() {
+        val trade =
+            trade(
+                settlementTerms =
+                    SettlementTermsSnapshot(
+                        SettlementMode.DEPOSIT_BALANCE,
+                        FulfillmentReleaseRule.FULL_PAYMENT,
+                        listOf(
+                            PaymentInstallmentSnapshot(
+                                "DEPOSIT",
+                                InstallmentPurpose.DEPOSIT,
+                                Price.ofFen(1000),
+                            ),
+                            PaymentInstallmentSnapshot(
+                                "BALANCE",
+                                InstallmentPurpose.BALANCE,
+                                Price.ofFen(2000),
+                            ),
+                        ),
+                    )
+            )
+        driveToSettlementPreparation(trade, SettlementPlanId(7001))
+
+        assertIs<Success<Boolean>>(
+            trade.recordPaymentPrepared(
+                SettlementPlanId(7001),
+                "BALANCE",
+                8002,
+                Price.ofFen(2000),
+                "CNY",
+            )
+        )
+
+        assertEquals(8002, trade.paymentIdFor("BALANCE"))
+        assertEquals(null, trade.paymentIdFor("DEPOSIT"))
+    }
+
+    @Test
     fun `trade identity is independent from every future order identity`() {
         val trade = trade()
 
@@ -73,6 +111,22 @@ class TradeTest {
     }
 
     @Test
+    fun `insufficient reservation window fails settlement before payment exists`() {
+        val trade = tradeReadyForSettlement()
+
+        val changed =
+            trade.failSettlementPreparation(
+                SettlementPlanId(9901),
+                "reservation window insufficient",
+            )
+
+        assertEquals(true, assertIs<Success<Boolean>>(changed).value)
+        assertEquals(TradeStatus.FAILED, trade.status)
+        assertEquals("reservation window insufficient", trade.failureReason)
+        assertNull(trade.paymentIdFor("FULL"))
+    }
+
+    @Test
     fun `duplicate plan result is idempotent but conflicting order is rejected`() {
         val trade = trade()
         authorizeAndReserve(trade, TradeOrderPlanId(9101), "A-1", "R-1")
@@ -89,6 +143,227 @@ class TradeTest {
                 .value,
         )
         assertIs<Failure<*>>(trade.recordOrderCreated(TradeOrderPlanId(9101), 7999))
+    }
+
+    @Test
+    fun `payment readiness is accepted only for the frozen settlement and amount`() {
+        val trade = tradeReadyForSettlement()
+
+        val first =
+            trade.recordPaymentPrepared(
+                SettlementPlanId(9901),
+                "FULL",
+                paymentId = 8001,
+                amount = Price.ofFen(3000),
+                currency = "CNY",
+            )
+        val duplicate =
+            trade.recordPaymentPrepared(
+                SettlementPlanId(9901),
+                "FULL",
+                8001,
+                Price.ofFen(3000),
+                "CNY",
+            )
+
+        assertEquals(true, assertIs<Success<Boolean>>(first).value)
+        assertEquals(false, assertIs<Success<Boolean>>(duplicate).value)
+        assertEquals(TradeStatus.PAYMENT_READY, trade.status)
+        assertEquals(8001, trade.paymentIdFor("FULL"))
+        assertIs<Failure<*>>(
+            trade.recordPaymentPrepared(
+                SettlementPlanId(9901),
+                "FULL",
+                8002,
+                Price.ofFen(3000),
+                "CNY",
+            )
+        )
+    }
+
+    @Test
+    fun `uncertain payment preparation retains commitments while rejection fails trade`() {
+        val uncertain = tradeReadyForSettlement()
+        val rejected = tradeReadyForSettlement()
+
+        assertIs<Success<Boolean>>(
+            uncertain.recordPaymentPreparationUncertain(
+                SettlementPlanId(9901),
+                "FULL",
+                8001,
+                "timeout",
+            )
+        )
+        assertIs<Success<Boolean>>(
+            rejected.recordPaymentPreparationRejected(
+                SettlementPlanId(9901),
+                "FULL",
+                8002,
+                "declined",
+            )
+        )
+
+        assertEquals(TradeStatus.PAYMENT_UNCERTAIN, uncertain.status)
+        assertEquals(
+            setOf(TradeOrderPlanStatus.ORDER_CREATED),
+            uncertain.orderPlans.map { it.status }.toSet(),
+        )
+        assertEquals(TradeStatus.FAILED, rejected.status)
+    }
+
+    @Test
+    fun `payment failure result must match the frozen installment`() {
+        val uncertain = tradeReadyForSettlement()
+        val rejected = tradeReadyForSettlement()
+
+        assertIs<Failure<*>>(
+            uncertain.recordPaymentPreparationUncertain(
+                SettlementPlanId(9901),
+                "DEPOSIT",
+                8001,
+                "timeout",
+            )
+        )
+        assertIs<Failure<*>>(
+            rejected.recordPaymentPreparationRejected(
+                SettlementPlanId(9901),
+                "BALANCE",
+                8002,
+                "declined",
+            )
+        )
+    }
+
+    @Test
+    fun `cancellation during payment preparation waits for a safe payment result`() {
+        val trade = tradeReadyForSettlement()
+
+        assertIs<Success<Boolean>>(
+            trade.recordOrderCancelled(
+                TradeOrderPlanId(9101),
+                7001,
+                "buyer cancelled",
+            )
+        )
+
+        assertEquals(TradeStatus.CLOSING, trade.status)
+        assertEquals(TradeOrderPlanStatus.ORDER_CREATED, trade.plan(TradeOrderPlanId(9101)).status)
+        assertEquals(TradeOrderPlanStatus.ORDER_CREATED, trade.plan(TradeOrderPlanId(9102)).status)
+        assertIs<Success<Boolean>>(
+            trade.recordPaymentPrepared(
+                SettlementPlanId(9901),
+                "FULL",
+                8001,
+                Price.ofFen(3000),
+                "CNY",
+            )
+        )
+        assertEquals(TradeStatus.CLOSING, trade.status)
+        assertEquals(8001, trade.paymentIdFor("FULL"))
+        assertIs<Failure<*>>(
+            trade.recordPaymentPreparationRejected(
+                SettlementPlanId(9901),
+                "FULL",
+                8002,
+                "conflicting payment",
+            )
+        )
+        assertEquals(TradeStatus.CLOSING, trade.status)
+    }
+
+    @Test
+    fun `additional order cancellation is idempotent while payment cancellation is pending`() {
+        val trade = tradeReadyForSettlement()
+
+        assertEquals(
+            true,
+            assertIs<Success<Boolean>>(
+                    trade.recordOrderCancelled(
+                        TradeOrderPlanId(9101),
+                        7001,
+                        "buyer cancelled first order",
+                    )
+                )
+                .value,
+        )
+        assertEquals(
+            false,
+            assertIs<Success<Boolean>>(
+                    trade.recordOrderCancelled(
+                        TradeOrderPlanId(9102),
+                        7002,
+                        "buyer cancelled second order for another reason",
+                    )
+                )
+                .value,
+        )
+
+        assertEquals(TradeStatus.CLOSING, trade.status)
+        assertEquals("buyer cancelled first order", trade.failureReason)
+    }
+
+    @Test
+    fun `payment rejection and cancellation confirmation converge regardless of delivery order`() {
+        val rejectedFirst = tradeReadyForSettlement()
+        rejectedFirst.recordOrderCancelled(TradeOrderPlanId(9101), 7001, "buyer cancelled")
+        assertIs<Success<Boolean>>(
+            rejectedFirst.recordPaymentPreparationRejected(
+                SettlementPlanId(9901),
+                "FULL",
+                8001,
+                "provider rejected preparation",
+            )
+        )
+
+        assertEquals(
+            false,
+            assertIs<Success<Boolean>>(
+                    rejectedFirst.recordPaymentCancellationConfirmed(
+                        SettlementPlanId(9901),
+                        "FULL",
+                        8001,
+                        "provider confirmed cancellation",
+                    )
+                )
+                .value,
+        )
+        assertEquals("provider rejected preparation", rejectedFirst.failureReason)
+
+        val cancelledFirst = tradeReadyForSettlement()
+        cancelledFirst.recordOrderCancelled(TradeOrderPlanId(9101), 7001, "buyer cancelled")
+        assertIs<Success<Boolean>>(
+            cancelledFirst.recordPaymentCancellationConfirmed(
+                SettlementPlanId(9901),
+                "FULL",
+                8001,
+                "provider confirmed cancellation",
+            )
+        )
+
+        assertEquals(
+            false,
+            assertIs<Success<Boolean>>(
+                    cancelledFirst.recordPaymentPreparationRejected(
+                        SettlementPlanId(9901),
+                        "FULL",
+                        8001,
+                        "provider rejected preparation",
+                    )
+                )
+                .value,
+        )
+        assertEquals("provider confirmed cancellation", cancelledFirst.failureReason)
+    }
+
+    private fun tradeReadyForSettlement(): Trade {
+        val trade = trade()
+        authorizeAndReserve(trade, TradeOrderPlanId(9101), "A-1", "R-1")
+        authorizeAndReserve(trade, TradeOrderPlanId(9102), "A-2", "R-2")
+        assertIs<Success<Boolean>>(trade.startOrderCreation())
+        assertIs<Success<Boolean>>(trade.recordOrderCreated(TradeOrderPlanId(9101), 7001))
+        assertIs<Success<Boolean>>(trade.recordOrderCreated(TradeOrderPlanId(9102), 7002))
+        assertIs<Success<Boolean>>(trade.prepareSettlement(SettlementPlanId(9901)))
+        return trade
     }
 
     private fun authorizeAndReserve(
@@ -118,7 +393,20 @@ class TradeTest {
         )
     }
 
-    private fun trade() =
+    private fun trade(
+        settlementTerms: SettlementTermsSnapshot =
+            SettlementTermsSnapshot(
+                SettlementMode.PREPAID,
+                FulfillmentReleaseRule.FULL_PAYMENT,
+                listOf(
+                    PaymentInstallmentSnapshot(
+                        "FULL",
+                        InstallmentPurpose.FULL,
+                        Price.ofFen(3000),
+                    )
+                ),
+            )
+    ) =
         Trade.start(
             id = TradeId(9001),
             checkoutRequestId = "checkout-1",
@@ -143,19 +431,17 @@ class TradeTest {
                 ),
             currency = "CNY",
             commitmentPolicy = CommitmentPolicySnapshot(TradeMode.NORMAL),
-            settlementTerms =
-                SettlementTermsSnapshot(
-                    SettlementMode.PREPAID,
-                    FulfillmentReleaseRule.FULL_PAYMENT,
-                    listOf(
-                        PaymentInstallmentSnapshot(
-                            "FULL",
-                            InstallmentPurpose.FULL,
-                            Price.ofFen(3000),
-                        )
-                    ),
-                ),
+            settlementTerms = settlementTerms,
         )
+
+    private fun driveToSettlementPreparation(trade: Trade, settlementPlanId: SettlementPlanId) {
+        authorizeAndReserve(trade, TradeOrderPlanId(9101), "A-1", "R-1")
+        authorizeAndReserve(trade, TradeOrderPlanId(9102), "A-2", "R-2")
+        assertIs<Success<Boolean>>(trade.startOrderCreation())
+        assertIs<Success<Boolean>>(trade.recordOrderCreated(TradeOrderPlanId(9101), 7001))
+        assertIs<Success<Boolean>>(trade.recordOrderCreated(TradeOrderPlanId(9102), 7002))
+        assertIs<Success<Boolean>>(trade.prepareSettlement(settlementPlanId))
+    }
 
     private fun plan(id: Long, merchantId: Long, offerId: Long, skuId: Long, amount: Long) =
         TradeOrderPlan(

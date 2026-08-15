@@ -64,9 +64,9 @@ POST /api/checkouts(checkoutRequestId)
 - Checkout 准备阶段通过消费方端口读取并冻结买家资料、规范化地址、Catalog 展示字段、Offer 成交字段和基础金额；后续 Order 创建只使用 Trade 持久化快照。
 - Trade 到 Order 使用内部可信命令；`orderPlanId` 是业务幂等键，`planDigest` 区分安全重放与冲突，数据库唯一键及来源外键作为最终防线。
 - Order 从可信计划直接创建为 `ACTIVE + CONFIRMED`。新主链不再等待 Order 自己重新确认销售承诺。
-- 销售授权、库存预留或 Order 创建的业务失败会持久化 Trade 失败原因，并通过 Outbox 发布已取得资源的释放命令；部分 Order 已形成时先调用独立内部撤销用例。
-- Trade 进入失败态后仍会接收迟到的销售授权或库存预留成功事实，并立即发出对应释放命令，避免异步竞态遗留资源承诺。
-- 买家取消 Trade 来源的未支付 Order 时，Order 事实携带 `tradeId + orderPlanId` 回到 Trade；当前全有或全无策略会安全撤销本地 `PREPARING` Payment、关闭其它 Order 并释放资源。Trade 内部撤销使用独立领域事实，避免再次触发买家取消补偿循环。
+- 销售授权、库存预留或 Order 创建的业务失败会持久化 Trade 失败原因，并通过 Outbox 发布已取得资源的释放命令；部分 Order 已形成时通过版本化命令请求 Order 撤销。
+- Trade 进入失败态后仍会接收迟到的销售授权、库存预留或在途 Order 创建成功事实；前两者立即发出对应释放命令，迟到 Order 则先保存可信 `orderId` 再通过内部命令撤销，避免异步竞态遗留资源承诺或可见订单。
+- 买家取消 Trade 来源的未支付 Order 时，Order 先进入 `CANCELLATION_PENDING`，并将携带 `tradeId + orderPlanId` 的取消请求事实交由 Trade 裁决。若尚未开始结算，当前全有或全无策略通过消息命令关闭全部已形成 Order 并释放资源；若 Payment 已开始准备、就绪或结果未知，Trade 先进入 `CLOSING`，不把 OrderPlan 伪标为已关闭，并保留 Order、库存和授权，只有明确拒绝或后续渠道安全撤销事实才能继续补偿。Trade 内部撤销使用独立领域事实，避免再次触发买家取消补偿循环。
 - Trade 来源 Order 支付完成后，以来源相关键发布 `ConfirmInventoryCommand`，库存确认仍按 `tradeId + orderPlanId` 幂等收敛；历史非 Trade Order 不进入该新链路。
 - 技术异常继续抛出，由消息重试恢复，不被写成业务失败。
 - 当前失败状态表示“已决定失败且补偿命令已可靠发出”，尚不表示所有补偿均已被下游确认。后续必须为 Order 撤销、库存释放和销售授权释放增加逐项确认状态、重试调度与最终 `CLOSED` 收敛，不能把 `FAILED` 当作补偿已完成。
@@ -106,7 +106,7 @@ TradeOrderPlan
 
 - `TradeId` 是 Trade 的聚合身份、用户查询键和主相关键。
 - `BuyerPartySnapshot` 至少包含 `partyType` 与 `partyId`；首期个人交易的 `partyId` 等于认证用户 ID。`actingPrincipalId` 独立保存发起操作的认证主体，为企业采购授权留出稳定边界。
-- `checkoutRequestId` 是买家范围内的幂等业务键；`requestDigest` 用于拒绝同键不同内容。摘要必须基于版本化的规范输入生成：字段顺序固定、集合按稳定业务键排序、金额使用最小货币单位、空值和默认值语义固定，并排除认证上下文派生值、时间戳及追踪字段。
+- `checkoutRequestId` 是买家范围内的幂等业务键；`requestDigest` 用于拒绝同键不同内容。摘要必须基于版本化的规范输入生成：字段顺序固定、集合按稳定业务键排序、金额使用最小货币单位、空值和默认值语义固定，并排除认证上下文派生值、时间戳及追踪字段。当前 `v2` 规范对每个字段使用显式空值标记与长度前缀，禁止通过 `|`、`:`、`;` 等用户可输入分隔符拼接，以免不同请求产生相同规范字节流。
 - `TradeOrderPlan` 是拆单结果，不是 Order 聚合。它保存创建 Order 所需的可信计划及跨上下文承诺进度。
 - `orderPlanId` 是内部 Order 创建的幂等键；同一 Trade 可包含多个计划，且未来可在同商户内按履约策略进一步拆分。
 - `orderId` 只在 Order 创建成功后写回计划，不再作为 Trade 的前置身份。
@@ -154,7 +154,7 @@ orderPlans.isNotEmpty
 && settlementPreparationRequested == false
 ```
 
-状态保存与 `PrepareTradeSettlementCommand` 写入 Outbox 位于同一事务。重复 Order 成功事实只能得到“不变更”；并发接受最后几个计划结果时，由聚合版本和数据库乐观锁保证只有一个事务越过屏障。首期结算处理器创建 `PREPAID + FULL` 计划并准备一个 Payment；库存预留剩余时间不足以覆盖支付窗口和安全余量时不得准备支付，Trade 应先安全续期，无法续期则补偿关单。
+状态保存与 `PrepareTradeSettlementCommand` 写入 Outbox 位于同一事务。重复 Order 成功事实只能得到“不变更”；并发接受最后几个计划结果时，由聚合版本和数据库乐观锁保证只有一个事务越过屏障。首期结算处理器创建 `PREPAID + FULL` 计划并准备一个 Payment；当前默认受理窗口为 1 分钟、支付动作窗口为 15 分钟、安全余量为 2 分钟。库存预留剩余时间不足以覆盖动作窗口和安全余量时不得请求渠道，本切片直接将 Trade 置为失败并撤销 Order、释放库存与授权；未来支持安全续期后可在该裁决前先尝试续期。
 
 ## 上下文职责与写权限
 
@@ -188,7 +188,7 @@ POST /api/checkouts/{tradeId}/cancel
 - 请求摘要冲突时返回明确业务错误。
 - 不同买家之间不能观察或复用对方的幂等键。
 
-Checkout 查询返回 Trade 和各订单计划的可公开状态、失败原因、期限与 `orderId`。只有状态达到 `PAYMENT_READY` 后才附带唯一待支付对象：`paymentId`、公开状态、总额、币种、`expiresAt` 和短期 `payAction`；此前以及失败/补偿状态返回 `payment: null`。越权查询或取消按资源不存在处理，避免泄露交易存在性。
+Checkout 查询返回 Trade 和各订单计划的可公开状态、失败原因、期限与 `orderId`。只有状态达到 `PAYMENT_READY` 且支付动作仍有效时才附带唯一待支付对象：`paymentId`、公开状态、总额、币种、`expiresAt` 和短期 `payAction`；此前、失败/补偿状态以及动作自然过期后返回 `payment: null`，不能让支付动作过期导致整个 Checkout 查询失败。越权查询或取消按资源不存在处理，避免泄露交易存在性。
 
 ## 成交快照与基础报价
 
@@ -272,12 +272,28 @@ PrepareTradeSettlementCommand
 
 - 首期 SettlementPlan 固定包含一个 `FULL` 分期；Payment 本地聚合可以先进入 `PREPARING`，但只有渠道明确受理并返回可控短期支付引用后才发布 `PaymentPreparedEvent`。
 - Payment 必须对 `settlementPlanId + installmentId` 建立数据库唯一约束；重复命令返回同一 Payment，不得重新请求渠道或为同一分期创建第二个支付单。
-- `paymentId` 只能由 `PaymentPreparedEvent` 写回 Trade；Trade 不预生成或猜测 Payment 标识。数据库唯一约束是最终防线，Trade 聚合屏障和 Payment 应用幂等共同避免重复渠道请求。
+- 每个分期的 `paymentId` 只能由对应的 Payment 结果事实写回 Trade；Trade 按 `installmentId` 保存引用，不预生成或猜测 Payment 标识。数据库唯一约束是最终防线，Trade 聚合屏障和 Payment 应用幂等共同避免重复渠道请求。
 - 分配快照在 Payment 创建时冻结并满足同币种金额守恒。后续 Accounting/Settlement 使用该快照分账，但不回写或重算原始 Payment。
 - `PaymentCapturedEvent` 使用 `tradeId + installmentId` 相关，并携带 `providerTransactionId`、渠道受理/捕获时间和分配版本；Trade 再向每个 Order 投影对应金额。
 - 单 Order 售后退款必须映射回该 Order 的冻结 Payment 分配；累计退款不得超过对应分配，全部分配之和不得超过 Payment 捕获金额。
 
 旧 `CreatePaymentForOrderCommand` 已从主链删除；新支付对象以 `settlementPlanId + installmentId` 唯一。既有 `PaymentOrder` 仅供尚未迁移的退款/管理能力使用，不得重新接入 Checkout 主链。
+
+### 支付准备闭环
+
+Trade 越过结算屏障后只发布 `PreparePaymentInstallmentCommand`，不得通过适配器直接写 Payment 仓储。命令冻结 `tradeId`、`settlementPlanId`、分期、金额、币种、Order 分配、`acceptBefore` 与 `expiresAt`；Payment 以 `settlementPlanId + installmentId` 作为渠道幂等键。
+
+Payment 的准备结果严格分为三类：
+
+- `PaymentPreparedEvent`：渠道明确受理并返回受控短期支付动作，Payment 进入 `READY`；
+- `PaymentPreparationRejectedEvent`：渠道明确确认未创建或未受理，Payment 进入 `REJECTED`，Trade 可以开始补偿；
+- `PaymentPreparationUncertainEvent`：超时或结果不可判定，Payment 与 Trade 进入 `UNCERTAIN`，必须保留 Order、库存和授权，等待后续权威查询。
+
+渠道准备采用三个明确阶段：独立事务先提交稳定的 `PREPARING/paymentId`；挂起数据库事务后以该 paymentId 和业务幂等键调用渠道；再用独立事务保存 `READY/REJECTED/UNCERTAIN` 并写入结果 Outbox。渠道受理后即使进程崩溃或结果事务提交失败，重试也必须复用原 paymentId 与幂等键，不得生成与渠道元数据不一致的新身份。实现不得把网络异常解释为明确拒绝。Trade 按 `installmentId` 持久化 Payment 引用与支付阶段，不复制渠道凭证或支付动作。Checkout 查询通过只读 Payment ACL 获取当前且未过期的 `READY` Payment，并且只返回 `paymentId`、状态、金额、币种、`expiresAt` 和受控 `payAction`；其它阶段或动作过期后必须返回 `payment: null`。公开支付动作、时间和失败原因在进入可展示状态前必须满足数据库持久化契约，非法或超限的渠道结果按 `UNCERTAIN` 处理。若渠道已明确受理，补偿所需的原始渠道身份必须独立、完整持久化，即使其它公开元数据非法也不能丢弃撤销能力或形成无限重试。
+
+渠道撤销同样采用持久化意图、无事务外部调用和持久化结果三个阶段。若准备调用仍在途，Payment 先进入 `PREPARATION_CANCELLING`，此时不得调用撤销渠道或向 Trade 发布撤销确认；原准备命令必须用稳定幂等键完成本次渠道裁决。明确拒绝可直接确认未创建，结果未知则进入 `CANCELLING` 并查询/撤销，明确 `Accepted` 则先保存渠道引用再进入 `CANCELLING`，随后以 `settlementPlanId + installmentId + cancel` 为稳定幂等键重新请求渠道。撤销结果必须与请求发起时所见的渠道引用一致，早于受理事实取得的结果不得关闭更新后的 Payment。业务 `cancellationReason` 与最近一次渠道技术失败必须分开持久化，撤销确认和后续 Order 关闭始终使用原始业务原因。Trade 只有消费有效撤销确认事实后才从 `CLOSING` 进入失败补偿，不能把命令受理或网络异常当作资金安全结论。这里的 `Accepted` 仅表示渠道支付单已受理，不等于资金捕获；若 Trade/Order 已关闭后收到合法 `Captured`，保持业务关闭并进入幂等退款流程，禁止恢复履约。在统一 `PaymentCaptured` 契约和 Trade 消费者落地前，不发布缺少 `tradeId + installmentId` 的临时 `OrderPaid` 事实到 `trade.events`。
+
+`acceptBefore` 表示 Payment 最晚可以开始受理命令的时间，`expiresAt` 表示库存承诺允许支付动作存续的上限；渠道返回的动作可以早于该上限过期，只要 `acceptedAt < providerExpiresAt <= expiresAt`。内部开发渠道不得在 `production` Profile 中注册；生产环境未提供真实渠道适配器时必须启动失败。
 
 ## Order 收缩与保留能力
 
@@ -300,6 +316,7 @@ Order 继续提供：
 
 - Checkout 取消：由 Trade 裁决尚未形成订单的计划，停止后续推进并补偿授权、库存及后续权益锁定。
 - Payment 已进入准备、就绪、支付中或结果未知后，取消先转换为 `CLOSING`/取消处理中并请求 Payment 查询或安全撤销；资金状态未知时不得释放资源。
+- 当前切片已为 `PREPARING/READY/REJECTED/UNCERTAIN` Payment 建立统一渠道撤销协议；在途准备先进入 `PREPARATION_CANCELLING` 等待准备结果，其它状态进入 `CANCELLING`，只有与当前支付事实匹配的渠道确认才进入 `CANCELLED` 并通知 Trade。生产环境仍需接入真实撤销适配器；定时主动查单与人工恢复能力尚未落地。
 - Payment 的 `acceptBefore` 是渠道最晚受理新支付的截止时间；Order/Trade 的 `closeAfter` 必须晚于该时间，并包含可配置安全宽限期。
 - 宽限期根据渠道回调 SLA、主动查询周期、网络长尾和时钟偏差配置；到达 `closeAfter` 仍不能替代 Payment 权威裁决。
 - 成功与关单竞争以渠道 `providerAcceptedAt/providerCapturedAt` 判断，不以回调到达时间判断。截止前已被渠道受理的支付优先进入已支付路径。

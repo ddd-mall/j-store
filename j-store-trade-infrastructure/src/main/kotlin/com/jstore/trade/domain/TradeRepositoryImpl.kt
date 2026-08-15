@@ -79,6 +79,11 @@ class TradeRepositoryImpl(private val jpa: TradePOJpaRepository) : TradeReposito
             orderPlans = trade.orderPlans.map(::toPlanPO).toMutableList(),
             status = trade.status,
             settlementPlanId = trade.settlementPlanId?.value,
+            paymentReferences =
+                trade.paymentReferences
+                    .toSortedMap()
+                    .map { TradePaymentReferencePO(it.key, it.value) }
+                    .toMutableList(),
             failureReason = trade.failureReason,
             createdAt = trade.createdAt,
             updatedAt = trade.updatedAt,
@@ -158,6 +163,7 @@ class TradeRepositoryImpl(private val jpa: TradePOJpaRepository) : TradeReposito
                 ),
             status = po.status,
             settlementPlanId = po.settlementPlanId?.let(::SettlementPlanId),
+            paymentReferences = po.paymentReferences.associate { it.installmentId to it.paymentId },
             failureReason = po.failureReason,
             createdAt = po.createdAt,
             updatedAt = po.updatedAt,

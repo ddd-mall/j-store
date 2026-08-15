@@ -23,6 +23,7 @@ import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.aftersale.AfterSaleId
+import com.jstore.order.domain.order.event.OrderCancellationRequestedEvent
 import com.jstore.order.domain.order.event.OrderCancelledByTradeEvent
 import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderCompletedEvent
@@ -159,7 +160,10 @@ class OrderImpl(
     ): Result<Boolean, BusinessError> {
         if (_paymentReference == paymentReference) return Success(false)
         if (_paymentReference != null) return Failure(OrderErrors.PAYMENT_REFERENCE_CONFLICT)
-        if (_tradeStatus != TradeStatus.ACTIVE || _paymentStatus != PaymentStatus.UNPAID) {
+        if (
+            _tradeStatus !in setOf(TradeStatus.ACTIVE, TradeStatus.CANCELLATION_PENDING) ||
+                _paymentStatus != PaymentStatus.UNPAID
+        ) {
             return Failure(OrderErrors.ILLEGAL_STATE.msg("当前订单不允许登记支付成功"))
         }
         if (
@@ -267,22 +271,46 @@ class OrderImpl(
             raise(OrderCompletedEvent(id))
         }
 
-    override fun cancel(reason: CancellationReason): Result<Unit, BusinessError> =
-        transition(
-            (_tradeStatus == TradeStatus.CREATED || _tradeStatus == TradeStatus.ACTIVE) && unpaid(),
-            "取消订单",
-        ) {
-            _tradeStatus = TradeStatus.CLOSED
-            mutableItems().forEach { it.markCanceled() }
-            raise(OrderCancelledEvent(id, reason.description))
+    override fun cancel(reason: CancellationReason): Result<Unit, BusinessError> {
+        if (sourceTradeId == null || sourceOrderPlanId == null) {
+            return transition(
+                (_tradeStatus == TradeStatus.CREATED || _tradeStatus == TradeStatus.ACTIVE) &&
+                    unpaid(),
+                "取消订单",
+            ) {
+                _tradeStatus = TradeStatus.CLOSED
+                mutableItems().forEach { it.markCanceled() }
+                raise(OrderCancelledEvent(id, reason.description))
+            }
         }
+        if (_tradeStatus == TradeStatus.CANCELLATION_PENDING) return Success(Unit)
+        return transition(
+            (_tradeStatus == TradeStatus.CREATED || _tradeStatus == TradeStatus.ACTIVE) && unpaid(),
+            "申请取消订单",
+        ) {
+            _tradeStatus = TradeStatus.CANCELLATION_PENDING
+            raise(
+                OrderCancellationRequestedEvent(
+                    id,
+                    sourceTradeId,
+                    sourceOrderPlanId,
+                    reason.description,
+                )
+            )
+        }
+    }
 
     override fun cancelFromTrade(reason: String): Result<Unit, BusinessError> {
         if (reason.isBlank() || sourceTradeId == null || sourceOrderPlanId == null) {
             return Failure(OrderErrors.CANCEL_REASON_INVALID)
         }
         return transition(
-            (_tradeStatus == TradeStatus.CREATED || _tradeStatus == TradeStatus.ACTIVE) && unpaid(),
+            (_tradeStatus in
+                setOf(
+                    TradeStatus.CREATED,
+                    TradeStatus.ACTIVE,
+                    TradeStatus.CANCELLATION_PENDING,
+                )) && unpaid(),
             "Trade 撤销订单",
         ) {
             _tradeStatus = TradeStatus.CLOSED

@@ -19,6 +19,7 @@ package com.jstore.order.domain.order
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
+import com.jstore.order.domain.order.event.OrderCancellationRequestedEvent
 import com.jstore.order.domain.order.event.OrderCancelledEvent
 import com.jstore.order.domain.order.event.OrderTradeCommittedEvent
 import kotlin.test.assertEquals
@@ -102,6 +103,45 @@ class OrderLifecycleRegressionTest {
             before,
             Triple(paid.tradeStatus, paid.paymentStatus, paid.items.single().status),
         )
+    }
+
+    @Test
+    fun `trade sourced cancellation waits for saga verdict and still accepts captured payment`() {
+        val order =
+            testOrder(
+                trade = TradeStatus.ACTIVE,
+                sourceTradeId = 9001,
+                sourceOrderPlanId = 9101,
+                sourcePlanDigest = "v1:digest",
+            )
+
+        assertIs<Success<Unit>>(
+            order.cancel(CancellationReason(CancellationCategory.BUYER_CANCELLED, "buyer"))
+        )
+        assertEquals(TradeStatus.CANCELLATION_PENDING, order.tradeStatus)
+        assertEquals(OrderItemStatus.NONE, order.items.single().status)
+        assertEquals(
+            1,
+            order.pendingDomainEvents().filterIsInstance<OrderCancellationRequestedEvent>().size,
+        )
+        assertIs<Success<Unit>>(
+            order.cancel(CancellationReason(CancellationCategory.BUYER_CANCELLED, "buyer"))
+        )
+        assertEquals(
+            1,
+            order.pendingDomainEvents().filterIsInstance<OrderCancellationRequestedEvent>().size,
+        )
+
+        assertIs<Success<Boolean>>(
+            order.recordPaymentCaptured(
+                "payment-1",
+                Price.ofFen(100),
+                "CNY",
+                java.time.Instant.EPOCH,
+            )
+        )
+        assertEquals(PaymentStatus.PAID, order.paymentStatus)
+        assertEquals(TradeStatus.CANCELLATION_PENDING, order.tradeStatus)
     }
 
     @Test

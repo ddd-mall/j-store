@@ -97,11 +97,23 @@ class TradeOrderCreationIdempotencyTest {
             )
         assertIs<Success<Order>>(service.createOrder(command()))
 
-        assertIs<Success<Unit>>(service.cancelOrder(9101, "trade compensation"))
+        assertIs<Success<Unit>>(service.cancelOrder(9001, 9101, "trade compensation"))
 
         assertEquals(1, events.filterIsInstance<OrderCancelledByTradeEvent>().size)
         assertEquals(0, events.filterIsInstance<OrderCancelledEvent>().size)
         assertEquals(TradeStatus.CLOSED, repository.findBySourceOrderPlanId(9101)?.tradeStatus)
+    }
+
+    @Test
+    fun `trade compensation cannot cancel an order owned by another trade`() {
+        val sequence = mock<SnowFlakSequence>()
+        whenever(sequence.nextId()).thenReturn(101, 1001)
+        val repository = InMemoryTradeOrderRepository()
+        val service = service(repository, TrustedOrderFactoryImpl(sequence))
+        assertIs<Success<Order>>(service.createOrder(command()))
+
+        assertIs<Failure<*>>(service.cancelOrder(9002, 9101, "wrong trade"))
+        assertEquals(TradeStatus.ACTIVE, repository.findBySourceOrderPlanId(9101)?.tradeStatus)
     }
 
     private fun service(

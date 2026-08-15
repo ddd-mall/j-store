@@ -299,7 +299,8 @@ enum class TradeStatus {
     RESERVING,
     CREATING_ORDERS,
     SETTLEMENT_PREPARING,
-    SETTLEMENT_READY,
+    PAYMENT_READY,
+    PAYMENT_UNCERTAIN,
     PAID,
     FAILED,
     CLOSING,
@@ -321,6 +322,7 @@ class Trade(
     val settlementTerms: SettlementTermsSnapshot,
     status: TradeStatus = TradeStatus.AUTHORIZING,
     settlementPlanId: SettlementPlanId? = null,
+    paymentReferences: Map<String, Long> = emptyMap(),
     failureReason: String? = null,
     val createdAt: Instant = Instant.now(),
     updatedAt: Instant = createdAt,
@@ -332,6 +334,10 @@ class Trade(
 
     var settlementPlanId: SettlementPlanId? = settlementPlanId
         private set
+
+    private val _paymentReferences = paymentReferences.toMutableMap()
+    val paymentReferences: Map<String, Long>
+        get() = _paymentReferences.toMap()
 
     var failureReason: String? = failureReason
         private set
@@ -354,6 +360,13 @@ class Trade(
         require(
             Price.sumOf(settlementTerms.installments.map { it.amount }) == payableAmount ||
                 settlementTerms.mode == SettlementMode.OPEN_ACCOUNT
+        )
+        require(
+            _paymentReferences.keys.all { reference ->
+                settlementTerms.installments.any { it.installmentId == reference }
+            } &&
+                _paymentReferences.values.all { it > 0 } &&
+                _paymentReferences.values.distinct().size == _paymentReferences.size
         )
     }
 
@@ -403,8 +416,18 @@ class Trade(
         planId: TradeOrderPlanId,
         orderId: Long,
     ): Result<Boolean, BusinessError> {
-        if (status != TradeStatus.CREATING_ORDERS) return illegal("record created order")
-        val result = plan(planId).recordOrderCreated(orderId)
+        val plan = plan(planId)
+        if (plan.status == TradeOrderPlanStatus.ORDER_CREATED) {
+            return plan.recordOrderCreated(orderId)
+        }
+        if (
+            status != TradeStatus.CREATING_ORDERS &&
+                !(status == TradeStatus.FAILED &&
+                    plan.status == TradeOrderPlanStatus.ORDER_CREATING)
+        ) {
+            return illegal("record created order")
+        }
+        val result = plan.recordOrderCreated(orderId)
         if (result is Success && result.value) touch()
         return result
     }
@@ -423,6 +446,168 @@ class Trade(
         return Success(true)
     }
 
+    fun failSettlementPreparation(
+        id: SettlementPlanId,
+        reason: String,
+    ): Result<Boolean, BusinessError> {
+        if (reason.isBlank()) return Failure(TradeErrors.INVALID_REASON)
+        if (status == TradeStatus.FAILED && settlementPlanId == id && failureReason == reason) {
+            return Success(false)
+        }
+        if (
+            status != TradeStatus.SETTLEMENT_PREPARING ||
+                settlementPlanId != id ||
+                _paymentReferences.isNotEmpty()
+        ) {
+            return illegal("fail settlement preparation")
+        }
+        failureReason = reason
+        status = TradeStatus.FAILED
+        touch()
+        return Success(true)
+    }
+
+    fun recordPaymentPrepared(
+        settlementPlanId: SettlementPlanId,
+        installmentId: String,
+        paymentId: Long,
+        amount: Price,
+        currency: String,
+    ): Result<Boolean, BusinessError> {
+        val installment =
+            settlementTerms.installments.firstOrNull { it.installmentId == installmentId }
+        if (
+            this.settlementPlanId != settlementPlanId ||
+                installment?.installmentId != installmentId ||
+                installment.amount != amount ||
+                this.currency != currency ||
+                paymentId <= 0
+        ) {
+            return illegal("record prepared payment")
+        }
+        val existingPaymentId = _paymentReferences[installmentId]
+        if (status == TradeStatus.PAYMENT_READY && existingPaymentId == paymentId) {
+            return Success(false)
+        }
+        if (existingPaymentId != null && existingPaymentId != paymentId) {
+            return illegal("replace installment payment")
+        }
+        if (status == TradeStatus.CLOSING) {
+            if (existingPaymentId == paymentId) return Success(false)
+            _paymentReferences[installmentId] = paymentId
+            touch()
+            return Success(true)
+        }
+        if (status !in setOf(TradeStatus.SETTLEMENT_PREPARING, TradeStatus.PAYMENT_READY)) {
+            return illegal("record prepared payment")
+        }
+        _paymentReferences[installmentId] = paymentId
+        status = TradeStatus.PAYMENT_READY
+        touch()
+        return Success(true)
+    }
+
+    fun recordPaymentPreparationUncertain(
+        settlementPlanId: SettlementPlanId,
+        installmentId: String,
+        paymentId: Long,
+        reason: String,
+    ): Result<Boolean, BusinessError> {
+        if (
+            this.settlementPlanId != settlementPlanId ||
+                settlementTerms.installments.none { it.installmentId == installmentId } ||
+                paymentId <= 0 ||
+                reason.isBlank()
+        ) {
+            return illegal("record uncertain payment")
+        }
+        if (
+            status == TradeStatus.PAYMENT_UNCERTAIN &&
+                _paymentReferences[installmentId] == paymentId &&
+                failureReason == reason
+        ) {
+            return Success(false)
+        }
+        if (status == TradeStatus.CLOSING) {
+            val existingPaymentId = _paymentReferences[installmentId]
+            if (existingPaymentId != null && existingPaymentId != paymentId) {
+                return illegal("replace closing payment")
+            }
+            if (existingPaymentId == paymentId) return Success(false)
+            _paymentReferences[installmentId] = paymentId
+            touch()
+            return Success(true)
+        }
+        if (status != TradeStatus.SETTLEMENT_PREPARING) {
+            return illegal("record uncertain payment")
+        }
+        _paymentReferences[installmentId] = paymentId
+        failureReason = reason
+        status = TradeStatus.PAYMENT_UNCERTAIN
+        touch()
+        return Success(true)
+    }
+
+    fun recordPaymentPreparationRejected(
+        settlementPlanId: SettlementPlanId,
+        installmentId: String,
+        paymentId: Long,
+        reason: String,
+    ): Result<Boolean, BusinessError> {
+        if (
+            this.settlementPlanId != settlementPlanId ||
+                settlementTerms.installments.none { it.installmentId == installmentId } ||
+                paymentId <= 0 ||
+                reason.isBlank()
+        ) {
+            return illegal("record rejected payment")
+        }
+        val existingPaymentId = _paymentReferences[installmentId]
+        if (existingPaymentId != null && existingPaymentId != paymentId) {
+            return illegal("replace closing payment")
+        }
+        if (status == TradeStatus.FAILED && existingPaymentId == paymentId) {
+            return Success(false)
+        }
+        if (status !in setOf(TradeStatus.SETTLEMENT_PREPARING, TradeStatus.CLOSING)) {
+            return illegal("record rejected payment")
+        }
+        _paymentReferences[installmentId] = paymentId
+        failureReason = reason
+        status = TradeStatus.FAILED
+        touch()
+        return Success(true)
+    }
+
+    fun recordPaymentCancellationConfirmed(
+        settlementPlanId: SettlementPlanId,
+        installmentId: String,
+        paymentId: Long,
+        reason: String,
+    ): Result<Boolean, BusinessError> {
+        val existingPaymentId = _paymentReferences[installmentId]
+        if (
+            this.settlementPlanId != settlementPlanId ||
+                settlementTerms.installments.none { it.installmentId == installmentId } ||
+                paymentId <= 0 ||
+                (existingPaymentId != null && existingPaymentId != paymentId) ||
+                reason.isBlank()
+        ) {
+            return illegal("record payment cancellation")
+        }
+        if (status == TradeStatus.FAILED && existingPaymentId == paymentId) {
+            return Success(false)
+        }
+        if (status != TradeStatus.CLOSING) return illegal("record payment cancellation")
+        _paymentReferences[installmentId] = paymentId
+        failureReason = reason
+        status = TradeStatus.FAILED
+        touch()
+        return Success(true)
+    }
+
+    fun paymentIdFor(installmentId: String): Long? = _paymentReferences[installmentId]
+
     fun fail(planId: TradeOrderPlanId, reason: String): Result<Boolean, BusinessError> {
         if (reason.isBlank()) return Failure(TradeErrors.INVALID_REASON)
         if (status == TradeStatus.FAILED) {
@@ -432,7 +617,8 @@ class Trade(
             status in
                 setOf(
                     TradeStatus.SETTLEMENT_PREPARING,
-                    TradeStatus.SETTLEMENT_READY,
+                    TradeStatus.PAYMENT_READY,
+                    TradeStatus.PAYMENT_UNCERTAIN,
                     TradeStatus.PAID,
                     TradeStatus.CLOSED,
                 )
@@ -456,12 +642,24 @@ class Trade(
         val cancelledPlan = plan(planId)
         if (cancelledPlan.orderId != orderId) return Failure(TradeErrors.ORDER_MISMATCH)
         if (status == TradeStatus.FAILED) return Success(false)
-        if (status !in setOf(TradeStatus.CREATING_ORDERS, TradeStatus.SETTLEMENT_PREPARING)) {
+        if (status == TradeStatus.CLOSING) return Success(false)
+        if (
+            status !in
+                setOf(
+                    TradeStatus.CREATING_ORDERS,
+                    TradeStatus.SETTLEMENT_PREPARING,
+                    TradeStatus.PAYMENT_READY,
+                    TradeStatus.PAYMENT_UNCERTAIN,
+                )
+        ) {
             return illegal("record cancelled order")
         }
-        orderPlans.filter { it.orderId != null }.forEach { it.closeCreatedOrder() }
         failureReason = reason
-        status = TradeStatus.FAILED
+        if (status == TradeStatus.CREATING_ORDERS) {
+            status = TradeStatus.FAILED
+        } else {
+            status = TradeStatus.CLOSING
+        }
         touch()
         return Success(true)
     }

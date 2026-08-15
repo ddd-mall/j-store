@@ -61,6 +61,16 @@ class CheckoutController(private val checkouts: CheckoutUseCase) {
         val status: String,
         val statusUrl: String,
         val orderIds: List<Long>,
+        val payment: PaymentResponse? = null,
+    )
+
+    data class PaymentResponse(
+        val paymentId: Long,
+        val status: String,
+        val amountFen: Long,
+        val currency: String,
+        val payAction: String,
+        val expiresAt: java.time.Instant,
     )
 
     data class ErrorResponse(val message: String, val errorCode: String)
@@ -96,6 +106,7 @@ class CheckoutController(private val checkouts: CheckoutUseCase) {
                             status = it.status,
                             statusUrl = "/api/checkouts/${it.tradeId}",
                             orderIds = it.orderIds,
+                            payment = it.payment?.toResponse(),
                         )
                     )
                 },
@@ -118,6 +129,9 @@ class CheckoutController(private val checkouts: CheckoutUseCase) {
 
     private fun ItemRequest.toCommand() =
         CheckoutItem(offerId, offerVersion, spuId, skuId, quantity, catalogSnapshotVersion)
+
+    private fun CheckoutPaymentView.toResponse() =
+        PaymentResponse(paymentId, status, amountFen, currency, payAction, expiresAt)
 
     private fun Result<CheckoutAccepted, BusinessError>.toResponse(): ResponseEntity<*> =
         fold(

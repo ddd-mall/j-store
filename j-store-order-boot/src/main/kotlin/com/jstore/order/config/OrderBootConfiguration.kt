@@ -20,6 +20,9 @@ import com.jstore.common.framework.event.*
 import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.goods.api.GoodsSnapshotQueryService
+import com.jstore.messaging.IntegrationMessage
+import com.jstore.messaging.IntegrationMessageHandler
+import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.acl.GoodsService
 import com.jstore.order.acl.GoodsServiceImpl
 import com.jstore.order.acl.OfferService
@@ -34,6 +37,8 @@ import com.jstore.order.domain.order.TrustedOrderFactory
 import com.jstore.order.domain.order.TrustedOrderFactoryImpl
 import com.jstore.order.service.AfterSaleApplicationService
 import com.jstore.order.service.AfterSaleUseCase
+import com.jstore.order.service.CancelOrderFromTradeIntegrationCommandHandler
+import com.jstore.order.service.CreateOrderFromTradeIntegrationCommandHandler
 import com.jstore.order.service.FulfillmentDeliveredOrderHandler
 import com.jstore.order.service.FulfillmentDispatchedOrderHandler
 import com.jstore.order.service.FulfillmentPreparedOrderHandler
@@ -44,13 +49,12 @@ import com.jstore.order.service.PaymentCapturedOrderHandler
 import com.jstore.order.service.PaymentRefundFailedOrderHandler
 import com.jstore.order.service.PaymentRefundSucceededOrderHandler
 import com.jstore.shop.api.OfferSnapshotQueryService
-import com.jstore.trade.service.TradeOrderCreationGateway
 import com.jstore.user.api.UserProfileQueryService
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
 import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
 class OrderBootConfiguration {
@@ -123,9 +127,29 @@ class OrderBootConfiguration {
         TransactionalInternalOrderCreationUseCase(orderApplicationService, transactionManager)
 
     @Bean
-    fun tradeOrderCreationGateway(
-        @Qualifier("internalOrderCreationUseCase") orders: InternalOrderCreationUseCase
-    ): TradeOrderCreationGateway = TradeOrderCreationAdapter(orders)
+    fun createOrderFromTradeCommandHandler(
+        orderApplicationService: OrderService,
+        publisher: IntegrationMessagePublisher,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<
+        com.jstore.contracts.commerce.CreateOrderFromTradeIntegrationCommand
+    > =
+        transactional(
+            CreateOrderFromTradeIntegrationCommandHandler(orderApplicationService, publisher),
+            transactionManager,
+        )
+
+    @Bean
+    fun cancelOrderFromTradeCommandHandler(
+        orderApplicationService: OrderService,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<
+        com.jstore.contracts.commerce.CancelOrderFromTradeIntegrationCommand
+    > =
+        transactional(
+            CancelOrderFromTradeIntegrationCommandHandler(orderApplicationService),
+            transactionManager,
+        )
 
     @Bean
     fun paymentCapturedOrderHandler(service: OrderUseCase) = PaymentCapturedOrderHandler(service)
@@ -171,4 +195,18 @@ class OrderBootConfiguration {
         transactionManager: PlatformTransactionManager,
     ): AfterSaleUseCase =
         TransactionalAfterSaleUseCase(afterSaleApplicationService, transactionManager)
+
+    private fun <T : IntegrationMessage> transactional(
+        delegate: IntegrationMessageHandler<T>,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<T> =
+        object : IntegrationMessageHandler<T> {
+            private val transaction = TransactionTemplate(transactionManager)
+
+            override fun handlerId() = delegate.handlerId()
+
+            override fun handle(message: T) {
+                transaction.executeWithoutResult { delegate.handle(message) }
+            }
+        }
 }
