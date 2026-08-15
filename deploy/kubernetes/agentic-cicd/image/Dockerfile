@@ -46,7 +46,11 @@ COPY scripts/agentic_cicd /opt/jstore-agentic-controller/agentic_cicd
 COPY scripts/agentic-cicd-controller.py /opt/jstore-agentic-controller/controller.py
 COPY scripts/agentic-artifact-broker.py /opt/jstore-agentic-controller/artifact-broker.py
 COPY scripts/agentic-gate-dispatcher.py /opt/jstore-agentic-controller/gate-dispatcher.py
+COPY config/agentic-cicd /opt/config/agentic-cicd
 COPY config/agentic-cicd/state-contract.json /opt/jstore-agentic-controller/state-contract.json
+RUN PYTHONPATH=/opt/jstore-agentic-controller python3 -c \
+      'from agentic_cicd.protocol import GateReceipt, GateRequest; GateRequest; GateReceipt' \
+    && chmod -R a-w /opt/config/agentic-cicd /opt/jstore-agentic-controller
 RUN printf 'SYMPHONY_REVISION=%s\nJSTORE_CONTROLLER_REVISION=%s\n' \
       "$SYMPHONY_COMMIT" "$JSTORE_CONTROLLER_REVISION" \
       > /opt/jstore-agentic-controller/runtime-revisions

@@ -217,6 +217,9 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         )
         self.assertIn("COPY scripts/agentic-artifact-broker.py", dockerfile)
         self.assertIn("COPY scripts/agentic-gate-dispatcher.py", dockerfile)
+        self.assertIn("COPY config/agentic-cicd /opt/config/agentic-cicd", dockerfile)
+        self.assertIn("from agentic_cicd.protocol import GateReceipt, GateRequest", dockerfile)
+        self.assertIn("chmod -R a-w /opt/config/agentic-cicd", dockerfile)
         self.assertIn(
             "COPY config/agentic-cicd/state-contract.json /opt/jstore-agentic-controller/state-contract.json",
             dockerfile,
@@ -240,7 +243,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("!scripts/agentic-cicd-controller.py", dockerignore)
         self.assertIn("!scripts/agentic-artifact-broker.py", dockerignore)
         self.assertIn("!scripts/agentic-gate-dispatcher.py", dockerignore)
-        self.assertIn("!config/agentic-cicd/state-contract.json", dockerignore)
+        self.assertIn("!config/agentic-cicd/*.json", dockerignore)
         self.assertIn(
             "!deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
             dockerignore,

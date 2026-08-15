@@ -7,7 +7,7 @@
 !scripts/agentic-gate-dispatcher.py
 !config/
 !config/agentic-cicd/
-!config/agentic-cicd/state-contract.json
+!config/agentic-cicd/*.json
 !deploy/
 !deploy/kubernetes/
 !deploy/kubernetes/agentic-cicd/
