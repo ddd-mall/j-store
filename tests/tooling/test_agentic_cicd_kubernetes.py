@@ -266,6 +266,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             '"$audit_root/controller-fixture"',
             '"$audit_root/evidence"',
             'verify_sha256 "$source_tree/elixir/mix.lock"',
+            'chown -R $(id -u):$(id -g) /cleanup',
             "codex-cli $codex_version",
         ):
             self.assertIn(check, audit_script)

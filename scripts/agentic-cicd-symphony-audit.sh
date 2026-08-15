@@ -121,6 +121,12 @@ verify_sha256 "$test_fixture_path" "$test_fixture_sha256"
 
 audit_root=$(mktemp -d "${TMPDIR:-/tmp}/jstore-symphony-audit.XXXXXX")
 cleanup() {
+  docker run --rm \
+    --volume "$audit_root:/cleanup" \
+    --entrypoint sh \
+    "$builder_image" \
+    -c "chown -R $(id -u):$(id -g) /cleanup" >/dev/null 2>&1 || true
+  chmod -R u+rwX "$audit_root" 2>/dev/null || true
   rm -rf -- "$audit_root"
 }
 trap cleanup EXIT
@@ -198,6 +204,7 @@ docker run --rm \
     set -euo pipefail
     apt-get update >/dev/null
     apt-get install --yes --no-install-recommends build-essential cmake git ca-certificates python3 >/dev/null
+    git config --global http.version HTTP/1.1
     printf "%s  %s\n" "$DEPENDENCY_LOCK_SHA256" /work/elixir/mix.lock | sha256sum -c -
     mix compile --warnings-as-errors
     mix test
