@@ -155,7 +155,7 @@ spec:
             sources:
               - serviceAccountToken:
                   path: token
-                  audience: https://kubernetes.default.svc
+                  audience: https://kubernetes.default.svc.cluster.local
                   expirationSeconds: 3600
               - configMap:
                   name: kube-root-ca.crt

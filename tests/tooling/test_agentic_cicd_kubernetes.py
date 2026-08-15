@@ -643,7 +643,12 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             volume["projected"] for volume in dispatcher_pod["volumes"]
             if volume["name"] == "dispatcher-token"
         )
-        self.assertEqual(3600, projected["sources"][0]["serviceAccountToken"]["expirationSeconds"])
+        token_projection = projected["sources"][0]["serviceAccountToken"]
+        self.assertEqual(3600, token_projection["expirationSeconds"])
+        self.assertEqual(
+            "https://kubernetes.default.svc.cluster.local",
+            token_projection["audience"],
+        )
 
     def test_gate_network_allows_only_broker_endpoint(self) -> None:
         egress = by_kind_name(self.gates, "NetworkPolicy", "gate-to-artifact-broker")
