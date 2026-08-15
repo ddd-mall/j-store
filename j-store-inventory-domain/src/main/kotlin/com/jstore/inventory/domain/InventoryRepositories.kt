@@ -29,5 +29,5 @@ fun interface StockPositionGuard {
 interface StockReservationRepository : AggregateRepository<StockReservationId, StockReservation> {
     fun findByBusinessKey(businessKey: String): StockReservation?
 
-    fun findByOrderId(orderId: Long): List<StockReservation>
+    fun findByOrderPlanId(orderPlanId: Long): List<StockReservation>
 }

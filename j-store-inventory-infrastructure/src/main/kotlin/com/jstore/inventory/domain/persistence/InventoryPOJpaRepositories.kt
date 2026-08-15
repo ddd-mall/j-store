@@ -31,5 +31,5 @@ interface StockPositionPOJpaRepository : JpaRepository<StockPositionPO, String> 
 interface StockReservationPOJpaRepository : JpaRepository<StockReservationPO, String> {
     fun findByBusinessKey(businessKey: String): StockReservationPO?
 
-    fun findAllByOrderIdOrderBySkuIdAsc(orderId: Long): List<StockReservationPO>
+    fun findAllByOrderPlanIdOrderBySkuIdAsc(orderPlanId: Long): List<StockReservationPO>
 }

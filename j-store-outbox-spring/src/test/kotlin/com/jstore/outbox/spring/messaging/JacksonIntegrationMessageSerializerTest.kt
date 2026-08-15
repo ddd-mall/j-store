@@ -43,6 +43,7 @@ class JacksonIntegrationMessageSerializerTest :
             val command =
                 ReserveInventoryCommand(
                     42,
+                    4201,
                     listOf(
                         ContractAuthorizedSaleItem(
                             authorizationId = "auth-42",
@@ -87,7 +88,8 @@ class JacksonIntegrationMessageSerializerTest :
 
             val event =
                 InventoryReservedIntegrationEvent(
-                    orderId = 42,
+                    tradeId = 42,
+                    orderPlanId = 4201,
                     authorizationIds = listOf("auth-42"),
                     reservationIds = listOf("reservation-42"),
                     reservationExpiresAt = Instant.parse("2026-08-05T00:15:00Z"),

@@ -20,9 +20,9 @@ j-store 采用战略 DDD 与战术 DDD 结合的方式：
 | Store / Offer（shop） | `Merchant`、`Store`、`SalesOffer`、`SaleAuthorization` | 谁在什么店铺、渠道、市场、时间和价格下愿意销售 | 实物库存、ATP、订单交易状态 |
 | Inventory / ATP | `StockPosition`、`StockReservation` | 平台当前能够承诺多少库存、哪些数量已向订单预留 | 库位、盘点、真实出入库、商品资料 |
 | WMS（warehouse） | `PhysicalStock` | 实物库存及其来源版本 | 页面可售、销售授权、订单交易状态 |
-| Trade / Checkout | `TradeProcess` | 成交条件快照、销售授权与库存预留的交易承诺流程、失败补偿 | 商品资料、Offer/库存内部状态、支付与履约状态 |
+| Trade / Checkout | `Trade`、`TradeOrderPlan`、`SettlementPlan` | Checkout 幂等、成交快照、拆单、销售/库存承诺、Order 创建与结算屏障 | 商品资料、Offer/库存内部状态、支付渠道与履约执行状态 |
 | Order | `Order`、`OrderItem`、`AfterSale` | 已确认订单记录、买家视角生命周期、履约与售后快照 | 销售授权、库存预留、优惠试算与支付资金状态 |
-| Payment | `PaymentOrder`、退款相关模型 | 支付和退款资金状态 | 订单商品与履约事实 |
+| Payment | `TradePayment`、退款相关模型 | 按结算分期执行支付和退款的资金状态 | 交易结算条款、订单商品与履约事实 |
 | Fulfillment | `FulfillmentOrder` | 发货、运输、签收等履约状态 | 交易定价、支付记账、实物库存盘点 |
 | Accounting | 账户、期间、凭证、结算模型 | 会计分录和结算事实 | 订单或支付聚合内部状态 |
 | User / Authentication | 用户账户、身份令牌、用户资料查询契约 | 用户身份、昵称、已验证手机号、账号状态、登录状态和认证事实 | 商户销售政策与交易状态 |
@@ -35,13 +35,12 @@ j-store 采用战略 DDD 与战术 DDD 结合的方式：
 flowchart LR
     Catalog["Catalog<br/>商品资料"] -->|"skuId / 资料快照"| Offer["Store / SalesOffer<br/>销售意愿与成交条件"]
     WMS["WMS<br/>实物库存"] -->|"版本化库存事实"| ATP["Inventory / ATP<br/>销售承诺能力"]
-    Order["Order"] -->|"创建快照"| Trade["Trade / Checkout<br/>交易承诺 Saga"]
+    Trade["Trade / Checkout<br/>交易承诺 Saga"] -->|"承诺后内部创建"| Order["Order"]
     Trade -->|"请求销售授权"| Offer
     Offer -->|"SaleAuthorization"| Trade
     Trade -->|"携带授权请求预留"| ATP
     ATP -->|"StockReservation"| Trade
-    Trade -->|"承诺成功/失败"| Order
-    Order -->|"承诺确认后创建支付"| Payment["Payment"]
+    Trade -->|"SettlementPlan / 分期"| Payment["Payment"]
     Order -->|"履约请求"| Fulfillment["Fulfillment"]
     Fulfillment -->|"拣货 / 出库请求"| WMS
     Payment -->|"资金事件"| Accounting["Accounting"]
@@ -53,7 +52,7 @@ flowchart LR
 - Catalog 是商品资料的上游。Offer 仅通过 `skuId` 引用 Catalog，不把 Catalog 聚合嵌入自身。
 - WMS 是实物库存上游；Inventory 保存带 `sourceVersion` 的镜像，并忽略重复或旧版本事件。
 - Trade 是下单承诺 Saga 的协调者，持久化授权、预留和补偿进度，但不拥有 Offer 或 ATP 的内部状态。
-- Order 只消费 Trade 的最终承诺结果，不保存销售授权或库存预留标识。
+- Order 只由 Trade 在承诺形成后通过内部端口创建，不保存销售授权或库存预留标识。
 - Payment、Fulfillment、Accounting 通过已发生的交易事实继续各自状态机，不直接修改 Order 聚合。
 - 查询方向可通过上下文发布的 `-api` 契约和消费方 ACL 完成；写入协作使用版本化集成消息。
 
@@ -122,27 +121,27 @@ ATP = max(onHand - reserved - safetyStock - isolatedQuantity, 0)
 
 Inventory 只有成功创建 `StockReservation` 后才作出库存承诺。页面显示“有库存”只是最终一致的查询结果，下单时仍可能因并发预留而失败。
 
-订单取消事实由 Trade 消费并释放 Reservation；订单支付后确认消耗已预留数量。退款成功不会直接增加库存，退货必须经过收货、验收或盘点，由 WMS 发布新的实物库存事实。
+库存承诺以 `tradeId + orderPlanId` 关联；Trade 根据结算与履约放行策略确认消耗或释放 Reservation。退款成功不会直接增加库存，退货必须经过收货、验收或盘点，由 WMS 发布新的实物库存事实。
 
 ## Trade / Checkout：成交决策与交易承诺 Saga
 
-Trade 保存下单时不可变的商品、Offer、价格、数量、商户和履约节点快照，并负责协调 `SaleAuthorization` 与 `StockReservation`。当前首期使用 `orderId` 作为 Trade Process 标识和关联键；后续 Checkout API、优惠试算、多商户拆单落地后再引入独立 `tradeId`。
+Trade 是面向认证买家的统一下单边界，公开创建入口为 `POST /api/checkouts`；`POST /api/orders` 已删除。直接购买输入不接受买家或顶层商户身份，买家来自认证上下文，商户由 Offer 快照派生。Trade 保存下单时不可变的商品、Offer、价格、数量、商户和履约节点快照，并负责协调 `SaleAuthorization` 与 `StockReservation`。
 
-Trade Process 状态协议为：
+当前实现已建立独立 `tradeId`、买家范围 Checkout 幂等、一个或多个 `TradeOrderPlan`，并以 `tradeId + orderPlanId` 协调销售授权和库存预留。全部计划预留成功后才通过内部端口创建 Order；全部 Order 形成且金额守恒后，Trade 建立唯一 `SettlementPlan`，首期 `PREPAID + FULL` 分期由 Payment 创建一个 `TradePayment`。`orderId` 仅在 Order 形成后回写计划，不再是 Trade 身份或 Checkout 相关键。
+
+Trade 主链状态协议为：
 
 ```text
-AUTHORIZING -> RESERVING -> COMMITTED -> PAID
-      |            |            |
-      +----------> FAILED       +-> CLOSED（未支付取消）
-                   |
-               CLOSED（取消）
+AUTHORIZING -> RESERVING -> CREATING_ORDERS -> SETTLEMENT_PREPARING
+      |              |                 |                    |
+      +--------------+-----------------+------------------> FAILED
 ```
 
-1. Order 创建后只发布 `trade.start`，Trade 持久化交易快照并请求销售授权。
+1. Checkout 先持久化 Trade 与计划，再逐计划请求销售授权。
 2. 授权成功后，Trade 保存授权并携带授权请求库存预留。
-3. 两项承诺成功后，Trade 发布最终承诺成功事实；Order 才进入可支付状态。
-4. 授权或库存失败由 Trade 持久化失败并发布最终失败事实；库存失败同时释放授权。
-5. Order 取消由 Trade 根据已到达阶段释放库存与授权；支付事实将 Trade 标记为 `PAID`。
+3. 所有计划库存预留成功后，Trade 才通过内部端口创建 Order。
+4. 所有 Order 创建成功且金额守恒后，Trade 建立唯一 SettlementPlan；Payment 按分期幂等创建支付对象。
+5. 失败补偿、取消、支付结果回投及显式履约放行仍按 `docs/spec/trade-checkout-boundary/tasks.md` 的后续切片推进，在完成前不得声称主链已达到生产就绪。
 
 该协议通过 Trade 状态持久化、Outbox、幂等 handler 和补偿收敛，不依赖跨服务事务。未来购物车只提供结算输入；活动、优惠券与价格上下文向 Trade 提供带版本和分摊明细的 `PricingQuote`；对账消费 Trade、Payment、Order 的稳定业务键和金额事实，不反向修改聚合内部状态。
 

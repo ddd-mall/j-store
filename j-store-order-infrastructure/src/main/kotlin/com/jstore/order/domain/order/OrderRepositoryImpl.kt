@@ -24,6 +24,7 @@ import com.jstore.order.domain.order.persistence.OrderItemPO
 import com.jstore.order.domain.order.persistence.OrderPO
 import com.jstore.order.domain.order.persistence.OrderPOJpaRepository
 import com.jstore.order.domain.order.persistence.RecipientInfoPO
+import jakarta.persistence.EntityManager
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Repository
@@ -31,12 +32,15 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 @Repository
-class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : OrderRepository {
+class OrderRepositoryImpl(
+    private val jpaRepository: OrderPOJpaRepository,
+    private val entityManager: EntityManager,
+) : OrderRepository {
 
     @Transactional(propagation = Propagation.MANDATORY)
     override fun add(order: Order) {
         val po = Converter.toPO(order)
-        jpaRepository.save(po)
+        entityManager.persist(po)
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -53,6 +57,9 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
     override fun findByBuyerUserId(uid: Long): List<Order> {
         return jpaRepository.findByBuyerUid(uid).map { Converter.toDomain(it) }
     }
+
+    override fun findBySourceOrderPlanId(orderPlanId: Long): Order? =
+        jpaRepository.findBySourceOrderPlanId(orderPlanId)?.let(Converter::toDomain)
 
     override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> {
         val pageable =
@@ -83,6 +90,9 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                 )
             return OrderPO(
                 id = order.id.value,
+                sourceTradeId = order.sourceTradeId,
+                sourceOrderPlanId = order.sourceOrderPlanId,
+                sourcePlanDigest = order.sourcePlanDigest,
                 merchantId = order.merchantId.value,
                 buyerUid = order.buyerInfo.uid,
                 buyerPhone = order.buyerInfo.phoneNumber?.value,
@@ -211,6 +221,9 @@ class OrderRepositoryImpl(private val jpaRepository: OrderPOJpaRepository) : Ord
                         .toMutableList(),
                 createTime = po.createTime,
                 _updateTime = po.updateTime,
+                sourceTradeId = po.sourceTradeId,
+                sourceOrderPlanId = po.sourceOrderPlanId,
+                sourcePlanDigest = po.sourcePlanDigest,
             )
         }
 

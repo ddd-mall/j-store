@@ -19,10 +19,11 @@ package com.jstore.payment.config
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.payment.domain.payment.PaymentOrderRepository
-import com.jstore.payment.service.CreatePaymentForOrderCommandHandler
+import com.jstore.payment.domain.payment.TradePaymentRepository
 import com.jstore.payment.service.PaymentApplicationService
 import com.jstore.payment.service.PaymentUseCase
 import com.jstore.payment.service.RequestPaymentRefundCommandHandler
+import com.jstore.trade.service.TradeSettlementGateway
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -30,6 +31,12 @@ import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
 class PaymentBootConfiguration {
+    @Bean
+    fun tradeSettlementGateway(
+        payments: TradePaymentRepository,
+        sequence: SnowFlakSequence,
+    ): TradeSettlementGateway = TradeSettlementAdapter(payments, sequence)
+
     @Bean
     fun paymentApplicationService(
         repository: PaymentOrderRepository,
@@ -43,10 +50,6 @@ class PaymentBootConfiguration {
         paymentApplicationService: PaymentApplicationService,
         transactionManager: PlatformTransactionManager,
     ): PaymentUseCase = TransactionalPaymentUseCase(paymentApplicationService, transactionManager)
-
-    @Bean
-    fun createPaymentForOrderCommandHandler(service: PaymentUseCase) =
-        CreatePaymentForOrderCommandHandler(service)
 
     @Bean
     fun requestPaymentRefundCommandHandler(service: PaymentUseCase) =

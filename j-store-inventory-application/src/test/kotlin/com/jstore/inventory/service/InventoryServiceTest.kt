@@ -144,7 +144,8 @@ class InventoryServiceTest {
 
     private fun reserveCommand(expiresAt: Instant, quantity: Int) =
         ReserveInventoryCommand(
-            orderId = 100,
+            tradeId = 100,
+            orderPlanId = 1001,
             items =
                 listOf(
                     ContractAuthorizedSaleItem(
@@ -201,6 +202,6 @@ private class FakeReservations : StockReservationRepository {
     override fun findByBusinessKey(businessKey: String): StockReservation? =
         values.values.singleOrNull { it.businessKey == businessKey }
 
-    override fun findByOrderId(orderId: Long): List<StockReservation> =
-        values.values.filter { it.orderId == orderId }
+    override fun findByOrderPlanId(orderPlanId: Long): List<StockReservation> =
+        values.values.filter { it.orderPlanId == orderPlanId }
 }

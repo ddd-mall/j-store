@@ -44,4 +44,5 @@ object OrderErrors {
     val DISTRICT_CODE_BLANK = BusinessError("行政区划编码不能为空", "Order.Consignee.DistrictCodeBlank", 400)
     val SNAPSHOT_VERSION_MISMATCH =
         BusinessError("商品信息已变更，请刷新页面后重新下单", "Order.Snapshot.VersionMismatch", 409)
+    val TRADE_PLAN_CONFLICT = BusinessError("订单计划与已创建订单冲突", "Order.TradePlan.Conflict", 409)
 }

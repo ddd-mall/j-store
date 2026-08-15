@@ -78,28 +78,6 @@ data class ContractAuthorizedSaleItem(
     val expiresAt: Instant,
 )
 
-@IntegrationMessageType("trade.start", 1)
-data class StartTradeProcessCommand(
-    val orderId: Long,
-    val merchantId: Long,
-    val items: List<ContractSaleItem>,
-    val payableAmountFen: Long,
-    val currency: String,
-    val sourceMessageId: String,
-    val occurredAtValue: Instant,
-) :
-    CommerceIntegrationCommand(
-        id("trade.start", 1, orderId, sourceMessageId),
-        "trade.start",
-        1,
-        occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
-        sourceMessageId,
-        merchantId.toString(),
-        "trade.commands",
-    )
-
 data class ContractRecipient(
     val name: String,
     val phone: String?,
@@ -113,7 +91,8 @@ data class ContractRecipient(
 
 @IntegrationMessageType("sale.authorize", 1)
 data class AuthorizeSaleCommand(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val merchantId: Long,
     val items: List<ContractSaleItem>,
     val sourceMessageId: String,
@@ -121,12 +100,12 @@ data class AuthorizeSaleCommand(
     override val acceptBefore: Instant? = null,
 ) :
     CommerceIntegrationCommand(
-        id("sale.authorize", 1, orderId, sourceMessageId),
+        id("sale.authorize", 1, orderPlanId, sourceMessageId),
         "sale.authorize",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         merchantId.toString(),
         "store.commands",
@@ -134,18 +113,19 @@ data class AuthorizeSaleCommand(
 
 @IntegrationMessageType("sale.authorization.release", 1)
 data class ReleaseSaleAuthorizationCommand(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val authorizationIds: List<String>,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationCommand(
-        id("sale.authorization.release", 1, orderId, sourceMessageId),
+        id("sale.authorization.release", 1, orderPlanId, sourceMessageId),
         "sale.authorization.release",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         null,
         "store.commands",
@@ -153,18 +133,19 @@ data class ReleaseSaleAuthorizationCommand(
 
 @IntegrationMessageType("sale.authorized", 1)
 data class SaleAuthorizedIntegrationEvent(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val items: List<ContractAuthorizedSaleItem>,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationEvent(
-        id("sale.authorized", 1, orderId, sourceMessageId),
+        id("sale.authorized", 1, orderPlanId, sourceMessageId),
         "sale.authorized",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         null,
         "trade.events",
@@ -172,18 +153,19 @@ data class SaleAuthorizedIntegrationEvent(
 
 @IntegrationMessageType("sale.authorization-failed", 1)
 data class SaleAuthorizationFailedIntegrationEvent(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val reason: String,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationEvent(
-        id("sale.authorization-failed", 1, orderId, sourceMessageId),
+        id("sale.authorization-failed", 1, orderPlanId, sourceMessageId),
         "sale.authorization-failed",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         null,
         "trade.events",
@@ -191,7 +173,8 @@ data class SaleAuthorizationFailedIntegrationEvent(
 
 @IntegrationMessageType("inventory.reserve", 1)
 data class ReserveInventoryCommand(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val items: List<ContractAuthorizedSaleItem>,
     val sourceMessageId: String,
     val merchantId: Long,
@@ -199,12 +182,12 @@ data class ReserveInventoryCommand(
     override val acceptBefore: Instant? = null,
 ) :
     CommerceIntegrationCommand(
-        messageId = id("inventory.reserve", 1, orderId, sourceMessageId),
+        messageId = id("inventory.reserve", 1, orderPlanId, sourceMessageId),
         messageName = "inventory.reserve",
         messageVersion = 1,
         occurredAt = occurredAtValue,
-        partitionKey = orderId.toString(),
-        correlationId = orderId.toString(),
+        partitionKey = orderPlanId.toString(),
+        correlationId = tradeId.toString(),
         causationId = sourceMessageId,
         tenantId = merchantId.toString(),
         destination = "inventory.commands",
@@ -212,18 +195,19 @@ data class ReserveInventoryCommand(
 
 @IntegrationMessageType("inventory.confirm", 1)
 data class ConfirmInventoryCommand(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val items: List<ContractItem>,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationCommand(
-        id("inventory.confirm", 1, orderId, sourceMessageId),
+        id("inventory.confirm", 1, orderPlanId, sourceMessageId),
         "inventory.confirm",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         null,
         "inventory.commands",
@@ -231,18 +215,19 @@ data class ConfirmInventoryCommand(
 
 @IntegrationMessageType("inventory.release", 1)
 data class ReleaseInventoryCommand(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val items: List<ContractItem>,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationCommand(
-        id("inventory.release", 1, orderId, sourceMessageId),
+        id("inventory.release", 1, orderPlanId, sourceMessageId),
         "inventory.release",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         null,
         "inventory.commands",
@@ -250,7 +235,8 @@ data class ReleaseInventoryCommand(
 
 @IntegrationMessageType("inventory.reserved", 1)
 data class InventoryReservedIntegrationEvent(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val authorizationIds: List<String>,
     val reservationIds: List<String>,
     val reservationExpiresAt: Instant,
@@ -258,12 +244,12 @@ data class InventoryReservedIntegrationEvent(
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationEvent(
-        id("inventory.reserved", 1, orderId, sourceMessageId),
+        id("inventory.reserved", 1, orderPlanId, sourceMessageId),
         "inventory.reserved",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         null,
         "trade.events",
@@ -271,75 +257,41 @@ data class InventoryReservedIntegrationEvent(
 
 @IntegrationMessageType("inventory.reservation-failed", 1)
 data class InventoryReservationFailedIntegrationEvent(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val authorizationIds: List<String>,
     val reason: String,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationEvent(
-        id("inventory.reservation-failed", 1, orderId, sourceMessageId),
+        id("inventory.reservation-failed", 1, orderPlanId, sourceMessageId),
         "inventory.reservation-failed",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         null,
         "trade.events",
     )
 
-@IntegrationMessageType("trade.commitment-confirmed", 1)
-data class TradeCommitmentConfirmedIntegrationEvent(
-    val orderId: Long,
-    val sourceMessageId: String,
-    val occurredAtValue: Instant,
-) :
-    CommerceIntegrationEvent(
-        id("trade.commitment-confirmed", 1, orderId, sourceMessageId),
-        "trade.commitment-confirmed",
-        1,
-        occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
-        sourceMessageId,
-        null,
-        "order.events",
-    )
-
-@IntegrationMessageType("trade.commitment-failed", 1)
-data class TradeCommitmentFailedIntegrationEvent(
-    val orderId: Long,
-    val reason: String,
-    val sourceMessageId: String,
-    val occurredAtValue: Instant,
-) :
-    CommerceIntegrationEvent(
-        id("trade.commitment-failed", 1, orderId, sourceMessageId),
-        "trade.commitment-failed",
-        1,
-        occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
-        sourceMessageId,
-        null,
-        "order.events",
-    )
-
 @IntegrationMessageType("order.cancelled.integration", 1)
 data class OrderCancelledIntegrationEvent(
+    val tradeId: Long,
+    val orderPlanId: Long,
     val orderId: Long,
     val reason: String,
     val sourceMessageId: String,
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationEvent(
-        id("order.cancelled.integration", 1, orderId, sourceMessageId),
+        id("order.cancelled.integration", 1, orderPlanId, sourceMessageId),
         "order.cancelled.integration",
         1,
         occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
+        orderPlanId.toString(),
+        tradeId.toString(),
         sourceMessageId,
         null,
         "trade.events",
@@ -383,28 +335,6 @@ data class PhysicalStockChangedIntegrationEvent(
         sourceMessageId,
         null,
         "inventory.events",
-    )
-
-@IntegrationMessageType("payment.create-for-order", 1)
-data class CreatePaymentForOrderCommand(
-    val orderId: Long,
-    val merchantId: Long,
-    val payableAmountFen: Long,
-    val currency: String,
-    val sourceMessageId: String,
-    val occurredAtValue: Instant,
-    override val acceptBefore: Instant? = null,
-) :
-    CommerceIntegrationCommand(
-        id("payment.create-for-order", 1, orderId, sourceMessageId),
-        "payment.create-for-order",
-        1,
-        occurredAtValue,
-        orderId.toString(),
-        orderId.toString(),
-        sourceMessageId,
-        merchantId.toString(),
-        "payment.commands",
     )
 
 data class ContractRefundItem(

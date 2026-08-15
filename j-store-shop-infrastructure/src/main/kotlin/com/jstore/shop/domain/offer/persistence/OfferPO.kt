@@ -67,11 +67,12 @@ class SalesOfferPO(
 @Entity
 @Table(
     name = "sale_authorizations",
-    uniqueConstraints = [UniqueConstraint(columnNames = ["order_id", "offer_id"])],
+    uniqueConstraints = [UniqueConstraint(columnNames = ["order_plan_id", "offer_id"])],
 )
 class SaleAuthorizationPO(
     @Id @Column(length = 128) var id: String = "",
-    @Column(name = "order_id", nullable = false) var orderId: Long = 0,
+    @Column(name = "trade_id", nullable = false) var tradeId: Long = 0,
+    @Column(name = "order_plan_id", nullable = false) var orderPlanId: Long = 0,
     @Column(name = "offer_id", nullable = false) var offerId: Long = 0,
     @Column(name = "store_id", nullable = false) var storeId: Long = 0,
     @Column(name = "merchant_id", nullable = false) var merchantId: Long = 0,

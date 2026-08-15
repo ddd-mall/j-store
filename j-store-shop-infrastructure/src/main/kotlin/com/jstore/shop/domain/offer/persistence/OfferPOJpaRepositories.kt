@@ -35,5 +35,5 @@ interface SalesOfferPOJpaRepository : JpaRepository<SalesOfferPO, Long> {
 }
 
 interface SaleAuthorizationPOJpaRepository : JpaRepository<SaleAuthorizationPO, String> {
-    fun findAllByOrderIdOrderByOfferId(orderId: Long): List<SaleAuthorizationPO>
+    fun findAllByOrderPlanIdOrderByOfferId(orderPlanId: Long): List<SaleAuthorizationPO>
 }

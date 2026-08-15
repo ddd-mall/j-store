@@ -9,9 +9,20 @@ Order 用于记录每个已形成订单的可信成交事实和买家生命周�
 ## 当前状态与已确认方向
 
 - 迭代 1 已建立独立 Trade Process，并将销售授权、库存预留、失败补偿和取消释放从 Order 迁入 Trade。
-- 当前实现仍先创建 provisional Order，再以 `orderId` 启动 Trade；该流程只作为迭代 1 的过渡状态。
+- 迭代 1 曾先创建 provisional Order 并以 `orderId` 启动 Trade；该过渡主链已在本轮破坏性重构中删除。
 - 已确认的目标是：Trade / Checkout 必须成为唯一面向用户的下单入口；Order 创建只能由 Trade 通过内部可信契约发起。
 - 为避免公开 Checkout API 再次绑定单订单模型，下一迭代必须同时引入独立 `tradeId`、业务幂等和 `TradeOrderPlan`，而不是将多商户能力推迟到 API 迁移之后。
+
+## 2026-08-15 已批准的破坏性收敛
+
+项目尚未上线且没有需要保留的生产数据，本轮按目标模型一次性重构，不提供旧内部接口、消息或开发数据兼容：
+
+1. Trade 必须在任何 Order、Reservation 和 Payment 产生前创建独立 `tradeId`；`tradeId` 不得由 `orderId` 派生，也不得与任一 `orderId` 复用。
+2. Trade 是 Checkout Saga 的唯一协调者。安全默认顺序固定为：冻结成交快照 → 销售授权 → 全部库存预留 → 创建全部 Order → 创建唯一 SettlementPlan。
+3. 只有全部 `TradeOrderPlan` 已成功预留库存、成功创建 Order 且金额守恒时，Trade 才能建立 SettlementPlan。Order 创建与库存预留的任一结果未知或失败时，不得产生 Payment 或 Receivable。
+4. 一个 Trade 在完整生命周期内拥有且仅拥有一个 SettlementPlan。首期实现 `PREPAID + FULL` 单分期，但领域契约必须允许后续按结算条款产生零到多个 PaymentAttempt、Payment 或 Receivable，不得将“唯一 Payment”固化为交易不变量。
+5. 删除 provisional Order、`OrderCreated -> StartTradeProcess`、`CreatePaymentForOrderCommand`、`trade_process.order_id` 主身份以及按 Order 创建支付的旧主链；不得保留双写、双读、双投递或兼容别名。
+6. 开发数据库允许重建；本次只保证新结构从空库可建立，不提供旧 Trade、Order、Payment 数据回填。
 
 ## 领域边界
 
@@ -19,9 +30,17 @@ Order 用于记录每个已形成订单的可信成交事实和买家生命周�
 - Pricing / Promotion 负责算价规则、活动、优惠券、红包等权益生命周期及优惠分摊；Trade 只接受版本化报价并协调锁定、核销和释放。
 - Trade 负责统一用户结账入口、结账业务幂等、成交条件快照、多商户订单计划、销售授权、库存承诺、订单创建编排、截止时间和失败补偿。
 - Order 负责单个已形成订单的不可变成交快照、订单生命周期以及支付、履约、退款和售后事实投影。
-- Payment 负责支付机构交互、捕获、取消、退款和外部资金流水；一个 Trade 只创建一个 Payment，并按冻结分配向多个 Order 投影资金事实。
+- Payment 负责支付机构交互、捕获、取消、退款和外部资金流水；按 SettlementPlan 的分期建立支付对象，并按冻结分配向多个 Order 投影资金事实。
 - Fulfillment / WMS / ERP 按履约、实物库存和外部业务集成事实协作；ERP 接入不成为 Trade 的内部职责。
 - Accounting / Reconciliation 负责账务、结算、差异发现和审计修复；不得跨上下文直接改写 Trade、Order 或 Payment 聚合。
+
+## 可靠 Saga 基础验收（迭代 2H）
+
+1. Given Checkout 已受理，When Trade 后续创建 Order，Then Order 使用的买家、地址、商品展示、Offer、价格和金额全部来自 Trade 已持久化快照，过程中不得重新查询可变上游事实。
+2. Given 同一 `orderPlanId` 的创建请求重复到达，When `tradeId` 与计划摘要相同，Then 返回原 Order 且不重复发布创建事实；任一来源或摘要不同则明确冲突。
+3. Given 任一销售授权或库存预留失败，Then Trade 进入持久化失败/补偿状态，不创建任何后续 Order 或 SettlementPlan，并对已经取得的资源发出幂等释放命令。
+4. Given 多计划中部分 Order 已创建而后续计划业务失败，Then Trade 记录失败并撤销已创建 Order、释放全部库存与销售授权；基础设施异常由重试恢复，不能被记录成业务拒绝。
+5. Trade、Order 与 TradePayment 的来源键和业务幂等必须由数据库唯一约束兜底，并具有 PostgreSQL 往返或约束测试证据。
 
 ## 迭代 1：交易承诺编排迁移（已完成）
 
@@ -55,7 +74,14 @@ Order 用于记录每个已形成订单的可信成交事实和买家生命周�
 4. Trade handler 必须通过业务状态实现幂等，不能只依赖 Inbox message ID。
 5. 重复、乱序、重启或迟到结果不得越级推进状态或产生重复副作用。
 
-## 迭代 2：统一 Checkout、独立 Trade 身份、多商户订单计划与统一支付
+## 迭代 2：统一 Checkout、独立 Trade 身份、多商户订单计划与统一结算
+
+### TC-R5A B2B/B2C 统一交易主体与策略
+
+1. Trade 的购买方必须建模为 `BuyerParty`，至少区分 `INDIVIDUAL` 与 `ORGANIZATION`；认证操作人必须独立记录，不能把企业与代表企业操作的用户视为同一身份。
+2. 首期公开 Checkout 只受理 `INDIVIDUAL`，但 Trade 持久化、摘要和内部契约不得把个人用户写成不可扩展的不变量。
+3. Trade 差异必须通过 `CommitmentPolicySnapshot`、`SettlementTermsSnapshot` 与 `FulfillmentTermsSnapshot` 组合表达，不建立 `B2CTrade`/`B2BTrade` 继承树，也不得以巨型状态枚举承载渠道流程。
+4. 首期策略固定为 `NORMAL + PREPAID + FULL_PAYMENT`；后续 `DEPOSIT_BALANCE`、`OPEN_ACCOUNT` 等模式只扩展策略和对应上下文，不重写 Trade 身份、OrderPlan 或资源承诺关系。
 
 ### TC-R5 Trade 是唯一用户下单入口
 
@@ -85,7 +111,7 @@ Order 用于记录每个已形成订单的可信成交事实和买家生命周�
 6. Order 必须以 `orderPlanId` 或等价稳定业务键幂等处理创建命令；重复投递不得创建重复 Order。
 7. Order 创建成功或失败必须发布稳定结果事实，Trade 据此记录 `orderId`、重试或执行补偿。
 8. 不可恢复的 Order 创建失败不得遗留不可见的销售授权或库存承诺。
-9. 多商户首期采用全有或全无：只有所有订单计划均成功形成并被 Trade 接受后，才能发起唯一 Payment；任一 Order 未完成时不得产生可支付对象。
+9. 多商户首期采用全有或全无：只有所有订单计划均成功形成并被 Trade 接受后，才能建立唯一 SettlementPlan 并准备其首期 Payment；任一 Order 未完成时不得产生可支付对象。
 
 ### TC-R8 查询、取消与既有 Order 能力
 
@@ -102,15 +128,16 @@ Order 用于记录每个已形成订单的可信成交事实和买家生命周�
 3. Trade 必须持久化每项补偿的状态；只有必要补偿全部完成后才能进入最终 `CLOSED`。
 4. Trade 失败撤销 Order 必须使用独立、幂等的内部契约，不得复用买家主动取消语义或形成循环补偿。
 
-### TC-R10 Trade 唯一 Payment 与待支付对象
+### TC-R10 Trade 唯一 SettlementPlan 与待支付对象
 
-1. 一个 Trade 在完整生命周期内必须且只能创建一个 Payment；Payment 的业务唯一键和幂等键必须是 `tradeId`，不得按每个 `orderId` 分别创建。
-2. 创建 Payment 前，Trade 必须确认所有订单计划均已取得可信 `orderId`，且所有 Order 应付金额之和严格等于 Trade 应付金额。
-3. Payment 必须保存不可变的 Trade 总额、币种和按 `orderPlanId/orderId/merchantId` 冻结的金额分配；商户实际结算由后续 Accounting/Settlement 处理。
-4. Payment 本地记录建立只表示 `PAYMENT_PREPARING`；只有支付渠道明确受理并返回可安全使用的短期支付引用后，才能进入 `PAYMENT_READY` 并向用户暴露待支付对象。
-5. Checkout 首次受理可返回 `202 + tradeId + statusUrl`；Checkout 查询在 `PAYMENT_READY` 时返回 `paymentId`、状态、总额、币种、过期时间和受控支付动作，在此之前 `payment` 必须为空。
-6. 支付凭证、渠道密钥和不可撤销的永久链接不得通过 Checkout 公共响应或广播事件暴露。
-7. Payment 捕获事实必须以 `tradeId` 相关，并携带或引用稳定分配版本；Trade 据此向每个 Order 投影与冻结分配一致的实付事实。
+1. 一个 Trade 在完整生命周期内必须且只能创建一个 SettlementPlan；首期该计划包含一个 `FULL` PaymentInstallment，不能按每个 `orderId` 分别建立结算计划。
+2. 创建 SettlementPlan 前，Trade 必须确认所有订单计划均已取得可信 `orderId`，且所有 Order 应付金额之和严格等于 Trade 应付金额。
+3. SettlementPlan 必须保存不可变的 Trade 总额、币种、结算模式、履约放行规则和按 `orderPlanId/orderId/merchantId` 冻结的金额分配；Payment 只拥有实际资金动作，商户实际结算由后续 Accounting/Settlement 处理。
+4. 首期 PaymentInstallment 的业务唯一键为 `settlementPlanId + installmentId`；重复准备不得创建第二个 Payment。后续分期允许一个 Trade 产生多个 Payment，但每个分期仍只能有一个当前支付对象和多个可审计 PaymentAttempt。
+5. Payment 本地记录建立只表示 `PAYMENT_PREPARING`；只有支付渠道明确受理并返回可安全使用的短期支付引用后，才能进入 `PAYMENT_READY` 并向用户暴露待支付对象。
+6. Checkout 首次受理可返回 `202 + tradeId + statusUrl`；Checkout 查询在 `PAYMENT_READY` 时返回当前分期的 `paymentId`、状态、总额、币种、过期时间和受控支付动作，在此之前 `payment` 必须为空。
+7. 支付凭证、渠道密钥和不可撤销的永久链接不得通过 Checkout 公共响应或广播事件暴露。
+8. Payment 捕获事实必须以 `tradeId + installmentId` 相关，并携带或引用稳定分配版本；Trade 据此向每个 Order 投影与冻结分配一致的实付事实。
 
 ### TC-R11 Payment 失败、过期与关单竞争
 
@@ -140,7 +167,7 @@ Order 用于记录每个已形成订单的可信成交事实和买家生命周�
 
 ### 迭代 5：支付体验强化、关单运行治理与低延迟体验
 
-- 在迭代 2 已建立的 Trade 唯一 Payment 和两阶段关单语义上，接入生产渠道策略、主动查询调度和自动退款运营门禁。
+- 在迭代 2 已建立的 Trade 唯一 SettlementPlan 和两阶段关单语义上，接入生产渠道策略、主动查询调度和自动退款运营门禁。
 - 提供有限同步等待以及 `202 + tradeId + statusUrl` 慢路径。
 - Checkout 关键链路使用独立容量、可观测 Deadline 和经过压测验证的延迟目标。
 
@@ -170,6 +197,6 @@ Order 用于记录每个已形成订单的可信成交事实和买家生命周�
 
 - 不实现完整活动规则、优惠券、红包或动态运费/税费。
 - 不实现 Cart 聚合。
-- 不接入特定生产支付渠道；本迭代实现渠道受理/查询/撤销端口、Trade 唯一 Payment 语义和可替换测试适配器。
+- 不接入特定生产支付渠道；本迭代实现渠道受理/查询/撤销端口、Trade 唯一 SettlementPlan 与分期 Payment 语义和可替换测试适配器。
 - 不接入 ERP 产品或完整业务/支付渠道对账。
 - 不接入新的具体 Broker。

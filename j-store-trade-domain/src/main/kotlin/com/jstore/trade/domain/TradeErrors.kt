@@ -20,6 +20,16 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.errors.CommonBusinessError
 
 object TradeErrors {
+    val CHECKOUT_REQUEST_INVALID =
+        BusinessError("Checkout request is invalid", "Trade.CheckoutRequestInvalid", 400)
+    val CHECKOUT_OFFER_INVALID =
+        BusinessError(
+            "Checkout offer is missing, stale, or spans merchants",
+            "Trade.CheckoutOfferInvalid",
+            409,
+        )
+    val CHECKOUT_BUYER_INVALID =
+        BusinessError("Checkout buyer is unavailable", "Trade.CheckoutBuyerInvalid", 409)
     val ILLEGAL_STATE: BusinessError = CommonBusinessError.ILLEGAL_STATE
     val INVALID_AUTHORIZATION =
         BusinessError(
@@ -30,6 +40,8 @@ object TradeErrors {
     val INVALID_RESERVATION =
         BusinessError("Inventory reservation is invalid", "Trade.InvalidReservation", 409)
     val INVALID_REASON = BusinessError("Reason must not be blank", "Trade.InvalidReason", 400)
+    val ORDER_MISMATCH =
+        BusinessError("Order does not match trade plan", "Trade.OrderMismatch", 409)
     val NOT_FOUND = BusinessError("Trade process not found", "Trade.NotFound", 404)
     val START_CONFLICT =
         BusinessError("Trade start conflicts with persisted snapshot", "Trade.StartConflict", 409)

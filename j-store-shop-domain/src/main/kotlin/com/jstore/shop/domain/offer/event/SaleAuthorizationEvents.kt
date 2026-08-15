@@ -33,21 +33,23 @@ data class AuthorizedSaleLine(
 
 @DomainEventType(name = "store.sale-authorized", version = 1)
 data class SaleAuthorizedEvent(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val items: List<AuthorizedSaleLine>,
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
     override val eventName = "store.sale-authorized"
     override val eventVersion = 1
-    override val aggregateType = "OrderSaleAuthorization"
-    override val aggregateId = orderId.toString()
+    override val aggregateType = "TradeSaleAuthorization"
+    override val aggregateId = orderPlanId.toString()
 }
 
 @DomainEventType(name = "store.sale-authorization-released", version = 1)
 data class SaleAuthorizationReleasedEvent(
     val authorizationId: SaleAuthorizationId,
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     override val occurredAt: Instant,
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
@@ -59,13 +61,14 @@ data class SaleAuthorizationReleasedEvent(
 
 @DomainEventType(name = "store.sale-authorization-rejected", version = 1)
 data class SaleAuthorizationRejectedEvent(
-    val orderId: Long,
+    val tradeId: Long,
+    val orderPlanId: Long,
     val reason: String,
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
     override val eventName = "store.sale-authorization-rejected"
     override val eventVersion = 1
-    override val aggregateType = "OrderSaleAuthorization"
-    override val aggregateId = orderId.toString()
+    override val aggregateType = "TradeSaleAuthorization"
+    override val aggregateId = orderPlanId.toString()
 }

@@ -28,5 +28,5 @@ fun interface SalesOfferGuard {
 
 interface SaleAuthorizationRepository :
     AggregateRepository<SaleAuthorizationId, SaleAuthorization> {
-    fun findByOrderId(orderId: Long): List<SaleAuthorization>
+    fun findByOrderPlanId(orderPlanId: Long): List<SaleAuthorization>
 }
