@@ -155,6 +155,17 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
         with self.assertRaisesRegex(PhaseBridgeError, "already consumed"):
             self.bridge.complete_validation(self.snapshot, current_gate)
 
+    def test_gate_receipt_from_another_issue_cannot_advance(self) -> None:
+        self.bridge.complete_implementation(
+            self.snapshot,
+            receipt("implementer", "session-implementer"),
+        )
+        wrong_issue = gate("gate-wrong-issue", "PASS")
+        object.__setattr__(wrong_issue, "issue_identifier", "GH-999")
+
+        with self.assertRaisesRegex(PhaseBridgeError, "task issue"):
+            self.bridge.complete_validation(self.snapshot, wrong_issue)
+
     def test_review_pass_is_bound_to_distinct_receipt_and_exact_head(self) -> None:
         self.bridge.complete_implementation(
             self.snapshot,

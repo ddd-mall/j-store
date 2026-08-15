@@ -287,11 +287,9 @@ class PhaseContextStore(_TaskStateAccess):
         if phase == PHASE_REVIEW:
             if not snapshot.implementer_session_id:
                 raise RuntimeError("review phase has no trusted implementer receipt")
-            if snapshot.candidate_revision is None or snapshot.gate_receipt is None:
-                raise RuntimeError("review phase has no exact candidate gate evidence")
+            revision = self._validated_review_evidence(snapshot)
             if self.artifact_root is None:
                 raise RuntimeError("review phase requires candidate artifact storage")
-            revision = CandidateRevision.from_json(snapshot.candidate_revision)
             if snapshot.review_workspace is None:
                 review_root = self.artifact_root / "reviews"
                 review_root.mkdir(parents=True, exist_ok=True)
@@ -344,6 +342,31 @@ class PhaseContextStore(_TaskStateAccess):
         raise RuntimeError(f"unsupported iteration phase: {phase}")
 
     @staticmethod
+    def _validated_review_evidence(snapshot: TaskSnapshot) -> CandidateRevision:
+        if (
+            snapshot.candidate_revision is None
+            or snapshot.gate_request is None
+            or snapshot.gate_receipt is None
+        ):
+            raise RuntimeError("review phase has no exact candidate gate evidence")
+        revision = CandidateRevision.from_json(snapshot.candidate_revision)
+        request = GateRequest.from_json(snapshot.gate_request)
+        receipt = GateReceipt.from_json(snapshot.gate_receipt)
+        if receipt.verdict != "PASS":
+            raise RuntimeError("review phase requires a passing gate receipt")
+        if (
+            request.issue_identifier != snapshot.issue_identifier
+            or receipt.issue_identifier != snapshot.issue_identifier
+            or request.candidate_revision != revision
+            or receipt.candidate_revision != revision
+            or receipt.gate_id != request.gate_id
+            or receipt.runner_image != request.runner_image
+            or receipt.command_policy_sha256 != request.command_policy_sha256
+        ):
+            raise RuntimeError("review phase gate evidence does not match task identity")
+        return revision
+
+    @staticmethod
     def _make_read_only(root: Path) -> None:
         for path in sorted(root.rglob("*"), reverse=True):
             if path.is_symlink():
@@ -356,9 +379,16 @@ class PhaseContextStore(_TaskStateAccess):
 class TurnStateController(_TaskStateAccess):
     """Binds a trusted Symphony receipt to the current phase without running code."""
 
-    def __init__(self, state_root: Path, *, workspace_write_enabled: bool):
+    def __init__(
+        self,
+        state_root: Path,
+        *,
+        workspace_write_enabled: bool,
+        artifact_root: Path | None = None,
+    ):
         super().__init__(state_root)
         self.workspace_write_enabled = workspace_write_enabled
+        self.artifact_root = artifact_root.resolve() if artifact_root else None
 
     def complete_turn(
         self,
@@ -400,6 +430,21 @@ class TurnStateController(_TaskStateAccess):
         elif role == "observer":
             bridge.complete_observation(snapshot, receipt)
         else:
+            if self.artifact_root is None:
+                raise RuntimeError("review completion requires candidate artifact storage")
+            revision = PhaseContextStore._validated_review_evidence(snapshot)
+            if snapshot.review_workspace is None:
+                raise RuntimeError("review completion has no materialized candidate")
+            review_workspace = Path(snapshot.review_workspace)
+            if (
+                review_workspace.is_symlink()
+                or not review_workspace.is_dir()
+                or review_workspace.parent != self.artifact_root / "reviews"
+            ):
+                raise RuntimeError("review workspace is missing or unsafe")
+            CandidateSnapshotter(
+                workspace.resolve(), self.artifact_root
+            ).verify_materialized(revision, review_workspace)
             proposal_path = (
                 self.state_root / "proposals" / f"{issue_identifier}.json"
             )

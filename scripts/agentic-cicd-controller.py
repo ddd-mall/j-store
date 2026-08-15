@@ -85,6 +85,9 @@ def parse_arguments() -> argparse.Namespace:
     )
     complete.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
     complete.add_argument(
+        "--artifact-root", default=os.environ.get("JSTORE_CANDIDATE_ARTIFACT_ROOT")
+    )
+    complete.add_argument(
         "--session-id", default=os.environ.get("JSTORE_TURN_SESSION_ID")
     )
     complete.add_argument(
@@ -178,6 +181,9 @@ def main() -> int:
         TurnStateController(
             Path(arguments.state_root),
             workspace_write_enabled=workspace_write_enabled(arguments.contract),
+            artifact_root=(
+                Path(arguments.artifact_root) if arguments.artifact_root else None
+            ),
         ).complete_turn(
             arguments.issue,
             Path(arguments.workspace),

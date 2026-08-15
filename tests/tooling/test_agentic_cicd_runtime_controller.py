@@ -341,6 +341,90 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             ).load("GH-123", self.workspace)
             self.assertFalse(context.run_model)
 
+    def test_review_context_rejects_cross_issue_or_nonpassing_gate_evidence(self) -> None:
+        self.snapshot.iteration_phase = "validate"
+        self.snapshot.implementer_session_id = "implementer-session"
+        SnapshotStore(self.snapshot_path).save(self.snapshot)
+        artifact_root = self.root / "artifacts"
+        candidate = CandidateRevisionStore(
+            self.root / "state", artifact_root=artifact_root, freeze_enabled=True
+        ).freeze("GH-123", self.workspace)
+        request = gate_request(candidate.to_json())
+        trusted_request_store(self.root / "state").record("GH-123", request)
+        trusted_receipt_store(self.root / "state").record(
+            "GH-123", gate_receipt(request)
+        )
+
+        snapshot = SnapshotStore(self.snapshot_path).load()
+        snapshot.gate_receipt = dict(snapshot.gate_receipt or {})
+        snapshot.gate_receipt["issue_identifier"] = "GH-999"
+        SnapshotStore(self.snapshot_path).save(snapshot)
+        with self.assertRaisesRegex(RuntimeError, "task identity"):
+            PhaseContextStore(
+                self.root / "state",
+                workspace_write_enabled=True,
+                artifact_root=artifact_root,
+            ).load("GH-123", self.workspace)
+
+        snapshot.gate_receipt["issue_identifier"] = "GH-123"
+        snapshot.gate_receipt["verdict"] = "INFRASTRUCTURE_FAILURE"
+        snapshot.gate_receipt["exit_code"] = None
+        SnapshotStore(self.snapshot_path).save(snapshot)
+        with self.assertRaisesRegex(RuntimeError, "passing gate"):
+            PhaseContextStore(
+                self.root / "state",
+                workspace_write_enabled=True,
+                artifact_root=artifact_root,
+            ).load("GH-123", self.workspace)
+
+    def test_review_completion_rechecks_exact_materialized_candidate(self) -> None:
+        self.snapshot.iteration_phase = "validate"
+        self.snapshot.implementer_session_id = "implementer-session"
+        SnapshotStore(self.snapshot_path).save(self.snapshot)
+        artifact_root = self.root / "artifacts"
+        candidate = CandidateRevisionStore(
+            self.root / "state", artifact_root=artifact_root, freeze_enabled=True
+        ).freeze("GH-123", self.workspace)
+        request = gate_request(candidate.to_json())
+        trusted_request_store(self.root / "state").record("GH-123", request)
+        trusted_receipt_store(self.root / "state").record(
+            "GH-123", gate_receipt(request)
+        )
+        context = PhaseContextStore(
+            self.root / "state",
+            workspace_write_enabled=True,
+            artifact_root=artifact_root,
+        ).load("GH-123", self.workspace)
+        ReviewProposalStore(self.root / "state").submit(
+            "GH-123",
+            {
+                "verdict": "PASS",
+                "head_sha": self.head,
+                "candidate_revision": candidate.candidate_revision,
+                "reviewer_role": "spec-evaluator",
+                "findings": [],
+            },
+        )
+        materialized = Path(context.model_workspace) / "candidate.txt"
+        materialized.chmod(0o644)
+        materialized.write_text("tampered\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(Exception, "materialized candidate"):
+            TurnStateController(
+                self.root / "state",
+                workspace_write_enabled=True,
+                artifact_root=artifact_root,
+            ).complete_turn(
+                "GH-123",
+                self.workspace,
+                session_id="reviewer-session",
+                thread_id="reviewer-thread",
+                turn_id="reviewer-turn",
+            )
+        self.assertEqual(
+            "review", SnapshotStore(self.snapshot_path).load().iteration_phase
+        )
+
     def test_turn_completion_and_gate_receipt_advance_without_executing_workspace_code(self) -> None:
         controller = TurnStateController(
             self.root / "state", workspace_write_enabled=True

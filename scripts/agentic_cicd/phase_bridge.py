@@ -104,6 +104,8 @@ class SymphonyPhaseBridge:
         receipt: GateReceipt,
     ) -> None:
         self._require_phase(snapshot, PHASE_VALIDATE)
+        if receipt.issue_identifier != snapshot.issue_identifier:
+            raise PhaseBridgeError("gate receipt does not match task issue")
         if snapshot.candidate_revision is None:
             raise PhaseBridgeError("gate receipt has no frozen candidate")
         if receipt.candidate_revision.to_json() != snapshot.candidate_revision:

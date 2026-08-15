@@ -70,3 +70,9 @@
 validate恢复演练再次调度同一 CandidateRevision，并在主 Gate容器运行期间替换 Dispatcher Pod。替换前后集群始终只有一个 Job UID `b3458e86-e7dc-44b0-a025-109a633a8138` 和一个 Pod UID `97791ba7-8f11-4b93-857d-cd181123e835`；新 Dispatcher按完整 GateJobIdentity恢复而未重新创建。原 Job完成后产生 `PASS` / exit 0 / findings空的 exact-candidate receipt，log SHA-256为 `bcf098cc822e3abf11c25b30e484e4d3fe4b76adcc314ffc748a900f93971bf5`，随后以前台删除和 cleanup marker收口。该证据只关闭 validate恢复点，不替代恶意候选、implement/review恢复或真实 Reviewer验收。
 
 恶意候选验收在一次性 Git fixture中修改候选 `gradlew`，受信 Gate入口和治理测试仍来自 runner镜像。首个 CandidateRevision `24f0ff6ffdeab82c65629c9e3370742c1fba033c92eb55e7bf261c815b352250` 实际证明 Kubernetes token不存在，API、j-store、Redis和PostgreSQL不可达；第二个新 CandidateRevision `ee392b53998edc285d5937e0b556768e17493f3404a4a564885b1d5aedacff17` 进一步证明 GitHub/Artifact凭据、Symphony state、gate exchange和candidate artifact路径全部不可见，同样无法联系四个禁止端点。两个候选均按预期退出 1，分别产生绑定各自 CandidateRevision的 `gate:validation-command-failed` 单finding FAIL receipt；第二个 Job/Pod UID为 `2c9ffb3a-10b8-4d36-a3af-4c5a3b841f68` / `d075be46-b048-4338-8027-cc2cae986c1d`，log SHA-256为 `6b671d26cfdf8c084eaf48f03c43fec0c283590bf16c862f28f2f27d7ef0a609`。Dispatcher写回执后以前台清理两个 Job，控制面三个 Pod仍 Ready且零重启。可重放 fixture、完整回执、cleanup marker和脱敏终态保存在 `evidence/2026-08-16-malicious-gate-smoke.md`。
+
+## 2026-08-16 Reviewer exact-candidate 无模型验收
+
+首版验收手工构造review snapshot并跨Issue复用Gate receipt，且只证明直接写入被权限位拒绝；独立合同和安全复评均判定FAIL。修复后，`PhaseContextStore`在启动Reviewer前重新解析并校验PASS request/receipt的Issue、gate ID、runner、命令策略和完整CandidateRevision；`TurnStateController`在接受review turn前再次逐文件验证物化archive，因而即使同UID先chmod再篡改也不能生成PASS decision。
+
+候选controller代码已在Symphony Pod的临时路径中完成无模型复验：正式`GateReceiptStore`以同Issue输入执行validate→review；直接写和完成前篡改分别被权限位与exact-archive复验拒绝；同session仍被拒绝，独立session最终绑定同一revision。该验收未启动Codex/App Server或模型，未写正式Supervisor task state，未创建Gate Job或远程Git/GitHub状态。可重放脚本、精确request/receipt和脱敏输出保存在`evidence/2026-08-16-lc14-reviewer-smoke.md`。由于新代码尚未进入部署镜像，LC-14保持未完成；真实模型Reviewer与review阶段重启仍分别保留给LC-21和LC-22。
