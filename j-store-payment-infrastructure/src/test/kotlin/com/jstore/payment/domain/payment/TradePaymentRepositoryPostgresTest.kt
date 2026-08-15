@@ -21,6 +21,7 @@ import com.jstore.payment.domain.payment.persistence.TradePaymentPOJpaRepository
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import jakarta.persistence.EntityManager
 import jakarta.persistence.EntityManagerFactory
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -31,10 +32,75 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter
 
 class TradePaymentRepositoryPostgresTest {
     @Test
+    fun `preparation cancellation barrier survives PostgreSQL round trip`() = database { factory ->
+        transaction(factory) { entityManager ->
+            val repository = repository(entityManager)
+            val payment =
+                TradePayment.prepare(
+                    TradePaymentId(8101),
+                    9002,
+                    9902,
+                    "FULL",
+                    Price.ofFen(1000),
+                    "CNY",
+                    listOf(PaymentAllocationSnapshot(9201, 7101, 9, Price.ofFen(1000))),
+                )
+            payment.requestCancellation("buyer cancelled")
+            repository.save(payment)
+            entityManager.flush()
+            entityManager.clear()
+
+            val restored = assertNotNull(repository.findByInstallment(9902, "FULL"))
+            assertEquals(TradePaymentStatus.PREPARATION_CANCELLING, restored.status)
+            assertEquals("buyer cancelled", restored.cancellationReason)
+            assertEquals(null, restored.providerReference)
+        }
+    }
+
+    @Test
+    fun `compensation identity and cancellation reason survive PostgreSQL round trip`() =
+        database { factory ->
+            transaction(factory) { entityManager ->
+                val repository = repository(entityManager)
+                val payment =
+                    TradePayment.prepare(
+                        TradePaymentId(8102),
+                        9003,
+                        9903,
+                        "FULL",
+                        Price.ofFen(1000),
+                        "CNY",
+                        listOf(PaymentAllocationSnapshot(9202, 7102, 9, Price.ofFen(1000))),
+                    )
+                payment.requestCancellation("buyer cancelled")
+                val oversizedReference =
+                    "provider-" + "r".repeat(TradePayment.MAX_PROVIDER_REFERENCE_LENGTH)
+                payment.recordLateProviderAcceptance(
+                    oversizedReference,
+                    "a".repeat(TradePayment.MAX_PAY_ACTION_LENGTH + 1),
+                    Instant.parse("2029-01-01T00:00:00Z"),
+                    Instant.parse("2029-01-01T00:10:00Z"),
+                    Instant.parse("2029-01-01T00:30:00Z"),
+                )
+                repository.save(payment)
+                entityManager.flush()
+                entityManager.clear()
+
+                val restored = assertNotNull(repository.findByInstallment(9903, "FULL"))
+                assertEquals(TradePaymentStatus.CANCELLING, restored.status)
+                assertEquals(oversizedReference, restored.providerReference)
+                assertEquals(null, restored.payAction)
+                assertEquals("buyer cancelled", restored.cancellationReason)
+            }
+        }
+
+    @Test
     fun `trade payment allocation survives PostgreSQL round trip`() = database { factory ->
         transaction(factory) { entityManager ->
             val repository = repository(entityManager)
-            repository.save(
+            val providerReference = "r".repeat(TradePayment.MAX_PROVIDER_REFERENCE_LENGTH)
+            val payAction = "a".repeat(TradePayment.MAX_PAY_ACTION_LENGTH)
+            val payment =
                 TradePayment.prepare(
                     TradePaymentId(8001),
                     9001,
@@ -47,7 +113,15 @@ class TradePaymentRepositoryPostgresTest {
                         PaymentAllocationSnapshot(9102, 7002, 8, Price.ofFen(2000)),
                     ),
                 )
+            val acceptedAt = Instant.parse("2029-01-01T00:00:00Z")
+            payment.markReady(
+                providerReference,
+                payAction,
+                acceptedAt,
+                acceptedAt.plusSeconds(600),
+                acceptedAt.plusSeconds(900),
             )
+            repository.save(payment)
             entityManager.flush()
             entityManager.clear()
 
@@ -55,6 +129,9 @@ class TradePaymentRepositoryPostgresTest {
             assertEquals(9001, restored.tradeId)
             assertEquals(3000, restored.payableAmount.fen)
             assertEquals(listOf(1000L, 2000L), restored.allocations.map { it.amount.fen })
+            assertEquals(TradePaymentStatus.READY, restored.status)
+            assertEquals(providerReference, restored.providerReference)
+            assertEquals(payAction, restored.payAction)
         }
 
         assertFails {

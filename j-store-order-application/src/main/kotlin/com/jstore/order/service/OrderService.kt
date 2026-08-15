@@ -91,11 +91,16 @@ class OrderService(
         }
     }
 
-    override fun cancelOrder(orderPlanId: Long, reason: String): Result<Unit, BusinessError> {
+    override fun cancelOrder(
+        tradeId: Long,
+        orderPlanId: Long,
+        reason: String,
+    ): Result<Unit, BusinessError> {
         if (reason.isBlank()) return Failure(OrderErrors.CANCEL_REASON_INVALID)
         val order =
             orderRepository.findBySourceOrderPlanId(orderPlanId)
                 ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+        if (order.sourceTradeId != tradeId) return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
         if (order.tradeStatus == com.jstore.order.domain.order.TradeStatus.CLOSED) {
             return Success(Unit)
         }

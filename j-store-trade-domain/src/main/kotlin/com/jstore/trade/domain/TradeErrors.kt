@@ -30,6 +30,12 @@ object TradeErrors {
         )
     val CHECKOUT_BUYER_INVALID =
         BusinessError("Checkout buyer is unavailable", "Trade.CheckoutBuyerInvalid", 409)
+    val PAYMENT_UNAVAILABLE =
+        BusinessError(
+            "Prepared payment is temporarily unavailable",
+            "Trade.PaymentUnavailable",
+            503,
+        )
     val ILLEGAL_STATE: BusinessError = CommonBusinessError.ILLEGAL_STATE
     val INVALID_AUTHORIZATION =
         BusinessError(
@@ -39,6 +45,12 @@ object TradeErrors {
         )
     val INVALID_RESERVATION =
         BusinessError("Inventory reservation is invalid", "Trade.InvalidReservation", 409)
+    val RESERVATION_WINDOW_INSUFFICIENT =
+        BusinessError(
+            "Inventory reservation cannot cover the payment window and safety margin",
+            "Trade.ReservationWindowInsufficient",
+            409,
+        )
     val INVALID_REASON = BusinessError("Reason must not be blank", "Trade.InvalidReason", 400)
     val ORDER_MISMATCH =
         BusinessError("Order does not match trade plan", "Trade.OrderMismatch", 409)

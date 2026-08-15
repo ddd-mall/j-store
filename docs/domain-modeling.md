@@ -127,21 +127,26 @@ Inventory 只有成功创建 `StockReservation` 后才作出库存承诺。页�
 
 Trade 是面向认证买家的统一下单边界，公开创建入口为 `POST /api/checkouts`；`POST /api/orders` 已删除。直接购买输入不接受买家或顶层商户身份，买家来自认证上下文，商户由 Offer 快照派生。Trade 保存下单时不可变的商品、Offer、价格、数量、商户和履约节点快照，并负责协调 `SaleAuthorization` 与 `StockReservation`。
 
-当前实现已建立独立 `tradeId`、买家范围 Checkout 幂等、一个或多个 `TradeOrderPlan`，并以 `tradeId + orderPlanId` 协调销售授权和库存预留。全部计划预留成功后才通过内部端口创建 Order；全部 Order 形成且金额守恒后，Trade 建立唯一 `SettlementPlan`，首期 `PREPAID + FULL` 分期由 Payment 创建一个 `TradePayment`。`orderId` 仅在 Order 形成后回写计划，不再是 Trade 身份或 Checkout 相关键。
+当前实现已建立独立 `tradeId`、买家范围 Checkout 幂等、一个或多个 `TradeOrderPlan`，并以 `tradeId + orderPlanId` 协调销售授权、库存预留和 Order 创建。全部计划预留成功后，Trade 发布版本化 Order 创建命令并等待每个计划的成功或拒绝事实；全部 Order 形成且金额守恒后，Trade 才建立唯一 `SettlementPlan`，并通过消息命令要求 Payment 为首期 `PREPAID + FULL` 分期准备一个 `TradePayment`。Payment 以稳定渠道幂等键区分明确受理、明确拒绝和结果未知，Trade 按 `installmentId` 保存 Payment 引用与准备阶段，不保存渠道引用或支付动作。`orderId` 仅在 Order 形成后回写计划，不再是 Trade 身份或 Checkout 相关键。
 
 Trade 主链状态协议为：
 
 ```text
-AUTHORIZING -> RESERVING -> CREATING_ORDERS -> SETTLEMENT_PREPARING
-      |              |                 |                    |
-      +--------------+-----------------+------------------> FAILED
+AUTHORIZING -> RESERVING -> CREATING_ORDERS -> SETTLEMENT_PREPARING -> PAYMENT_READY
+      |              |                 |                    |               |
+      +--------------+-----------------+--------------------+-------------> FAILED
+                                                          |
+                                                          +--> PAYMENT_UNCERTAIN
+                                                          |
+                          买家取消且资金尚未裁决 ----------+--> CLOSING
 ```
 
 1. Checkout 先持久化 Trade 与计划，再逐计划请求销售授权。
 2. 授权成功后，Trade 保存授权并携带授权请求库存预留。
-3. 所有计划库存预留成功后，Trade 才通过内部端口创建 Order。
-4. 所有 Order 创建成功且金额守恒后，Trade 建立唯一 SettlementPlan；Payment 按分期幂等创建支付对象。
-5. 失败补偿、取消、支付结果回投及显式履约放行仍按 `docs/spec/trade-checkout-boundary/tasks.md` 的后续切片推进，在完成前不得声称主链已达到生产就绪。
+3. 所有计划库存预留成功后，Trade 才发布 Order 创建命令；Order 独立落库并以成功或拒绝事实驱动 Trade Saga，不允许 Trade 直接调用 Order 写用例。
+4. 所有 Order 创建成功且金额守恒后，Trade 建立唯一 SettlementPlan；仅当库存承诺覆盖支付动作窗口及安全余量时才继续，否则失败并补偿。Payment 先提交稳定的 `PREPARING/paymentId`，再脱离数据库事务调用渠道，最后以独立事务记录结果，并以 `Prepared/Rejected/Uncertain` 事实回投。
+5. Checkout 仅在 `PAYMENT_READY` 时通过 Payment 的只读 ACL 返回未过期支付动作；动作过期只隐藏 `payment`，不影响 Trade 状态查询。`PAYMENT_UNCERTAIN` 或支付阶段取消竞争进入 `CLOSING`；若准备调用仍在途，Payment 先持久化 `PREPARATION_CANCELLING` 并等待该次渠道结果，明确受理后保存渠道引用再进入 `CANCELLING`。渠道结果未知时保持取消处理中并按稳定幂等键重试；只有与当前支付事实匹配的明确撤销确认才能驱动 Trade 关闭 Order、释放库存与销售授权。
+6. 渠道主动查询、支付捕获、迟到支付退款及显式履约放行仍按 `docs/spec/trade-checkout-boundary/tasks.md` 的后续切片推进；在统一捕获契约落地前，不向 Trade 发布缺少 `tradeId + installmentId` 的临时 Order 支付事实，也不得声称主链已达到生产就绪。
 
 该协议通过 Trade 状态持久化、Outbox、幂等 handler 和补偿收敛，不依赖跨服务事务。未来购物车只提供结算输入；活动、优惠券与价格上下文向 Trade 提供带版本和分摊明细的 `PricingQuote`；对账消费 Trade、Payment、Order 的稳定业务键和金额事实，不反向修改聚合内部状态。
 

@@ -49,6 +49,16 @@ CREATE TABLE trade_payment_installments (
     UNIQUE (trade_id, installment_id)
 );
 
+CREATE TABLE trade_installment_payment_refs (
+    trade_id BIGINT NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
+    installment_id VARCHAR(128) NOT NULL,
+    payment_id BIGINT NOT NULL UNIQUE,
+    PRIMARY KEY (trade_id, installment_id),
+    FOREIGN KEY (trade_id, installment_id)
+        REFERENCES trade_payment_installments(trade_id, installment_id)
+        ON DELETE CASCADE
+);
+
 CREATE TABLE trade_order_plans (
     order_plan_id BIGINT PRIMARY KEY,
     trade_id BIGINT NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
@@ -110,10 +120,21 @@ CREATE TABLE trade_payments (
     payable_amount_fen BIGINT NOT NULL CHECK (payable_amount_fen > 0),
     currency VARCHAR(3) NOT NULL,
     status VARCHAR(32) NOT NULL,
+    provider_reference TEXT,
+    pay_action VARCHAR(2048),
+    provider_accepted_at TIMESTAMPTZ,
+    accept_before TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ,
+    failure_reason VARCHAR(1024),
+    cancellation_reason VARCHAR(1024),
     created_at TIMESTAMPTZ NOT NULL,
     persistence_version BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uk_trade_payment_installment UNIQUE (settlement_plan_id, installment_id)
 );
+
+ALTER TABLE trade_installment_payment_refs
+    ADD CONSTRAINT fk_trade_installment_payment
+        FOREIGN KEY (payment_id) REFERENCES trade_payments(id);
 
 CREATE TABLE trade_payment_allocations (
     payment_id BIGINT NOT NULL REFERENCES trade_payments(id) ON DELETE CASCADE,

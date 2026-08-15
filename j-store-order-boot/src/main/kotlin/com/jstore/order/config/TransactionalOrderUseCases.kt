@@ -115,8 +115,8 @@ class TransactionalInternalOrderCreationUseCase(
     override fun createOrder(cmd: CreateOrderFromTradeCommand) =
         requireNotNull(write.execute { delegate.createOrder(cmd) })
 
-    override fun cancelOrder(orderPlanId: Long, reason: String) =
-        requireNotNull(write.execute { delegate.cancelOrder(orderPlanId, reason) })
+    override fun cancelOrder(tradeId: Long, orderPlanId: Long, reason: String) =
+        requireNotNull(write.execute { delegate.cancelOrder(tradeId, orderPlanId, reason) })
 }
 
 /** Spring transaction boundary for after-sale commands and consistent reads. */

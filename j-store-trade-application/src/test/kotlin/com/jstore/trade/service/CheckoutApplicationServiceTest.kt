@@ -24,12 +24,124 @@ import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.trade.domain.*
+import java.time.Instant
 import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class CheckoutApplicationServiceTest {
+    @Test
+    fun `checkout does not query or expose payment before payment is ready`() {
+        val repository = FakeTradeRepository()
+        val ids = ArrayDeque(listOf(9101L, 9102L, 9001L))
+        val service =
+            CheckoutApplicationService(
+                { Success(prepared(it)) },
+                repository,
+                { ids.removeFirst() },
+                { _, _ -> },
+                { error("payment must not be queried before PAYMENT_READY") },
+            )
+        service.checkout(checkoutCommand())
+
+        val view = assertIs<Success<CheckoutView>>(service.find(42, 9001)).value
+
+        assertNull(view.payment)
+    }
+
+    @Test
+    fun `checkout exposes payment action only after trade records ready payment`() {
+        val repository = FakeTradeRepository()
+        val ids = ArrayDeque(listOf(9101L, 9102L, 9001L))
+        val expiresAt = Instant.parse("2030-01-01T00:00:00Z")
+        val service =
+            CheckoutApplicationService(
+                { Success(prepared(it)) },
+                repository,
+                { ids.removeFirst() },
+                { _, _ -> },
+                {
+                    CheckoutPaymentView(
+                        it,
+                        "READY",
+                        3000,
+                        "CNY",
+                        "opaque-payment-action",
+                        expiresAt,
+                    )
+                },
+            )
+        service.checkout(checkoutCommand())
+        val trade = requireNotNull(repository.findById(TradeId(9001)))
+        trade.orderPlans.forEachIndexed { index, plan ->
+            trade.recordSaleAuthorized(
+                plan.id,
+                listOf(TradeAuthorization("A-$index", plan.items.single().offerId, expiresAt)),
+            )
+            trade.recordInventoryReserved(plan.id, listOf("R-$index"), expiresAt)
+        }
+        trade.startOrderCreation()
+        trade.orderPlans.forEachIndexed { index, plan ->
+            trade.recordOrderCreated(plan.id, 7001L + index)
+        }
+        trade.prepareSettlement(SettlementPlanId(9901))
+        trade.recordPaymentPrepared(
+            SettlementPlanId(9901),
+            "FULL",
+            8001,
+            Price.ofFen(3000),
+            "CNY",
+        )
+
+        val view = assertIs<Success<CheckoutView>>(service.find(42, 9001)).value
+
+        assertEquals(8001, view.payment?.paymentId)
+        assertEquals("opaque-payment-action", view.payment?.payAction)
+    }
+
+    @Test
+    fun `expired payment action does not make checkout status unavailable`() {
+        val repository = FakeTradeRepository()
+        val ids = ArrayDeque(listOf(9101L, 9102L, 9001L))
+        val expiresAt = Instant.parse("2030-01-01T00:00:00Z")
+        val service =
+            CheckoutApplicationService(
+                { Success(prepared(it)) },
+                repository,
+                { ids.removeFirst() },
+                { _, _ -> },
+                { null },
+            )
+        service.checkout(checkoutCommand())
+        val trade = requireNotNull(repository.findById(TradeId(9001)))
+        trade.orderPlans.forEachIndexed { index, plan ->
+            trade.recordSaleAuthorized(
+                plan.id,
+                listOf(TradeAuthorization("A-$index", plan.items.single().offerId, expiresAt)),
+            )
+            trade.recordInventoryReserved(plan.id, listOf("R-$index"), expiresAt)
+        }
+        trade.startOrderCreation()
+        trade.orderPlans.forEachIndexed { index, plan ->
+            trade.recordOrderCreated(plan.id, 7001L + index)
+        }
+        trade.prepareSettlement(SettlementPlanId(9901))
+        trade.recordPaymentPrepared(
+            SettlementPlanId(9901),
+            "FULL",
+            8001,
+            Price.ofFen(3000),
+            "CNY",
+        )
+
+        val view = assertIs<Success<CheckoutView>>(service.find(42, 9001)).value
+
+        assertEquals(TradeStatus.PAYMENT_READY.name, view.status)
+        assertNull(view.payment)
+    }
+
     @Test
     fun `checkout creates an independent trade and plans before orders exist`() {
         val repository = FakeTradeRepository()
@@ -87,6 +199,38 @@ class CheckoutApplicationServiceTest {
     }
 
     @Test
+    fun `delimiter characters cannot make different checkout requests share a digest`() {
+        val repository = FakeTradeRepository()
+        val ids = ArrayDeque(listOf(9101L, 9102L, 9001L))
+        val service =
+            CheckoutApplicationService(
+                { Success(prepared(it)) },
+                repository,
+                { ids.removeFirst() },
+                { _, _ -> },
+            )
+        val first =
+            checkoutCommand()
+                .copy(
+                    recipient =
+                        checkoutCommand().recipient.copy(name = "Alice|CN", countryCode = "US")
+                )
+        val collidingUnderDelimiterConcatenation =
+            first.copy(recipient = first.recipient.copy(name = "Alice", countryCode = "CN|US"))
+
+        assertIs<Success<CheckoutAccepted>>(service.checkout(first))
+        val conflict = service.checkout(collidingUnderDelimiterConcatenation)
+
+        assertEquals(
+            "Trade.StartConflict",
+            assertIs<Failure<*>>(conflict)
+                .error
+                .let { it as com.jstore.common.errors.BusinessError }
+                .errorCode,
+        )
+    }
+
+    @Test
     fun `checkout request id is mandatory`() {
         val result =
             CheckoutApplicationService(
@@ -104,6 +248,44 @@ class CheckoutApplicationServiceTest {
                 .let { it as com.jstore.common.errors.BusinessError }
                 .errorCode,
         )
+    }
+
+    @Test
+    fun `oversized public checkout fields are rejected before preparation`() {
+        var preparationCalled = false
+        val service =
+            CheckoutApplicationService(
+                {
+                    preparationCalled = true
+                    Success(prepared(it))
+                },
+                FakeTradeRepository(),
+                { 1 },
+                { _, _ -> },
+            )
+        val command = checkoutCommand()
+        val invalidCommands =
+            listOf(
+                command.copy(checkoutRequestId = "x".repeat(129)),
+                command.copy(recipient = command.recipient.copy(name = "x".repeat(257))),
+                command.copy(recipient = command.recipient.copy(detailAddress = "x".repeat(1025))),
+                command.copy(
+                    recipient =
+                        command.recipient.copy(customsFields = mapOf("x".repeat(129) to "v"))
+                ),
+            )
+
+        invalidCommands.forEach { invalid ->
+            val result = service.checkout(invalid)
+            assertEquals(
+                "Trade.CheckoutRequestInvalid",
+                assertIs<Failure<*>>(result)
+                    .error
+                    .let { it as com.jstore.common.errors.BusinessError }
+                    .errorCode,
+            )
+        }
+        assertEquals(false, preparationCalled)
     }
 
     @Test

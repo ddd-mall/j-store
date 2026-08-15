@@ -23,6 +23,8 @@ object PaymentErrors {
     val ORDER_CONFLICT = BusinessError("订单支付快照冲突", "Payment.Order.Conflict", 409)
     val NOT_FOUND = BusinessError("支付单不存在", "Payment.NotFound", 404)
     val INVALID_STATE = BusinessError("支付单状态不允许当前操作", "Payment.State.Invalid", 409)
+    val CANCELLATION_UNCERTAIN =
+        BusinessError("支付渠道撤销结果未知，需要重试", "Payment.Cancellation.Uncertain", 503)
     val CAPTURE_INVALID = BusinessError("支付捕获信息无效", "Payment.Capture.Invalid", 409)
     val CAPTURE_CONFLICT = BusinessError("支付单已存在其他捕获流水", "Payment.Capture.Conflict", 409)
     val REFUND_INVALID = BusinessError("退款信息无效", "Payment.Refund.Invalid", 409)

@@ -70,6 +70,12 @@ class TradeInstallmentPO(
     @Column(name = "amount_fen", nullable = false) var amountFen: Long = 0,
 )
 
+@Embeddable
+class TradePaymentReferencePO(
+    @Column(name = "installment_id", nullable = false, length = 128) var installmentId: String = "",
+    @Column(name = "payment_id", nullable = false) var paymentId: Long = 0,
+)
+
 @Entity
 @Table(name = "trade_order_plans")
 class TradeOrderPlanPO(
@@ -170,6 +176,12 @@ class TradePO(
     @Column(nullable = false, length = 32)
     var status: TradeStatus = TradeStatus.AUTHORIZING,
     @Column(name = "settlement_plan_id", unique = true) var settlementPlanId: Long? = null,
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+        name = "trade_installment_payment_refs",
+        joinColumns = [JoinColumn(name = "trade_id")],
+    )
+    var paymentReferences: MutableList<TradePaymentReferencePO> = mutableListOf(),
     @Column(name = "failure_reason", length = 1024) var failureReason: String? = null,
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.EPOCH,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = Instant.EPOCH,

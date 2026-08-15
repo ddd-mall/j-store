@@ -16,7 +16,6 @@
  */
 package com.jstore.trade.service
 
-import com.jstore.common.errors.BusinessError
 import com.jstore.common.geo.AddressComponent
 import com.jstore.common.geo.CountryCode
 import com.jstore.common.geo.DivisionLevel
@@ -28,6 +27,10 @@ import com.jstore.contracts.commerce.ContractAuthorizedSaleItem
 import com.jstore.contracts.commerce.InventoryReservationFailedIntegrationEvent
 import com.jstore.contracts.commerce.InventoryReservedIntegrationEvent
 import com.jstore.contracts.commerce.OrderCancelledIntegrationEvent
+import com.jstore.contracts.commerce.OrderCreatedFromTradeIntegrationEvent
+import com.jstore.contracts.commerce.OrderCreationRejectedFromTradeIntegrationEvent
+import com.jstore.contracts.commerce.PaymentCancellationConfirmedIntegrationEvent
+import com.jstore.contracts.commerce.PaymentPreparedIntegrationEvent
 import com.jstore.contracts.commerce.ReleaseInventoryCommand
 import com.jstore.contracts.commerce.ReleaseSaleAuthorizationCommand
 import com.jstore.contracts.commerce.SaleAuthorizedIntegrationEvent
@@ -46,13 +49,13 @@ class TradeSagaApplicationServiceTest {
     fun `orders and settlement are created only after every inventory plan is reserved`() {
         val repository = SagaTradeRepository(trade())
         val messages = CapturingSagaPublisher()
-        var createdOrders = 0
+        val orders = CapturingOrderGateway()
         var preparedSettlement: Long? = null
         val service =
             TradeSagaApplicationService(
                 repository,
                 { 9901 },
-                { _, _ -> Success(7001L).also { createdOrders++ } },
+                orders,
                 { _, id -> Success(Unit).also { preparedSettlement = id.value } },
                 messages,
             )
@@ -69,7 +72,7 @@ class TradeSagaApplicationServiceTest {
                 )
             )
         )
-        assertEquals(0, createdOrders)
+        assertEquals(0, orders.creationRequests.size)
         assertNull(preparedSettlement)
 
         assertIs<Success<Boolean>>(
@@ -86,22 +89,107 @@ class TradeSagaApplicationServiceTest {
             )
         )
 
-        assertEquals(1, createdOrders)
+        assertEquals(1, orders.creationRequests.size)
+        assertNull(preparedSettlement)
+        assertEquals(TradeStatus.CREATING_ORDERS, repository.trade.status)
+        assertNull(repository.trade.orderPlans.single().orderId)
+
+        service.recordOrderCreated(
+            OrderCreatedFromTradeIntegrationEvent(
+                9001,
+                9101,
+                7001,
+                "order-created",
+                Instant.parse("2029-01-01T00:01:30Z"),
+            )
+        )
         assertEquals(9901, preparedSettlement)
         assertEquals(TradeStatus.SETTLEMENT_PREPARING, repository.trade.status)
         assertEquals(7001, repository.trade.orderPlans.single().orderId)
+
+        assertIs<Success<Boolean>>(
+            service.recordPaymentPrepared(
+                PaymentPreparedIntegrationEvent(
+                    9001,
+                    9901,
+                    "FULL",
+                    8001,
+                    1000,
+                    "CNY",
+                    expiresAt.minusSeconds(60),
+                    expiresAt,
+                    "payment-command",
+                    Instant.parse("2029-01-01T00:02:00Z"),
+                )
+            )
+        )
+        assertEquals(TradeStatus.PAYMENT_READY, repository.trade.status)
+        assertEquals(8001, repository.trade.paymentIdFor("FULL"))
+    }
+
+    @Test
+    fun `insufficient payment window fails trade and compensates created orders and reservations`() {
+        val repository = SagaTradeRepository(trade())
+        val messages = CapturingSagaPublisher()
+        val orders = CapturingOrderGateway()
+        val service =
+            TradeSagaApplicationService(
+                repository,
+                { 9901 },
+                orders,
+                { _, _ -> Failure(TradeErrors.RESERVATION_WINDOW_INSUFFICIENT) },
+                messages,
+            )
+        val expiresAt = Instant.parse("2030-01-01T00:00:00Z")
+        service.recordSaleAuthorized(
+            SaleAuthorizedIntegrationEvent(
+                9001,
+                9101,
+                listOf(ContractAuthorizedSaleItem("A-1", 11, 101, 1, "NODE-1", expiresAt)),
+                "sale-event",
+                Instant.parse("2029-01-01T00:00:00Z"),
+            )
+        )
+        service.recordInventoryReserved(
+            InventoryReservedIntegrationEvent(
+                9001,
+                9101,
+                listOf("A-1"),
+                listOf("R-1"),
+                expiresAt.minusSeconds(60),
+                "inventory-event",
+                Instant.parse("2029-01-01T00:01:00Z"),
+            )
+        )
+
+        val result =
+            service.recordOrderCreated(
+                OrderCreatedFromTradeIntegrationEvent(
+                    9001,
+                    9101,
+                    7001,
+                    "order-created",
+                    Instant.parse("2029-01-01T00:01:30Z"),
+                )
+            )
+
+        assertEquals(true, assertIs<Success<Boolean>>(result).value)
+        assertEquals(TradeStatus.FAILED, repository.trade.status)
+        assertEquals(listOf(9101L), orders.cancellationRequests)
+        assertEquals(1, messages.messages.filterIsInstance<ReleaseInventoryCommand>().size)
+        assertEquals(1, messages.messages.filterIsInstance<ReleaseSaleAuthorizationCommand>().size)
     }
 
     @Test
     fun `inventory failure persists terminal failure and releases sale authorization`() {
         val repository = SagaTradeRepository(trade())
         val messages = CapturingSagaPublisher()
-        var createdOrders = 0
+        val orders = CapturingOrderGateway()
         val service =
             TradeSagaApplicationService(
                 repository,
                 { 9901 },
-                { _, _ -> Success(7001L).also { createdOrders++ } },
+                orders,
                 { _, _ -> Success(Unit) },
                 messages,
             )
@@ -131,7 +219,7 @@ class TradeSagaApplicationServiceTest {
         assertEquals(true, assertIs<Success<Boolean>>(result).value)
         assertEquals(TradeStatus.FAILED, repository.trade.status)
         assertEquals("out of stock", repository.trade.failureReason)
-        assertEquals(0, createdOrders)
+        assertEquals(0, orders.creationRequests.size)
         assertEquals(1, messages.messages.filterIsInstance<ReleaseInventoryCommand>().size)
         assertEquals(1, messages.messages.filterIsInstance<ReleaseSaleAuthorizationCommand>().size)
     }
@@ -144,7 +232,7 @@ class TradeSagaApplicationServiceTest {
             TradeSagaApplicationService(
                 repository,
                 { 9901 },
-                { _, _ -> Success(7001L) },
+                CapturingOrderGateway(),
                 { _, _ -> Success(Unit) },
                 messages,
             )
@@ -216,7 +304,7 @@ class TradeSagaApplicationServiceTest {
             TradeSagaApplicationService(
                 repository,
                 { 9901 },
-                { _, _ -> Success(7001L) },
+                CapturingOrderGateway(),
                 { _, _ -> Success(Unit) },
                 messages,
             )
@@ -252,23 +340,16 @@ class TradeSagaApplicationServiceTest {
     }
 
     @Test
-    fun `buyer cancellation fails trade and closes sibling order and settlement`() {
+    fun `buyer cancellation waits for safe payment cancellation before releasing commitments`() {
         val repository = SagaTradeRepository(trade(planCount = 2))
         val messages = CapturingSagaPublisher()
-        val cancelledPlans = mutableListOf<Long>()
-        var nextOrderId = 7000L
+        val orders = CapturingOrderGateway()
         var cancelledSettlement: Long? = null
         val service =
             TradeSagaApplicationService(
                 repository,
                 { 9901 },
-                object : TradeOrderCreationGateway {
-                    override fun createOrder(trade: Trade, plan: TradeOrderPlan) =
-                        Success(++nextOrderId)
-
-                    override fun cancelOrder(plan: TradeOrderPlan, reason: String) =
-                        Success(Unit).also { cancelledPlans += plan.id.value }
-                },
+                orders,
                 object : TradeSettlementGateway {
                     override fun prepareSettlement(
                         trade: Trade,
@@ -316,6 +397,17 @@ class TradeSagaApplicationServiceTest {
                 )
             )
         }
+        repository.trade.orderPlans.forEachIndexed { index, plan ->
+            service.recordOrderCreated(
+                OrderCreatedFromTradeIntegrationEvent(
+                    9001,
+                    plan.id.value,
+                    7001L + index,
+                    "order-created-${index + 1}",
+                    Instant.parse("2029-01-01T00:01:30Z"),
+                )
+            )
+        }
 
         val result =
             service.recordOrderCancelled(
@@ -330,13 +422,30 @@ class TradeSagaApplicationServiceTest {
             )
 
         assertEquals(true, assertIs<Success<Boolean>>(result).value)
-        assertEquals(TradeStatus.FAILED, repository.trade.status)
-        assertEquals(listOf(9102L), cancelledPlans)
+        assertEquals(TradeStatus.CLOSING, repository.trade.status)
+        assertEquals(emptyList(), orders.cancellationRequests)
         assertEquals(9901L, cancelledSettlement)
         assertEquals(
-            setOf(TradeOrderPlanStatus.CLOSED),
-            repository.trade.orderPlans.map { it.status }.toSet(),
+            listOf(TradeOrderPlanStatus.ORDER_CREATED, TradeOrderPlanStatus.ORDER_CREATED),
+            repository.trade.orderPlans.map { it.status },
         )
+        assertEquals(0, messages.messages.filterIsInstance<ReleaseInventoryCommand>().size)
+        assertEquals(0, messages.messages.filterIsInstance<ReleaseSaleAuthorizationCommand>().size)
+
+        service.recordPaymentCancellationConfirmed(
+            PaymentCancellationConfirmedIntegrationEvent(
+                9001,
+                9901,
+                "FULL",
+                8001,
+                "provider confirmed payment was not accepted",
+                "payment-cancel-confirmed",
+                Instant.parse("2029-01-01T00:03:00Z"),
+            )
+        )
+
+        assertEquals(TradeStatus.FAILED, repository.trade.status)
+        assertEquals(listOf(9101L, 9102L), orders.cancellationRequests)
         assertEquals(2, messages.messages.filterIsInstance<ReleaseInventoryCommand>().size)
         assertEquals(2, messages.messages.filterIsInstance<ReleaseSaleAuthorizationCommand>().size)
     }
@@ -345,12 +454,13 @@ class TradeSagaApplicationServiceTest {
     fun `order business rejection fails trade and compensates reserved resources`() {
         val repository = SagaTradeRepository(trade())
         val messages = CapturingSagaPublisher()
+        val orders = CapturingOrderGateway()
         var settlementPrepared = false
         val service =
             TradeSagaApplicationService(
                 repository,
                 { 9901 },
-                { _, _ -> Failure(BusinessError("order rejected", "Order.Rejected", 409)) },
+                orders,
                 { _, _ -> Success(Unit).also { settlementPrepared = true } },
                 messages,
             )
@@ -365,16 +475,25 @@ class TradeSagaApplicationServiceTest {
             )
         )
 
+        service.recordInventoryReserved(
+            InventoryReservedIntegrationEvent(
+                9001,
+                9101,
+                listOf("A-1"),
+                listOf("R-1"),
+                expiresAt.minusSeconds(60),
+                "inventory-event",
+                Instant.parse("2029-01-01T00:01:00Z"),
+            )
+        )
         val result =
-            service.recordInventoryReserved(
-                InventoryReservedIntegrationEvent(
+            service.recordOrderCreationRejected(
+                OrderCreationRejectedFromTradeIntegrationEvent(
                     9001,
                     9101,
-                    listOf("A-1"),
-                    listOf("R-1"),
-                    expiresAt.minusSeconds(60),
-                    "inventory-event",
-                    Instant.parse("2029-01-01T00:01:00Z"),
+                    "order rejected",
+                    "order-rejected",
+                    Instant.parse("2029-01-01T00:01:30Z"),
                 )
             )
 
@@ -389,27 +508,12 @@ class TradeSagaApplicationServiceTest {
     fun `later order rejection cancels orders already created for the same trade`() {
         val repository = SagaTradeRepository(trade(planCount = 2))
         val messages = CapturingSagaPublisher()
-        val cancelledPlans = mutableListOf<Long>()
+        val orders = CapturingOrderGateway()
         val service =
             TradeSagaApplicationService(
                 repository,
                 { 9901 },
-                object : TradeOrderCreationGateway {
-                    override fun createOrder(
-                        trade: Trade,
-                        plan: TradeOrderPlan,
-                    ) =
-                        if (plan.id == TradeOrderPlanId(9101)) {
-                            Success(7001L)
-                        } else {
-                            Failure(BusinessError("order rejected", "Order.Rejected", 409))
-                        }
-
-                    override fun cancelOrder(
-                        plan: TradeOrderPlan,
-                        reason: String,
-                    ) = Success(Unit).also { cancelledPlans += plan.id.value }
-                },
+                orders,
                 { _, _ -> Success(Unit) },
                 messages,
             )
@@ -452,11 +556,103 @@ class TradeSagaApplicationServiceTest {
             )
         }
 
+        service.recordOrderCreated(
+            OrderCreatedFromTradeIntegrationEvent(
+                9001,
+                9101,
+                7001,
+                "order-created",
+                Instant.parse("2029-01-01T00:01:30Z"),
+            )
+        )
+        service.recordOrderCreationRejected(
+            OrderCreationRejectedFromTradeIntegrationEvent(
+                9001,
+                9102,
+                "order rejected",
+                "order-rejected",
+                Instant.parse("2029-01-01T00:01:31Z"),
+            )
+        )
+
         assertEquals(TradeStatus.FAILED, repository.trade.status)
-        assertEquals(listOf(9101L), cancelledPlans)
+        assertEquals(listOf(9101L), orders.cancellationRequests)
         assertEquals(7001L, repository.trade.plan(TradeOrderPlanId(9101)).orderId)
         assertEquals(2, messages.messages.filterIsInstance<ReleaseInventoryCommand>().size)
         assertEquals(2, messages.messages.filterIsInstance<ReleaseSaleAuthorizationCommand>().size)
+    }
+
+    @Test
+    fun `late order success after another plan failed is recorded and cancelled`() {
+        val repository = SagaTradeRepository(trade(planCount = 2))
+        val messages = CapturingSagaPublisher()
+        val orders = CapturingOrderGateway()
+        val service =
+            TradeSagaApplicationService(
+                repository,
+                { 9901 },
+                orders,
+                { _, _ -> Success(Unit) },
+                messages,
+            )
+        val expiresAt = Instant.parse("2030-01-01T00:00:00Z")
+        repository.trade.orderPlans.forEachIndexed { index, plan ->
+            val authorizationId = "A-${index + 1}"
+            service.recordSaleAuthorized(
+                SaleAuthorizedIntegrationEvent(
+                    9001,
+                    plan.id.value,
+                    listOf(
+                        ContractAuthorizedSaleItem(
+                            authorizationId,
+                            plan.items.single().offerId,
+                            plan.items.single().skuId,
+                            1,
+                            plan.items.single().fulfillmentNodeId,
+                            expiresAt,
+                        )
+                    ),
+                    "sale-event-${index + 1}",
+                    Instant.parse("2029-01-01T00:00:00Z"),
+                )
+            )
+            service.recordInventoryReserved(
+                InventoryReservedIntegrationEvent(
+                    9001,
+                    plan.id.value,
+                    listOf(authorizationId),
+                    listOf("R-${index + 1}"),
+                    expiresAt.minusSeconds(60),
+                    "inventory-event-${index + 1}",
+                    Instant.parse("2029-01-01T00:01:00Z"),
+                )
+            )
+        }
+        service.recordOrderCreationRejected(
+            OrderCreationRejectedFromTradeIntegrationEvent(
+                9001,
+                9101,
+                "first order rejected",
+                "order-rejected",
+                Instant.parse("2029-01-01T00:01:30Z"),
+            )
+        )
+
+        val result =
+            service.recordOrderCreated(
+                OrderCreatedFromTradeIntegrationEvent(
+                    9001,
+                    9102,
+                    7002,
+                    "late-order-created",
+                    Instant.parse("2029-01-01T00:01:31Z"),
+                )
+            )
+
+        assertEquals(true, assertIs<Success<Boolean>>(result).value)
+        assertEquals(TradeStatus.FAILED, repository.trade.status)
+        assertEquals(7002L, repository.trade.plan(TradeOrderPlanId(9102)).orderId)
+        assertEquals(listOf(9102L), orders.cancellationRequests)
     }
 
     private fun trade(planCount: Int = 1) =
@@ -552,4 +748,24 @@ private class CapturingSagaPublisher : IntegrationMessagePublisher {
     override fun publish(message: IntegrationMessage) {
         messages += message
     }
+}
+
+private class CapturingOrderGateway : TradeOrderCreationGateway {
+    val creationRequests = mutableListOf<Long>()
+    val cancellationRequests = mutableListOf<Long>()
+
+    override fun requestOrderCreation(
+        trade: Trade,
+        plan: TradeOrderPlan,
+        sourceMessageId: String,
+        occurredAt: Instant,
+    ) = Success(Unit).also { creationRequests += plan.id.value }
+
+    override fun requestOrderCancellation(
+        trade: Trade,
+        plan: TradeOrderPlan,
+        reason: String,
+        sourceMessageId: String,
+        occurredAt: Instant,
+    ) = Success(Unit).also { cancellationRequests += plan.id.value }
 }
