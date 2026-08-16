@@ -110,3 +110,13 @@ controller `175da3b1...b964`从洁净提交构建为runtime manifest `sha256:5bb
 AC-LC-09不允许实现者因开发网络隔离或暂无修复而自行接受该风险。当前裁决为`BLOCKED_PENDING_HUMAN_SECURITY_DISPOSITION`：镜像可以继续只读复核，但不得部署；LC-17、LC-16和LC-22继续保持未关闭，Level 0和全部远程写不变。完整身份、扫描统计和13项finding见`evidence/2026-08-16-lc17-controller-image-security.md`。
 
 独立只读规格/安全评审核对最终OSV报告、AC-LC-09和制品subject后确认身份链、SBOM及provenance PASS，但对LC-17和digest `sha256:5bbe1352...058e`部署均给出BLOCK；自动化或评估者无权接受该高风险。本轮21项Kubernetes/构建合同测试、99项无模型组合测试、治理检查和完整六阶段质量门禁均PASS，不改变安全阻塞裁决。
+
+旧候选BLOCK后继续做最小运行时和Git网络触发面缓解。提交`a5e03c6d...d937`删除runtime中的`curl`和OpenSSH客户端，生产bootstrap固定到j-store公开HTTPS origin，并清除ambient proxy、SSH/askpass、credential helper及system/global Git配置；提交`e03849d2...04cb`进一步固定HTTP/1.1、30秒低速熔断和120秒Git子进程总时限。真实GitHub clone只证明TLS/HTTPS请求抵达GitHub，当前环境等待`info/refs`时超时，未被记录为成功bootstrap。
+
+最终不可变候选runtime manifest为`sha256:e3a3e25a...f753b6`，RepoDigest、labels、非root身份、Docker archive、SPDX、SLSA provenance和source record均已核对，两份attestation唯一subject与runtime digest一致。镜像内`curl`、`ssh`、`scp`、`sftp`均不存在，Git/Python/Codex版本符合锁定合同。最终OSV报告SHA-256为`4ba29c11...bde5`，结果为178组/33个受影响package：13 critical、53 high、92 medium、20 low或未评分，其中56组为Debian `unimportant`，12组critical不是`unimportant`；OpenSSH finding已消失。
+
+最终revision上的21项Kubernetes合同测试、102项无模型组合测试、治理检查、`git diff --check`和完整六阶段质量门禁均PASS。剩余12项缓解尚待独立安全复评，当前仍为`BLOCKED_PENDING_HUMAN_SECURITY_DISPOSITION`；该镜像未部署，LC-16/LC-17/LC-22继续保持未关闭，Level 0和全部远程写不变。
+
+独立只读安全复评随后重新核对全部制品摘要、唯一attestation subject、OSV统计、最终镜像和受审代码路径。评估者确认curl四项所需的HTTP/2 stream dependency、跨origin Digest、跨域cookie和多proxy认证复用均被固定HTTPS origin与Git传输策略排除；glibc、Perl、SQLite的危险API在受审路径不可达，32位Perl finding不适用于`ivsize=8`，MiniZip受影响组件不存在。因此身份链和AC-LC-09安全资格PASS，LC-17关闭。实际部署仍为`BLOCKED_BY_AUTHORITY`，且GitHub clone尚未越过`info/refs`超时，不能提前关闭LC-16/LC-22或宣称bootstrap成功。
+
+评审另建议后续清除`GIT_CONFIG_PARAMETERS`、`GIT_SSL_NO_VERIFY`和Git HTTP low-speed环境变量。该项为非阻塞加固，不改变本次已审核digest；实施时必须产生新revision并重新完成镜像、扫描和独立评审。

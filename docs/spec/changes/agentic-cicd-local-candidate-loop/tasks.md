@@ -69,9 +69,9 @@
   - 2026-08-16证据：独立复评发现并修复跨Issue receipt与同UID先chmod后篡改两个绕过路径；不可变controller digest `sha256:305a2b8a...84d1a9`部署后，从镜像内`/opt/jstore-agentic-controller`重跑同一CandidateRevision正反例。2,553个条目全部只读，直接写入和chmod后篡改均被拒绝，implementer session不能充当Reviewer，独立session生成绑定同一revision的PASS decision。聚焦55项测试、治理检查和镜像内复验均PASS；未启动模型或写正式Supervisor状态。
 - [ ] `LC-15` 在所有前置门通过后，将候选部署合同的 `local_workspace_write`、`freeze_local_candidate` 和 `run_isolated_gate` 置为 true；远端写、邮件、合并、发布和生产写保持 false。
 - [ ] `LC-16` 验证 implement/validate/review/complete 的单 turn路由、无第二 App Server、new-candidate失效、finding回流、两次修复和第三次熔断。
-  - 当前进度：本地无模型99项组合合同测试已覆盖implement完成、validate重入单次调度、Gate PASS→review、Review FAIL回流、重复/延迟callback拒绝、历史ReviewDecision保留但exact-candidate失效、两次不同修复和第三次熔断，以及validate/complete不启动模型。两段patch在锁定Symphony源码上顺序apply后，使用单次构建且身份可审计的工具链镜像完成`mix compile --warnings-as-errors`、296项测试、Hex审计和escript；报告SHA-256为`87db57f4...a053`。不可变镜像和实机单turn/无第二App Server验证仍未完成，因此本项保持未关闭。
-- [ ] `LC-17` 运行聚焦测试、治理检查、镜像安全检查和 `./scripts/quality-gate.sh`，再进行独立 Product Steward/Security review。
-  - 当前进度：最新21项Kubernetes/构建合同测试、99项无模型组合测试、治理检查和完整六阶段`./scripts/quality-gate.sh`均PASS；新routing patch的Symphony compile/test已PASS。controller `175da3b1...b964`的不可变镜像、安全更新、SBOM/provenance和OSV证据已完成，独立评审确认身份链PASS但安全裁决为BLOCK：最终扫描仍有13组未获Debian `unimportant`分类且无Bookworm fixed version的critical finding。因此状态为`BLOCKED_PENDING_HUMAN_SECURITY_DISPOSITION`，不得部署，LC-17保持未关闭。详见`evidence/2026-08-16-lc17-controller-image-security.md`。
+  - 当前进度：本地无模型102项组合合同测试已覆盖implement完成、validate重入单次调度、Gate PASS→review、Review FAIL回流、重复/延迟callback拒绝、历史ReviewDecision保留但exact-candidate失效、两次不同修复和第三次熔断，以及validate/complete不启动模型。两段patch在锁定Symphony源码上顺序apply后，使用单次构建且身份可审计的工具链镜像完成`mix compile --warnings-as-errors`、296项测试、Hex审计和escript；报告SHA-256为`87db57f4...a053`。最新代码已构建为不可变候选`sha256:e3a3e25a...f753b6`，但受LC-17安全裁决阻塞而未部署；实机单turn/无第二App Server验证仍未完成，因此本项保持未关闭。
+- [x] `LC-17` 运行聚焦测试、治理检查、镜像安全检查和 `./scripts/quality-gate.sh`，再进行独立 Product Steward/Security review。
+  - 2026-08-16证据：最终revision上的21项Kubernetes/构建合同测试、102项无模型组合测试、治理检查和完整六阶段`./scripts/quality-gate.sh`均PASS；新routing patch的Symphony compile/test已PASS。controller `e03849d2...04cb`构建为不可变候选`sha256:e3a3e25a...f753b6`，SBOM/provenance唯一subject均绑定该digest。runtime删除`curl`和OpenSSH客户端并约束可信Git transport后，扫描从旧候选199组/13组非`unimportant` critical降为178组/12组，OpenSSH finding消失。独立安全复评确认12项必要触发条件在受审生产路径不可达，身份链和AC-LC-09安全资格PASS；实际部署仍为`BLOCKED_BY_AUTHORITY`，需精确人工授权且不得据此提前关闭LC-16/LC-22。详见`evidence/2026-08-16-lc17-controller-image-security.md`。
 
 ## 切片 E：开发集群验收
 
