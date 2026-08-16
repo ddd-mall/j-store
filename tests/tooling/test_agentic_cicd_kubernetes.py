@@ -343,6 +343,12 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "apt-get upgrade --yes --no-install-recommends",
             dockerfile,
         )
+        self.assertIn(
+            "ca-certificates git bash python3",
+            dockerfile,
+        )
+        self.assertNotIn("openssh-client", dockerfile)
+        self.assertNotIn(" bash curl python3", dockerfile)
 
         dockerignore = (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8")
         self.assertTrue(dockerignore.startswith("**\n"))

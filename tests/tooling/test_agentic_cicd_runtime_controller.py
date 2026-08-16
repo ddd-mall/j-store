@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.agentic_cicd.coordinator import SnapshotStore, TaskSnapshot
 from scripts.agentic_cicd.protocol import GateRequest, ReviewDecision, ReviewFinding
@@ -101,6 +103,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         self.develop_sha = self.git(self.seed, "rev-parse", "HEAD").stdout.strip()
         self.git(self.seed, "push", "-u", "origin", "develop")
         self.workspace.mkdir(parents=True)
+        self.bootstrap = SymphonyWorkspaceBootstrap(allow_local_repository=True)
 
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
@@ -116,7 +119,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         )
 
     def test_bootstrap_ignores_default_master_and_locks_fetched_develop(self) -> None:
-        result = SymphonyWorkspaceBootstrap().bootstrap(
+        result = self.bootstrap.bootstrap(
             repository_url=self.remote.as_posix(),
             workspace=self.workspace,
         )
@@ -133,7 +136,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         )
 
     def test_bootstrap_writes_excluded_trusted_metadata(self) -> None:
-        result = SymphonyWorkspaceBootstrap().bootstrap(
+        result = self.bootstrap.bootstrap(
             repository_url=self.remote.as_posix(),
             workspace=self.workspace,
         )
@@ -146,7 +149,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         self.assertEqual("", self.git(self.workspace, "status", "--porcelain").stdout)
 
     def test_bootstrap_result_initializes_recoverable_host_snapshot(self) -> None:
-        result = SymphonyWorkspaceBootstrap().bootstrap(
+        result = self.bootstrap.bootstrap(
             repository_url=self.remote.as_posix(),
             workspace=self.workspace,
         )
@@ -167,10 +170,97 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         unsafe_workspace = self.root / "workspaces" / "../../unsafe"
 
         with self.assertRaisesRegex(ValueError, "GH-<positive-number>"):
-            SymphonyWorkspaceBootstrap().bootstrap(
+            self.bootstrap.bootstrap(
                 repository_url=self.remote.as_posix(),
                 workspace=unsafe_workspace,
             )
+
+    def test_production_bootstrap_accepts_the_trusted_https_repository(self) -> None:
+        def fake_git(
+            _cwd: Path, *arguments: str
+        ) -> subprocess.CompletedProcess[str]:
+            if arguments[0] == "clone":
+                info = self.workspace / ".git" / "info"
+                info.mkdir(parents=True)
+                (info / "exclude").write_text("", encoding="utf-8")
+            stdout = self.develop_sha + "\n" if arguments[0] == "rev-parse" else ""
+            return subprocess.CompletedProcess(["git", *arguments], 0, stdout, "")
+
+        bootstrap = SymphonyWorkspaceBootstrap()
+        with patch.object(bootstrap, "_git", side_effect=fake_git) as git:
+            result = bootstrap.bootstrap(
+                repository_url="https://github.com/ddd-mall/j-store.git",
+                workspace=self.workspace,
+            )
+
+        self.assertEqual(self.develop_sha, result.base_sha)
+        self.assertEqual("clone", git.call_args_list[0].args[1])
+        self.assertEqual(
+            "https://github.com/ddd-mall/j-store.git",
+            git.call_args_list[0].args[-2],
+        )
+
+    def test_production_bootstrap_rejects_untrusted_repository_urls(self) -> None:
+        for repository_url in (
+            "http://github.com/ddd-mall/j-store.git",
+            "ssh://git@github.com/ddd-mall/j-store.git",
+            "git@github.com:ddd-mall/j-store.git",
+            "https://example.com/ddd-mall/j-store.git",
+            self.remote.as_posix(),
+        ):
+            with self.subTest(repository_url=repository_url):
+                with self.assertRaisesRegex(ValueError, "trusted HTTPS repository"):
+                    SymphonyWorkspaceBootstrap().bootstrap(
+                        repository_url=repository_url,
+                        workspace=self.workspace,
+                    )
+
+    def test_trusted_git_environment_disables_ambient_network_configuration(self) -> None:
+        inherited = {
+            "HTTP_PROXY": "http://proxy-a.invalid",
+            "HTTPS_PROXY": "http://proxy-b.invalid",
+            "ALL_PROXY": "socks5://proxy-c.invalid",
+            "http_proxy": "http://proxy-d.invalid",
+            "https_proxy": "http://proxy-e.invalid",
+            "all_proxy": "socks5://proxy-f.invalid",
+            "GIT_ASKPASS": "/tmp/askpass",
+            "SSH_ASKPASS": "/tmp/ssh-askpass",
+            "GIT_SSH": "/tmp/ssh",
+            "GIT_SSH_COMMAND": "ssh -F /tmp/config",
+            "GIT_CONFIG_GLOBAL": "/tmp/global-gitconfig",
+        }
+        completed = subprocess.CompletedProcess(["git", "status"], 0, "", "")
+
+        with patch.dict(os.environ, inherited, clear=False), patch(
+            "scripts.agentic_cicd.runtime_controller.subprocess.run",
+            return_value=completed,
+        ) as run:
+            SymphonyWorkspaceBootstrap()._git(self.workspace, "status")
+
+        environment = run.call_args.kwargs["env"]
+        for name in inherited:
+            if (
+                "PROXY" in name.upper()
+                or "ASKPASS" in name
+                or name.startswith("GIT_SSH")
+            ):
+                self.assertNotIn(name, environment)
+        self.assertEqual("/dev/null", environment["GIT_CONFIG_GLOBAL"])
+        self.assertEqual("/dev/null", environment["GIT_CONFIG_SYSTEM"])
+        self.assertEqual("1", environment["GIT_CONFIG_NOSYSTEM"])
+        self.assertEqual("0", environment["GIT_TERMINAL_PROMPT"])
+        config = {
+            environment[f"GIT_CONFIG_KEY_{index}"]: environment[
+                f"GIT_CONFIG_VALUE_{index}"
+            ]
+            for index in range(int(environment["GIT_CONFIG_COUNT"]))
+        }
+        self.assertEqual("never", config["protocol.allow"])
+        self.assertEqual("always", config["protocol.https.allow"])
+        self.assertEqual("false", config["http.followRedirects"])
+        self.assertEqual("", config["http.proxy"])
+        self.assertEqual("false", config["http.saveCookies"])
+        self.assertEqual("", config["credential.helper"])
 
 
 class ReviewProposalStoreTest(unittest.TestCase):

@@ -43,7 +43,7 @@ ARG WORKFLOW_SHA256=unknown
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get upgrade --yes --no-install-recommends \
-    && apt-get install --yes --no-install-recommends ca-certificates git openssh-client bash curl python3 \
+    && apt-get install --yes --no-install-recommends ca-certificates git bash python3 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 symphony \
     && useradd --uid 10001 --gid 10001 --no-create-home --home-dir /var/lib/symphony symphony \
