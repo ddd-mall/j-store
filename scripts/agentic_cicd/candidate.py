@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .process_environment import trusted_process_environment
+
 
 FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
@@ -30,6 +32,13 @@ SNAPSHOT_POLICY = {
 SNAPSHOT_POLICY_SHA256 = hashlib.sha256(
     json.dumps(SNAPSHOT_POLICY, separators=(",", ":"), sort_keys=True).encode()
 ).hexdigest()
+CANDIDATE_GIT_ENVIRONMENT = {
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_CONFIG_SYSTEM": "/dev/null",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "GIT_TERMINAL_PROMPT": "0",
+}
 
 
 class CandidateSnapshotError(RuntimeError):
@@ -424,6 +433,7 @@ class CandidateSnapshotter:
                 "--stdin",
             ],
             cwd=self.workspace,
+            env=self._git_environment(),
             input=b"\0".join(name.encode("utf-8") for name in sorted(paths)) + b"\0",
             check=False,
             capture_output=True,
@@ -443,17 +453,21 @@ class CandidateSnapshotter:
         candidate_entries: dict[str, Path],
     ) -> str:
         with tempfile.TemporaryDirectory(prefix="candidate-index-") as directory:
-            environment = dict(os.environ)
-            environment["GIT_INDEX_FILE"] = str(Path(directory) / "index")
-            environment["GIT_OPTIONAL_LOCKS"] = "0"
-            self._git("read-tree", "HEAD", environment=environment)
+            environment_overrides = {
+                "GIT_INDEX_FILE": str(Path(directory) / "index")
+            }
+            self._git(
+                "read-tree",
+                "HEAD",
+                environment_overrides=environment_overrides,
+            )
             for name in sorted(set(base_entries) - set(candidate_entries)):
                 self._git(
                     "update-index",
                     "--force-remove",
                     "--",
                     name,
-                    environment=environment,
+                    environment_overrides=environment_overrides,
                 )
             for name, path in sorted(candidate_entries.items()):
                 metadata = path.lstat()
@@ -475,9 +489,11 @@ class CandidateSnapshotter:
                     mode,
                     object_sha,
                     name,
-                    environment=environment,
+                    environment_overrides=environment_overrides,
                 )
-            return self._git("write-tree", environment=environment).decode().strip()
+            return self._git(
+                "write-tree", environment_overrides=environment_overrides
+            ).decode().strip()
 
     def _canonical_archive(
         self, tree_sha: str, candidate_entries: dict[str, Path]
@@ -568,7 +584,9 @@ class CandidateSnapshotter:
         return relative
 
     def _git(
-        self, *arguments: str, environment: dict[str, str] | None = None
+        self,
+        *arguments: str,
+        environment_overrides: dict[str, str] | None = None,
     ) -> bytes:
         result = subprocess.run(
             [
@@ -580,7 +598,7 @@ class CandidateSnapshotter:
                 *arguments,
             ],
             cwd=self.workspace,
-            env=environment,
+            env=self._git_environment(environment_overrides),
             check=False,
             capture_output=True,
         )
@@ -597,6 +615,7 @@ class CandidateSnapshotter:
         result = subprocess.run(
             arguments,
             cwd=self.workspace,
+            env=self._git_environment(),
             input=content,
             check=False,
             capture_output=True,
@@ -605,3 +624,12 @@ class CandidateSnapshotter:
             message = result.stderr.decode("utf-8", errors="replace").strip()
             raise CandidateSnapshotError(f"git hash-object failed: {message}")
         return result.stdout.decode().strip()
+
+    @staticmethod
+    def _git_environment(
+        overrides: dict[str, str] | None = None,
+    ) -> dict[str, str]:
+        environment = trusted_process_environment(CANDIDATE_GIT_ENVIRONMENT)
+        if overrides is not None:
+            environment.update(overrides)
+        return environment

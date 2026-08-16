@@ -18,6 +18,7 @@ from .phase_bridge import (
     PHASE_VALIDATE,
     SymphonyPhaseBridge,
 )
+from .process_environment import trusted_process_environment
 from .protocol import GateReceipt, GateRequest, ReviewProposal, TurnReceipt
 
 
@@ -27,7 +28,6 @@ METADATA_DIRECTORY = ".agentic-cicd"
 METADATA_FILE = "workspace.json"
 TRUSTED_REPOSITORY_URL = "https://github.com/ddd-mall/j-store.git"
 GIT_COMMAND_TIMEOUT_SECONDS = 120
-TRUSTED_PROCESS_ENVIRONMENT_VARIABLES = ("PATH", "LANG", "LC_ALL", "TZ")
 
 
 @dataclass(frozen=True)
@@ -113,11 +113,7 @@ class SymphonyWorkspaceBootstrap:
             exclude_path.write_text(existing + entry, encoding="utf-8")
 
     def _git(self, cwd: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-        environment = {
-            name: value
-            for name in TRUSTED_PROCESS_ENVIRONMENT_VARIABLES
-            if (value := os.environ.get(name))
-        }
+        environment = trusted_process_environment()
 
         git_config = [
             ("protocol.allow", "never"),
