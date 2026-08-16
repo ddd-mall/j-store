@@ -257,10 +257,14 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         }
         self.assertEqual("never", config["protocol.allow"])
         self.assertEqual("always", config["protocol.https.allow"])
+        self.assertEqual("HTTP/1.1", config["http.version"])
         self.assertEqual("false", config["http.followRedirects"])
         self.assertEqual("", config["http.proxy"])
         self.assertEqual("false", config["http.saveCookies"])
+        self.assertEqual("1", config["http.lowSpeedLimit"])
+        self.assertEqual("30", config["http.lowSpeedTime"])
         self.assertEqual("", config["credential.helper"])
+        self.assertEqual(120, run.call_args.kwargs["timeout"])
 
 
 class ReviewProposalStoreTest(unittest.TestCase):

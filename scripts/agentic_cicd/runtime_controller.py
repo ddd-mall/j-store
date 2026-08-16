@@ -26,6 +26,7 @@ FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
 METADATA_DIRECTORY = ".agentic-cicd"
 METADATA_FILE = "workspace.json"
 TRUSTED_REPOSITORY_URL = "https://github.com/ddd-mall/j-store.git"
+GIT_COMMAND_TIMEOUT_SECONDS = 120
 NETWORK_ENVIRONMENT_VARIABLES = (
     "HTTP_PROXY",
     "HTTPS_PROXY",
@@ -146,9 +147,12 @@ class SymphonyWorkspaceBootstrap:
         git_config = [
             ("protocol.allow", "never"),
             ("protocol.https.allow", "always"),
+            ("http.version", "HTTP/1.1"),
             ("http.followRedirects", "false"),
             ("http.proxy", ""),
             ("http.saveCookies", "false"),
+            ("http.lowSpeedLimit", "1"),
+            ("http.lowSpeedTime", "30"),
             ("credential.helper", ""),
         ]
         if self.allow_local_repository:
@@ -172,6 +176,7 @@ class SymphonyWorkspaceBootstrap:
             check=True,
             capture_output=True,
             text=True,
+            timeout=GIT_COMMAND_TIMEOUT_SECONDS,
         )
 
 
