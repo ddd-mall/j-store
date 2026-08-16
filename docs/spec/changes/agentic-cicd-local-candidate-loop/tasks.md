@@ -65,8 +65,8 @@
 
 ## 切片 D：Level 1 阶段接线
 
-- [ ] `LC-14` Reviewer从 CandidateRevision只读制品启动，ReviewProposal/TurnReceipt/ReviewDecision绑定同一 revision和独立 session。
-  - 当前进度：独立复评发现跨Issue receipt与同UID先chmod后篡改可绕过首版验收；实现现已在review启动时重验PASS request/receipt/task/revision完整身份，并在接受review turn前再次逐文件校验只读制品。候选controller代码的集群内无模型复验已拒绝两种反例；待新controller digest部署后以镜像内代码重跑并独立复评再关闭。
+- [x] `LC-14` Reviewer从 CandidateRevision只读制品启动，ReviewProposal/TurnReceipt/ReviewDecision绑定同一 revision和独立 session。
+  - 当前进度：独立复评发现跨Issue receipt与同UID先chmod后篡改可绕过首版验收；实现现已在review启动时重验PASS request/receipt/task/revision完整身份，并在接受review turn前再次逐文件校验只读制品。包含修复的 controller 镜像 `sha256:305a2b8a...4d1a9`（controller revision `3a537df4...24f52`）已部署，2026-08-16在 Pod `symphony-5586ff8477-gnst9` 内以镜像内 `/opt/jstore-agentic-controller` 代码重跑验收脚本得到 PASS，receipt/decision身份、只读物化、篡改与同session反例与候选验证逐项一致；独立合同/安全复评以独立命令复现全部声明并排除混淆/复用/捷径反例，结论 PASS。
 - [ ] `LC-15` 在所有前置门通过后，将候选部署合同的 `local_workspace_write`、`freeze_local_candidate` 和 `run_isolated_gate` 置为 true；远端写、邮件、合并、发布和生产写保持 false。
 - [ ] `LC-16` 验证 implement/validate/review/complete 的单 turn路由、无第二 App Server、new-candidate失效、finding回流、两次修复和第三次熔断。
 - [ ] `LC-17` 运行聚焦测试、治理检查、镜像安全检查和 `./scripts/quality-gate.sh`，再进行独立 Product Steward/Security review。

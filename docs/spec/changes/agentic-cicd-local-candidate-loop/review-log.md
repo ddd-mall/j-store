@@ -88,3 +88,13 @@ LC-06仍保持未完成，直到洁净提交产生实际runtime manifest digest�
 随后提交`89c7b462...be401`在指定Linux主机完成最新两阶段隔离审计：第一阶段在执行被审代码前生成零公告与许可证证据，第二阶段不挂载证据目录并完成296项测试、escript和Codex精确版本smoke；各阶段前后均复验依赖锁。审计JSON绑定routing patch `b60be305...7535`且自身SHA-256为`736c8a35...8954`，因此LC-05证据门关闭。
 
 最新洁净controller `3a537df4...24f52`随后从固定Git archive构建。可加载runtime与attested OCI输出得到相同manifest `sha256:305a2b8a...4d1a9`；镜像labels完整绑定Symphony/j-store revision、两段patch、dependency lock、Codex、两个基础镜像和WORKFLOW。构建器从OCI中各提取唯一SPDX与SLSA statement，并确认两者subject绑定该runtime digest；制品摘要与回滚边界保存在`evidence/2026-08-16-controller-image-build.md`，LC-06证据门关闭。
+
+## 2026-08-16 LC-14 最终镜像复验
+
+包含完成前复验修复（`43018740...`）的 controller 镜像 `sha256:305a2b8af0cdc38510b663436e17d6f47eba4b02a9c015010e64a3aa0084d1a9`（controller revision `3a537df4dac461e40b12fcda46597b959ef24f52`）已随最近一次部署运行于 Pod `symphony-5586ff8477-gnst9`（UID `4a8cdf05-2ba0-4715-ab63-bf399d0a126f`）。LC-14 验收脚本（SHA-256 `7fd4846728a39c57db54f0f2e118b93346bd4f6324a6e9b59f03cd61101fed1f`）改以 `PYTHONPATH=/opt/jstore-agentic-controller` 从镜像内代码执行，不再使用 `/tmp` 候选副本；受信 head 经 bundle `e43ed5d4...895d1` 恢复。
+
+复验输出与候选验证逐项一致：同一 Gate PASS receipt（SHA-256 `981a91d2...9a3da`）驱动 validate→review，2,553 个条目只读物化，直接写、完成前篡改和同 session 三个反例全部被拒绝，独立 reviewer session 最终绑定同一 CandidateRevision `ec915c1c...c4358` 并生成相同 ReviewDecision（SHA-256 `d5486469...f9b48`），最终 phase 为 complete。镜像内三个 controller 文件与 `origin/develop`（`88dc2460`）逐字节一致。
+
+该复验未启动 Codex/App Server 或模型，未写正式 Supervisor task state，未创建 Gate Job 或远程 Git/GitHub 状态；临时 bundle 与恢复目录已清理。
+
+独立合同/安全复评结论为 PASS：八项声明全部以独立命令复现——Pod 镜像 digest 与 UID、镜像内三个 controller 文件与 `origin/develop` 逐字节一致（readOnlyRootFilesystem 钉死运行时内容）、脚本 SHA-256、receipt 规范化 SHA-256 与 archive 文件名/内容一致、`/tmp` 无残留、能力合同全部远端写为 false 且 Symphony Pod 无 ServiceAccount token、ReviewDecision SHA-256 独立重算一致。反例排查排除 PYTHONPATH 影子包、跨 Issue receipt 复用和脚本断言捷径。非阻塞观察已按措辞和输出字段修正记录。LC-14 验收结论成立并关闭；真实模型 Reviewer 与 review 阶段重启恢复仍分别归 LC-21 和 LC-22。
