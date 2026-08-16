@@ -228,6 +228,12 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
             "GIT_SSH": "/tmp/ssh",
             "GIT_SSH_COMMAND": "ssh -F /tmp/config",
             "GIT_CONFIG_GLOBAL": "/tmp/global-gitconfig",
+            "GIT_CONFIG_PARAMETERS": "'http.sslVerify=false'",
+            "GIT_SSL_NO_VERIFY": "1",
+            "GIT_HTTP_LOW_SPEED_LIMIT": "0",
+            "GIT_HTTP_LOW_SPEED_TIME": "0",
+            "JSTORE_SYMPHONY_GITHUB_TOKEN": "github-secret",
+            "OPENAI_API_KEY": "model-secret",
         }
         completed = subprocess.CompletedProcess(["git", "status"], 0, "", "")
 
@@ -239,12 +245,11 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
 
         environment = run.call_args.kwargs["env"]
         for name in inherited:
-            if (
-                "PROXY" in name.upper()
-                or "ASKPASS" in name
-                or name.startswith("GIT_SSH")
-            ):
-                self.assertNotIn(name, environment)
+            if name != "GIT_CONFIG_GLOBAL":
+                self.assertFalse(
+                    name in environment,
+                    f"trusted Git environment inherited {name}",
+                )
         self.assertEqual("/dev/null", environment["GIT_CONFIG_GLOBAL"])
         self.assertEqual("/dev/null", environment["GIT_CONFIG_SYSTEM"])
         self.assertEqual("1", environment["GIT_CONFIG_NOSYSTEM"])

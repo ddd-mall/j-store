@@ -27,28 +27,7 @@ METADATA_DIRECTORY = ".agentic-cicd"
 METADATA_FILE = "workspace.json"
 TRUSTED_REPOSITORY_URL = "https://github.com/ddd-mall/j-store.git"
 GIT_COMMAND_TIMEOUT_SECONDS = 120
-NETWORK_ENVIRONMENT_VARIABLES = (
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "ALL_PROXY",
-    "NO_PROXY",
-    "http_proxy",
-    "https_proxy",
-    "all_proxy",
-    "no_proxy",
-)
-GIT_EXECUTION_ENVIRONMENT_VARIABLES = (
-    "GIT_ASKPASS",
-    "SSH_ASKPASS",
-    "GIT_SSH",
-    "GIT_SSH_COMMAND",
-    "GIT_CONFIG",
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_INDEX_FILE",
-    "GIT_OBJECT_DIRECTORY",
-    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-)
+TRUSTED_PROCESS_ENVIRONMENT_VARIABLES = ("PATH", "LANG", "LC_ALL", "TZ")
 
 
 @dataclass(frozen=True)
@@ -134,15 +113,11 @@ class SymphonyWorkspaceBootstrap:
             exclude_path.write_text(existing + entry, encoding="utf-8")
 
     def _git(self, cwd: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-        environment = os.environ.copy()
-        inherited_environment = (
-            NETWORK_ENVIRONMENT_VARIABLES + GIT_EXECUTION_ENVIRONMENT_VARIABLES
-        )
-        for name in inherited_environment:
-            environment.pop(name, None)
-        for name in tuple(environment):
-            if re.fullmatch(r"GIT_CONFIG_(?:KEY|VALUE)_[0-9]+", name):
-                environment.pop(name)
+        environment = {
+            name: value
+            for name in TRUSTED_PROCESS_ENVIRONMENT_VARIABLES
+            if (value := os.environ.get(name))
+        }
 
         git_config = [
             ("protocol.allow", "never"),
