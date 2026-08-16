@@ -120,3 +120,9 @@ AC-LC-09不允许实现者因开发网络隔离或暂无修复而自行接受该
 独立只读安全复评随后重新核对全部制品摘要、唯一attestation subject、OSV统计、最终镜像和受审代码路径。评估者确认curl四项所需的HTTP/2 stream dependency、跨origin Digest、跨域cookie和多proxy认证复用均被固定HTTPS origin与Git传输策略排除；glibc、Perl、SQLite的危险API在受审路径不可达，32位Perl finding不适用于`ivsize=8`，MiniZip受影响组件不存在。因此身份链和AC-LC-09安全资格PASS，LC-17关闭。实际部署仍为`BLOCKED_BY_AUTHORITY`，且GitHub clone尚未越过`info/refs`超时，不能提前关闭LC-16/LC-22或宣称bootstrap成功。
 
 评审另建议后续清除`GIT_CONFIG_PARAMETERS`、`GIT_SSL_NO_VERIFY`和Git HTTP low-speed环境变量。该项为非阻塞加固，不改变本次已审核digest；实施时必须产生新revision并重新完成镜像、扫描和独立评审。
+
+加固回归首先证明bootstrap修复仍不完整：CandidateSnapshotter的`check-ignore`、临时index/tree、通用Git和`hash-object`会继承完整controller环境。独立评审据此BLOCK中间digest `sha256:cc26e425...3fe54`；该候选被标记为`SUPERSEDED`且从未部署。提交`86480b1f...c2c4`抽取统一最小子进程环境，仅继承`PATH`、locale和时区，候选Git只追加受控配置与临时`GIT_INDEX_FILE`。真实Git wrapper测试仅记录变量名称，证明GitHub/model凭据、askpass、proxy、TLS/config和low-speed ambient变量均未传播。
+
+新洁净revision构建为runtime manifest `sha256:7edcb88b...66bf6`。Docker archive、SPDX、SLSA provenance、source record和OSV JSON摘要分别为`6b423474...df1`、`59ba9d03...fd5c`、`fdec9eff...30f6`、`dd43c74d...eae5`和`841652b8...cb61`；两份attestation各自唯一subject均绑定新digest，镜像内关键代码与提交逐字节一致。OSV保持178组/33个受影响package、13 critical和12组非`unimportant` critical，无新增finding；镜像内真实CandidateSnapshotter freeze wrapper probe和运行时工具面核对PASS。
+
+最终独立只读安全复评合并重跑39项candidate/runtime测试并复算全部身份和扫描统计，结论为无阻塞finding：AC-LC-09、LC-17及新digest部署安全资格均PASS。实际部署仍为`BLOCKED_BY_AUTHORITY`；LC-16/LC-22和凭据、disposable Issue、模型费用等人工门不受本裁决影响，Level 0与全部远程写保持关闭。

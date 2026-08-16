@@ -10,11 +10,11 @@
 
 ## 最终候选身份
 
-- controller revision：`e03849d234598c03920a518a84d9733e276004cb`
+- controller revision：`86480b1f3819312b3cb4ee978a094f95d81dc2c4`
 - Symphony revision：`8001b52e3062495a16e520e4ceaf8f9de868c4d0`
 - Codex：`0.146.0`
-- runtime manifest digest：`sha256:e3a3e25a569b202ccbdab71e6c1bae6e4ce62ec6c1820dcb26d9b56c51f753b6`
-- digest引用：`docker.io/library/jstore-agentic-cicd@sha256:e3a3e25a569b202ccbdab71e6c1bae6e4ce62ec6c1820dcb26d9b56c51f753b6`
+- runtime manifest digest：`sha256:7edcb88bd99edd88bf07659147beade6119a73f758807a6cd47bc99661566bf6`
+- digest引用：`docker.io/library/jstore-agentic-cicd@sha256:7edcb88bd99edd88bf07659147beade6119a73f758807a6cd47bc99661566bf6`
 - phase bridge patch SHA-256：`bbaad0e4ad04377b5b64238f7fabbfd383915cf60692f321493dd5f3372bcb8a`
 - phase routing patch SHA-256：`00af6b18e85565de63b9535281ae2bf4c9f8f44744be27bf9db73ba15f69fbe2`
 - dependency lock SHA-256：`9e22b8a3a5cb3ff49fb14899e224a0ac8dc08523e75b7835724071f00593890a`
@@ -24,17 +24,17 @@
 
 ## 制品与摘要
 
-制品保存在未入库目录`/tmp/jstore-controller-build-e03849d2`：
+制品保存在未入库目录`/tmp/jstore-controller-build-86480b1f`：
 
 | 制品 | SHA-256 |
 |---|---|
-| Docker archive | `d083878f12a9546c9498628794d942c943bbcf613f03deb294fba41d57a392ed` |
-| SPDX statement | `0ab869da2601957564c8c9187fac118602f3b9140df5a5734f3860eafd5e7c18` |
-| SLSA provenance | `d8079a2e0fb3bdc784e9960ce2bcd9a57810ea38777bc041ecedde066b4d1484` |
-| source record | `65785dff06a46611dc1f40d2806a852d09278dd9061fc3e0acd44e20c354da81` |
-| OSV JSON | `4ba29c1187262e97647a3582b606e29591527619addd50fd25f86d4bf085bde5` |
+| Docker archive | `6b42347467e780725a0c09c61680ffb9d0f19cf2125d87a6c4c3b6cfe7cdfdf1` |
+| SPDX statement | `59ba9d0381264c1d0b2d4204aed68af70ecfcb47be16986040f3f6a176f8fd5c` |
+| SLSA provenance | `fdec9eff6b9040fbf525380d676c6d3578d2b160e810a907afbc8c8d5bdd30f6` |
+| source record | `dd43c74db2bfd556b4a7c1a39c49a3fe54e9f070a30e42a99a92c99f7328eae5` |
+| OSV JSON | `841652b8eb14f85cd6e7cd4a1d594f8daeb9fb4e09243ccafef2fe92b0fdcb61` |
 
-SPDX 2.3 statement包含140个package和6,422条relationship；SPDX和SLSA statement的唯一subject均绑定runtime manifest digest `e3a3e25a...f753b6`。SLSA provenance的build arguments和VCS metadata绑定controller revision `e03849d2...04cb`，source record再次绑定该revision和本次构建输入。
+SPDX 2.3 statement包含140个package和6,422条relationship；SPDX和SLSA statement的唯一subject均绑定runtime manifest digest `7edcb88b...66bf6`。SLSA provenance的build arguments和VCS metadata绑定controller revision `86480b1f...c2c4`，source record再次绑定该revision和本次构建输入。
 
 ## 安全缓解
 
@@ -47,7 +47,9 @@ SPDX 2.3 statement包含140个package和6,422条relationship；SPDX和SLSA state
 - 固定HTTP/1.1，避免HTTP/2 stream dependency触发面；
 - 低速低于1 byte/s持续30秒即失败，单个Git子进程总时限120秒。
 
-最终镜像内直接核对结果：`curl`、`ssh`、`scp`、`sftp`均不存在；`git 2.39.5`、`Python 3.11.2`和`codex-cli 0.146.0`可执行；进程身份为`10001:10001`。真实GitHub clone smoke成功完成TLS、证书和HTTPS连接，但当前执行环境在等待GitHub `info/refs`时超时；该结果只证明请求未被本地协议策略拒绝，不能记录为bootstrap成功。新增低速和总时限保证同类外部停滞有界失败。
+独立评审随后发现候选冻结的`check-ignore`、临时index/tree、通用Git和`hash-object`仍继承完整controller环境，因此中间候选`sha256:cc26e425...3fe54`被判定BLOCK并作废。提交`86480b1f...c2c4`把可信子进程环境统一收敛为仅继承`PATH`、locale和时区，候选Git再显式追加禁用system/global config、交互提示和optional locks的受控变量；临时index只追加受控`GIT_INDEX_FILE`。真实Git wrapper回归仅记录环境变量名称，证明GitHub/model凭据、askpass、proxy、TLS/config及low-speed ambient变量均未进入候选Git子进程。相同检查在最终镜像内执行真实`CandidateSnapshotter.freeze`再次PASS。
+
+最终镜像内直接核对结果：`curl`、`ssh`、`scp`、`sftp`、`sqlite3`和`minizip`均不存在；`git 2.39.5`、`Python 3.11.2`和`codex-cli 0.146.0`可执行；进程身份为`10001:10001`。此前真实GitHub clone smoke成功完成TLS、证书和HTTPS连接，但执行环境在等待GitHub `info/refs`时超时；该结果只证明请求未被本地协议策略拒绝，不能记录为bootstrap成功。新增低速和总时限保证同类外部停滞有界失败。
 
 ## 最终OSV扫描
 
@@ -86,16 +88,23 @@ OSV仍按Debian源包归属报告`curl`，因为Git运行时依赖`libcurl`；�
 - Perl 5项：受审流程不执行相关Socket、Archive::Tar、Storable或超大动态正则API，且32位专属finding不适用于`ivsize=8`的最终镜像；
 - SQLite 1项：无CLI、无controller import、无候选任意SQL入口，当前路径不可达；
 - zlib/MiniZip 1项：最终镜像未发现MiniZip/ioapi文件或API，受影响组件不存在；
-- LC-17与digest `sha256:e3a3e25a...f753b6`的AC-LC-09安全资格：PASS；
+- 候选冻结全部Git入口采用统一最小环境，宿主与镜像内真实wrapper probe均未发现ambient凭据或Git状态传播；
+- LC-17与digest `sha256:7edcb88b...66bf6`的AC-LC-09安全资格：PASS；
 - 实际部署：`BLOCKED_BY_AUTHORITY`，仍需精确人工部署授权及其它适用门禁。
 
-评审提出非阻塞加固建议：后续清除`GIT_CONFIG_PARAMETERS`、`GIT_SSL_NO_VERIFY`和Git HTTP low-speed环境变量，避免未来受信部署配置覆盖当前命令级策略。该建议不改变本次已审核digest；若实施，必须作为新revision重新构建、扫描和评审。
+独立评估者另确认中间候选`sha256:cc26e425...3fe54`为`SUPERSEDED`且不得部署。`workspace.py`和离线preflight `runtime.py`仍有默认环境子进程，但不在当前controller entrypoint内；未来若接入持凭据运行时，必须先迁移到同一白名单helper并重新评审。
 
 ## 仓库验证
 
 ```text
 python3 -m unittest tests.tooling.test_agentic_cicd_kubernetes
 Ran 21 tests: PASS
+
+python3 -m unittest tests.tooling.test_agentic_cicd_candidate
+Ran 16 tests: PASS
+
+python3 -m unittest tests.tooling.test_agentic_cicd_runtime_controller
+Ran 23 tests: PASS
 
 python3 -m unittest \
   tests.tooling.test_agentic_cicd_runtime_controller \
@@ -117,7 +126,7 @@ PASS
 PASS: all six local quality gates completed
 ```
 
-完整门禁包含28/44/186项Python测试组、1,492个文件ownership/format检查、55个runtime classpath依赖解析、55个模块许可证审计、212个Gradle测试任务和58个发布JAR许可证验证。
+完整门禁包含28/44/187项Python测试组、1,493个文件ownership/format检查、55个runtime classpath依赖解析、55个模块许可证审计、212个Gradle测试任务和58个发布JAR许可证验证。独立评估者另合并重跑16项candidate和23项runtime测试，共39项PASS。
 
 ## 准入裁决与下一步
 
