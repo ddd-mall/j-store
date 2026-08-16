@@ -114,7 +114,7 @@
   - [x] `I3-08A` 建立 host-side 可信阶段桥合同：首次实现不伪造 session，ReviewProposal 不含身份，Symphony TurnReceipt 绑定 exact-head ReviewDecision；见 `../changes/agentic-cicd-symphony-phase-bridge/`。
   - [ ] `I3-08B` 为锁定 Symphony 源码增加最小 turn-receipt 适配，配置单 turn redispatch，并证明 hook 不启动第二个 App Server。
     - PR #42 已把 exact develop bootstrap、host-owned snapshot、受限 ReviewProposal tool、turn receipt、validate/GateReceipt、动态 sandbox、`max_turns: 1`、双 revision/patch hash和不可变 rollout合同合入 `develop`。
-    - 仍未完成：稳定 CandidateRevision、隔离 Gate Runner、完整 Symphony构建/测试、依赖安全处置和新镜像真实运行证据；这些工作由迭代 3L承接，不能因仓库实现已合并而勾选完成。
+    - 进行中：CandidateRevision机器合同、临时 index冻结、规范化 archive、host-owned manifest和负向边界已形成候选实现；Gate/Reviewer exact-candidate接线、隔离 Gate Runner、完整 Symphony构建/测试、依赖安全处置和新镜像真实运行证据仍由迭代 3L承接，不能因局部实现完成而勾选本项。
   - [ ] `I3-08C` 通过同一路径完成 disposable Issue、独立只读评审、finding 返工和重启恢复证据。
     - 必须使用迭代 3L生成的同一 CandidateRevision完成 gate和review；Level 0 observer turn不能替代本项。
 - [x] `I3-09` 增加固定 Symphony/Codex 运行时预检，不启动服务或模型 turn。

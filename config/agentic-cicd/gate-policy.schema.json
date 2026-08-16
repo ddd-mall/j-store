@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GatePolicy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runner_image", "fetch_image", "validation_commands", "timeout_seconds"],
+  "properties": {
+    "runner_image": {"type": "string", "pattern": "^[^\\s@]+@sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "fetch_image": {"type": "string", "pattern": "^[^\\s@]+@sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "validation_commands": {"const": ["/opt/jstore-gate/run-quality-gate"]},
+    "timeout_seconds": {"type": "integer", "minimum": 60, "maximum": 3600}
+  }
+}

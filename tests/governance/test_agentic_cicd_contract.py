@@ -9,6 +9,9 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from agentic_cicd.capabilities import validate_capabilities  # noqa: E402
 STATE_CONTRACT = REPO_ROOT / "config" / "agentic-cicd" / "state-contract.json"
 SYMPHONY_LOCK = REPO_ROOT / "config" / "agentic-cicd" / "symphony.lock.json"
 WORKFLOW = REPO_ROOT / "WORKFLOW.md"
@@ -47,10 +50,37 @@ class AgenticCicdContractTest(unittest.TestCase):
         self.assertFalse(contract["capabilities"]["local_workspace_write"])
         self.assertTrue(all(value > 0 for value in contract["limits"].values()))
 
+        capabilities = contract["capabilities"]
+        self.assertTrue(capabilities["bootstrap_local_workspace"])
+        self.assertFalse(capabilities["freeze_local_candidate"])
+        self.assertFalse(capabilities["run_isolated_gate"])
+        self.assertFalse(capabilities["create_remote_branch"])
+        self.assertNotIn("create_branch", capabilities)
+
         known_states = set(labels)
         for source, targets in contract["transitions"].items():
             self.assertIn(source, known_states)
             self.assertLessEqual(set(targets), known_states)
+
+    def test_capability_contract_rejects_ambiguous_or_remote_level_one_writes(self) -> None:
+        contract = json.loads(STATE_CONTRACT.read_text(encoding="utf-8"))
+        capabilities = dict(contract["capabilities"])
+        capabilities["create_branch"] = False
+        self.assertTrue(validate_capabilities(0, capabilities))
+
+        capabilities = dict(contract["capabilities"])
+        capabilities["local_workspace_write"] = True
+        self.assertTrue(validate_capabilities(0, capabilities))
+
+        capabilities = dict(contract["capabilities"])
+        capabilities.update(
+            local_workspace_write=True,
+            freeze_local_candidate=True,
+            run_isolated_gate=True,
+            create_remote_branch=True,
+        )
+        failures = validate_capabilities(1, capabilities)
+        self.assertTrue(any("remote" in failure for failure in failures))
 
     def test_required_checks_match_develop_ruleset(self) -> None:
         contract = json.loads(STATE_CONTRACT.read_text(encoding="utf-8"))
@@ -129,7 +159,13 @@ class AgenticCicdContractTest(unittest.TestCase):
         proposal = json.loads(REVIEW_PROPOSAL.read_text(encoding="utf-8"))
 
         self.assertEqual(
-            {"verdict", "head_sha", "reviewer_role", "findings"},
+            {
+                "verdict",
+                "head_sha",
+                "candidate_revision",
+                "reviewer_role",
+                "findings",
+            },
             set(proposal["required"]),
         )
         self.assertNotIn("reviewer_session_id", proposal["properties"])

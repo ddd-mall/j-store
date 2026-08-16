@@ -3,12 +3,15 @@
 !scripts/agentic_cicd/
 !scripts/agentic_cicd/**
 !scripts/agentic-cicd-controller.py
+!scripts/agentic-artifact-broker.py
+!scripts/agentic-gate-dispatcher.py
 !config/
 !config/agentic-cicd/
-!config/agentic-cicd/state-contract.json
+!config/agentic-cicd/*.json
 !deploy/
 !deploy/kubernetes/
 !deploy/kubernetes/agentic-cicd/
 !deploy/kubernetes/agentic-cicd/patches/
 !deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch
 !deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch
+!deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock

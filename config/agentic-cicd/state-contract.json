@@ -1,5 +1,6 @@
 {
-  "version": 1,
+  "version": 2,
+  "capability_level": 0,
   "dispatch_label": "agent:queued",
   "claimable_states": ["queued"],
   "human_terminal_state": "agent:human-review",
@@ -38,8 +39,11 @@
   },
   "capabilities": {
     "read_only_observation": true,
+    "bootstrap_local_workspace": true,
     "local_workspace_write": false,
-    "create_branch": false,
+    "freeze_local_candidate": false,
+    "run_isolated_gate": false,
+    "create_remote_branch": false,
     "push_commit": false,
     "create_draft_pull_request": false,
     "mark_pull_request_ready": false,

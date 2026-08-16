@@ -4,41 +4,28 @@ from __future__ import annotations
 
 import fnmatch
 import json
-import subprocess
+import os
 import sys
 import tomllib
 from pathlib import Path
 
+from repository_files import repository_files
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+
+REPO_ROOT = Path(
+    os.environ.get("JSTORE_REPOSITORY_ROOT", Path(__file__).resolve().parents[1])
+).resolve()
 MANIFEST_PATH = REPO_ROOT / "config/licenses/file-ownership.toml"
 REPORT_PATH = REPO_ROOT / "build/reports/licenses/file-ownership.json"
 SPDX_COPYRIGHT = "SPDX-FileCopyrightText: 2024-2026 潘少峰 (Peter Pan)"
 SPDX_LICENSE = "SPDX-License-Identifier: Apache-2.0"
 
 
-def repository_files() -> list[str]:
-    result = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-        cwd=REPO_ROOT,
-        check=True,
-        capture_output=True,
-    )
-    candidates = [
-        path.decode("utf-8") for path in result.stdout.split(b"\0") if path
-    ]
-    return sorted(
-        relative_path
-        for relative_path in candidates
-        if (REPO_ROOT / relative_path).is_file()
-    )
-
-
 def main() -> int:
     manifest = tomllib.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     default = manifest["default"]
     overrides = manifest.get("overrides", {})
-    files = repository_files()
+    files = repository_files(REPO_ROOT)
     errors: list[str] = []
     report_entries: list[dict[str, str]] = []
     matched_overrides = {name: 0 for name in overrides}

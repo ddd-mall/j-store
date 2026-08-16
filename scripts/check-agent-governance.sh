@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="${JSTORE_REPOSITORY_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+tool_root="${JSTORE_QUALITY_TOOL_ROOT:-$repo_root/scripts}"
 cd "$repo_root"
 
 failures=0
@@ -33,7 +34,20 @@ working_tree_contains_secret() {
     rg --hidden --glob '!**/.git/**' --glob '!**/build/**' --glob '!**/.gradle/**' \
       --glob '!scripts/check-agent-governance.sh' -q "$pattern" .
   else
-    git grep -Eq "$pattern" -- . ':(exclude)scripts/check-agent-governance.sh'
+    grep -ERq --exclude-dir=.git --exclude-dir=build --exclude-dir=.gradle \
+      --exclude=check-agent-governance.sh -- "$pattern" .
+  fi
+}
+
+repository_files() {
+  if [[ -n "${JSTORE_REPOSITORY_FILES_FILE:-}" ]]; then
+    [[ "$JSTORE_REPOSITORY_FILES_FILE" = /* && -f "$JSTORE_REPOSITORY_FILES_FILE" ]] || {
+      fail "repository file manifest must be an existing absolute path"
+      return
+    }
+    sed 's#^\./##' "$JSTORE_REPOSITORY_FILES_FILE"
+  else
+    git ls-files
   fi
 }
 
@@ -86,19 +100,19 @@ for path in "${required_files[@]}"; do
 done
 
 if command -v python3 >/dev/null 2>&1; then
-  python3 scripts/check-agentic-cicd.py || \
+  python3 "$tool_root/check-agentic-cicd.py" || \
     fail "agentic CI/CD contracts are inconsistent"
 elif command -v python >/dev/null 2>&1; then
-  python scripts/check-agentic-cicd.py || \
+  python "$tool_root/check-agentic-cicd.py" || \
     fail "agentic CI/CD contracts are inconsistent"
 else
   fail "Python 3 is required to validate agentic CI/CD contracts"
 fi
 
 if command -v rg >/dev/null 2>&1; then
-  tracked_local_env="$(git ls-files | rg '^\.env($|\.)' | rg -v '^\.env\.example$' || true)"
+  tracked_local_env="$(repository_files | rg '^\.env($|\.)' | rg -v '^\.env\.example$' || true)"
 else
-  tracked_local_env="$(git ls-files | grep -E '^\.env($|\.)' | grep -Ev '^\.env\.example$' || true)"
+  tracked_local_env="$(repository_files | grep -E '^\.env($|\.)' | grep -Ev '^\.env\.example$' || true)"
 fi
 if [[ -n "$tracked_local_env" ]]; then
   fail "a local environment file is tracked"

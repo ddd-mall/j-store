@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from agentic_cicd.runtime_controller import (
+    CandidateRevisionStore,
     GateReceiptStore,
     PhaseContextStore,
     ReviewProposalStore,
@@ -14,19 +15,25 @@ from agentic_cicd.runtime_controller import (
     TaskStateInitializer,
     TurnStateController,
 )
+from agentic_cicd.gate_runtime import GateMailbox, GatePolicy, ValidatePhaseDriver
 
 
 DEFAULT_CONTRACT = Path("/opt/jstore-agentic-controller/state-contract.json")
+DEFAULT_GATE_POLICY = Path("/etc/agentic-cicd/gate-policy.json")
 
 
-def workspace_write_enabled(contract_path: Path) -> bool:
+def capability_enabled(contract_path: Path, capability: str) -> bool:
     payload = json.loads(contract_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("state contract must be a JSON object")
     capabilities = payload.get("capabilities")
     if not isinstance(capabilities, dict):
         raise ValueError("state contract capabilities must be an object")
-    return capabilities.get("local_workspace_write") is True
+    return capabilities.get(capability) is True
+
+
+def workspace_write_enabled(contract_path: Path) -> bool:
+    return capability_enabled(contract_path, "local_workspace_write")
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -60,6 +67,13 @@ def parse_arguments() -> argparse.Namespace:
         "--state-root", default=os.environ.get("JSTORE_AGENTIC_CICD_STATE_ROOT")
     )
     phase.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
+    phase.add_argument(
+        "--artifact-root", default=os.environ.get("JSTORE_CANDIDATE_ARTIFACT_ROOT")
+    )
+    phase.add_argument(
+        "--exchange-root", default=os.environ.get("JSTORE_GATE_EXCHANGE_ROOT")
+    )
+    phase.add_argument("--gate-policy", type=Path, default=DEFAULT_GATE_POLICY)
     complete = subparsers.add_parser(
         "complete-turn",
         help="Bind the current trusted Symphony turn receipt to host-owned state",
@@ -71,12 +85,28 @@ def parse_arguments() -> argparse.Namespace:
     )
     complete.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
     complete.add_argument(
+        "--artifact-root", default=os.environ.get("JSTORE_CANDIDATE_ARTIFACT_ROOT")
+    )
+    complete.add_argument(
         "--session-id", default=os.environ.get("JSTORE_TURN_SESSION_ID")
     )
     complete.add_argument(
         "--thread-id", default=os.environ.get("JSTORE_TURN_THREAD_ID")
     )
     complete.add_argument("--turn-id", default=os.environ.get("JSTORE_TURN_ID"))
+    freeze = subparsers.add_parser(
+        "freeze-candidate",
+        help="Freeze the bound workspace into a host-owned CandidateRevision",
+    )
+    freeze.add_argument("--issue", required=True)
+    freeze.add_argument("--workspace", default=".")
+    freeze.add_argument(
+        "--state-root", default=os.environ.get("JSTORE_AGENTIC_CICD_STATE_ROOT")
+    )
+    freeze.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
+    freeze.add_argument(
+        "--artifact-root", default=os.environ.get("JSTORE_CANDIDATE_ARTIFACT_ROOT")
+    )
     gate = subparsers.add_parser(
         "record-gate",
         help="Consume one host-owned exact-head deterministic gate receipt",
@@ -86,6 +116,7 @@ def parse_arguments() -> argparse.Namespace:
     gate.add_argument(
         "--state-root", default=os.environ.get("JSTORE_AGENTIC_CICD_STATE_ROOT")
     )
+    gate.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
     return parser.parse_args()
 
 
@@ -120,9 +151,24 @@ def main() -> int:
     if arguments.command == "phase-context":
         if not arguments.state_root:
             raise ValueError("JSTORE_AGENTIC_CICD_STATE_ROOT is required")
+        gate_enabled = capability_enabled(arguments.contract, "run_isolated_gate")
+        if gate_enabled:
+            if not arguments.artifact_root or not arguments.exchange_root:
+                raise ValueError("candidate artifact and gate exchange roots are required")
+            ValidatePhaseDriver(
+                state_root=Path(arguments.state_root),
+                artifact_root=Path(arguments.artifact_root),
+                mailbox=GateMailbox(Path(arguments.exchange_root)),
+                policy=GatePolicy.load(arguments.gate_policy),
+                contract_path=arguments.contract,
+                enabled=True,
+            ).advance(arguments.issue, Path(arguments.workspace))
         context = PhaseContextStore(
             Path(arguments.state_root),
             workspace_write_enabled=workspace_write_enabled(arguments.contract),
+            artifact_root=(
+                Path(arguments.artifact_root) if arguments.artifact_root else None
+            ),
         ).load(arguments.issue, Path(arguments.workspace))
         print(json.dumps(context.to_json(), separators=(",", ":"), sort_keys=True))
         return 0
@@ -135,6 +181,9 @@ def main() -> int:
         TurnStateController(
             Path(arguments.state_root),
             workspace_write_enabled=workspace_write_enabled(arguments.contract),
+            artifact_root=(
+                Path(arguments.artifact_root) if arguments.artifact_root else None
+            ),
         ).complete_turn(
             arguments.issue,
             Path(arguments.workspace),
@@ -150,8 +199,28 @@ def main() -> int:
         payload = json.loads(arguments.payload)
         if not isinstance(payload, dict):
             raise ValueError("gate receipt payload must be a JSON object")
-        GateReceiptStore(Path(arguments.state_root)).record(arguments.issue, payload)
+        GateReceiptStore(
+            Path(arguments.state_root),
+            contract_path=arguments.contract,
+            gate_enabled=capability_enabled(arguments.contract, "run_isolated_gate"),
+        ).record(arguments.issue, payload)
         print(f"GATE_RECEIPT_ACCEPTED issue={arguments.issue}")
+        return 0
+    if arguments.command == "freeze-candidate":
+        if not arguments.state_root:
+            raise ValueError("JSTORE_AGENTIC_CICD_STATE_ROOT is required")
+        revision = CandidateRevisionStore(
+            Path(arguments.state_root),
+            artifact_root=(
+                Path(arguments.artifact_root)
+                if arguments.artifact_root
+                else None
+            ),
+            freeze_enabled=capability_enabled(
+                arguments.contract, "freeze_local_candidate"
+            ),
+        ).freeze(arguments.issue, Path(arguments.workspace))
+        print(json.dumps(revision.to_json(), separators=(",", ":"), sort_keys=True))
         return 0
     raise RuntimeError(f"unsupported command: {arguments.command}")
 

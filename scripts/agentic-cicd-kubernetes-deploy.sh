@@ -79,9 +79,12 @@ for command in docker git kubectl sudo; do
 done
 expected_symphony_revision=8001b52e3062495a16e520e4ceaf8f9de868c4d0
 patch_path="$manifest_dir/patches/symphony-phase-bridge.patch"
-patch_sha256=ee236ca9570904ed39e58c2226e7430c7355d944dacca9486d410b737660bfa1
+patch_sha256=bbaad0e4ad04377b5b64238f7fabbfd383915cf60692f321493dd5f3372bcb8a
 routing_patch_path="$manifest_dir/patches/symphony-phase-routing.patch"
-routing_patch_sha256=a6103e0c96bc7311053152d9c29bdc81daa14ab3f28dfee23c3f4a537c45824d
+routing_patch_sha256=b60be30500e95f7fd8d61ea4f73cab4b618e646f541ede6f67e8e0f3eac27535
+dependency_lock_path="$manifest_dir/patches/symphony-mix.lock"
+dependency_lock_sha256=9e22b8a3a5cb3ff49fb14899e224a0ac8dc08523e75b7835724071f00593890a
+workflow_sha256=$(sha256sum "$manifest_dir/base/WORKFLOW.md" | awk '{print $1}')
 actual_symphony_revision=$(git -C "$symphony_source" rev-parse HEAD 2>/dev/null || true)
 if [[ "$actual_symphony_revision" != "$expected_symphony_revision" ]]; then
   printf 'ERROR: Symphony source must be pinned to %s, got %s\n' \
@@ -111,6 +114,12 @@ GIT_INDEX_FILE="$temporary_patch_index" git -C "$symphony_source" read-tree HEAD
 GIT_INDEX_FILE="$temporary_patch_index" git -C "$symphony_source" apply --cached --recount "$patch_path"
 GIT_INDEX_FILE="$temporary_patch_index" git -C "$symphony_source" apply --cached --recount --check "$routing_patch_path"
 rm -f -- "$temporary_patch_index"
+actual_dependency_lock_sha256=$(sha256sum "$dependency_lock_path" | awk '{print $1}')
+if [[ "$actual_dependency_lock_sha256" != "$dependency_lock_sha256" ]]; then
+  printf 'ERROR: symphony-mix.lock must match %s, got %s\n' \
+    "$dependency_lock_sha256" "$actual_dependency_lock_sha256" >&2
+  exit 2
+fi
 controller_revision=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || true)
 if [[ ! "$controller_revision" =~ ^[0-9a-f]{40}$ ]]; then
   printf '%s\n' 'ERROR: j-store controller source has no full Git revision.' >&2
@@ -120,7 +129,7 @@ if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=all)" ]]; t
   printf 'ERROR: j-store controller source must be clean: %s\n' "$repo_root" >&2
   exit 2
 fi
-expected_image="jstore-agentic-cicd:${expected_symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-0.146.0"
+expected_image="docker.io/library/jstore-agentic-cicd:${expected_symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-0.146.0"
 image=${image:-$expected_image}
 if [[ "$image" != "$expected_image" ]]; then
   printf 'ERROR: --image must equal the derived immutable tag: %s\n' "$expected_image" >&2
@@ -131,12 +140,15 @@ sudo install -d -o 10001 -g 10001 -m 0750 /var/lib/jstore-agentic-cicd
 
 archive=$(mktemp "${TMPDIR:-/tmp}/jstore-agentic-cicd-image.XXXXXX.tar")
 rendered=$(mktemp "${TMPDIR:-/tmp}/jstore-agentic-cicd-rendered.XXXXXX.yaml")
+metadata=$(mktemp "${TMPDIR:-/tmp}/jstore-agentic-cicd-metadata.XXXXXX.json")
 cleanup() {
-  rm -f -- "$archive" "$rendered"
+  rm -f -- "$archive" "$rendered" "$metadata"
 }
 trap cleanup EXIT
 
 docker build \
+  --provenance=false \
+  --metadata-file "$metadata" \
   --build-arg HTTP_PROXY= \
   --build-arg HTTPS_PROXY= \
   --build-arg ALL_PROXY= \
@@ -146,9 +158,26 @@ docker build \
   --build-context "symphony-source=$symphony_source" \
   --build-arg "SYMPHONY_COMMIT=$expected_symphony_revision" \
   --build-arg "JSTORE_CONTROLLER_REVISION=$controller_revision" \
+  --build-arg "SYMPHONY_PATCH_SHA256=$patch_sha256" \
+  --build-arg "SYMPHONY_ROUTING_PATCH_SHA256=$routing_patch_sha256" \
+  --build-arg "SYMPHONY_DEPENDENCY_LOCK_SHA256=$dependency_lock_sha256" \
+  --build-arg "WORKFLOW_SHA256=$workflow_sha256" \
   --file "$manifest_dir/image/Dockerfile" \
   --tag "$image" \
   "$repo_root"
+image_digest=$(python3 - "$metadata" <<'PY'
+import json
+import re
+import sys
+
+digest = json.load(open(sys.argv[1], encoding="utf-8")).get("containerimage.digest", "")
+if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+    raise SystemExit("controller build metadata has no immutable image digest")
+print(digest)
+PY
+)
+image_repository=${image%:*}
+image_ref="$image_repository@$image_digest"
 docker run --rm --entrypoint codex "$image" --version | grep -Fx 'codex-cli 0.146.0'
 revision=$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
 [[ "$revision" == "8001b52e3062495a16e520e4ceaf8f9de868c4d0" ]] || {
@@ -160,16 +189,40 @@ controller_label=$(docker image inspect "$image" --format '{{ index .Config.Labe
   printf 'ERROR: unexpected j-store controller revision label: %s\n' "$controller_label" >&2
   exit 1
 }
+verify_image_label() {
+  local label=$1
+  local expected=$2
+  local actual
+  actual=$(docker image inspect "$image" --format "{{ index .Config.Labels \"$label\" }}")
+  if [[ "$actual" != "$expected" ]]; then
+    printf 'ERROR: unexpected %s label: %s\n' "$label" "$actual" >&2
+    exit 1
+  fi
+}
+verify_image_label io.jstore.symphony.patch.sha256 "$patch_sha256"
+verify_image_label io.jstore.symphony.routing-patch.sha256 "$routing_patch_sha256"
+verify_image_label io.jstore.symphony.dependency-lock.sha256 "$dependency_lock_sha256"
+verify_image_label io.jstore.workflow.sha256 "$workflow_sha256"
 
 docker save --output "$archive" "$image"
 sudo ctr --namespace k8s.io images import "$archive"
+sudo ctr --namespace k8s.io images tag "$image" "$image_ref" >/dev/null
+sudo ctr --namespace k8s.io images label \
+  "$image_ref" io.cri-containerd.image=managed >/dev/null
+if ! sudo ctr --namespace k8s.io images list | awk \
+  -v ref="$image_ref" -v digest="$image_digest" \
+  '$1 == ref && $3 == digest && index($0, "io.cri-containerd.image=managed") {found=1} END {exit !found}'; then
+  printf 'ERROR: controller image has no CRI-managed digest-qualified alias %s\n' \
+    "$image_ref" >&2
+  exit 1
+fi
 
 old_pod_uid=$(kubectl --context "$context" -n "$namespace" get pod \
   -l app.kubernetes.io/name=symphony -o jsonpath='{.items[0].metadata.uid}' 2>/dev/null || true)
 kubectl --context "$context" kustomize "$overlay" \
-  | sed "s#image: jstore-agentic-cicd:8001b52e-codex-0.146.0#image: $image#" \
+  | sed "s#image: jstore-agentic-cicd:8001b52e-codex-0.146.0#image: $image_ref#" \
   >"$rendered"
-grep -F "image: $image" "$rendered" >/dev/null
+grep -F "image: $image_ref" "$rendered" >/dev/null
 kubectl --context "$context" apply --dry-run=client -f "$rendered" >/dev/null
 kubectl --context "$context" apply -f "$manifest_dir/base/namespace.yaml" >/dev/null
 kubectl --context "$context" apply --dry-run=server -f "$rendered" >/dev/null
@@ -185,5 +238,5 @@ fi
 
 "$repo_root/scripts/agentic-cicd-kubernetes-smoke.sh" \
   --context "$context" --namespace "$namespace" --timeout-seconds "$timeout_seconds" \
-  --image "$image" --symphony-revision "$expected_symphony_revision" \
+  --image "$image_ref" --symphony-revision "$expected_symphony_revision" \
   --controller-revision "$controller_revision"

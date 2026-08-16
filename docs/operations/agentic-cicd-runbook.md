@@ -7,12 +7,12 @@
 - 可以读取带 `agent:queued` 的 GitHub Issue、代码、PR 和 CI 状态；
 - 可以在临时 workspace 中形成计划和风险报告；
 - 不允许修改代码、提交、推送、创建/更新 PR、发送邮件、合并或发布；
-- `config/agentic-cicd/state-contract.json` 中的 capability flag 是当前能力权威事实。
+- `config/agentic-cicd/state-contract.json` 中的 capability level 与 flag 是当前能力权威事实。Level 0 已明确区分 `bootstrap_local_workspace=true` 与保持关闭的 `local_workspace_write`、`freeze_local_candidate`、`run_isolated_gate`、`create_remote_branch`、push 和 PR 能力；本地可信 bootstrap 不再与远端建分支共用模糊字段。
 - 每个 Issue 最多启动一个只读 observer turn；可信 complete hook 随后把内部 phase 置为 complete，后续轮询在创建 App Server 前短路，不产生重复模型调用。
 
 能力升级必须通过受审 PR 更新合同、测试和本手册；仅扩大 GitHub token 权限不会自动扩大流程授权。
 
-仓库已包含未来阶段路由实现，但 `local_workspace_write=false`，因此 implementer workspace-write 分支不可达。开放该能力前还必须落地隔离 gate runner；Supervisor 和 after hook 禁止直接执行 workspace 中的验证脚本。
+仓库已包含未来阶段路由和 CandidateRevision 冻结实现，但 `local_workspace_write=false`、`freeze_local_candidate=false`、`run_isolated_gate=false`，因此 implementer workspace-write 与冻结入口均不可达。开放这些能力前还必须落地隔离 gate runner；Supervisor 和 after hook 禁止直接执行 workspace 中的验证脚本。
 
 ## 当前准入状态
 
@@ -143,7 +143,7 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 - dashboard bind：部署副本只在受信根 `WORKFLOW.md` 上增加 `server.host: 0.0.0.0`，使 Pod 探针和 ClusterIP 可访问；无 NodePort、LoadBalancer 或 Ingress。
 - 首次 smoke：使用非秘密哨兵 token `level0-no-github-access`，GitHub 会拒绝请求，因此不能取得 Issue 或触发 Codex turn。
 - NetworkPolicy执行器：Flannel保持不变，独立 `kube-router-firewall` DaemonSet只运行 firewall controller；固定镜像和回滚约束见 `deploy/kubernetes/agentic-cicd/network-policy-engine/`。`kube-network-policies`曾因返回流量兼容性在实机失败，不能恢复使用。
-- Gate基础设施：`agentic-cicd-gates` namespace已启用 restricted Pod Security、ResourceQuota、LimitRange和 default-deny；`agentic-cicd/gate-dispatcher`只可在该 namespace管理 Job、观察 Pod和读取日志。Artifact Broker和正式 Dispatcher Deployment尚未部署，当前能力仍为 Level 0。
+- Gate基础设施：`agentic-cicd-gates` namespace已启用 restricted Pod Security、ResourceQuota、LimitRange和 default-deny；`agentic-cicd/gate-dispatcher`只可在该 namespace管理 Job、观察 Pod和读取日志。Artifact Broker、正式 Dispatcher和离线 Gate Runner物料已在仓库中就绪，但在双节点镜像导入、跨节点 Broker smoke和独立复评完成前仍保持 Level 0。
 
 NetworkPolicy执行器使用独立入口部署；它会运行 preflight、server dry-run、两节点 rollout、跨节点 ingress/egress正反例以及现有业务回归，失败自动回滚：
 
@@ -170,6 +170,47 @@ NetworkPolicy执行器使用独立入口部署；它会运行 preflight、server
 脚本在创建固定 Local PV 目录和导入 containerd 镜像时调用 `sudo`；目标主机未配置免密 sudo，操作者需要在交互终端完成认证。不要把 sudo 密码写入命令、环境变量、仓库或日志。
 
 部署脚本先确认 Symphony checkout 位于固定提交且工作树洁净，校验锁定的 phase-bridge patch SHA-256，并要求 j-store 控制器来源为完整且洁净的提交；随后以两个 revision 生成不可变镜像名。构建会清空 Docker 客户端中可能遗留的代理参数并使用官方软件源，但不修改主机全局代理。脚本导入本机 containerd、只创建或更新 `agentic-cicd` 资源和专属 Local PV、执行 server-side dry-run、等待新 Pod UID 并运行带运行时 revision 的 smoke。它不会读取 Secret、访问 `jstore`/`postgresql` namespace 或修改数据库。
+
+### Level 1 Gate Runner 物料与控制面
+
+Gate Runner 只能从受审、洁净的 j-store 提交构建。构建入口运行完整质量门禁，固定 JDK 和 `kubectl` 下载摘要，并输出单平台 OCI archive、镜像 manifest digest 和 archive SHA-256：
+
+```bash
+./scripts/agentic-cicd-gate-image-build.sh \
+  --output-dir /absolute/reviewed/output
+```
+
+将同一个 archive 复制到 master 和 worker1；在两个节点的交互终端分别执行同一导入命令。导入脚本先校验 archive SHA-256 及 OCI 布局，再调用 containerd；不得按节点重新构建或使用浮动 tag：
+
+```bash
+./scripts/agentic-cicd-gate-image-import.sh \
+  --archive /absolute/reviewed/output/jstore-agentic-gate-<revision>.oci.tar \
+  --sha256 '<build 输出的 archive SHA-256>' \
+  --image-tag '<build 输出的 GATE_IMAGE_TAG>' \
+  --image-ref '<build 输出的 GATE_IMAGE_REF>'
+```
+
+master 上的 Local PV 目录使用不同 Unix UID 和单向只读挂载隔离 request/receipt；必须由操作者以交互式 `sudo` 创建，并保留 setgid 使共享读取组稳定。不要把 sudo 密码放入命令或日志：
+
+```bash
+sudo install -d -o 10001 -g 11001 -m 2770 \
+  /var/lib/jstore-agentic-candidates \
+  /var/lib/jstore-agentic-gate-requests
+sudo install -d -o 10002 -g 11001 -m 2770 \
+  /var/lib/jstore-agentic-gate-receipts \
+  /var/lib/jstore-agentic-artifact-leases
+```
+
+确认新的受审 Supervisor/controller 镜像已经导入 master 后，部署 credential-free Broker 和 Dispatcher。`--gate-image` 必须使用 build 输出的 `name:revision@sha256:digest`；该入口不会改变机器能力合同，也不会开启 GitHub 写权限：
+
+```bash
+./scripts/agentic-cicd-kubernetes-gate-deploy.sh \
+  --context kubernetes-admin@kubernetes \
+  --controller-image '<受审 Supervisor/controller name@sha256:digest>' \
+  --gate-image '<build 输出的 GATE_IMAGE_REF>'
+```
+
+部署后仍先进行无模型 fixture smoke，核对 worker1 Pod 的 runtime image ID、单次 Broker lease、GateReceipt、无 Kubernetes token和到现有 workload 的拒绝流量。只有这些证据和独立评估通过后，才可在单独受审变更中开启 `local_workspace_write`、`freeze_local_candidate` 及 `run_isolated_gate`。
 
 复查状态：
 

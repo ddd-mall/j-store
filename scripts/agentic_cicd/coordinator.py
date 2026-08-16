@@ -49,6 +49,10 @@ class TaskSnapshot:
     implementer_session_id: str | None = None
     pending_review_findings: list[dict[str, Any]] = field(default_factory=list)
     last_turn_receipt: dict[str, str] | None = None
+    candidate_revision: dict[str, str] | None = None
+    review_workspace: str | None = None
+    gate_request: dict[str, Any] | None = None
+    gate_receipt: dict[str, Any] | None = None
 
     def consume_idempotency_key(self, key: str) -> bool:
         normalized = key.strip()
@@ -65,14 +69,14 @@ class TaskSnapshot:
         return payload
 
     def record_review_decision(self, decision: ReviewDecision) -> None:
-        self.review_decisions[decision.head_sha] = decision.to_json()
+        self.review_decisions[decision.candidate_revision] = decision.to_json()
 
-    def review_decision_for(self, head_sha: str) -> ReviewDecision | None:
-        payload = self.review_decisions.get(head_sha)
+    def review_decision_for(self, candidate_revision: str) -> ReviewDecision | None:
+        payload = self.review_decisions.get(candidate_revision)
         return ReviewDecision.from_json(payload) if payload is not None else None
 
-    def has_review_pass_for(self, head_sha: str) -> bool:
-        decision = self.review_decision_for(head_sha)
+    def has_review_pass_for(self, candidate_revision: str) -> bool:
+        decision = self.review_decision_for(candidate_revision)
         return decision is not None and decision.verdict == "PASS"
 
     @classmethod
@@ -100,6 +104,14 @@ class TaskSnapshot:
                 str(key): str(value)
                 for key, value in data["last_turn_receipt"].items()
             }
+        if data.get("candidate_revision") is not None:
+            data["candidate_revision"] = {
+                str(key): str(value)
+                for key, value in data["candidate_revision"].items()
+            }
+        for field_name in ("gate_request", "gate_receipt"):
+            if data.get(field_name) is not None:
+                data[field_name] = dict(data[field_name])
         return cls(**data)
 
 

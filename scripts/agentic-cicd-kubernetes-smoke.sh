@@ -53,7 +53,7 @@ if [[ ! "$timeout_seconds" =~ ^[0-9]+$ || "$timeout_seconds" -lt 30 ]]; then
   printf '%s\n' 'ERROR: --timeout-seconds must be an integer of at least 30.' >&2
   exit 2
 fi
-if [[ -z "$image" || ! "$symphony_revision" =~ ^[0-9a-f]{40}$ || ! "$controller_revision" =~ ^[0-9a-f]{40}$ ]]; then
+if [[ ! "$image" =~ @sha256:[0-9a-f]{64}$ || ! "$symphony_revision" =~ ^[0-9a-f]{40}$ || ! "$controller_revision" =~ ^[0-9a-f]{40}$ ]]; then
   printf '%s\n' 'ERROR: immutable image and full runtime revisions are required.' >&2
   exit 2
 fi
@@ -82,6 +82,14 @@ deployed_image=$(kubectl --context "$context" -n "$namespace" get pod "$pod" \
   -o jsonpath='{.spec.containers[0].image}')
 [[ "$deployed_image" == "$image" ]] || {
   printf 'ERROR: Pod image is %s, expected %s.\n' "$deployed_image" "$image" >&2
+  exit 1
+}
+runtime_image=$(kubectl --context "$context" -n "$namespace" get pod "$pod" \
+  -o jsonpath='{.status.containerStatuses[0].imageID}')
+expected_digest=${image##*@}
+[[ "$runtime_image" == *"$expected_digest"* ]] || {
+  printf 'ERROR: runtime image is %s, expected digest %s.\n' \
+    "$runtime_image" "$expected_digest" >&2
   exit 1
 }
 actual_symphony_revision=$(kubectl --context "$context" -n "$namespace" exec "$pod" -- \

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GateReceipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate_id", "issue_identifier", "candidate_revision", "runner_image", "command_policy_sha256", "verdict", "started_at", "finished_at", "exit_code", "log_sha256", "job_uid", "pod_uid", "findings"],
+  "properties": {
+    "gate_id": {"type": "string", "pattern": "^gate-[a-z0-9][a-z0-9-]{0,63}$"},
+    "issue_identifier": {"type": "string", "pattern": "^GH-[1-9][0-9]*$"},
+    "candidate_revision": {"$ref": "#/$defs/candidateRevision"},
+    "runner_image": {"type": "string", "pattern": "^[^\\s@]+@sha256:[0-9a-f]{64}$"},
+    "command_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "verdict": {"type": "string", "enum": ["PASS", "FAIL", "INFRASTRUCTURE_FAILURE"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "exit_code": {"type": ["integer", "null"]},
+    "log_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "job_uid": {"type": "string", "minLength": 1},
+    "pod_uid": {"type": ["string", "null"], "minLength": 1},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}}
+  },
+  "allOf": [
+    {"if": {"properties": {"verdict": {"const": "PASS"}}}, "then": {"properties": {"exit_code": {"const": 0}, "findings": {"maxItems": 0}}}},
+    {"if": {"properties": {"verdict": {"const": "FAIL"}}}, "then": {"properties": {"exit_code": {"type": "integer", "not": {"const": 0}}, "findings": {"minItems": 1}}}},
+    {"if": {"properties": {"verdict": {"const": "INFRASTRUCTURE_FAILURE"}}}, "then": {"properties": {"findings": {"maxItems": 0}}}}
+  ],
+  "$defs": {
+    "candidateRevision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_sha256", "base_sha", "candidate_revision", "snapshot_policy_sha256", "tree_sha"],
+      "properties": {
+        "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "base_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "candidate_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "snapshot_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "tree_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_cause_id", "severity", "evidence", "impact", "expected_behavior", "verification"],
+      "properties": {
+        "root_cause_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9:._/-]{2,127}$"},
+        "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+        "evidence": {"type": "string", "minLength": 1},
+        "impact": {"type": "string", "minLength": 1},
+        "expected_behavior": {"type": "string", "minLength": 1},
+        "verification": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

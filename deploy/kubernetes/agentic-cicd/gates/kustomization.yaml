@@ -6,3 +6,4 @@ resources:
   - service-accounts.yaml
   - dispatcher-rbac.yaml
   - network-policies.yaml
+  - control-plane.yaml

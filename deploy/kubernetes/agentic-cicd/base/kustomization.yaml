@@ -5,6 +5,7 @@ resources:
   - service-account.yaml
   - state-pv.yaml
   - state-pvc.yaml
+  - gate-storage.yaml
   - deployment.yaml
   - service.yaml
 configMapGenerator:

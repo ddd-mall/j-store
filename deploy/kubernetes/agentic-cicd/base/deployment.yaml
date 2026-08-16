@@ -26,9 +26,9 @@ spec:
       terminationGracePeriodSeconds: 30
       securityContext:
         runAsUser: 10001
-        runAsGroup: 10001
+        runAsGroup: 11001
         runAsNonRoot: true
-        fsGroup: 10001
+        fsGroup: 11001
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
@@ -50,6 +50,10 @@ spec:
               value: /var/lib/symphony/workspaces
             - name: JSTORE_AGENTIC_CICD_STATE_ROOT
               value: /var/lib/symphony/controller
+            - name: JSTORE_CANDIDATE_ARTIFACT_ROOT
+              value: /var/lib/candidate-artifacts
+            - name: JSTORE_GATE_EXCHANGE_ROOT
+              value: /var/lib/gate-exchange
             - name: JSTORE_SYMPHONY_REPOSITORY_URL
               value: https://github.com/ddd-mall/j-store.git
             - name: JSTORE_SYMPHONY_GITHUB_TOKEN
@@ -99,6 +103,13 @@ spec:
               readOnly: true
             - name: tmp
               mountPath: /tmp
+            - name: candidate-artifacts
+              mountPath: /var/lib/candidate-artifacts
+            - name: gate-requests
+              mountPath: /var/lib/gate-exchange/requests
+            - name: gate-receipts
+              mountPath: /var/lib/gate-exchange/receipts
+              readOnly: true
       volumes:
         - name: state
           persistentVolumeClaim:
@@ -109,3 +120,13 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 1Gi
+        - name: candidate-artifacts
+          persistentVolumeClaim:
+            claimName: candidate-artifacts
+        - name: gate-requests
+          persistentVolumeClaim:
+            claimName: gate-requests
+        - name: gate-receipts
+          persistentVolumeClaim:
+            claimName: gate-receipts
+            readOnly: true

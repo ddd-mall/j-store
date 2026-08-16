@@ -79,7 +79,7 @@ Flannel只负责 Pod网络，不应假设它执行标准 NetworkPolicy。目标�
 
 最终选择 `kube-router v2.10.0` 的 firewall-only模式，镜像固定为 `sha256:0991f2cc7aaabe107b51c0c554d6b843f0483fd319b94f437fab638470c47c22`：明确设置 `--run-router=false`、`--run-service-proxy=false`、`--run-firewall=true`，不包含 CNI installer、不挂载 `/etc/cni/net.d`，ClusterRole只有 pods、namespaces、nodes、services、endpoints、EndpointSlices和NetworkPolicy只读权限。实机已证明两节点 Ready、现有 j-store/Redis/PostgreSQL健康、跨节点允许流量成功且 ingress/egress负向流量失败。
 
-Gate Dispatcher必须在 Job Pod Ready后等待 NetworkPolicy控制器完成一次同步，再开始候选 fetch和执行；跨节点负向连通测试是每次执行器升级后的硬门。
+Gate Job先运行受信的 network-admission init：等待固定收敛窗口后，必须实际拒绝 Kubernetes API、集群 DNS和公网端点，同时允许唯一的 Broker端点，随后才启动 fetch init；任一负向路由可达或 Broker尚不可达都会在候选物化前终止 Job。该逐 Job探针与跨节点 NetworkPolicy正反例共同构成同步硬门，不能仅凭 Pod Ready或存在策略对象放行候选。
 
 回滚使用同一固定镜像的 `--cleanup-config`在每个节点清理规则。由于 kube-router该入口会尝试清理它支持的全部控制器配置，回滚脚本必须先拒绝非 iptables kube-proxy模式或已有其它 kube-router DaemonSet的集群；清理后强制等待 kube-proxy并回归 j-store健康。该约束使脚本只适用于本设计记录的开发集群拓扑。
 
@@ -112,10 +112,12 @@ Gate Dispatcher必须在 Job Pod Ready后等待 NetworkPolicy控制器完成一�
 3. 收集 tracked、untracked、删除和文件模式，排除 `.git/` 与 `.agentic-cicd/`；
 4. 拒绝 submodule、socket/device/FIFO、路径穿越及越界符号链接；
 5. 通过 `git write-tree` 生成内容寻址的 `tree_sha`；
-6. 从该 tree 生成规范化只读 archive，计算 `artifact_sha256`；
+6. Snapshotter不调用会执行 clean/process filter的 `git add`；它安全枚举候选条目，以 `git hash-object --no-filters`和临时 index `update-index`把原始 worktree字节写入 tree，再从同一原始字节生成规范化只读 archive并计算 `artifact_sha256`；这样 CRLF等通常会被 Git规范化的字节变化仍会产生新 tree和候选身份，候选定义的 Git filter也不会在受信控制器中执行，冻结期间的竞态变化会被拒绝；
 7. 将 base SHA、tree SHA、artifact SHA、snapshot policy digest 组合为 `candidate_revision`。
 
 `git write-tree` 只创建本地 Git object，不创建 commit、branch ref 或远端副作用。Gate 和 Reviewer 从同一 archive 解包到各自一次性目录；不直接读取仍可变化的 Implementer workspace。
+
+物化入口只接受不存在的新目标路径，拒绝目标符号链接；它先在可信父目录创建临时目录并校验全部 archive member，再使用 no-follow/exclusive文件创建和原子 rename发布结果。校验或写入失败只删除本次临时目录，不暴露半物化候选。
 
 ### 状态失效
 
@@ -134,7 +136,11 @@ Gate Dispatcher 是独立、无模型的受信组件：
 - 将 Pod/Job UID、镜像 ID、退出码、日志摘要写入 GateReceipt；
 - Job 超时、驱逐、镜像拉取或节点故障分类为基础设施失败，不伪装为候选 finding。
 
-Symphony Deployment 使用 `automountServiceAccountToken: false`。Dispatcher的 ServiceAccount token只挂载到 Dispatcher容器；不能与 Symphony或 Broker共享 Pod。若 Dispatcher与 Supervisor通过 PVC交换请求，目录必须使用不同 Unix身份和单向写入权限；模型 sandbox不得访问 host state根目录。
+GateRequest与GateReceipt作为 TaskSnapshot 的组成部分通过同目录临时文件、`fsync`和原子 replace持久化，不使用可能出现半事务的独立状态文件。Request绑定完整 CandidateRevision、唯一 gate ID、固定 runner digest、命令策略摘要、命令列表、超时和请求时间；Receipt再次绑定相同身份，并记录开始/结束时间、退出码、日志 SHA-256及 Job/Pod UID。Dispatcher恢复既存 Job前必须比较这些身份，任何不一致均拒绝消费。
+
+候选命令非零退出分类为 `FAIL`并回流结构化 finding；超时、驱逐、镜像/节点等执行环境问题分类为`INFRASTRUCTURE_FAILURE`，不产生候选 finding、不清除 CandidateRevision，并消耗独立 infrastructure retry。每次基础设施重试使用新的 gate ID；已消费 gate ID不能重新请求。Receipt卷同时保存独立 cleanup完成标记；Dispatcher即使在Supervisor消费并删除request后仍会重试 foreground Job删除，只有确认Job消失后才写标记，避免已完成Job占满配额。超过机器合同预算后任务进入 blocked，不转入 implement，也不消耗语义修复次数。
+
+Symphony Deployment 使用 `automountServiceAccountToken: false`。Dispatcher的 ServiceAccount token只挂载到 Dispatcher容器；不能与 Symphony或 Broker共享 Pod。Supervisor以 UID 10001只读 receipt卷、只写 request卷；Dispatcher以 UID 10002只读 request卷、只写 receipt卷，二者使用独立 Local PV和只读挂载形成单向通道。候选制品与 lease同样使用独立卷；模型 sandbox不得访问Dispatcher身份、token或receipt写路径。
 
 ### Artifact Broker
 
@@ -151,6 +157,7 @@ Symphony Deployment 使用 `automountServiceAccountToken: false`。Dispatcher的
 - read-only root filesystem，仅 `/workspace` 和 `/tmp` 为临时卷；
 - 默认 deny-all NetworkPolicy；需要依赖缓存时使用预构建 runner image 或单独批准的只读代理，不临时开放任意公网；
 - CPU、内存、临时磁盘、`activeDeadlineSeconds` 和日志上限；
+- candidate archive同时限制为512 MiB和10,000个member；fetch以两遍有界流式扫描先完成全量校验，再物化文件，避免单大文件或海量小文件耗尽128 MiB init内存；
 - 不挂载 Supervisor PVC、宿主机路径、Docker/containerd socket、kubeconfig 或 Secret；
 - 命令由可信策略选择，但候选脚本仍视为不可信代码，只能在上述隔离内执行。
 - `nodeSelector` 固定 `k8s-worker1`；初始 requests不超过 2 CPU/4Gi，limits不超过 4 CPU/8Gi，并设置低于业务 workload的非全局默认 PriorityClass或保持默认优先级；资源不足时任务 blocked，不抢占现有 workload。

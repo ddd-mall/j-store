@@ -3,10 +3,11 @@
   "title": "ReviewProposal",
   "type": "object",
   "additionalProperties": false,
-  "required": ["verdict", "head_sha", "reviewer_role", "findings"],
+  "required": ["verdict", "head_sha", "candidate_revision", "reviewer_role", "findings"],
   "properties": {
     "verdict": {"type": "string", "enum": ["PASS", "FAIL"]},
     "head_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "candidate_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "reviewer_role": {
       "type": "string",
       "enum": ["product-steward", "security-supply-chain", "spec-evaluator"]

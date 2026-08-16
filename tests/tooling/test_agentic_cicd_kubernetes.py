@@ -2,6 +2,9 @@ import subprocess
 import unittest
 import json
 import hashlib
+import os
+import shutil
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -79,10 +82,19 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             for document in self.base
             if document.get("kind") == "PersistentVolume"
         ]
-        self.assertEqual(1, len(volumes))
-        self.assertEqual("Retain", volumes[0]["spec"]["persistentVolumeReclaimPolicy"])
+        self.assertEqual(5, len(volumes))
+        self.assertTrue(
+            all(volume["spec"]["persistentVolumeReclaimPolicy"] == "Retain" for volume in volumes)
+        )
         self.assertEqual(
-            "/var/lib/jstore-agentic-cicd", volumes[0]["spec"]["local"]["path"]
+            {
+                "/var/lib/jstore-agentic-cicd",
+                "/var/lib/jstore-agentic-candidates",
+                "/var/lib/jstore-agentic-gate-requests",
+                "/var/lib/jstore-agentic-gate-receipts",
+                "/var/lib/jstore-agentic-artifact-leases",
+            },
+            {volume["spec"]["local"]["path"] for volume in volumes},
         )
 
     def test_deployment_is_single_instance_and_cannot_call_kubernetes_api(self) -> None:
@@ -203,11 +215,25 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "COPY scripts/agentic-cicd-controller.py /opt/jstore-agentic-controller/controller.py",
             dockerfile,
         )
+        self.assertIn("COPY scripts/agentic-artifact-broker.py", dockerfile)
+        self.assertIn("COPY scripts/agentic-gate-dispatcher.py", dockerfile)
+        self.assertIn("COPY config/agentic-cicd /opt/config/agentic-cicd", dockerfile)
+        self.assertIn("from agentic_cicd.protocol import GateReceipt, GateRequest", dockerfile)
+        self.assertIn("chmod -R a-w /opt/config/agentic-cicd", dockerfile)
         self.assertIn(
             "COPY config/agentic-cicd/state-contract.json /opt/jstore-agentic-controller/state-contract.json",
             dockerfile,
         )
         self.assertIn("io.jstore.controller.revision", dockerfile)
+        for label in (
+            "io.jstore.symphony.patch.sha256",
+            "io.jstore.symphony.routing-patch.sha256",
+            "io.jstore.symphony.dependency-lock.sha256",
+            "io.jstore.workflow.sha256",
+            "io.jstore.base.elixir",
+            "io.jstore.base.node",
+        ):
+            self.assertIn(label, dockerfile)
         self.assertIn(
             "COPY deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
             dockerfile,
@@ -216,21 +242,85 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "COPY deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
             dockerfile,
         )
+        self.assertIn(
+            "COPY deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock",
+            dockerfile,
+        )
         self.assertIn("git apply --recount --check", dockerfile)
         self.assertIn("git apply --recount /tmp/symphony-phase-bridge.patch", dockerfile)
+        self.assertIn("/tmp/symphony-mix.lock /build/symphony/elixir/mix.lock", dockerfile)
         self.assertNotIn(":latest", dockerfile)
+
+        audit_script = (
+            REPOSITORY_ROOT / "scripts" / "agentic-cicd-symphony-audit.sh"
+        ).read_text(encoding="utf-8")
+        for check in (
+            'archive "$symphony_revision"',
+            "git apply --recount --check",
+            "mix compile --warnings-as-errors",
+            "mix test",
+            "mix hex.audit",
+            "mix escript.build",
+            "symphony-dependencies.tsv",
+            "controller_fixture_sha256",
+            '"$audit_root/controller-fixture"',
+            '"$audit_root/evidence"',
+            'verify_sha256 "$source_tree/elixir/mix.lock"',
+            'chown -R $(id -u):$(id -g) /cleanup',
+            "codex-cli $codex_version",
+        ):
+            self.assertIn(check, audit_script)
+        self.assertIn(
+            "hexpm/elixir:1.19.5-erlang-28.3-debian-bookworm-20260202-slim@sha256:",
+            audit_script,
+        )
+        self.assertIn(
+            "node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436",
+            audit_script,
+        )
+        self.assertIn("@openai/codex@$codex_version", audit_script)
+
+        build_script = (
+            REPOSITORY_ROOT
+            / "scripts"
+            / "agentic-cicd-controller-image-build.sh"
+        ).read_text(encoding="utf-8")
+        for evidence in (
+            "--sbom=true",
+            "--provenance=mode=max",
+            "runtime_manifest_digest",
+            "phase_bridge_patch_sha256",
+            "phase_routing_patch_sha256",
+            "dependency_lock_sha256",
+            "workflow_sha256",
+            "CONTROLLER_IMAGE_ARCHIVE_SHA256",
+            'verify_sha256 "$repo_root/$patch_relative"',
+            'verify_sha256 "$repo_root/$routing_patch_relative"',
+            'verify_sha256 "$repo_root/$dependency_lock_relative"',
+            'archive "$symphony_revision"',
+            'symphony-source=$symphony_context',
+        ):
+            self.assertIn(evidence, build_script)
+        self.assertNotIn(":latest", build_script)
+        self.assertNotIn('symphony-source=$symphony_source', build_script)
 
         dockerignore = (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8")
         self.assertTrue(dockerignore.startswith("**\n"))
         self.assertIn("!scripts/agentic_cicd/**", dockerignore)
         self.assertIn("!scripts/agentic-cicd-controller.py", dockerignore)
-        self.assertIn("!config/agentic-cicd/state-contract.json", dockerignore)
+        self.assertIn("!scripts/agentic-artifact-broker.py", dockerignore)
+        self.assertIn("!scripts/agentic-gate-dispatcher.py", dockerignore)
+        self.assertIn("!config/agentic-cicd/*.json", dockerignore)
         self.assertIn(
             "!deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
             dockerignore,
         )
         self.assertIn(
             "!deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
+            dockerignore,
+        )
+        self.assertIn(
+            "!deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock",
             dockerignore,
         )
         self.assertNotIn("!.git", dockerignore)
@@ -266,8 +356,20 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             hashlib.sha256(routing_patch_path.read_bytes()).hexdigest(),
             lock["routing_patch_sha256"],
         )
+        dependency_lock_path = routing_patch_path.with_name("symphony-mix.lock")
+        self.assertEqual(
+            hashlib.sha256(dependency_lock_path.read_bytes()).hexdigest(),
+            lock["dependency_lock_sha256"],
+        )
+        fixture_path = REPOSITORY_ROOT / lock["test_fixture"]
+        self.assertEqual(
+            hashlib.sha256(fixture_path.read_bytes()).hexdigest(),
+            lock["test_fixture_sha256"],
+        )
         self.assertIn('"run_model" => false', routing_patch)
         self.assertIn('"thread_sandbox"', routing_patch)
+        self.assertIn("model_workspace", routing_patch)
+        self.assertIn("candidate_revision", routing_patch)
         self.assertIn("runtime_policy", routing_patch)
         self.assertNotIn("codex app-server", routing_patch)
 
@@ -280,6 +382,62 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertEqual("/api/v1/state", container["readinessProbe"]["httpGet"]["path"])
         self.assertEqual("/api/v1/state", container["livenessProbe"]["httpGet"]["path"])
 
+    def test_gate_runner_is_immutable_offline_and_has_no_runtime_dependency_download(self) -> None:
+        image_root = (
+            REPOSITORY_ROOT / "deploy" / "kubernetes" / "agentic-cicd" / "image"
+        )
+        dockerfile = (image_root / "GateRunner.Dockerfile").read_text(encoding="utf-8")
+        entrypoint = (image_root / "run-quality-gate.sh").read_text(encoding="utf-8")
+        targets = (image_root / "write-spotless-targets.sh").read_text(encoding="utf-8")
+        self.assertIn("eclipse-temurin:25-jdk-noble@sha256:", dockerfile)
+        self.assertIn("KUBECTL_VERSION=v1.28.15", dockerfile)
+        self.assertIn(
+            "KUBECTL_SHA256=1f7651ad0b50ef4561aa82e77f3ad06599b5e6b0b2a5fb6c4f474d95a77e41c5",
+            dockerfile,
+        )
+        self.assertIn("sha256sum --check --strict", dockerfile)
+        self.assertIn("gradle.startParameter.offline = true", dockerfile)
+        self.assertIn("--requirement requirements-quality.txt", dockerfile)
+        self.assertIn("USER 65532:65532", dockerfile)
+        self.assertIn("GRADLE_USER_HOME", entrypoint)
+        self.assertIn("ORG_GRADLE_PROJECT_spotlessFilesFile", entrypoint)
+        self.assertIn("JSTORE_QUALITY_TOOL_ROOT", entrypoint)
+        self.assertIn("JSTORE_REPOSITORY_FILES_FILE", targets)
+        self.assertIn("trusted/quality-gate.sh", entrypoint)
+        self.assertIn("agentic_cicd/capabilities.py", dockerfile)
+        self.assertNotIn("./scripts/quality-gate.sh", entrypoint)
+        self.assertIn("known_example_sha256", targets)
+        self.assertIn("sha256sum", targets)
+        self.assertIn("serviceaccount/token", entrypoint)
+        self.assertNotIn("curl ", entrypoint)
+        self.assertNotIn("wget ", entrypoint)
+
+    def test_gate_runner_trusted_governance_layout_is_self_contained(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trusted = Path(directory) / "trusted"
+            package = trusted / "agentic_cicd"
+            package.mkdir(parents=True)
+            shutil.copy2(
+                REPOSITORY_ROOT / "scripts" / "check-agentic-cicd.py",
+                trusted / "check-agentic-cicd.py",
+            )
+            for name in ("__init__.py", "capabilities.py"):
+                shutil.copy2(
+                    REPOSITORY_ROOT / "scripts" / "agentic_cicd" / name,
+                    package / name,
+                )
+            environment = dict(os.environ)
+            environment["JSTORE_REPOSITORY_ROOT"] = str(REPOSITORY_ROOT)
+            environment.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                ["python3", "-s", str(trusted / "check-agentic-cicd.py")],
+                cwd=Path(directory),
+                env=environment,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
     def test_scripts_are_context_bound_and_cannot_touch_application_namespaces(self) -> None:
         deploy = (
             REPOSITORY_ROOT / "scripts" / "agentic-cicd-kubernetes-deploy.sh"
@@ -290,12 +448,20 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         stop = (
             REPOSITORY_ROOT / "scripts" / "agentic-cicd-kubernetes-stop.sh"
         ).read_text(encoding="utf-8")
-        for script in (deploy, smoke, stop):
+        gate_deploy = (
+            REPOSITORY_ROOT
+            / "scripts"
+            / "agentic-cicd-kubernetes-gate-deploy.sh"
+        ).read_text(encoding="utf-8")
+        for script in (deploy, smoke, stop, gate_deploy):
             self.assertIn('"$(kubectl config current-context)" != "$context"', script)
-            self.assertIn('namespace="agentic-cicd"', script)
             self.assertNotIn("-n jstore", script)
             self.assertNotIn("-n postgresql", script)
+        for script in (deploy, smoke, stop):
             self.assertNotIn("get secret", script)
+        self.assertIn('namespace="agentic-cicd"', deploy)
+        self.assertIn('namespace="agentic-cicd"', smoke)
+        self.assertIn('namespace="agentic-cicd"', stop)
         self.assertIn("ctr --namespace k8s.io images import", deploy)
         self.assertNotIn("sudo -n", deploy)
         self.assertIn("--dry-run=server", deploy)
@@ -309,15 +475,146 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("new_pod_uid", deploy)
         self.assertIn("image: $image", deploy)
         self.assertIn("io.jstore.controller.revision", deploy)
+        self.assertIn('expected_image="docker.io/library/jstore-agentic-cicd:', deploy)
+        self.assertIn('images tag "$image" "$image_ref"', deploy)
+        self.assertIn('image_ref="$image_repository@$image_digest"', deploy)
         self.assertIn("org.opencontainers.image.revision", deploy)
         self.assertIn("symphony-phase-bridge.patch", deploy)
         self.assertIn("symphony-phase-routing.patch", deploy)
         self.assertIn("patch_sha256", deploy)
+        self.assertIn("dependency_lock_sha256", deploy)
+        self.assertIn("--dry-run=server", gate_deploy)
+        self.assertIn("@sha256:", gate_deploy)
+        self.assertIn("run-quality-gate", gate_deploy)
+        self.assertIn("capability and all GitHub writes remain disabled", gate_deploy)
+        self.assertIn("auth can-i get secrets", gate_deploy)
+        self.assertIn("if supervisor_token=$(kubectl", gate_deploy)
+        self.assertIn("supervisor_status=$?", gate_deploy)
+        self.assertIn('"$supervisor_status" -ne 1', gate_deploy)
+        self.assertIn("if dispatcher_secret=$(kubectl", gate_deploy)
+        self.assertIn("dispatcher_status=$?", gate_deploy)
+        self.assertIn('"$dispatcher_status" -ne 1', gate_deploy)
         self.assertIn("runtime-revisions", smoke)
         self.assertIn("scale deployment/symphony --replicas=0", stop)
         self.assertNotIn("delete pvc", stop)
         for state_field in ('\"running\"', '\"counts\"', '\"codex_totals\"'):
             self.assertIn(state_field, smoke)
+
+    def test_gate_image_distribution_is_single_archive_and_digest_bound(self) -> None:
+        build = (
+            REPOSITORY_ROOT / "scripts" / "agentic-cicd-gate-image-build.sh"
+        ).read_text(encoding="utf-8")
+        image_import = (
+            REPOSITORY_ROOT / "scripts" / "agentic-cicd-gate-image-import.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("--platform linux/amd64", build)
+        self.assertIn("--provenance=false", build)
+        self.assertIn("type=oci,dest=", build)
+        self.assertIn("containerimage.digest", build)
+        self.assertIn('tag="docker.io/library/jstore-agentic-gate:', build)
+        self.assertIn('"GATE_IMAGE_REF=$repository@$digest"', build)
+        self.assertIn("source repository must be clean", build)
+        self.assertIn('"$actual_sha256" != "$expected_sha256"', image_import)
+        self.assertIn("ctr --namespace k8s.io images import", image_import)
+        self.assertIn("--image-tag", image_import)
+        self.assertIn("--image-ref", image_import)
+        self.assertIn("ctr --namespace k8s.io images list", image_import)
+        self.assertIn("$3 == digest", image_import)
+        self.assertIn('containerd_image_tag=$image_tag', image_import)
+
+    def test_gate_image_import_binds_build_tag_to_canonical_digest_ref(self) -> None:
+        script = REPOSITORY_ROOT / "scripts" / "agentic-cicd-gate-image-import.sh"
+        digest = "sha256:" + "a" * 64
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "gate.oci.tar"
+            archive.write_bytes(b"reviewed archive")
+            archive_sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            (bin_dir / "sudo").write_text(
+                "#!/bin/sh\nexec \"$@\"\n", encoding="utf-8"
+            )
+            (bin_dir / "tar").write_text(
+                "#!/bin/sh\nprintf 'oci-layout\\nindex.json\\n'\n", encoding="utf-8"
+            )
+            (bin_dir / "ctr").write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$*\" >> \"$CTR_LOG\"\n"
+                "case \"$*\" in\n"
+                "  *'content list') printf '%s\\n' '"
+                + digest
+                + "' ;;\n"
+                "  *'images list') printf '%s\\n' "
+                "'REF TYPE DIGEST SIZE PLATFORMS LABELS' "
+                "'docker.io/library/jstore-agentic-gate:test application/vnd.oci.image.manifest.v1+json "
+                + digest
+                + " 1B linux/amd64 -' "
+                "'docker.io/library/jstore-agentic-gate@"
+                + digest
+                + " application/vnd.oci.image.manifest.v1+json "
+                + digest
+                + " 1B linux/amd64 io.cri-containerd.image=managed' ;;\n"
+                "esac\n",
+                encoding="utf-8",
+            )
+            for executable in bin_dir.iterdir():
+                executable.chmod(0o755)
+            environment = os.environ.copy()
+            environment["PATH"] = f"{bin_dir}:{environment['PATH']}"
+            ctr_log = root / "ctr.log"
+            environment["CTR_LOG"] = str(ctr_log)
+            result = subprocess.run(
+                [
+                    str(script),
+                    "--archive",
+                    str(archive),
+                    "--sha256",
+                    archive_sha256,
+                    "--image-tag",
+                    "docker.io/library/jstore-agentic-gate:test",
+                    "--image-ref",
+                    f"docker.io/library/jstore-agentic-gate@{digest}",
+                ],
+                cwd=REPOSITORY_ROOT,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            mismatch = subprocess.run(
+                [
+                    str(script),
+                    "--archive",
+                    str(archive),
+                    "--sha256",
+                    archive_sha256,
+                    "--image-tag",
+                    "docker.io/library/other-gate:test",
+                    "--image-ref",
+                    f"docker.io/library/jstore-agentic-gate@{digest}",
+                ],
+                cwd=REPOSITORY_ROOT,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            ctr_calls = ctr_log.read_text(encoding="utf-8")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn(f"docker.io/library/jstore-agentic-gate@{digest}", result.stdout)
+        self.assertIn(
+            "images tag docker.io/library/jstore-agentic-gate:test "
+            f"docker.io/library/jstore-agentic-gate@{digest}",
+            ctr_calls,
+        )
+        self.assertIn(
+            f"images label docker.io/library/jstore-agentic-gate@{digest} "
+            "io.cri-containerd.image=managed",
+            ctr_calls,
+        )
+        self.assertEqual(2, mismatch.returncode)
+        self.assertIn("use different repositories", mismatch.stderr)
 
     def test_policy_engine_is_pinned_and_has_read_only_cluster_rbac(self) -> None:
         daemonset = by_kind_name(
@@ -388,6 +685,66 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertNotIn("pods/exec", resources)
         binding = by_kind_name(self.gates, "RoleBinding", "gate-dispatcher")
         self.assertEqual("agentic-cicd", binding["subjects"][0]["namespace"])
+
+    def test_broker_and_dispatcher_are_separate_disabled_control_plane_pods(self) -> None:
+        broker = by_kind_name(self.gates, "Deployment", "artifact-broker")
+        dispatcher = by_kind_name(self.gates, "Deployment", "gate-dispatcher")
+        self.assertEqual(0, broker["spec"]["replicas"])
+        self.assertEqual(0, dispatcher["spec"]["replicas"])
+
+        broker_pod = broker["spec"]["template"]["spec"]
+        dispatcher_pod = dispatcher["spec"]["template"]["spec"]
+        self.assertFalse(broker_pod["automountServiceAccountToken"])
+        self.assertFalse(dispatcher_pod["automountServiceAccountToken"])
+        self.assertEqual("artifact-broker", broker_pod["serviceAccountName"])
+        self.assertEqual("gate-dispatcher", dispatcher_pod["serviceAccountName"])
+        for pod in (broker_pod, dispatcher_pod):
+            self.assertEqual("k8s-master", pod["nodeSelector"]["kubernetes.io/hostname"])
+            self.assertIn(
+                {
+                    "key": "node-role.kubernetes.io/control-plane",
+                    "operator": "Exists",
+                    "effect": "NoSchedule",
+                },
+                pod["tolerations"],
+            )
+        self.assertEqual(1, len(broker_pod["containers"]))
+        self.assertEqual(1, len(dispatcher_pod["containers"]))
+
+        broker_mounts = {
+            value["name"] for value in broker_pod["containers"][0]["volumeMounts"]
+        }
+        dispatcher_mounts = {
+            value["name"] for value in dispatcher_pod["containers"][0]["volumeMounts"]
+        }
+        self.assertIn("candidate-artifacts", broker_mounts)
+        self.assertNotIn("gate-exchange", broker_mounts)
+        self.assertNotIn("candidate-artifacts", dispatcher_mounts)
+        self.assertIn("dispatcher-token", dispatcher_mounts)
+        projected = next(
+            volume["projected"] for volume in dispatcher_pod["volumes"]
+            if volume["name"] == "dispatcher-token"
+        )
+        token_projection = projected["sources"][0]["serviceAccountToken"]
+        self.assertEqual(3600, token_projection["expirationSeconds"])
+        self.assertEqual(
+            "https://kubernetes.default.svc.cluster.local",
+            token_projection["audience"],
+        )
+
+    def test_gate_network_allows_only_broker_endpoint(self) -> None:
+        egress = by_kind_name(self.gates, "NetworkPolicy", "gate-to-artifact-broker")
+        rule = egress["spec"]["egress"][0]
+        self.assertEqual(8081, rule["ports"][0]["port"])
+        self.assertEqual(
+            "artifact-broker",
+            rule["to"][0]["podSelector"]["matchLabels"]["app.kubernetes.io/name"],
+        )
+        ingress = by_kind_name(self.gates, "NetworkPolicy", "artifact-broker-from-gates")
+        self.assertEqual(
+            "agentic-cicd-gates",
+            ingress["spec"]["ingress"][0]["from"][0]["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"],
+        )
 
     def test_offline_gate_smoke_has_no_token_or_network_and_is_bounded(self) -> None:
         job_path = GATES / "offline-smoke-job.yaml"
