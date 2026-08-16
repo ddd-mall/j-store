@@ -102,3 +102,11 @@ LC-06仍保持未完成，直到洁净提交产生实际runtime manifest digest�
 随后容器化原生审计从固定Elixir基础digest一次构建audit-toolchain，并让依赖资格与compile/test两个隔离容器共同按捕获的image ID运行，避免重复在线安装。工具链Dockerfile SHA-256为`a324ae9a...e0918`，临时image ID为`sha256:adaa67f5...6136c0`且退出后已精确清理。两段patch顺序apply、零Hex公告、39项许可证、warnings-as-errors编译、296项测试、escript和Codex精确版本均PASS；报告SHA-256为`87db57f4...a053`。这关闭了新routing patch的Elixir compile/test缺口，但未替代不可变镜像、真实单turn、无第二App Server和集群review恢复证据，因此LC-16/LC-17/LC-22仍保持未关闭。
 
 独立只读规格/安全复评再次判定PASS、无阻塞finding，并独立重跑21项Kubernetes/脚本合同测试。残余风险为audit清理失败和并发运行尚无故障注入，且代理分支主要依赖静态合同与本次成功运行；这些风险不改变当前fail-closed审计结果，但保留给后续工具测试加固。LC-16/LC-17/LC-22状态不变。
+
+## 2026-08-16 LC-17 controller镜像安全门禁
+
+controller `175da3b1...b964`从洁净提交构建为runtime manifest `sha256:5bbe1352...058e`。本机RepoDigest、OCI labels和非root用户核对通过；Docker archive、SPDX、SLSA provenance、source record与OSV JSON均有独立SHA-256，且两份attestation的唯一subject绑定同一runtime digest。第一次成功镜像有229组finding/16 critical；runtime执行当前Bookworm安全更新后降为199组/14 critical，但仍有13组critical未被Debian标为`unimportant`，对应curl、glibc、openssh、perl、sqlite3和zlib的Bookworm源包均无fixed version。
+
+AC-LC-09不允许实现者因开发网络隔离或暂无修复而自行接受该风险。当前裁决为`BLOCKED_PENDING_HUMAN_SECURITY_DISPOSITION`：镜像可以继续只读复核，但不得部署；LC-17、LC-16和LC-22继续保持未关闭，Level 0和全部远程写不变。完整身份、扫描统计和13项finding见`evidence/2026-08-16-lc17-controller-image-security.md`。
+
+独立只读规格/安全评审核对最终OSV报告、AC-LC-09和制品subject后确认身份链、SBOM及provenance PASS，但对LC-17和digest `sha256:5bbe1352...058e`部署均给出BLOCK；自动化或评估者无权接受该高风险。本轮21项Kubernetes/构建合同测试、99项无模型组合测试、治理检查和完整六阶段质量门禁均PASS，不改变安全阻塞裁决。

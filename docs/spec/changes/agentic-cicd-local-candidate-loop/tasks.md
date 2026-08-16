@@ -71,7 +71,7 @@
 - [ ] `LC-16` 验证 implement/validate/review/complete 的单 turn路由、无第二 App Server、new-candidate失效、finding回流、两次修复和第三次熔断。
   - 当前进度：本地无模型99项组合合同测试已覆盖implement完成、validate重入单次调度、Gate PASS→review、Review FAIL回流、重复/延迟callback拒绝、历史ReviewDecision保留但exact-candidate失效、两次不同修复和第三次熔断，以及validate/complete不启动模型。两段patch在锁定Symphony源码上顺序apply后，使用单次构建且身份可审计的工具链镜像完成`mix compile --warnings-as-errors`、296项测试、Hex审计和escript；报告SHA-256为`87db57f4...a053`。不可变镜像和实机单turn/无第二App Server验证仍未完成，因此本项保持未关闭。
 - [ ] `LC-17` 运行聚焦测试、治理检查、镜像安全检查和 `./scripts/quality-gate.sh`，再进行独立 Product Steward/Security review。
-  - 当前进度：最新99项无模型组合测试、治理检查和完整六阶段`./scripts/quality-gate.sh`均PASS；新routing patch的Symphony compile/test已PASS。新controller镜像安全证据复核与完整独立Product Steward/Security review仍待完成。
+  - 当前进度：最新21项Kubernetes/构建合同测试、99项无模型组合测试、治理检查和完整六阶段`./scripts/quality-gate.sh`均PASS；新routing patch的Symphony compile/test已PASS。controller `175da3b1...b964`的不可变镜像、安全更新、SBOM/provenance和OSV证据已完成，独立评审确认身份链PASS但安全裁决为BLOCK：最终扫描仍有13组未获Debian `unimportant`分类且无Bookworm fixed version的critical finding。因此状态为`BLOCKED_PENDING_HUMAN_SECURITY_DISPOSITION`，不得部署，LC-17保持未关闭。详见`evidence/2026-08-16-lc17-controller-image-security.md`。
 
 ## 切片 E：开发集群验收
 
