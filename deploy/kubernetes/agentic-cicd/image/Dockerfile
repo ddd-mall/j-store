@@ -40,7 +40,9 @@ ARG SYMPHONY_PATCH_SHA256=unknown
 ARG SYMPHONY_ROUTING_PATCH_SHA256=unknown
 ARG SYMPHONY_DEPENDENCY_LOCK_SHA256=unknown
 ARG WORKFLOW_SHA256=unknown
+ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
+    && apt-get upgrade --yes --no-install-recommends \
     && apt-get install --yes --no-install-recommends ca-certificates git openssh-client bash curl python3 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 symphony \

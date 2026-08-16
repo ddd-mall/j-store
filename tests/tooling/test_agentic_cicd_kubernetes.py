@@ -339,6 +339,10 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertNotIn('symphony-source=$symphony_source', build_script)
         self.assertIn("HEX_HTTP_CONCURRENCY=1", dockerfile)
         self.assertIn("HEX_HTTP_TIMEOUT=120", dockerfile)
+        self.assertIn(
+            "apt-get upgrade --yes --no-install-recommends",
+            dockerfile,
+        )
 
         dockerignore = (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8")
         self.assertTrue(dockerignore.startswith("**\n"))
