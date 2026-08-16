@@ -12,13 +12,13 @@
 
 能力升级必须通过受审 PR 更新合同、测试和本手册；仅扩大 GitHub token 权限不会自动扩大流程授权。
 
-仓库已包含未来阶段路由和 CandidateRevision 冻结实现，但 `local_workspace_write=false`、`freeze_local_candidate=false`、`run_isolated_gate=false`，因此 implementer workspace-write 与冻结入口均不可达。开放这些能力前还必须落地隔离 gate runner；Supervisor 和 after hook 禁止直接执行 workspace 中的验证脚本。
+仓库已包含未来阶段路由、CandidateRevision 冻结和隔离 Gate Runner 实现，但 `local_workspace_write=false`、`freeze_local_candidate=false`、`run_isolated_gate=false`，因此 implementer workspace-write、冻结和 Gate 调度入口仍不可达。只有完成 Level 1 剩余准入、恢复和真实模型验收后才能通过单独受审变更开放；Supervisor 和 after hook 始终禁止直接执行 workspace 中的验证脚本。每个model turn的complete hook还必须回传由host phase context绑定的phase、role、head SHA和可选CandidateRevision；controller在写状态前校验该绑定并幂等消费session/thread/turn，禁止把延迟或重复Reviewer callback按回流后的implement phase重新分类。
 
 ## 当前准入状态
 
 1. 远端 develop ruleset（`Protect develop`）已 active，六个 required contexts 与模板一致且无 bypass actor；仍需用合法和故意违规的 disposable Draft PR 验证实际 enforcement。
 2. 历史 Gitleaks finding 已审计为未合并测试 fixture，并按精确 fingerprint 处置；最新 `develop` 的 Quality、Security（包含 `secret-scan`）和 Qodana 已绿色。
-3. 固定 Symphony/Codex 运行时、真实独立 Reviewer turn 和 disposable Issue 端到端演练仍缺证据。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
+3. 固定 Symphony/Codex 运行时与无模型 exact-candidate Reviewer 已有镜像内证据；凭据轮换确认、真实独立 Reviewer turn、恢复/熔断和 disposable Issue 端到端演练仍未完成。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
 
 ## Symphony 来源
 
@@ -143,7 +143,7 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 - dashboard bind：部署副本只在受信根 `WORKFLOW.md` 上增加 `server.host: 0.0.0.0`，使 Pod 探针和 ClusterIP 可访问；无 NodePort、LoadBalancer 或 Ingress。
 - 首次 smoke：使用非秘密哨兵 token `level0-no-github-access`，GitHub 会拒绝请求，因此不能取得 Issue 或触发 Codex turn。
 - NetworkPolicy执行器：Flannel保持不变，独立 `kube-router-firewall` DaemonSet只运行 firewall controller；固定镜像和回滚约束见 `deploy/kubernetes/agentic-cicd/network-policy-engine/`。`kube-network-policies`曾因返回流量兼容性在实机失败，不能恢复使用。
-- Gate基础设施：`agentic-cicd-gates` namespace已启用 restricted Pod Security、ResourceQuota、LimitRange和 default-deny；`agentic-cicd/gate-dispatcher`只可在该 namespace管理 Job、观察 Pod和读取日志。Artifact Broker、正式 Dispatcher和离线 Gate Runner物料已在仓库中就绪，但在双节点镜像导入、跨节点 Broker smoke和独立复评完成前仍保持 Level 0。
+- Gate基础设施：`agentic-cicd-gates` namespace已启用 restricted Pod Security、ResourceQuota、LimitRange和 default-deny；`agentic-cicd/gate-dispatcher`只可在该 namespace管理 Job、观察 Pod和读取日志。Artifact Broker、正式 Dispatcher和离线 Gate Runner已完成双节点镜像导入、跨节点 Broker/Gate 正反例、凭据隔离和无模型 exact-candidate Reviewer 验收。机器合同仍保持 Level 0，直到剩余准入和端到端验收完成。
 
 NetworkPolicy执行器使用独立入口部署；它会运行 preflight、server dry-run、两节点 rollout、跨节点 ingress/egress正反例以及现有业务回归，失败自动回滚：
 

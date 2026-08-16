@@ -153,6 +153,13 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "/usr/bin/python3 /opt/jstore-agentic-controller/controller.py complete-turn",
             deployed_workflow,
         )
+        for binding in (
+            "--expected-phase \"$JSTORE_INVOCATION_PHASE\"",
+            "--expected-role \"$JSTORE_INVOCATION_ROLE\"",
+            "--expected-head-sha \"$JSTORE_INVOCATION_HEAD_SHA\"",
+            "--expected-candidate-revision \"$JSTORE_INVOCATION_CANDIDATE_REVISION\"",
+        ):
+            self.assertIn(binding, deployed_workflow)
         self.assertIn('{% if agentic_cicd.role == "reviewer" %}', deployed_workflow)
         self.assertIn('{% elsif agentic_cicd.role == "implementer" %}', deployed_workflow)
         self.assertIn("submit_review_proposal", deployed_workflow)
@@ -257,6 +264,12 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         for check in (
             'archive "$symphony_revision"',
             "git apply --recount --check",
+            '--iidfile "$audit_toolchain_iidfile"',
+            "audit_toolchain_dockerfile_sha256",
+            "audit_toolchain_image_id",
+            "Acquire::Retries=2",
+            "Acquire::http::Timeout=30",
+            "Acquire::https::Timeout=30",
             "mix compile --warnings-as-errors",
             "mix test",
             "mix hex.audit",
@@ -270,6 +283,25 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "codex-cli $codex_version",
         ):
             self.assertIn(check, audit_script)
+        self.assertEqual(
+            audit_script.count(
+                "install --yes --no-install-recommends build-essential cmake "
+                "git ca-certificates python3"
+            ),
+            1,
+        )
+        self.assertGreaterEqual(audit_script.count('"$audit_toolchain_image_id"'), 2)
+        self.assertIn("--network host", audit_script)
+        self.assertIn("--build-arg HTTP_PROXY", audit_script)
+        self.assertIn(
+            '"audit_toolchain_dockerfile_sha256": '
+            '"$audit_toolchain_dockerfile_sha256"',
+            audit_script,
+        )
+        self.assertIn(
+            '"audit_toolchain_image_id": "$audit_toolchain_image_id"',
+            audit_script,
+        )
         self.assertIn(
             "hexpm/elixir:1.19.5-erlang-28.3-debian-bookworm-20260202-slim@sha256:",
             audit_script,
@@ -371,6 +403,14 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("model_workspace", routing_patch)
         self.assertIn("candidate_revision", routing_patch)
         self.assertIn("runtime_policy", routing_patch)
+        self.assertIn(":agentic_cicd_context", routing_patch)
+        for binding in (
+            "JSTORE_INVOCATION_PHASE",
+            "JSTORE_INVOCATION_ROLE",
+            "JSTORE_INVOCATION_HEAD_SHA",
+            "JSTORE_INVOCATION_CANDIDATE_REVISION",
+        ):
+            self.assertIn(binding, routing_patch)
         self.assertNotIn("codex app-server", routing_patch)
 
     def test_dashboard_is_internal_and_probed(self) -> None:

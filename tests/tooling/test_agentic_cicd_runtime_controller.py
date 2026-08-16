@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from scripts.agentic_cicd.coordinator import SnapshotStore, TaskSnapshot
-from scripts.agentic_cicd.protocol import GateRequest
+from scripts.agentic_cicd.protocol import GateRequest, ReviewDecision, ReviewFinding
 from scripts.agentic_cicd.runtime_controller import (
     CandidateRevisionStore,
     GateRequestStore,
@@ -420,9 +420,93 @@ class RuntimePhaseControllerTest(unittest.TestCase):
                 session_id="reviewer-session",
                 thread_id="reviewer-thread",
                 turn_id="reviewer-turn",
+                expected_phase="review",
+                expected_role="reviewer",
+                expected_head_sha=self.head,
+                expected_candidate_revision=candidate.candidate_revision,
             )
         self.assertEqual(
             "review", SnapshotStore(self.snapshot_path).load().iteration_phase
+        )
+
+    def test_replayed_review_fail_callback_cannot_be_reclassified_as_implementer(self) -> None:
+        self.snapshot.iteration_phase = "validate"
+        self.snapshot.implementer_session_id = "implementer-session"
+        SnapshotStore(self.snapshot_path).save(self.snapshot)
+        artifact_root = self.root / "artifacts"
+        candidate = CandidateRevisionStore(
+            self.root / "state", artifact_root=artifact_root, freeze_enabled=True
+        ).freeze("GH-123", self.workspace)
+        request = gate_request(candidate.to_json())
+        trusted_request_store(self.root / "state").record("GH-123", request)
+        trusted_receipt_store(self.root / "state").record(
+            "GH-123", gate_receipt(request)
+        )
+        PhaseContextStore(
+            self.root / "state",
+            workspace_write_enabled=True,
+            artifact_root=artifact_root,
+        ).load("GH-123", self.workspace)
+        finding = ReviewFinding(
+            root_cause_id="review:missing-recovery-test",
+            severity="high",
+            evidence="The repeated callback path is not covered.",
+            impact="A stale reviewer callback can advance a new implementation round.",
+            expected_behavior="Reject callbacks whose invocation binding is stale.",
+            verification="Replay the same reviewer callback after Review FAIL.",
+        )
+        ReviewProposalStore(self.root / "state").submit(
+            "GH-123",
+            {
+                "verdict": "FAIL",
+                "head_sha": self.head,
+                "candidate_revision": candidate.candidate_revision,
+                "reviewer_role": "spec-evaluator",
+                "findings": [finding.to_json()],
+            },
+        )
+        controller = TurnStateController(
+            self.root / "state",
+            workspace_write_enabled=True,
+            artifact_root=artifact_root,
+        )
+        invocation = {
+            "session_id": "reviewer-session",
+            "thread_id": "reviewer-thread",
+            "turn_id": "reviewer-turn",
+            "expected_phase": "review",
+            "expected_role": "reviewer",
+            "expected_head_sha": self.head,
+            "expected_candidate_revision": candidate.candidate_revision,
+        }
+
+        controller.complete_turn("GH-123", self.workspace, **invocation)
+        after_first = SnapshotStore(self.snapshot_path).load().to_json()
+        self.assertEqual("implement", after_first["iteration_phase"])
+        self.assertEqual(
+            finding.to_json(), after_first["pending_review_findings"][0]
+        )
+        self.assertIn(candidate.candidate_revision, after_first["review_decisions"])
+
+        with self.assertRaisesRegex(RuntimeError, "invocation phase"):
+            controller.complete_turn("GH-123", self.workspace, **invocation)
+
+        self.assertEqual(
+            after_first, SnapshotStore(self.snapshot_path).load().to_json()
+        )
+        self.assertFalse(
+            (self.root / "state" / "proposals" / "GH-123.json").exists()
+        )
+
+        later_review = SnapshotStore(self.snapshot_path).load()
+        later_review.iteration_phase = "review"
+        later_review.implementer_session_id = "implementer-session-2"
+        SnapshotStore(self.snapshot_path).save(later_review)
+        before_late_replay = later_review.to_json()
+        with self.assertRaisesRegex(RuntimeError, "already consumed"):
+            controller.complete_turn("GH-123", self.workspace, **invocation)
+        self.assertEqual(
+            before_late_replay, SnapshotStore(self.snapshot_path).load().to_json()
         )
 
     def test_turn_completion_and_gate_receipt_advance_without_executing_workspace_code(self) -> None:
@@ -435,6 +519,10 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             session_id="implementer-session",
             thread_id="thread-1",
             turn_id="turn-1",
+            expected_phase="implement",
+            expected_role="implementer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
         )
         self.assertEqual("validate", SnapshotStore(self.snapshot_path).load().iteration_phase)
 
@@ -504,6 +592,10 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             session_id="implementer-session",
             thread_id="thread-1",
             turn_id="turn-1",
+            expected_phase="implement",
+            expected_role="implementer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
         )
 
         store = CandidateRevisionStore(self.root / "state", freeze_enabled=True)
@@ -541,6 +633,17 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         previous = store.freeze("GH-123", self.workspace)
 
         snapshot = SnapshotStore(self.snapshot_path).load()
+        snapshot.record_review_decision(
+            ReviewDecision(
+                verdict="PASS",
+                head_sha=self.head,
+                candidate_revision=previous.candidate_revision,
+                reviewer_role="spec-evaluator",
+                reviewer_session_id="reviewer-session-1",
+                implementer_session_id="implementer-session-1",
+                findings=(),
+            )
+        )
         snapshot.iteration_phase = "implement"
         SnapshotStore(self.snapshot_path).save(snapshot)
         (self.workspace / "candidate.txt").write_text("new candidate\n", encoding="utf-8")
@@ -552,6 +655,10 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             session_id="implementer-session-2",
             thread_id="thread-2",
             turn_id="turn-2",
+            expected_phase="implement",
+            expected_role="implementer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
         )
 
         current = store.freeze("GH-123", self.workspace)
@@ -560,6 +667,11 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         self.assertEqual(
             current.to_json(), SnapshotStore(self.snapshot_path).load().candidate_revision
         )
+        restored = SnapshotStore(self.snapshot_path).load()
+        self.assertIsNotNone(
+            restored.review_decision_for(previous.candidate_revision)
+        )
+        self.assertFalse(restored.has_review_pass_for(current.candidate_revision))
 
     def test_level_zero_cannot_freeze_a_candidate(self) -> None:
         self.snapshot.iteration_phase = "validate"
@@ -603,6 +715,10 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             session_id="session",
             thread_id="thread",
             turn_id="turn",
+            expected_phase="implement",
+            expected_role="observer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
         )
         snapshot = SnapshotStore(self.snapshot_path).load()
         self.assertEqual("complete", snapshot.iteration_phase)

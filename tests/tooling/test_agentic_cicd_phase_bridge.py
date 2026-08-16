@@ -17,6 +17,7 @@ from scripts.agentic_cicd.phase_bridge import (
 )
 from scripts.agentic_cicd.protocol import (
     GateReceipt,
+    ReviewDecision,
     ReviewFinding,
     ReviewProposal,
     TurnReceipt,
@@ -254,9 +255,23 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
             restored = store.load()
 
         self.assertEqual(PHASE_REVIEW, restored.iteration_phase)
+        previous_revision = candidate().candidate_revision
+        restored.record_review_decision(
+            ReviewDecision(
+                verdict="PASS",
+                head_sha=SHA_B,
+                candidate_revision=previous_revision,
+                reviewer_role="spec-evaluator",
+                reviewer_session_id="session-reviewer",
+                implementer_session_id="session-implementer",
+                findings=(),
+            )
+        )
         self.bridge.invalidate_for_new_head(restored, SHA_C)
         self.assertEqual(PHASE_IMPLEMENT, restored.iteration_phase)
         self.assertIsNone(restored.implementer_session_id)
+        self.assertTrue(restored.has_review_pass_for(previous_revision))
+        self.assertFalse(restored.has_review_pass_for("9" * 64))
 
 
 if __name__ == "__main__":

@@ -77,6 +77,8 @@ validate恢复演练再次调度同一 CandidateRevision，并在主 Gate容器�
 
 候选controller代码已在Symphony Pod的临时路径中完成无模型复验：正式`GateReceiptStore`以同Issue输入执行validate→review；直接写和完成前篡改分别被权限位与exact-archive复验拒绝；同session仍被拒绝，独立session最终绑定同一revision。该验收未启动Codex/App Server或模型，未写正式Supervisor task state，未创建Gate Job或远程Git/GitHub状态。可重放脚本、精确request/receipt和脱敏输出保存在`evidence/2026-08-16-lc14-reviewer-smoke.md`。由于新代码尚未进入部署镜像，LC-14保持未完成；真实模型Reviewer与review阶段重启仍分别保留给LC-21和LC-22。
 
+随后不可变controller `sha256:305a2b8af0cdc38510b663436e17d6f47eba4b02a9c015010e64a3aa0084d1a9`部署到开发集群，镜像内controller revision为`3a537df4dac461e40b12fcda46597b959ef24f52`，已包含上述修复。当前Pod `symphony-5586ff8477-gnst9` / UID `4a8cdf05-2ba0-4715-ab63-bf399d0a126f`从`/opt/jstore-agentic-controller`重跑固定fixture SHA-256 `7fd4846728a39c57db54f0f2e118b93346bd4f6324a6e9b59f03cd61101fed1f`；CandidateRevision、artifact、GateReceipt与decision摘要与候选验收一致。2,553个条目的只读检查、直接篡改拒绝、chmod后完成前复验拒绝、同session拒绝和独立session PASS均成立。本次经独立代码/证据复核、55项聚焦测试、治理检查与完整`./scripts/quality-gate.sh`后关闭LC-14；真实模型Reviewer和review阶段重启仍分别归LC-21和LC-22。
+
 ## 2026-08-16 Symphony 供应链资格
 
 上游锁定commit的原始依赖审计得到27个Hex公告，包含Bandit、Mint、Phoenix、Plug、Req和HPAX的HIGH级网络/资源耗尽风险。缓解候选以单独只读`mix.lock`升级受影响包及必要传递约束，保留`yaml_elixir 2.12.0`，并把Ecto 3.14下的空`codex.command`拒绝改为显式合同。39项依赖许可证只包含MIT、Apache-2.0和BSD-2-Clause。
@@ -88,3 +90,15 @@ LC-06仍保持未完成，直到洁净提交产生实际runtime manifest digest�
 随后提交`89c7b462...be401`在指定Linux主机完成最新两阶段隔离审计：第一阶段在执行被审代码前生成零公告与许可证证据，第二阶段不挂载证据目录并完成296项测试、escript和Codex精确版本smoke；各阶段前后均复验依赖锁。审计JSON绑定routing patch `b60be305...7535`且自身SHA-256为`736c8a35...8954`，因此LC-05证据门关闭。
 
 最新洁净controller `3a537df4...24f52`随后从固定Git archive构建。可加载runtime与attested OCI输出得到相同manifest `sha256:305a2b8a...4d1a9`；镜像labels完整绑定Symphony/j-store revision、两段patch、dependency lock、Codex、两个基础镜像和WORKFLOW。构建器从OCI中各提取唯一SPDX与SLSA statement，并确认两者subject绑定该runtime digest；制品摘要与回滚边界保存在`evidence/2026-08-16-controller-image-build.md`，LC-06证据门关闭。
+
+## 2026-08-16 Complete hook invocation 身份与恢复幂等
+
+代码复查发现`complete-turn`按回调到达时的当前phase推断receipt role。Review FAIL先把phase回退到implement，因此同一个Reviewer after hook重试会被误判为新Implementer并推进validate。另一个规格漂移是新实现或新head会整体清空ReviewDecision，与“旧证据保留审计但不能批准新候选”冲突。
+
+修复先以回归测试复现，确认旧实现因不接受`expected_phase`而失败。随后complete hook改为必须回传Symphony启动turn前取得的host-owned phase、role、head SHA和可选CandidateRevision；controller在任何持久化前逐项校验，并以session/thread/turn规范元组消费幂等键。测试同时证明Review FAIL后的立即重放因phase不匹配被拒绝，未来再次进入review时旧回调仍因已消费而拒绝，snapshot、预算、finding和decision均不受第二次回调影响。历史ReviewDecision继续按CandidateRevision保留，当前授权仍要求exact-candidate匹配。
+
+99项本地无模型组合测试、治理检查和两段patch apply均PASS。独立规格评审复验调用身份、重放、历史账本、patch顺序和摘要后结论为PASS，无阻塞finding。该证据只证明仓库合同；本机没有Elixir`mix`，新的routing patch尚未完成Symphony compile/test、镜像重建或集群review恢复演练，因此LC-16/LC-22保持未关闭，Level 0能力与全部远程写保持关闭。可重放命令和边界记录见`evidence/2026-08-16-lc16-invocation-binding.md`。
+
+随后容器化原生审计从固定Elixir基础digest一次构建audit-toolchain，并让依赖资格与compile/test两个隔离容器共同按捕获的image ID运行，避免重复在线安装。工具链Dockerfile SHA-256为`a324ae9a...e0918`，临时image ID为`sha256:adaa67f5...6136c0`且退出后已精确清理。两段patch顺序apply、零Hex公告、39项许可证、warnings-as-errors编译、296项测试、escript和Codex精确版本均PASS；报告SHA-256为`87db57f4...a053`。这关闭了新routing patch的Elixir compile/test缺口，但未替代不可变镜像、真实单turn、无第二App Server和集群review恢复证据，因此LC-16/LC-17/LC-22仍保持未关闭。
+
+独立只读规格/安全复评再次判定PASS、无阻塞finding，并独立重跑21项Kubernetes/脚本合同测试。残余风险为audit清理失败和并发运行尚无故障注入，且代理分支主要依赖静态合同与本次成功运行；这些风险不改变当前fail-closed审计结果，但保留给后续工具测试加固。LC-16/LC-17/LC-22状态不变。

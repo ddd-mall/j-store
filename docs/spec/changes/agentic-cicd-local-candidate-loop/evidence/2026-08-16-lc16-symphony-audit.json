@@ -1,0 +1,22 @@
+{
+  "audit_toolchain_dockerfile_sha256": "a324ae9a2fd88f350dd88488e7a618d541d1fb841ffcecb03efbbe637f2e0918",
+  "audit_toolchain_image_id": "sha256:adaa67f5a3178a1f136b51d780643cb7282d35122740c13774c32cbfee6136c0",
+  "builder_image": "hexpm/elixir:1.19.5-erlang-28.3-debian-bookworm-20260202-slim@sha256:09279250196a9ad971ebe4673ec2df47bc760c0409a055df8ea283954ac6a099",
+  "checks": {
+    "codex_version": "PASS",
+    "mix_compile_warnings_as_errors": "PASS",
+    "mix_escript_build": "PASS",
+    "mix_hex_audit": "PASS",
+    "mix_test": "PASS",
+    "patch_order": "PASS"
+  },
+  "codex_version": "0.146.0",
+  "completed_at": "2026-08-16T11:12:35.846191+00:00",
+  "controller_fixture_sha256": "865d5188861ad7c02c45d65d3d79a27d9cdbbe6b5fd8bd8e8e16438e254c5e7d",
+  "dependency_lock_sha256": "9e22b8a3a5cb3ff49fb14899e224a0ac8dc08523e75b7835724071f00593890a",
+  "node_image": "node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436",
+  "phase_bridge_patch_sha256": "bbaad0e4ad04377b5b64238f7fabbfd383915cf60692f321493dd5f3372bcb8a",
+  "phase_routing_patch_sha256": "00af6b18e85565de63b9535281ae2bf4c9f8f44744be27bf9db73ba15f69fbe2",
+  "schema_version": 1,
+  "symphony_revision": "8001b52e3062495a16e520e4ceaf8f9de868c4d0"
+}

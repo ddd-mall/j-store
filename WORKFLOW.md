@@ -20,7 +20,11 @@ hooks:
       --repository-url "$JSTORE_SYMPHONY_REPOSITORY_URL" --workspace .
   after_run: |
     /usr/bin/python3 /opt/jstore-agentic-controller/controller.py complete-turn \
-      --issue "$JSTORE_ISSUE_IDENTIFIER" --workspace .
+      --issue "$JSTORE_ISSUE_IDENTIFIER" --workspace . \
+      --expected-phase "$JSTORE_INVOCATION_PHASE" \
+      --expected-role "$JSTORE_INVOCATION_ROLE" \
+      --expected-head-sha "$JSTORE_INVOCATION_HEAD_SHA" \
+      --expected-candidate-revision "$JSTORE_INVOCATION_CANDIDATE_REVISION"
 agent:
   max_concurrent_agents: 1
   max_turns: 1

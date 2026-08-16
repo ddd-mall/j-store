@@ -57,14 +57,24 @@ for command in docker git python3 sha256sum tar; do
 done
 
 docker_network_arguments=()
-if [[ -n "${HTTP_PROXY:-}${HTTPS_PROXY:-}" \
-  && "${HTTP_PROXY:-}${HTTPS_PROXY:-}" != *"127.0.0.1"* \
-  && "${HTTP_PROXY:-}${HTTPS_PROXY:-}" != *"localhost"* ]]; then
-  docker_network_arguments+=(
-    --env HTTP_PROXY
-    --env HTTPS_PROXY
-    --env NO_PROXY
+docker_build_arguments=()
+proxy_values="${HTTP_PROXY:-}${HTTPS_PROXY:-}"
+if [[ -n "$proxy_values" ]]; then
+  docker_build_arguments+=(
+    --build-arg HTTP_PROXY
+    --build-arg HTTPS_PROXY
+    --build-arg NO_PROXY
   )
+  if [[ "$proxy_values" == *"127.0.0.1"* \
+    || "$proxy_values" == *"localhost"* ]]; then
+    docker_build_arguments+=(--network host)
+  else
+    docker_network_arguments+=(
+      --env HTTP_PROXY
+      --env HTTPS_PROXY
+      --env NO_PROXY
+    )
+  fi
 fi
 
 read_lock() {
@@ -120,16 +130,46 @@ verify_sha256 "$dependency_lock_path" "$dependency_lock_sha256"
 verify_sha256 "$test_fixture_path" "$test_fixture_sha256"
 
 audit_root=$(mktemp -d "${TMPDIR:-/tmp}/jstore-symphony-audit.XXXXXX")
+audit_toolchain_image_id=""
 cleanup() {
   docker run --rm \
     --volume "$audit_root:/cleanup" \
     --entrypoint sh \
     "$builder_image" \
     -c "chown -R $(id -u):$(id -g) /cleanup" >/dev/null 2>&1 || true
+  if [[ -n "$audit_toolchain_image_id" ]]; then
+    docker image rm "$audit_toolchain_image_id" >/dev/null 2>&1 || true
+  fi
   chmod -R u+rwX "$audit_root" 2>/dev/null || true
   rm -rf -- "$audit_root"
 }
 trap cleanup EXIT
+
+audit_toolchain_context="$audit_root/audit-toolchain"
+audit_toolchain_dockerfile="$audit_toolchain_context/Dockerfile"
+audit_toolchain_iidfile="$audit_toolchain_context/image-id"
+mkdir -m 0700 "$audit_toolchain_context"
+cat >"$audit_toolchain_dockerfile" <<EOF
+FROM $builder_image
+RUN apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update >/dev/null \
+    && apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 \
+      install --yes --no-install-recommends build-essential cmake git ca-certificates python3 >/dev/null \
+    && rm -rf /var/lib/apt/lists/*
+EOF
+chmod 0444 "$audit_toolchain_dockerfile"
+audit_toolchain_dockerfile_sha256=$(sha256sum "$audit_toolchain_dockerfile" | awk '{print $1}')
+docker build \
+  "${docker_build_arguments[@]}" \
+  --file "$audit_toolchain_dockerfile" \
+  --iidfile "$audit_toolchain_iidfile" \
+  "$audit_toolchain_context"
+audit_toolchain_image_id=$(<"$audit_toolchain_iidfile")
+if [[ ! "$audit_toolchain_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+  printf 'ERROR: Docker returned invalid audit toolchain image ID: %s\n' \
+    "${audit_toolchain_image_id:-unavailable}" >&2
+  exit 2
+fi
+
 source_tree="$audit_root/symphony"
 mkdir -p "$source_tree"
 git -C "$symphony_source" archive "$symphony_revision" | tar -x -C "$source_tree"
@@ -163,11 +203,9 @@ docker run --rm \
   --env MIX_HOME=/work/.mix \
   --env HEX_HOME=/work/.hex \
   --env "DEPENDENCY_LOCK_SHA256=$dependency_lock_sha256" \
-  "$builder_image" \
+  "$audit_toolchain_image_id" \
   bash -c '
     set -euo pipefail
-    apt-get update >/dev/null
-    apt-get install --yes --no-install-recommends build-essential cmake git ca-certificates python3 >/dev/null
     git config --global http.version HTTP/1.1
     mix local.hex --force
     mix local.rebar --force
@@ -199,11 +237,9 @@ docker run --rm \
   --env MIX_HOME=/work/.mix \
   --env HEX_HOME=/work/.hex \
   --env "DEPENDENCY_LOCK_SHA256=$dependency_lock_sha256" \
-  "$builder_image" \
+  "$audit_toolchain_image_id" \
   bash -c '
     set -euo pipefail
-    apt-get update >/dev/null
-    apt-get install --yes --no-install-recommends build-essential cmake git ca-certificates python3 >/dev/null
     git config --global http.version HTTP/1.1
     printf "%s  %s\n" "$DEPENDENCY_LOCK_SHA256" /work/elixir/mix.lock | sha256sum -c -
     mix compile --warnings-as-errors
@@ -238,6 +274,8 @@ report = {
     "dependency_lock_sha256": "$dependency_lock_sha256",
     "controller_fixture_sha256": "$test_fixture_sha256",
     "builder_image": "$builder_image",
+    "audit_toolchain_dockerfile_sha256": "$audit_toolchain_dockerfile_sha256",
+    "audit_toolchain_image_id": "$audit_toolchain_image_id",
     "node_image": "$node_image",
     "codex_version": "$codex_version",
     "checks": {

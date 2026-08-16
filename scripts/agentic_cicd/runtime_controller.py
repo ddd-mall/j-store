@@ -398,14 +398,25 @@ class TurnStateController(_TaskStateAccess):
         session_id: str,
         thread_id: str,
         turn_id: str,
+        expected_phase: str,
+        expected_role: str,
+        expected_head_sha: str,
+        expected_candidate_revision: str | None,
     ) -> None:
         store, snapshot = self._load_bound_snapshot(issue_identifier, workspace)
-        if snapshot.iteration_phase == PHASE_IMPLEMENT:
-            role = "implementer" if self.workspace_write_enabled else "observer"
-        elif snapshot.iteration_phase == PHASE_REVIEW:
-            role = "reviewer"
-        else:
-            raise RuntimeError("current phase does not accept a model turn receipt")
+        self._require_invocation_binding(
+            snapshot,
+            expected_phase=expected_phase,
+            expected_role=expected_role,
+            expected_head_sha=expected_head_sha,
+            expected_candidate_revision=expected_candidate_revision,
+        )
+        receipt_key = "turn:" + json.dumps(
+            [session_id, thread_id, turn_id], separators=(",", ":")
+        )
+        if not snapshot.consume_idempotency_key(receipt_key):
+            raise RuntimeError("turn receipt was already consumed")
+        role = expected_role
         receipt = TurnReceipt(
             session_id=session_id,
             thread_id=thread_id,
@@ -425,7 +436,6 @@ class TurnStateController(_TaskStateAccess):
             snapshot.gate_request = None
             snapshot.gate_receipt = None
             snapshot.review_workspace = None
-            snapshot.review_decisions = {}
             bridge.complete_implementation(snapshot, receipt)
         elif role == "observer":
             bridge.complete_observation(snapshot, receipt)
@@ -456,6 +466,40 @@ class TurnStateController(_TaskStateAccess):
         store.save(snapshot)
         if consumed_proposal is not None:
             consumed_proposal.unlink()
+
+    def _require_invocation_binding(
+        self,
+        snapshot: TaskSnapshot,
+        *,
+        expected_phase: str,
+        expected_role: str,
+        expected_head_sha: str,
+        expected_candidate_revision: str | None,
+    ) -> None:
+        if snapshot.iteration_phase != expected_phase:
+            raise RuntimeError(
+                "trusted invocation phase no longer matches current task phase"
+            )
+        if expected_phase == PHASE_IMPLEMENT:
+            actual_role = "implementer" if self.workspace_write_enabled else "observer"
+            actual_candidate_revision = None
+        elif expected_phase == PHASE_REVIEW:
+            actual_role = "reviewer"
+            actual_candidate_revision = (
+                snapshot.candidate_revision["candidate_revision"]
+                if snapshot.candidate_revision is not None
+                else None
+            )
+        else:
+            raise RuntimeError("trusted invocation phase does not accept a model turn")
+        if expected_role != actual_role:
+            raise RuntimeError("trusted invocation role does not match current capability")
+        if expected_head_sha != snapshot.head_sha:
+            raise RuntimeError("trusted invocation head no longer matches task head")
+        if expected_candidate_revision != actual_candidate_revision:
+            raise RuntimeError(
+                "trusted invocation candidate no longer matches task candidate"
+            )
 
 
 class GateRequestStore(_TaskStateAccess):
@@ -605,7 +649,6 @@ class CandidateRevisionStore(_TaskStateAccess):
         snapshot.candidate_revision = revision.to_json()
         snapshot.gate_request = None
         snapshot.gate_receipt = None
-        snapshot.review_decisions = {}
         store.save(snapshot)
         return revision
 

@@ -166,7 +166,26 @@ index af31d94..dd4e9b7 100644
 +             runtime_policy: phase_context
 +           ) do
        try do
-         do_run_codex_turns(session, workspace, issue, codex_update_recipient, opts, issue_state_fetcher, 1, max_turns)
+-        do_run_codex_turns(session, workspace, issue, codex_update_recipient, opts, issue_state_fetcher, 1, max_turns)
++        case do_run_codex_turns(
++               session,
++               workspace,
++               issue,
++               codex_update_recipient,
++               opts,
++               issue_state_fetcher,
++               1,
++               max_turns
++             ) do
++          {:ok, receipt} ->
++            {:ok, Map.put(receipt, :agentic_cicd_context, phase_context)}
++
++          other ->
++            other
++        end
+       after
+         AppServer.stop_session(session)
+       end
 diff --git a/elixir/lib/symphony_elixir/codex/app_server.ex b/elixir/lib/symphony_elixir/codex/app_server.ex
 index 0c385b2..9d4fa3d 100644
 --- a/elixir/lib/symphony_elixir/codex/app_server.ex
@@ -244,10 +263,25 @@ index 264cf9b..4fcda21 100644
    end
  
 +  defp hook_environment(issue_context, receipt) do
++    phase_context =
++      if is_map(receipt), do: Map.get(receipt, :agentic_cicd_context, %{}), else: %{}
++
 +    [
-+      {"JSTORE_ISSUE_IDENTIFIER", issue_context.issue_identifier}
++      {"JSTORE_ISSUE_IDENTIFIER", issue_context.issue_identifier},
++      {"JSTORE_INVOCATION_PHASE", invocation_value(phase_context, "phase")},
++      {"JSTORE_INVOCATION_ROLE", invocation_value(phase_context, "role")},
++      {"JSTORE_INVOCATION_HEAD_SHA", invocation_value(phase_context, "head_sha")},
++      {"JSTORE_INVOCATION_CANDIDATE_REVISION",
++       invocation_value(phase_context, "candidate_revision")}
 +      | receipt_environment(receipt)
 +    ]
++  end
++
++  defp invocation_value(context, key) do
++    case context[key] do
++      value when is_binary(value) -> value
++      _ -> ""
++    end
 +  end
 +
    defp receipt_environment(nil), do: []

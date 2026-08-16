@@ -65,22 +65,24 @@
 
 ## 切片 D：Level 1 阶段接线
 
-- [ ] `LC-14` Reviewer从 CandidateRevision只读制品启动，ReviewProposal/TurnReceipt/ReviewDecision绑定同一 revision和独立 session。
-  - 当前进度：独立复评发现跨Issue receipt与同UID先chmod后篡改可绕过首版验收；实现现已在review启动时重验PASS request/receipt/task/revision完整身份，并在接受review turn前再次逐文件校验只读制品。候选controller代码的集群内无模型复验已拒绝两种反例；待新controller digest部署后以镜像内代码重跑并独立复评再关闭。
+- [x] `LC-14` Reviewer从 CandidateRevision只读制品启动，ReviewProposal/TurnReceipt/ReviewDecision绑定同一 revision和独立 session。
+  - 2026-08-16证据：独立复评发现并修复跨Issue receipt与同UID先chmod后篡改两个绕过路径；不可变controller digest `sha256:305a2b8a...84d1a9`部署后，从镜像内`/opt/jstore-agentic-controller`重跑同一CandidateRevision正反例。2,553个条目全部只读，直接写入和chmod后篡改均被拒绝，implementer session不能充当Reviewer，独立session生成绑定同一revision的PASS decision。聚焦55项测试、治理检查和镜像内复验均PASS；未启动模型或写正式Supervisor状态。
 - [ ] `LC-15` 在所有前置门通过后，将候选部署合同的 `local_workspace_write`、`freeze_local_candidate` 和 `run_isolated_gate` 置为 true；远端写、邮件、合并、发布和生产写保持 false。
 - [ ] `LC-16` 验证 implement/validate/review/complete 的单 turn路由、无第二 App Server、new-candidate失效、finding回流、两次修复和第三次熔断。
+  - 当前进度：本地无模型99项组合合同测试已覆盖implement完成、validate重入单次调度、Gate PASS→review、Review FAIL回流、重复/延迟callback拒绝、历史ReviewDecision保留但exact-candidate失效、两次不同修复和第三次熔断，以及validate/complete不启动模型。两段patch在锁定Symphony源码上顺序apply后，使用单次构建且身份可审计的工具链镜像完成`mix compile --warnings-as-errors`、296项测试、Hex审计和escript；报告SHA-256为`87db57f4...a053`。不可变镜像和实机单turn/无第二App Server验证仍未完成，因此本项保持未关闭。
 - [ ] `LC-17` 运行聚焦测试、治理检查、镜像安全检查和 `./scripts/quality-gate.sh`，再进行独立 Product Steward/Security review。
+  - 当前进度：最新99项无模型组合测试、治理检查和完整六阶段`./scripts/quality-gate.sh`均PASS；新routing patch的Symphony compile/test已PASS。新controller镜像安全证据复核与完整独立Product Steward/Security review仍待完成。
 
 ## 切片 E：开发集群验收
 
 - [x] `LC-18` 经精确授权部署新 digest；验证新 Pod UID、image ID、双 revision、WORKFLOW hash、capability和 Supervisor无 Kubernetes token。
-  - 2026-08-16证据：Symphony、Broker和 Dispatcher均以新 Pod UID运行 controller digest `sha256:d6537f49...72b697`，运行时精确绑定 Symphony revision `8001b52e...4d0`、controller revision `73065781...cda` 和 WORKFLOW SHA-256 `a8c18b98...fa5f`；Symphony Pod无 API token且不能创建 Gate Job，三个本地写能力和全部远程写仍为 false。
+  - 2026-08-16证据：Symphony、Broker和 Dispatcher已升级为 controller digest `sha256:305a2b8a...84d1a9`，运行时精确绑定 Symphony revision `8001b52e...4d0`、controller revision `3a537df4...24f52` 和 WORKFLOW SHA-256 `a8c18b98...fa5f`；当前Symphony Pod UID为 `4a8cdf05-2ba0-4715-ab63-bf399d0a126f`，runtime image ID与完整digest一致且零重启。Symphony Pod无 API token且不能创建 Gate Job，三个本地写能力和全部远程写仍为 false。
 - [x] `LC-19` 运行无模型跨节点 Gate Job smoke，验证 master Broker → worker1 fetch、NetworkPolicy真实隔离、receipt、超时/失败分类和不访问现有 `jstore`/数据库 workload。
   - 2026-08-16证据：同一 CandidateRevision的成功 Job产生 exact-identity PASS receipt并在前台删除后写 cleanup marker；早期创建/fetch故障被分类为基础设施失败，旧 runner的候选命令失败产生 FAIL finding；临时 60 秒策略真实触发 `DeadlineExceeded`，产生无 candidate finding的 `INFRASTRUCTURE_FAILURE` 并清理 Job，随后恢复 900 秒策略和新 Dispatcher UID；worker1同等受限探针确认 Broker可达时 j-store、Redis和 PostgreSQL仍不可达。
 - [ ] `LC-20` 经精确授权注入短期只读 GitHub App token并创建/标记 disposable Issue；完成只读 observer 单 turn。
 - [ ] `LC-21` 经模型费用授权完成本地候选成功路径：Implementer → CandidateRevision → Gate PASS → 独立 Reviewer exact-candidate PASS；GitHub 无远程候选分支或 PR。
 - [ ] `LC-22` 使用可信 fixture完成 Gate FAIL、Review FAIL、new revision、同根因熔断以及 implement/validate/review 三个恢复点演练。
-  - 当前进度：validate恢复点、Gate FAIL和new revision已完成实机演练；Dispatcher在主 Gate运行期间重启后仅恢复原 Job UID `b3458e86-e7dc-44b0-a025-109a633a8138` 和 Pod UID `97791ba7-8f11-4b93-857d-cd181123e835`，最终回执 PASS；两个不同恶意revision分别得到自己的FAIL receipt。implement/review恢复、Review FAIL和熔断仍未完成。
+  - 当前进度：validate恢复点、Gate FAIL和new revision已完成实机演练；Dispatcher在主 Gate运行期间重启后仅恢复原 Job UID `b3458e86-e7dc-44b0-a025-109a633a8138` 和 Pod UID `97791ba7-8f11-4b93-857d-cd181123e835`，最终回执 PASS；两个不同恶意revision分别得到自己的FAIL receipt。本地无模型fixture已覆盖Review FAIL、旧callback重放、历史decision账本和同根因熔断，但不能替代implement/review集群重启演练；这些实机项仍未完成。
 - [ ] `LC-23` 移除调度资格并缩容为 0，保留 PVC/日志；生成 `summary.md` 映射 AC-LC-01 至 AC-LC-12。
 
 ## Level 1 退出条件

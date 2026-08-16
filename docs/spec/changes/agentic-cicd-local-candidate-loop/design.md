@@ -121,7 +121,7 @@ Gate Job先运行受信的 network-admission init：等待固定收敛窗口后�
 
 ### 状态失效
 
-Snapshot 中保存 CandidateRevision。进入下一轮 implement 前清除旧 GateReceipt、ReviewProposal 和 ReviewDecision；新冻结结果即使只改变文件模式，也必须得到新 revision。恢复时若 archive、tree 或 workspace metadata 不匹配，任务进入 blocked，不自动重建证据。
+Snapshot 中保存 CandidateRevision。进入下一轮 implement 前清除 active CandidateRevision、GateRequest、GateReceipt、ReviewProposal和review workspace指针，但保留以CandidateRevision索引的历史ReviewDecision审计账本。任何授权判断只查询当前exact CandidateRevision，因此旧PASS不能批准新候选；新冻结结果即使只改变文件模式，也必须得到新revision。恢复时若archive、tree或workspace metadata不匹配，任务进入blocked，不自动重建证据。
 
 ## 隔离 Gate Runner
 
@@ -180,7 +180,7 @@ implement turn
 - Review FAIL：finding 回到 implement，旧候选证据保留审计但不再有效。
 - Review PASS：Level 1 complete，等待人工停止或批准下一阶段；不创建 PR。
 
-`max_turns: 1` 保持不变。validate、freeze 和 complete 都在 App Server 创建前短路；after hook 只提交可信 TurnReceipt/请求，不执行 candidate archive。
+`max_turns: 1`保持不变。validate、freeze和complete都在App Server创建前短路；after hook只提交可信TurnReceipt/请求，不执行candidate archive。Symphony在启动model turn前读取host-owned phase context，并在受信turn receipt中携带该次invocation的phase、role、head SHA和可选CandidateRevision；complete hook必须逐项回传，controller在任何状态写入前与当前snapshot核对。成功receipt还以session/thread/turn规范元组消费幂等键，因此Review FAIL回流后或未来再次进入同名phase时，旧callback都不能被重新分类或重复消费。
 
 ## Symphony 供应链顺序
 

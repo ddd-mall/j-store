@@ -2,11 +2,20 @@
 
 日期：2026-08-16  
 集群：`kubernetes-admin@kubernetes` / `agentic-cicd`  
-执行 Pod：`symphony-7987468f57-z98sg`
+候选验收 Pod：`symphony-7987468f57-z98sg`
+最终镜像复验 Pod：`symphony-5586ff8477-gnst9` / UID `4a8cdf05-2ba0-4715-ab63-bf399d0a126f`
 
 ## 目标与边界
 
-该验收只运行 host-owned Python controller，不启动 Codex/App Server，不调用模型，也不改变 Level 0 能力。首版验收被独立复评判定无效，因为它手工构造review状态且跨Issue复用receipt；修复版改由正式`GateReceiptStore`消费同Issue的持久request/receipt，从validate进入review。候选controller模块暂存到Pod的`/tmp/lc14-controller`运行，用于在构建新镜像前验证修复；因此本记录当前是候选验证，不是已部署镜像验收。
+该验收只运行 host-owned Python controller，不启动 Codex/App Server，不调用模型，也不改变 Level 0 能力。首版验收被独立复评判定无效，因为它手工构造review状态且跨Issue复用receipt；修复版改由正式`GateReceiptStore`消费同Issue的持久request/receipt，从validate进入review。候选复验先使用Pod临时模块验证修复；最终复验直接使用已部署不可变镜像内的`/opt/jstore-agentic-controller`。
+
+最终运行身份：
+
+- controller image ID：`docker.io/library/jstore-agentic-cicd@sha256:305a2b8af0cdc38510b663436e17d6f47eba4b02a9c015010e64a3aa0084d1a9`
+- Symphony revision：`8001b52e3062495a16e520e4ceaf8f9de868c4d0`
+- j-store controller revision：`3a537df4dac461e40b12fcda46597b959ef24f52`
+- WORKFLOW SHA-256：`a8c18b98d5fbeb32dba03f522b4fb909c42f7cc7534a8d5607bb8d90e620fa5f`
+- fixture SHA-256：`7fd4846728a39c57db54f0f2e118b93346bd4f6324a6e9b59f03cd61101fed1f`
 
 输入是既有 Gate PASS receipt `gate-gh-900001-ec915c1c2ac83fe6-5.json`：
 
@@ -26,6 +35,15 @@ kubectl --context kubernetes-admin@kubernetes \
   < docs/spec/changes/agentic-cicd-local-candidate-loop/evidence/fixtures/2026-08-16-lc14-reviewer-smoke.py
 ```
 
+最终镜像复验先将同一fixture复制到Pod临时目录并核对上述摘要，然后执行：
+
+```bash
+kubectl --context kubernetes-admin@kubernetes \
+  -n agentic-cicd exec deploy/symphony -- \
+  env PYTHONPATH=/opt/jstore-agentic-controller \
+  python3 /tmp/lc14-reviewer-smoke.py
+```
+
 ## 脱敏输出
 
 ```json
@@ -37,7 +55,7 @@ kubectl --context kubernetes-admin@kubernetes \
   "gate_id": "gate-gh-900001-ec915c1c2ac83fe6-5",
   "gate_receipt_sha256": "981a91d21e845cc6785c42fa50efd60128bbd59cc32cc2eed5d95618ac59a3da",
   "implementer_session_id": "lc14-implementer-session",
-  "pod": "symphony-7987468f57-z98sg",
+  "pod": "symphony-5586ff8477-gnst9",
   "read_only_entries": 2553,
   "result": "PASS",
   "review_decision_sha256": "d5486469c2603aa7f4a512465e4f2d674d9fc3fd032a2321d0e813c5ba5f9b48",
@@ -57,4 +75,4 @@ kubectl --context kubernetes-admin@kubernetes \
 - proposal、receipt与 decision的 CandidateRevision完全相同，最终 phase为 `complete`。
 - 验收只使用 `/tmp` state和一次性 review目录；脚本结束时恢复权限并删除 review目录、临时 state。未写入正式 Supervisor task state，未创建 Gate Job或远程 Git/GitHub状态。
 
-该候选证据尚不关闭LC-14；必须先把包含完成前复验的新controller构建为不可变digest、部署后从镜像内`/opt/jstore-agentic-controller`重跑并通过独立复评。真实模型费用授权和端到端路径仍归LC-21，review阶段重启恢复仍归LC-22。
+不可变镜像内复验与独立代码/证据复核通过，LC-14关闭。55项聚焦测试、治理检查与完整`./scripts/quality-gate.sh`六阶段均PASS。验收后review目录、临时state、Git bundle和Pod临时源目录已删除；正式Supervisor task state和Gate namespace未变更。真实模型费用授权和端到端路径仍归LC-21，review阶段重启恢复仍归LC-22。
