@@ -119,7 +119,23 @@ mkdir -p "$symphony_context"
 git -C "$symphony_source" archive "$symphony_revision" \
   | tar -x -C "$symphony_context"
 
-build_arguments=(
+build_arguments=()
+proxy_values="${HTTP_PROXY:-}${HTTPS_PROXY:-}${http_proxy:-}${https_proxy:-}"
+if [[ -n "$proxy_values" ]]; then
+  build_arguments+=(
+    --build-arg HTTP_PROXY
+    --build-arg HTTPS_PROXY
+    --build-arg NO_PROXY
+    --build-arg http_proxy
+    --build-arg https_proxy
+    --build-arg no_proxy
+  )
+  if [[ "$proxy_values" == *"127.0.0.1"* \
+    || "$proxy_values" == *"localhost"* ]]; then
+    build_arguments+=(--network host)
+  fi
+fi
+build_arguments+=(
   --build-context "symphony-source=$symphony_context"
   --build-arg "ELIXIR_IMAGE=$elixir_image"
   --build-arg "NODE_IMAGE=$node_image"

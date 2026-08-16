@@ -21,7 +21,9 @@ RUN git apply --recount --check /tmp/symphony-phase-bridge.patch \
     && git apply --recount /tmp/symphony-phase-routing.patch \
     && install -m 0444 /tmp/symphony-mix.lock /build/symphony/elixir/mix.lock
 WORKDIR /build/symphony/elixir
-ENV MIX_ENV=prod
+ENV MIX_ENV=prod \
+    HEX_HTTP_CONCURRENCY=1 \
+    HEX_HTTP_TIMEOUT=120
 RUN mix local.hex --force \
     && mix local.rebar --force \
     && mix deps.get --only prod \
