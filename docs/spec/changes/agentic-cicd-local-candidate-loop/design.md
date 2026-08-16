@@ -204,7 +204,7 @@ implement turn
 2. **只读 observer**：使用短期只读 token读取一个 disposable Issue，证明单 turn 和 complete 短路。
 3. **本地成功路径**：开启 Level 1 合同，Implementer 仅修改 disposable 低风险文件；Gate 和 Reviewer检查同一 CandidateRevision。
 4. **失败回流**：用可信测试 fixture 产生一次 Gate FAIL 和一次 Review FAIL，确认稳定 finding 与新 revision 失效。
-5. **恢复**：分别在 implement、等待 gate、等待 review 时缩容/重启 Supervisor，确认没有重复副作用。
+5. **恢复**：分别在 implement完成后、等待Gate、Gate PASS receipt持久化后但消费前、等待review四个点缩容/重启 Supervisor，确认没有重复副作用。
 6. **熔断**：在隔离 fixture 中证明同根因第三次尝试进入 fused，不依赖真实模型故意犯错。
 7. **停止**：移除调度资格并缩容为 0，保留状态供人工审计。
 

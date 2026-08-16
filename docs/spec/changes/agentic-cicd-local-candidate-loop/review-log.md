@@ -126,3 +126,17 @@ AC-LC-09不允许实现者因开发网络隔离或暂无修复而自行接受该
 新洁净revision构建为runtime manifest `sha256:7edcb88b...66bf6`。Docker archive、SPDX、SLSA provenance、source record和OSV JSON摘要分别为`6b423474...df1`、`59ba9d03...fd5c`、`fdec9eff...30f6`、`dd43c74d...eae5`和`841652b8...cb61`；两份attestation各自唯一subject均绑定新digest，镜像内关键代码与提交逐字节一致。OSV保持178组/33个受影响package、13 critical和12组非`unimportant` critical，无新增finding；镜像内真实CandidateSnapshotter freeze wrapper probe和运行时工具面核对PASS。
 
 最终独立只读安全复评合并重跑39项candidate/runtime测试并复算全部身份和扫描统计，结论为无阻塞finding：AC-LC-09、LC-17及新digest部署安全资格均PASS。实际部署仍为`BLOCKED_BY_AUTHORITY`；LC-16/LC-22和凭据、disposable Issue、模型费用等人工门不受本裁决影响，Level 0与全部远程写保持关闭。
+
+## 2026-08-16 加固镜像部署与恢复复验
+
+经精确授权，controller `86480b1f...c2c4` / digest `sha256:7edcb88b...66bf6`已导入master containerd并部署到Symphony、Artifact Broker和Gate Dispatcher。三者均产生新Pod UID，runtime image ID、Symphony/controller revision、routing patch和WORKFLOW摘要逐项匹配；Level 0、全部远程写和无Secret边界保持不变。Symphony/Broker不挂载Kubernetes token；Dispatcher关闭自动挂载但显式使用3600秒、固定API audience的projected ServiceAccount token，`create jobs=yes`、`get secrets=no`。21项Kubernetes合同测试与最终Level 0 smoke均PASS。
+
+LC-14 Reviewer fixture在新接口上先因缺少可信invocation绑定参数失败，因此未把TypeError误记为安全拒绝；补齐phase、role、head和CandidateRevision后，从新镜像内重跑2,553条只读exact-candidate正反例全部PASS。专用fixture随后在Implementer receipt落盘后和review workspace物化后各替换一次Symphony Pod，分别证明validate/no-model恢复与唯一只读Reviewer workspace复用。独立评审首次裁决为FAIL：既有validate演练只重启Dispatcher，不满足等待Gate时重启Supervisor的AC-LC-08；同时指出Dispatcher token和fixture写入边界表述不准确。
+
+补证在同一Gate Job主容器运行期间替换Symphony Pod。重启前后始终只有Job UID `20502fee-b09e-47da-85bf-942003af7c26`和Pod UID `a3fb0a62-8d21-4070-9de5-6e0d1a2b409b`；snapshot、CandidateRevision、turn receipt、全零预算与request身份不变，`run_model=false`。原Gate完成六阶段质量门禁后产生exact-identity PASS receipt，恢复后的controller进入review并消费request，Dispatcher随后清理原Job/Pod并写cleanup marker。文档同步修正Dispatcher projected token及fixture专用state、source workspace与共享review artifact边界；完整UID、摘要和命令见`evidence/2026-08-16-lc18-lc22-hardened-runtime.md`。
+
+独立补证复评仍判定FAIL：AC-LC-08要求四个重启点，上述演练在等待Gate时重启后直接消费PASS receipt，后续review恢复不能替代“Gate PASS后、receipt消费前”的独立重启。第二次补证据此保持LC-22未关闭，并新增`prepare/capture/complete-post-pass`阶段。Gate `gate-gh-900024-ec915c1c2ac83fe6-0`以Job UID `ee8f220b...717151` / Pod UID `c0be4e7d...b9846`完整PASS；fixture先证明receipt durable但TaskSnapshot尚未消费且request保留，再重启Symphony。新Pod UID `d1438178...f809e`复验snapshot、receipt、CandidateRevision、turn receipt、Gate ID和全零预算不变、`run_model=false`，随后才由正式ValidatePhaseDriver消费原receipt并进入review。原Job/Pod已清理且cleanup marker落盘；四个AC-LC-08恢复点现均有实机证据，等待最终独立复评。
+
+最终独立只读复评逐字节/逐字段复算pre/post snapshot、receipt、Job/Pod UID、request消费、cleanup marker和Gate namespace终态，并核对requirement、design、tasks、fixture与证据一致，结论为PASS、无阻塞finding。LC-22关闭；LC-16、LC-20和LC-21仍保持未关闭，Level 0与全部远程写能力不变。
+
+本次未启动模型或App Server；最终`/proc`无Codex/App Server残留只证明无模型fixture边界，不能关闭LC-16。LC-02/LC-20/LC-21的凭据轮换、disposable Issue和模型费用人工门仍未满足，机器合同继续保持Level 0。

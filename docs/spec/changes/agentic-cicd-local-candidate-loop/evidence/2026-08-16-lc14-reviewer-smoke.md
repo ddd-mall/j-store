@@ -76,3 +76,5 @@ kubectl --context kubernetes-admin@kubernetes \
 - 验收只使用 `/tmp` state和一次性 review目录；脚本结束时恢复权限并删除 review目录、临时 state。未写入正式 Supervisor task state，未创建 Gate Job或远程 Git/GitHub状态。
 
 不可变镜像内复验与独立代码/证据复核通过，LC-14关闭。55项聚焦测试、治理检查与完整`./scripts/quality-gate.sh`六阶段均PASS。验收后review目录、临时state、Git bundle和Pod临时源目录已删除；正式Supervisor task state和Gate namespace未变更。真实模型费用授权和端到端路径仍归LC-21，review阶段重启恢复仍归LC-22。
+
+后续加固镜像`sha256:7edcb88b...66bf6`部署后，旧fixture因`complete-turn`新增可信invocation绑定参数而先失败；该失败不能作为篡改拒绝证据。fixture补齐phase、role、head和CandidateRevision绑定后，SHA-256更新为`6c4615894cf91b1b7be24f863a04b497ee9a1e136d321f848a5cb078ec5a3567`，并从新镜像内重新得到相同CandidateRevision、artifact、receipt与ReviewDecision摘要，2,553条只读检查及全部正反例PASS。新部署和LC-22恢复证据见`2026-08-16-lc18-lc22-hardened-runtime.md`。
