@@ -105,6 +105,33 @@
 - 回归补强：失败 Trade 的迟到授权/预留结果会被幂等释放；买家取消事实可相关到 Trade 且内部撤销不会形成事件循环；Trade 来源 Order 支付事实恢复计划级库存确认。
 - 剩余风险：补偿命令已可靠发出但尚未逐项记录下游完成确认；支付渠道状态未知、取消竞争、超时恢复和显式履约放行继续留在迭代 2 未完成任务中。
 
+### 2I：支付准备闭环与 Checkout 可见性（当前迭代）
+
+- [x] TC2I-T1：冻结 `PreparePaymentInstallmentCommand` 及 `PaymentPrepared/Rejected/Uncertain` 结果契约；所有消息以 `tradeId` 相关，以 `settlementPlanId + installmentId` 业务幂等。
+- [x] TC2I-T2：以失败测试定义 TradePayment 的 `PREPARING -> READY|REJECTED|UNCERTAIN` 转换、相同结果幂等、冲突结果拒绝及受控支付动作有效期。
+- [x] TC2I-T3：实现 Payment 准备用例和可替换渠道端口；渠道请求使用稳定幂等键，只有明确受理才进入 `READY`，明确拒绝与结果未知必须发布不同事实。
+- [x] TC2I-T4：移除 Trade 对 Payment 仓储的直接调用；Trade 只发布支付准备命令并消费结果事实，`UNCERTAIN` 保留 Order、库存和授权。
+- [x] TC2I-T5：Trade 按 `installmentId` 持久化 Payment 引用和支付准备状态；Checkout 查询只有在 `PAYMENT_READY` 时通过只读 ACL 返回当前待支付对象，其余状态返回 `payment: null`。
+- [x] TC2I-T6：更新空库迁移、JPA 往返、消息序列化、Handler 装配和 Controller 契约测试，运行相关模块、全仓测试及质量门禁并回写证据。
+
+完成证据（2026-08-15）：
+
+- Payment/Trade 领域、应用、基础设施和 Boot 测试通过；覆盖明确受理、明确拒绝、渠道异常转未知、重复准备、支付取消安全等待、分期校验、过期动作不阻断 Checkout 查询及非等值支付窗口。
+- Trade 与 TradePayment PostgreSQL 往返和 Root Boot 空库 Flyway/Spring 上下文测试通过；Provider 字段列归属、分期 Payment 引用及准备状态可完整恢复。
+- 支付准备消息 Jackson 往返、Handler 装配和 Checkout Controller 待支付响应契约通过。
+- `./scripts/quality-gate.sh`：6/6 通过；全仓 212 个可执行 Gradle task 全部通过，发布制品许可证校验覆盖 58 个 JAR。
+- 审查修复：READY/UNCERTAIN Payment 不再允许本地伪取消；支付阶段买家取消进入 `CLOSING` 且只在明确拒绝后补偿；渠道字段长度在领域/应用边界与数据库列一致，超限结果收敛为 `UNCERTAIN`。
+- 审查修复：Order 创建改为 Trade 命令、Order 结果事实驱动的异步 Saga；Trade 来源 Order 先进入 `CANCELLATION_PENDING`，资金安全裁决前不删除订单行或伪造 OrderPlan 关闭；Payment 对尚不能安全撤销的 READY/UNCERTAIN 命令作幂等确认，避免毒消息重试。
+- 审查修复：Checkout 输入长度在应用边界与持久化契约对齐；并发相同幂等键命中唯一约束后，在新只读事务中恢复胜出 Trade，相同请求返回原结果、不同摘要返回冲突。
+- 审查修复：Payment 先在独立事务提交稳定 `PREPARING/paymentId`，再无事务调用渠道并以第二个独立事务保存结果；崩溃重试复用同一身份。支付准备采用 1 分钟受理、15 分钟动作及 2 分钟安全余量，库存窗口不足时失败并补偿；Checkout `requestDigest v2` 使用空值标记和长度前缀编码，消除可控分隔符碰撞。
+- 审查修复：Payment 撤销采用 `CANCELLING -> CANCELLED` 两阶段状态和稳定渠道幂等键；结果未知保持处理中并重试，Trade 仅在撤销确认事实后补偿。Trade 按分期关联 Payment，Order 内部取消命令同时校验 `tradeId + orderPlanId`，避免跨交易误取消。
+- 审查修复：FAILED Trade 会补记并撤销其它计划迟到创建的 Order；支付拒绝与撤销确认按相同分期 Payment 身份幂等收敛；`CLOSING` 幂等吸收其它 Order 的并发取消并保留首次失败原因，避免正常乱序形成毒消息。
+- 审查修复：支付准备与撤销并发时，Payment 以 `PREPARATION_CANCELLING` 阻止在途准备完成前发布撤销确认；迟到 `Accepted` 会保存渠道引用并触发新一轮安全撤销，撤销完成只接受与请求所见渠道引用一致的结果。`Accepted` 不替代 `Captured`，关闭后捕获仍按 TC-R11 进入幂等退款。
+- 审查修复：迟到 `Accepted` 的公开动作或时间字段非法时仍完整保存补偿渠道身份并进入 `CANCELLING`；业务取消原因与渠道诊断分列持久化，后续确认不会用技术超时覆盖用户取消原因。移除缺少 Trade 消费者和分期关联的临时 `OrderPaidIntegrationEvent`，统一捕获契约继续由 TC2-T21～T24 实现。
+- 剩余风险：当前准备与撤销渠道实现仅在非生产 Profile 提供；生产渠道接入、定时主动查单、捕获、迟到支付退款和最终关单仍未实现，`CLOSING` 在获得渠道权威结果前会有意保留资源。
+
+本切片不实现渠道主动查询、支付捕获、迟到支付退款或最终关单；这些行为继续由 TC2-T21～T24 约束，不能用本地超时直接释放资源。
+
 ## 迭代 3：Pricing、Promotion 与权益生命周期
 
 - [ ] TC3-T1：定义版本化 `PricingQuote`、报价有效期、行级金额和商户/平台出资分摊。

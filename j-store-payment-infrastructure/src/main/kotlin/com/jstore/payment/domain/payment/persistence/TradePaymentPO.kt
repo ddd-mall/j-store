@@ -56,6 +56,14 @@ class TradePaymentPO(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     var status: TradePaymentStatus = TradePaymentStatus.PREPARING,
+    @Column(name = "provider_reference", columnDefinition = "TEXT")
+    var providerReference: String? = null,
+    @Column(name = "pay_action", length = 2048) var payAction: String? = null,
+    @Column(name = "provider_accepted_at") var providerAcceptedAt: Instant? = null,
+    @Column(name = "accept_before") var acceptBefore: Instant? = null,
+    @Column(name = "expires_at") var expiresAt: Instant? = null,
+    @Column(name = "failure_reason", length = 1024) var failureReason: String? = null,
+    @Column(name = "cancellation_reason", length = 1024) var cancellationReason: String? = null,
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.EPOCH,
     @Version var persistenceVersion: Long = 0,
 )

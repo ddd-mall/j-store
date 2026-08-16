@@ -26,10 +26,20 @@ import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.trade.domain.*
 
 fun interface TradeOrderCreationGateway {
-    fun createOrder(trade: Trade, plan: TradeOrderPlan): Result<Long, BusinessError>
+    fun requestOrderCreation(
+        trade: Trade,
+        plan: TradeOrderPlan,
+        sourceMessageId: String,
+        occurredAt: java.time.Instant,
+    ): Result<Unit, BusinessError>
 
-    fun cancelOrder(plan: TradeOrderPlan, reason: String): Result<Unit, BusinessError> =
-        Success(Unit)
+    fun requestOrderCancellation(
+        trade: Trade,
+        plan: TradeOrderPlan,
+        reason: String,
+        sourceMessageId: String,
+        occurredAt: java.time.Instant,
+    ): Result<Unit, BusinessError> = Success(Unit)
 }
 
 fun interface TradeSettlementGateway {
@@ -61,6 +71,30 @@ interface TradeSagaUseCase {
     ): Result<Boolean, BusinessError>
 
     fun recordOrderCancelled(event: OrderCancelledIntegrationEvent): Result<Boolean, BusinessError>
+
+    fun recordOrderCreated(
+        event: OrderCreatedFromTradeIntegrationEvent
+    ): Result<Boolean, BusinessError>
+
+    fun recordOrderCreationRejected(
+        event: OrderCreationRejectedFromTradeIntegrationEvent
+    ): Result<Boolean, BusinessError>
+
+    fun recordPaymentPrepared(
+        event: PaymentPreparedIntegrationEvent
+    ): Result<Boolean, BusinessError>
+
+    fun recordPaymentPreparationRejected(
+        event: PaymentPreparationRejectedIntegrationEvent
+    ): Result<Boolean, BusinessError>
+
+    fun recordPaymentPreparationUncertain(
+        event: PaymentPreparationUncertainIntegrationEvent
+    ): Result<Boolean, BusinessError>
+
+    fun recordPaymentCancellationConfirmed(
+        event: PaymentCancellationConfirmedIntegrationEvent
+    ): Result<Boolean, BusinessError>
 }
 
 class TradeSagaApplicationService(
@@ -164,42 +198,91 @@ class TradeSagaApplicationService(
                 }
                 trades.save(trade)
                 for (orderPlan in trade.orderPlans) {
-                    val orderId =
-                        when (val created = orders.createOrder(trade, orderPlan)) {
-                            is Failure -> {
-                                trade.orderPlans
-                                    .mapNotNull { it.orderId?.let { id -> it to id } }
-                                    .forEach { (createdPlan, _) ->
-                                        orders
-                                            .cancelOrder(createdPlan, created.error.message)
-                                            .onFailure {
-                                                return@withPlan Failure(it)
-                                            }
-                                    }
-                                return@withPlan failAndCompensate(
-                                    trade,
-                                    orderPlan,
-                                    created.error.message,
-                                    event.messageId,
-                                    event.occurredAt,
-                                )
-                            }
-                            is Success -> created.value
+                    orders
+                        .requestOrderCreation(trade, orderPlan, event.messageId, event.occurredAt)
+                        .onFailure {
+                            return@withPlan Failure(it)
                         }
-                    trade.recordOrderCreated(orderPlan.id, orderId).onFailure {
+                }
+            }
+            changed
+        }
+
+    override fun recordOrderCreated(
+        event: OrderCreatedFromTradeIntegrationEvent
+    ): Result<Boolean, BusinessError> =
+        withPlan(event.tradeId, event.orderPlanId) { trade, plan ->
+            val failedBeforeResult = trade.status == TradeStatus.FAILED
+            val changed = trade.recordOrderCreated(plan.id, event.orderId)
+            changed.onFailure {
+                return@withPlan Failure(it)
+            }
+            if (changed is Success && changed.value) trades.save(trade)
+            if (failedBeforeResult && changed is Success && changed.value) {
+                val failureReason = requireNotNull(trade.failureReason)
+                orders
+                    .requestOrderCancellation(
+                        trade,
+                        plan,
+                        failureReason,
+                        event.messageId,
+                        event.occurredAt,
+                    )
+                    .onFailure {
                         return@withPlan Failure(it)
                     }
-                }
+                publishCompensations(trade, event.messageId, event.occurredAt)
+                return@withPlan changed
+            }
+            if (
+                trade.status == TradeStatus.CREATING_ORDERS &&
+                    trade.orderPlans.all { it.status == TradeOrderPlanStatus.ORDER_CREATED }
+            ) {
                 val settlementPlanId = SettlementPlanId(ids.nextId())
                 trade.prepareSettlement(settlementPlanId).onFailure {
                     return@withPlan Failure(it)
                 }
                 trades.save(trade)
-                settlement.prepareSettlement(trade, settlementPlanId).onFailure {
-                    return@withPlan Failure(it)
+                when (val preparation = settlement.prepareSettlement(trade, settlementPlanId)) {
+                    is Success -> Unit
+                    is Failure -> {
+                        if (
+                            preparation.error.errorCode !=
+                                TradeErrors.RESERVATION_WINDOW_INSUFFICIENT.errorCode
+                        ) {
+                            return@withPlan Failure(preparation.error)
+                        }
+                        trade
+                            .failSettlementPreparation(settlementPlanId, preparation.error.message)
+                            .onFailure {
+                                return@withPlan Failure(it)
+                            }
+                        trades.save(trade)
+                        trade.orderPlans.forEach { createdPlan ->
+                            orders
+                                .requestOrderCancellation(
+                                    trade,
+                                    createdPlan,
+                                    preparation.error.message,
+                                    event.messageId,
+                                    event.occurredAt,
+                                )
+                                .onFailure {
+                                    return@withPlan Failure(it)
+                                }
+                        }
+                        publishCompensations(trade, event.messageId, event.occurredAt)
+                    }
                 }
             }
             changed
+        }
+
+    override fun recordOrderCreationRejected(
+        event: OrderCreationRejectedFromTradeIntegrationEvent
+    ): Result<Boolean, BusinessError> =
+        withPlan(event.tradeId, event.orderPlanId) { trade, plan ->
+            failAndCompensate(trade, plan, event.reason, event.messageId, event.occurredAt)
         }
 
     override fun recordSaleAuthorizationFailed(
@@ -221,23 +304,143 @@ class TradeSagaApplicationService(
     ): Result<Boolean, BusinessError> =
         withPlan(event.tradeId, event.orderPlanId) { trade, plan ->
             if (trade.status == TradeStatus.FAILED) return@withPlan Success(false)
-            trade.settlementPlanId?.let { settlementPlanId ->
-                settlement.cancelSettlement(trade, settlementPlanId, event.reason).onFailure {
-                    return@withPlan Failure(it)
-                }
-            }
-            trade.orderPlans
-                .filter { it.orderId != null && it.orderId != event.orderId }
-                .forEach { createdPlan ->
-                    orders.cancelOrder(createdPlan, event.reason).onFailure {
-                        return@withPlan Failure(it)
-                    }
-                }
             val changed = trade.recordOrderCancelled(plan.id, event.orderId, event.reason)
             changed.onFailure {
                 return@withPlan Failure(it)
             }
             if (changed is Success && changed.value) {
+                if (trade.status == TradeStatus.CLOSING) {
+                    trades.save(trade)
+                    val settlementPlanId = requireNotNull(trade.settlementPlanId)
+                    settlement.cancelSettlement(trade, settlementPlanId, event.reason).onFailure {
+                        return@withPlan Failure(it)
+                    }
+                    return@withPlan changed
+                }
+                trade.orderPlans
+                    .filter { it.orderId != null }
+                    .forEach { createdPlan ->
+                        orders
+                            .requestOrderCancellation(
+                                trade,
+                                createdPlan,
+                                event.reason,
+                                event.messageId,
+                                event.occurredAt,
+                            )
+                            .onFailure {
+                                return@withPlan Failure(it)
+                            }
+                    }
+                trades.save(trade)
+                publishCompensations(trade, event.messageId, event.occurredAt)
+            }
+            changed
+        }
+
+    override fun recordPaymentPrepared(
+        event: PaymentPreparedIntegrationEvent
+    ): Result<Boolean, BusinessError> =
+        withTrade(event.tradeId) { trade ->
+            val changed =
+                trade.recordPaymentPrepared(
+                    SettlementPlanId(event.settlementPlanId),
+                    event.installmentId,
+                    event.paymentId,
+                    com.jstore.common.properties.Price.ofFen(event.amountFen),
+                    event.currency,
+                )
+            changed.onFailure {
+                return@withTrade Failure(it)
+            }
+            if (changed is Success && changed.value) trades.save(trade)
+            changed
+        }
+
+    override fun recordPaymentPreparationUncertain(
+        event: PaymentPreparationUncertainIntegrationEvent
+    ): Result<Boolean, BusinessError> =
+        withTrade(event.tradeId) { trade ->
+            val changed =
+                trade.recordPaymentPreparationUncertain(
+                    SettlementPlanId(event.settlementPlanId),
+                    event.installmentId,
+                    event.paymentId,
+                    event.reason,
+                )
+            changed.onFailure {
+                return@withTrade Failure(it)
+            }
+            if (changed is Success && changed.value) trades.save(trade)
+            changed
+        }
+
+    override fun recordPaymentPreparationRejected(
+        event: PaymentPreparationRejectedIntegrationEvent
+    ): Result<Boolean, BusinessError> =
+        withTrade(event.tradeId) { trade ->
+            val changed =
+                trade.recordPaymentPreparationRejected(
+                    SettlementPlanId(event.settlementPlanId),
+                    event.installmentId,
+                    event.paymentId,
+                    event.reason,
+                )
+            changed.onFailure {
+                return@withTrade Failure(it)
+            }
+            if (changed is Success && changed.value) {
+                trade.orderPlans
+                    .filter { it.orderId != null }
+                    .forEach { plan ->
+                        orders
+                            .requestOrderCancellation(
+                                trade,
+                                plan,
+                                event.reason,
+                                event.messageId,
+                                event.occurredAt,
+                            )
+                            .onFailure {
+                                return@withTrade Failure(it)
+                            }
+                    }
+                trades.save(trade)
+                publishCompensations(trade, event.messageId, event.occurredAt)
+            }
+            changed
+        }
+
+    override fun recordPaymentCancellationConfirmed(
+        event: PaymentCancellationConfirmedIntegrationEvent
+    ): Result<Boolean, BusinessError> =
+        withTrade(event.tradeId) { trade ->
+            val changed =
+                trade.recordPaymentCancellationConfirmed(
+                    SettlementPlanId(event.settlementPlanId),
+                    event.installmentId,
+                    event.paymentId,
+                    event.reason,
+                )
+            changed.onFailure {
+                return@withTrade Failure(it)
+            }
+            if (changed is Success && changed.value) {
+                trade.orderPlans
+                    .filter { it.orderId != null }
+                    .forEach { plan ->
+                        orders
+                            .requestOrderCancellation(
+                                trade,
+                                plan,
+                                event.reason,
+                                event.messageId,
+                                event.occurredAt,
+                            )
+                            .onFailure {
+                                return@withTrade Failure(it)
+                            }
+                    }
                 trades.save(trade)
                 publishCompensations(trade, event.messageId, event.occurredAt)
             }
@@ -261,6 +464,21 @@ class TradeSagaApplicationService(
         }
         if (changed is Success && !changed.value) return changed
         trades.save(trade)
+        trade.orderPlans
+            .filter { it.orderId != null }
+            .forEach { plan ->
+                orders
+                    .requestOrderCancellation(
+                        trade,
+                        plan,
+                        reason,
+                        sourceMessageId,
+                        occurredAt,
+                    )
+                    .onFailure {
+                        return Failure(it)
+                    }
+            }
         publishCompensations(trade, sourceMessageId, occurredAt)
         return changed
     }
@@ -330,5 +548,13 @@ class TradeSagaApplicationService(
         val trade = trades.findById(TradeId(rawTradeId)) ?: return Failure(TradeErrors.NOT_FOUND)
         if (trade.orderPlans.none { it.id == planId }) return Failure(TradeErrors.NOT_FOUND)
         return block(trade, trade.plan(planId))
+    }
+
+    private inline fun withTrade(
+        tradeId: Long,
+        block: (Trade) -> Result<Boolean, BusinessError>,
+    ): Result<Boolean, BusinessError> {
+        val trade = trades.findById(TradeId(tradeId)) ?: return Failure(TradeErrors.NOT_FOUND)
+        return block(trade)
     }
 }

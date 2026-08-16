@@ -87,7 +87,7 @@ interface OrderUseCase {
 interface InternalOrderCreationUseCase {
     fun createOrder(cmd: CreateOrderFromTradeCommand): Result<Order, BusinessError>
 
-    fun cancelOrder(orderPlanId: Long, reason: String): Result<Unit, BusinessError>
+    fun cancelOrder(tradeId: Long, orderPlanId: Long, reason: String): Result<Unit, BusinessError>
 }
 
 data class CreateOrderFromTradeItem(

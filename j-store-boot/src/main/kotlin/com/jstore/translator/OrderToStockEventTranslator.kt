@@ -20,7 +20,7 @@ import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.contracts.commerce.*
 import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.order.domain.order.OrderRepository
-import com.jstore.order.domain.order.event.OrderCancelledEvent
+import com.jstore.order.domain.order.event.OrderCancellationRequestedEvent
 import com.jstore.order.domain.order.event.OrderPaidEvent
 import org.springframework.stereotype.Component
 
@@ -31,38 +31,17 @@ import org.springframework.stereotype.Component
  */
 @Component
 class OrderCancelledToTradeTranslator(
-    private val orders: OrderRepository,
-    private val integrationMessagePublisher: IntegrationMessagePublisher,
-) : DomainEventListener<OrderCancelledEvent> {
+    private val integrationMessagePublisher: IntegrationMessagePublisher
+) : DomainEventListener<OrderCancellationRequestedEvent> {
     override fun listenerId(): String = "translator.order-cancelled.to-trade.v1"
 
-    override fun onDomainEvent(event: OrderCancelledEvent) {
-        val order = requireNotNull(orders.findById(event.orderId))
-        val tradeId = order.sourceTradeId ?: return
-        val orderPlanId = order.sourceOrderPlanId ?: return
+    override fun onDomainEvent(event: OrderCancellationRequestedEvent) {
         integrationMessagePublisher.publish(
             OrderCancelledIntegrationEvent(
-                tradeId = tradeId,
-                orderPlanId = orderPlanId,
+                tradeId = event.tradeId,
+                orderPlanId = event.orderPlanId,
                 orderId = event.orderId.value,
                 reason = event.reason,
-                sourceMessageId = event.eventId,
-                occurredAtValue = event.occurredAt,
-            )
-        )
-    }
-}
-
-@Component
-class OrderPaidToTradeTranslator(
-    private val integrationMessagePublisher: IntegrationMessagePublisher
-) : DomainEventListener<OrderPaidEvent> {
-    override fun listenerId(): String = "translator.order-paid.to-trade.v1"
-
-    override fun onDomainEvent(event: OrderPaidEvent) {
-        integrationMessagePublisher.publish(
-            OrderPaidIntegrationEvent(
-                orderId = event.orderId.value,
                 sourceMessageId = event.eventId,
                 occurredAtValue = event.occurredAt,
             )

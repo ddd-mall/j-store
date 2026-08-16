@@ -69,7 +69,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - 用户：用户注册、登录、强制下线、昵称和密码值对象、JWT 与 Redis token 基础设施，以及供业务上下文读取标量资料的本地/远程双部署查询能力。
 - 订单用户快照：创建订单只接受认证上下文的用户 ID，通过 Order 本地 ACL 查询 ACTIVE 用户并冻结昵称和手机号；收货人联系方式保持独立语义。
 - 店铺：商户、商户成员、角色权限、成员管理用例和其它上下文复用的商户授权服务。
-- 支付与履约：首期按 `settlementPlanId + installmentId` 幂等创建 TradePayment，并保留退款、履约单的领域模型、集成消息处理、JPA/Outbox 与事务装配；支付渠道受理和策略化履约放行仍是后续切片。
+- 支付与履约：按 `settlementPlanId + installmentId` 幂等准备 TradePayment；先独立提交稳定 `PREPARING/paymentId`，再调用渠道并以独立事务记录 `READY/REJECTED/UNCERTAIN`，Trade 按分期保存 Payment 引用。库存承诺必须覆盖支付动作窗口和安全余量。Checkout 只读返回 READY 且未过期的受控支付动作，动作过期时仍可查询 Trade 且 `payment` 为空。支付准备在途时取消先进入 `PREPARATION_CANCELLING` 并等待该次渠道结果，受理后再以渠道引用进入 `CANCELLING`；只有与当前支付事实匹配的渠道撤销确认才能驱动 Trade 补偿，结果未知时按稳定幂等键重试。当前准备与撤销渠道适配器仅在非生产 Profile 用于内部开发，生产环境缺少真实渠道时启动失败；定时主动查单、捕获、关闭后退款和策略化履约放行仍是后续切片。
 - 会计：账户、会计期间、分录、结算单等领域模型、JPA 仓储实现与事务装配。
 - 事件基础设施：进程内领域事件监听、版本化集成消息，以及按一个或多个稳定 `transportId`（如 `local`、`kafka`、`rabbitmq`）规划的 Outbox 投递、消费幂等和监控；Outbox 使用提交后单飞唤醒与轮询兜底，领域事件在事务提交后确认，并对历史投递与消费状态执行有预算的持续清理。
 - 接口层：各上下文 `*-boot` 持有自己的 Controller 与 Spring 配置，根 `j-store-boot` 负责组合运行时。

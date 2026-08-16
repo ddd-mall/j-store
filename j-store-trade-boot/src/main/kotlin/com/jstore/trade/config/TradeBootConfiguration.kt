@@ -35,6 +35,15 @@ import org.springframework.transaction.support.TransactionTemplate
 @Configuration
 class TradeBootConfiguration {
     @Bean
+    fun tradeOrderCreationGateway(
+        publisher: IntegrationMessagePublisher
+    ): TradeOrderCreationGateway = TradeOrderMessageGateway(publisher)
+
+    @Bean
+    fun tradeSettlementGateway(publisher: IntegrationMessagePublisher): TradeSettlementGateway =
+        TradeSettlementMessageGateway(publisher)
+
+    @Bean
     fun checkoutPreparationGateway(
         offers: OfferSnapshotQueryService,
         goods: GoodsSnapshotQueryService,
@@ -48,6 +57,7 @@ class TradeBootConfiguration {
         trades: TradeRepository,
         sequence: SnowFlakSequence,
         publisher: IntegrationMessagePublisher,
+        payments: CheckoutPaymentGateway,
         transactionManager: PlatformTransactionManager,
     ): CheckoutUseCase =
         TransactionalCheckoutUseCase(
@@ -56,6 +66,7 @@ class TradeBootConfiguration {
                 trades,
                 { sequence.nextId() },
                 TradeAuthorizationMessageGateway(publisher),
+                payments,
             ),
             transactionManager,
         )
@@ -75,6 +86,20 @@ class TradeBootConfiguration {
             settlement,
             publisher,
         )
+
+    @Bean
+    fun orderCreatedTradeHandler(
+        trades: TradeSagaUseCase,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<OrderCreatedFromTradeIntegrationEvent> =
+        transactional(TradeOrderCreatedHandler(trades), transactionManager)
+
+    @Bean
+    fun orderCreationRejectedTradeHandler(
+        trades: TradeSagaUseCase,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<OrderCreationRejectedFromTradeIntegrationEvent> =
+        transactional(TradeOrderCreationRejectedHandler(trades), transactionManager)
 
     @Bean
     fun saleAuthorizedTradeHandler(
@@ -110,6 +135,34 @@ class TradeBootConfiguration {
         transactionManager: PlatformTransactionManager,
     ): IntegrationMessageHandler<OrderCancelledIntegrationEvent> =
         transactional(TradeOrderCancelledHandler(trades), transactionManager)
+
+    @Bean
+    fun paymentPreparedTradeHandler(
+        trades: TradeSagaUseCase,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<PaymentPreparedIntegrationEvent> =
+        transactional(TradePaymentPreparedHandler(trades), transactionManager)
+
+    @Bean
+    fun paymentPreparationRejectedTradeHandler(
+        trades: TradeSagaUseCase,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<PaymentPreparationRejectedIntegrationEvent> =
+        transactional(TradePaymentPreparationRejectedHandler(trades), transactionManager)
+
+    @Bean
+    fun paymentPreparationUncertainTradeHandler(
+        trades: TradeSagaUseCase,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<PaymentPreparationUncertainIntegrationEvent> =
+        transactional(TradePaymentPreparationUncertainHandler(trades), transactionManager)
+
+    @Bean
+    fun paymentCancellationConfirmedTradeHandler(
+        trades: TradeSagaUseCase,
+        transactionManager: PlatformTransactionManager,
+    ): IntegrationMessageHandler<PaymentCancellationConfirmedIntegrationEvent> =
+        transactional(TradePaymentCancellationConfirmedHandler(trades), transactionManager)
 
     private fun <T : IntegrationMessage> transactional(
         delegate: IntegrationMessageHandler<T>,

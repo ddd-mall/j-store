@@ -24,6 +24,7 @@ import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.trade.domain.*
 import java.security.MessageDigest
+import java.time.Instant
 
 data class CheckoutItem(
     val offerId: Long,
@@ -54,7 +55,21 @@ data class CreateCheckoutCommand(
 
 data class CheckoutAccepted(val tradeId: Long, val orderIds: List<Long>)
 
-data class CheckoutView(val tradeId: Long, val status: String, val orderIds: List<Long>)
+data class CheckoutPaymentView(
+    val paymentId: Long,
+    val status: String,
+    val amountFen: Long,
+    val currency: String,
+    val payAction: String,
+    val expiresAt: Instant,
+)
+
+data class CheckoutView(
+    val tradeId: Long,
+    val status: String,
+    val orderIds: List<Long>,
+    val payment: CheckoutPaymentView? = null,
+)
 
 data class PreparedCheckoutItem(
     val offerId: Long,
@@ -92,6 +107,10 @@ fun interface TradeAuthorizationGateway {
     fun requestAuthorization(trade: Trade, plan: TradeOrderPlan)
 }
 
+fun interface CheckoutPaymentGateway {
+    fun findReadyPayment(paymentId: Long): CheckoutPaymentView?
+}
+
 interface CheckoutUseCase {
     fun checkout(command: CreateCheckoutCommand): Result<CheckoutAccepted, BusinessError>
 
@@ -103,6 +122,7 @@ class CheckoutApplicationService(
     private val trades: TradeRepository,
     private val ids: TradeIdentityGenerator,
     private val authorization: TradeAuthorizationGateway,
+    private val payments: CheckoutPaymentGateway = CheckoutPaymentGateway { null },
 ) : CheckoutUseCase {
     override fun checkout(command: CreateCheckoutCommand): Result<CheckoutAccepted, BusinessError> {
         if (!command.isValid()) return Failure(TradeErrors.CHECKOUT_REQUEST_INVALID)
@@ -164,22 +184,58 @@ class CheckoutApplicationService(
         if (trade.buyerParty != BuyerPartySnapshot(PartyType.INDIVIDUAL, buyerId)) {
             return Failure(TradeErrors.NOT_FOUND)
         }
-        return Success(
-            CheckoutView(
-                trade.id.value,
-                trade.status.name,
-                trade.orderPlans.mapNotNull { it.orderId },
-            )
-        )
+        val payment =
+            if (trade.status == TradeStatus.PAYMENT_READY) {
+                val installment = trade.settlementTerms.installments.single()
+                val paymentId =
+                    trade.paymentIdFor(installment.installmentId)
+                        ?: return Failure(TradeErrors.PAYMENT_UNAVAILABLE)
+                val candidate = payments.findReadyPayment(paymentId)
+                if (candidate == null) return Success(trade.toView(null))
+                if (
+                    candidate.paymentId != paymentId ||
+                        candidate.status != "READY" ||
+                        candidate.amountFen != installment.amount.fen ||
+                        candidate.currency != trade.currency
+                ) {
+                    return Failure(TradeErrors.PAYMENT_UNAVAILABLE)
+                }
+                candidate
+            } else {
+                null
+            }
+        return Success(trade.toView(payment))
+    }
+
+    /** Read-only recovery after the database resolves a concurrent checkout-key insert race. */
+    fun recoverConcurrentCheckout(
+        command: CreateCheckoutCommand
+    ): Result<CheckoutAccepted, BusinessError>? {
+        if (!command.isValid()) return Failure(TradeErrors.CHECKOUT_REQUEST_INVALID)
+        val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId)
+        val existing = trades.findByCheckoutRequest(buyer, command.checkoutRequestId) ?: return null
+        return if (existing.matchesRequest(buyer, digest(command))) Success(existing.accepted())
+        else Failure(TradeErrors.START_CONFLICT)
     }
 
     private fun CreateCheckoutCommand.isValid() =
         checkoutRequestId.isNotBlank() &&
+            checkoutRequestId.length <= 128 &&
             buyerId > 0 &&
             recipient.name.isNotBlank() &&
+            recipient.name.length <= 256 &&
             recipient.countryCode.isNotBlank() &&
+            recipient.countryCode.length <= 8 &&
+            (recipient.phone == null || recipient.phone.length <= 64) &&
+            (recipient.email == null || recipient.email.length <= 320) &&
             recipient.districtCode.isNotBlank() &&
+            recipient.districtCode.length <= 64 &&
             recipient.detailAddress.isNotBlank() &&
+            recipient.detailAddress.length <= 1024 &&
+            (recipient.postalCode == null || recipient.postalCode.length <= 32) &&
+            recipient.customsFields.all { (key, value) ->
+                key.isNotBlank() && key.length <= 128 && value.length <= 1024
+            } &&
             (!recipient.phone.isNullOrBlank() || !recipient.email.isNullOrBlank()) &&
             items.isNotEmpty() &&
             items.map { it.offerId }.distinct().size == items.size &&
@@ -194,30 +250,40 @@ class CheckoutApplicationService(
 
     private fun digest(command: CreateCheckoutCommand): String {
         val canonical = buildString {
-            append("v1|").append(command.buyerId).append('|')
-            append(command.recipient.name.trim()).append('|')
-            append(command.recipient.countryCode.uppercase()).append('|')
-            append(command.recipient.phone?.trim().orEmpty()).append('|')
-            append(command.recipient.email?.trim()?.lowercase().orEmpty()).append('|')
-            append(command.recipient.districtCode.trim()).append('|')
-            append(command.recipient.detailAddress.trim()).append('|')
-            append(command.recipient.postalCode?.trim().orEmpty()).append('|')
+            appendCanonical("v2")
+            appendCanonical(command.buyerId.toString())
+            appendCanonical(command.recipient.name)
+            appendCanonical(command.recipient.countryCode)
+            appendCanonical(command.recipient.phone)
+            appendCanonical(command.recipient.email)
+            appendCanonical(command.recipient.districtCode)
+            appendCanonical(command.recipient.detailAddress)
+            appendCanonical(command.recipient.postalCode)
+            appendCanonical(command.recipient.customsFields.size.toString())
             command.recipient.customsFields.toSortedMap().forEach { (key, value) ->
-                append(key.trim()).append('=').append(value.trim()).append(';')
+                appendCanonical(key)
+                appendCanonical(value)
             }
-            append('|')
+            appendCanonical(command.items.size.toString())
             command.items
                 .sortedBy { it.offerId }
                 .forEach {
-                    append(it.offerId).append(':').append(it.offerVersion).append(':')
-                    append(it.spuId).append(':').append(it.skuId).append(':')
-                    append(it.quantity).append(':').append(it.catalogSnapshotVersion).append(';')
+                    appendCanonical(it.offerId.toString())
+                    appendCanonical(it.offerVersion.toString())
+                    appendCanonical(it.spuId.toString())
+                    appendCanonical(it.skuId.toString())
+                    appendCanonical(it.quantity.toString())
+                    appendCanonical(it.catalogSnapshotVersion.toString())
                 }
         }
-        return "v1:" +
+        return "v2:" +
             MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray()).joinToString("") {
                 "%02x".format(it)
             }
+    }
+
+    private fun StringBuilder.appendCanonical(value: String?) {
+        if (value == null) append("-1:") else append(value.length).append(':').append(value)
     }
 
     private fun PreparedCheckoutItem.toSnapshot() =
@@ -250,4 +316,7 @@ class CheckoutApplicationService(
         )
 
     private fun Trade.accepted() = CheckoutAccepted(id.value, orderPlans.mapNotNull { it.orderId })
+
+    private fun Trade.toView(payment: CheckoutPaymentView?) =
+        CheckoutView(id.value, status.name, orderPlans.mapNotNull { it.orderId }, payment)
 }

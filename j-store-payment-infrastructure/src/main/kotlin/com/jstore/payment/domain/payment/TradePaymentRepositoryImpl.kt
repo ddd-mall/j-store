@@ -56,28 +56,43 @@ class TradePaymentRepositoryImpl(private val jpa: TradePaymentPOJpaRepository) :
                     }
                     .toMutableList(),
             status = payment.status,
+            providerReference = payment.providerReference,
+            payAction = payment.payAction,
+            providerAcceptedAt = payment.providerAcceptedAt,
+            acceptBefore = payment.acceptBefore,
+            expiresAt = payment.expiresAt,
+            failureReason = payment.failureReason,
+            cancellationReason = payment.cancellationReason,
             createdAt = payment.createdAt,
             persistenceVersion = payment.persistenceVersion,
         )
 
     private fun toDomain(po: TradePaymentPO) =
         TradePayment(
-            TradePaymentId(po.id),
-            po.tradeId,
-            po.settlementPlanId,
-            po.installmentId,
-            Price.ofFen(po.payableAmountFen),
-            po.currency,
-            po.allocations.map {
-                PaymentAllocationSnapshot(
-                    it.orderPlanId,
-                    it.orderId,
-                    it.merchantId,
-                    Price.ofFen(it.amountFen),
-                )
-            },
-            po.status,
-            po.createdAt,
-            po.persistenceVersion,
+            id = TradePaymentId(po.id),
+            tradeId = po.tradeId,
+            settlementPlanId = po.settlementPlanId,
+            installmentId = po.installmentId,
+            payableAmount = Price.ofFen(po.payableAmountFen),
+            currency = po.currency,
+            allocations =
+                po.allocations.map {
+                    PaymentAllocationSnapshot(
+                        it.orderPlanId,
+                        it.orderId,
+                        it.merchantId,
+                        Price.ofFen(it.amountFen),
+                    )
+                },
+            initialStatus = po.status,
+            providerReference = po.providerReference,
+            payAction = po.payAction,
+            providerAcceptedAt = po.providerAcceptedAt,
+            acceptBefore = po.acceptBefore,
+            expiresAt = po.expiresAt,
+            failureReason = po.failureReason,
+            cancellationReason = po.cancellationReason,
+            createdAt = po.createdAt,
+            persistenceVersion = po.persistenceVersion,
         )
 }

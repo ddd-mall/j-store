@@ -25,7 +25,7 @@ import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.Order
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderRepository
-import com.jstore.order.domain.order.event.OrderCancelledEvent
+import com.jstore.order.domain.order.event.OrderCancellationRequestedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
 import com.jstore.order.domain.order.event.OrderPaidEvent
 import java.time.Instant
@@ -39,12 +39,12 @@ class OrderTradeLifecycleTranslatorsTest {
     @Test
     fun `buyer cancellation carries trade correlation back to Trade`() {
         val publisher = CapturingLifecyclePublisher()
-        val repository = repository(orderId = 7001, tradeId = 9001, orderPlanId = 9101)
-
-        OrderCancelledToTradeTranslator(repository, publisher)
+        OrderCancelledToTradeTranslator(publisher)
             .onDomainEvent(
-                OrderCancelledEvent(
+                OrderCancellationRequestedEvent(
                     OrderId(7001),
+                    9001,
+                    9101,
                     "buyer changed mind",
                     Instant.EPOCH,
                     "cancel-event",

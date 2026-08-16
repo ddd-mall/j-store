@@ -14,12 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.order.domain.order
+package com.jstore.payment.config
 
-enum class TradeStatus {
-    CREATED,
-    ACTIVE,
-    CANCELLATION_PENDING,
-    CLOSED,
-    COMPLETED,
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import org.springframework.context.annotation.Profile
+
+class PaymentProviderProfileTest {
+    @Test
+    fun `local payment provider is never enabled in production profile`() {
+        listOf("localPaymentProviderGateway", "localPaymentProviderCancellationGateway").forEach {
+            methodName ->
+            val beanMethod = PaymentBootConfiguration::class.java.getDeclaredMethod(methodName)
+            assertContentEquals(
+                arrayOf("!production"),
+                beanMethod.getAnnotation(Profile::class.java).value,
+            )
+        }
+    }
 }

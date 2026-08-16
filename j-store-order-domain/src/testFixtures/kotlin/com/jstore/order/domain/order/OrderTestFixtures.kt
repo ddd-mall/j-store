@@ -34,6 +34,9 @@ fun testOrder(
         if (trade == TradeStatus.CREATED) CommitmentStatus.PENDING_OFFER
         else CommitmentStatus.CONFIRMED,
     itemStatuses: List<OrderItemStatus> = listOf(OrderItemStatus.NONE),
+    sourceTradeId: Long? = null,
+    sourceOrderPlanId: Long? = null,
+    sourcePlanDigest: String? = null,
 ): OrderImpl {
     val items = itemStatuses.mapIndexed { index, status ->
         OrderItemImpl(
@@ -82,6 +85,9 @@ fun testOrder(
             if (fulfillment == FulfillmentStatus.UNFULFILLED) null else "fulfillment-1",
         createTime = LocalDateTime.of(2026, 1, 1, 0, 0),
         _updateTime = LocalDateTime.of(2026, 1, 1, 0, 0),
+        sourceTradeId = sourceTradeId,
+        sourceOrderPlanId = sourceOrderPlanId,
+        sourcePlanDigest = sourcePlanDigest,
     )
 }
 

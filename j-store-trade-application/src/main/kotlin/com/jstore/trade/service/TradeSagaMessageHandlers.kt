@@ -21,6 +21,12 @@ import com.jstore.common.utils.getOrThrow
 import com.jstore.contracts.commerce.InventoryReservationFailedIntegrationEvent
 import com.jstore.contracts.commerce.InventoryReservedIntegrationEvent
 import com.jstore.contracts.commerce.OrderCancelledIntegrationEvent
+import com.jstore.contracts.commerce.OrderCreatedFromTradeIntegrationEvent
+import com.jstore.contracts.commerce.OrderCreationRejectedFromTradeIntegrationEvent
+import com.jstore.contracts.commerce.PaymentCancellationConfirmedIntegrationEvent
+import com.jstore.contracts.commerce.PaymentPreparationRejectedIntegrationEvent
+import com.jstore.contracts.commerce.PaymentPreparationUncertainIntegrationEvent
+import com.jstore.contracts.commerce.PaymentPreparedIntegrationEvent
 import com.jstore.contracts.commerce.SaleAuthorizationFailedIntegrationEvent
 import com.jstore.contracts.commerce.SaleAuthorizedIntegrationEvent
 import com.jstore.messaging.IntegrationMessageHandler
@@ -67,5 +73,59 @@ class TradeOrderCancelledHandler(private val trades: TradeSagaUseCase) :
 
     override fun handle(message: OrderCancelledIntegrationEvent) {
         trades.recordOrderCancelled(message).getOrThrow(::BusinessErrorException)
+    }
+}
+
+class TradeOrderCreatedHandler(private val trades: TradeSagaUseCase) :
+    IntegrationMessageHandler<OrderCreatedFromTradeIntegrationEvent> {
+    override fun handlerId() = "trade.order-created.v1"
+
+    override fun handle(message: OrderCreatedFromTradeIntegrationEvent) {
+        trades.recordOrderCreated(message).getOrThrow(::BusinessErrorException)
+    }
+}
+
+class TradeOrderCreationRejectedHandler(private val trades: TradeSagaUseCase) :
+    IntegrationMessageHandler<OrderCreationRejectedFromTradeIntegrationEvent> {
+    override fun handlerId() = "trade.order-creation-rejected.v1"
+
+    override fun handle(message: OrderCreationRejectedFromTradeIntegrationEvent) {
+        trades.recordOrderCreationRejected(message).getOrThrow(::BusinessErrorException)
+    }
+}
+
+class TradePaymentPreparedHandler(private val trades: TradeSagaUseCase) :
+    IntegrationMessageHandler<PaymentPreparedIntegrationEvent> {
+    override fun handlerId() = "trade.payment-prepared.v1"
+
+    override fun handle(message: PaymentPreparedIntegrationEvent) {
+        trades.recordPaymentPrepared(message).getOrThrow(::BusinessErrorException)
+    }
+}
+
+class TradePaymentPreparationRejectedHandler(private val trades: TradeSagaUseCase) :
+    IntegrationMessageHandler<PaymentPreparationRejectedIntegrationEvent> {
+    override fun handlerId() = "trade.payment-preparation-rejected.v1"
+
+    override fun handle(message: PaymentPreparationRejectedIntegrationEvent) {
+        trades.recordPaymentPreparationRejected(message).getOrThrow(::BusinessErrorException)
+    }
+}
+
+class TradePaymentPreparationUncertainHandler(private val trades: TradeSagaUseCase) :
+    IntegrationMessageHandler<PaymentPreparationUncertainIntegrationEvent> {
+    override fun handlerId() = "trade.payment-preparation-uncertain.v1"
+
+    override fun handle(message: PaymentPreparationUncertainIntegrationEvent) {
+        trades.recordPaymentPreparationUncertain(message).getOrThrow(::BusinessErrorException)
+    }
+}
+
+class TradePaymentCancellationConfirmedHandler(private val trades: TradeSagaUseCase) :
+    IntegrationMessageHandler<PaymentCancellationConfirmedIntegrationEvent> {
+    override fun handlerId() = "trade.payment-cancellation-confirmed.v1"
+
+    override fun handle(message: PaymentCancellationConfirmedIntegrationEvent) {
+        trades.recordPaymentCancellationConfirmed(message).getOrThrow(::BusinessErrorException)
     }
 }

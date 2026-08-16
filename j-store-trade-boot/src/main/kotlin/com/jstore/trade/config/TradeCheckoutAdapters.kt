@@ -21,10 +21,12 @@ import com.jstore.contracts.commerce.ContractSaleItem
 import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.trade.domain.Trade
 import com.jstore.trade.domain.TradeOrderPlan
+import com.jstore.trade.service.CheckoutApplicationService
 import com.jstore.trade.service.CheckoutUseCase
 import com.jstore.trade.service.CreateCheckoutCommand
 import com.jstore.trade.service.TradeAuthorizationGateway
 import java.time.Instant
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 
@@ -61,14 +63,18 @@ class TradeAuthorizationMessageGateway(private val publisher: IntegrationMessage
 }
 
 class TransactionalCheckoutUseCase(
-    private val delegate: CheckoutUseCase,
+    private val delegate: CheckoutApplicationService,
     transactionManager: PlatformTransactionManager,
 ) : CheckoutUseCase {
     private val write = TransactionTemplate(transactionManager)
     private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
     override fun checkout(command: CreateCheckoutCommand) =
-        requireNotNull(write.execute { delegate.checkout(command) })
+        try {
+            requireNotNull(write.execute { delegate.checkout(command) })
+        } catch (failure: DataIntegrityViolationException) {
+            read.execute { delegate.recoverConcurrentCheckout(command) } ?: throw failure
+        }
 
     override fun find(buyerId: Long, tradeId: Long) =
         requireNotNull(read.execute { delegate.find(buyerId, tradeId) })
