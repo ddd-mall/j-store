@@ -140,3 +140,23 @@ LC-14 Reviewer fixture在新接口上先因缺少可信invocation绑定参数失
 最终独立只读复评逐字节/逐字段复算pre/post snapshot、receipt、Job/Pod UID、request消费、cleanup marker和Gate namespace终态，并核对requirement、design、tasks、fixture与证据一致，结论为PASS、无阻塞finding。LC-22关闭；LC-16、LC-20和LC-21仍保持未关闭，Level 0与全部远程写能力不变。
 
 本次未启动模型或App Server；最终`/proc`无Codex/App Server残留只证明无模型fixture边界，不能关闭LC-16。LC-02/LC-20/LC-21的凭据轮换、disposable Issue和模型费用人工门仍未满足，机器合同继续保持Level 0。
+
+## 2026-08-17 LC-02短期凭据注入准备
+
+只读集群审计确认`agentic-cicd` namespace没有 Secret，当前 Symphony仍使用非秘密哨兵`level0-no-github-access`且未挂ServiceAccount token；Pod内没有GitHub通用别名或model provider key。主机交互环境存在个人/provider凭据变量名，但本次没有读取值、复用或注入这些凭据。
+
+仓库新增credentialed-observer overlay和固定Secret注入工具。base继续保留哨兵，overlay不生成Secret且只引用`symphony-github-token/token`；工具固定`kubernetes-admin@kubernetes`和namespace，token来源只能是`0400`/`0600`文件或非交互stdin管道，并把server dry-run与真实apply分成显式互斥模式。它拒绝TTY输入和冲突模式，未知参数与kubectl错误也不会回显潜在秘密。锁定Symphony`8001b52e...4d0`源码审计确认App Server同时通过Port环境清除和shell `unset`清除`GITHUB_TOKEN`、`GH_TOKEN`、两个Enterprise别名以及WORKFLOW配置引用的`JSTORE_SYMPHONY_GITHUB_TOKEN`。旧部署入口的routing patch摘要漂移一并收敛为从`symphony.lock.json`读取。
+
+本次没有写入Secret、rollout Deployment、创建Issue或启动模型。凭据所有者仍未确认此前暴露凭据已经撤销/轮换，因此LC-02保持未完成，LC-20/LC-21继续阻塞。
+
+独立安全复评随后发现两个Level 0阻塞：锁定Symphony的通用`github_api`仍向模型提供写方法，且credentialed部署没有强制执行token清除source preflight。routing patch现将工具面限制为GET，并对POST、PATCH、PUT、DELETE逐项证明在调用client前拒绝；最终patch SHA-256为`31be82e1...43622`，从固定archive按bridge、routing顺序执行check/apply均PASS。部署入口新增`--source-only`强制门，位置早于任何`sudo`、构建或集群写入，镜像revision校验也改为使用lock值。
+
+真实锁定Symphony checkout的source-only preflight PASS；Elixir 1.19.5/OTP 28临时容器中的formatter和GitHub adapter聚焦测试为8项全PASS。仓库完整六阶段quality gate PASS，其中spec-dev 28项、governance 44项、tooling 198项，55个runtime classpath、55个Licensee模块、Gradle regression和58个发布制品许可证检查均通过。独立复评最终结论为PASS、无阻塞finding；LC-02仍因凭据所有者撤销/轮换确认和精确Secret/rollout授权缺失而保持未完成。本次未访问秘密值，未写Secret、rollout、Issue、GitHub状态或启动模型。
+
+## 2026-08-17 取消Codex仓库级版本绑定
+
+按人工要求，Codex App Server合同删除`0.146.0`精确版本字段，改为接受严格匹配`codex-cli X.Y.Z`的当前稳定版，并继续以v2 schema生成和初始化握手验证运行兼容性。Supervisor部署、独立镜像构建和Symphony审计入口均从宿主机`codex --version`取得实际稳定版，再把该精确版本显式传入Dockerfile；Dockerfile无默认版本且拒绝空值，因此不会隐式安装浮动latest。实际版本继续写入镜像tag、label、runtime revisions和source record，单个制品由完整镜像digest唯一绑定。
+
+历史证据中的`codex-cli 0.146.0`描述已构建制品的真实身份，未被改写。该策略变更不扩大capability、GitHub权限或部署授权；LC-02状态不变，未构建最终运行镜像，也未执行Secret写入、rollout、Issue或模型turn。
+
+验证中，本机`codex-cli 0.147.0`通过runtime稳定版检查，并完成无模型App Server v2 schema生成和Linux初始化握手；预发布版本负测保持fail-closed。Dockerfile的Codex stage以显式`CODEX_VERSION=0.147.0`执行cache-only构建，npm安装后精确输出`codex-cli 0.147.0`，未生成最终运行镜像。56项聚焦测试、Agentic CI/CD与治理合同、shell/Python语法、`git diff --check`和完整六阶段quality gate均PASS；宿主机完整runtime preflight仅因缺少Elixir/mise继续失败，不再因Codex版本失败。

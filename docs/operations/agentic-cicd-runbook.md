@@ -18,7 +18,7 @@
 
 1. 远端 develop ruleset（`Protect develop`）已 active，六个 required contexts 与模板一致且无 bypass actor；仍需用合法和故意违规的 disposable Draft PR 验证实际 enforcement。
 2. 历史 Gitleaks finding 已审计为未合并测试 fixture，并按精确 fingerprint 处置；最新 `develop` 的 Quality、Security（包含 `secret-scan`）和 Qodana 已绿色。
-3. 固定 Symphony/Codex 运行时与无模型 exact-candidate Reviewer 已有镜像内证据；凭据轮换确认、真实独立 Reviewer turn、恢复/熔断和 disposable Issue 端到端演练仍未完成。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
+3. 固定 Symphony源码与不可变运行镜像、无模型 exact-candidate Reviewer 与四个恢复点已有镜像内证据；凭据轮换确认、真实独立 Reviewer turn和 disposable Issue 端到端演练仍未完成。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
 
 ## Symphony 来源
 
@@ -53,7 +53,7 @@
 ## 主机准备
 
 - 使用专用 Linux VM 或容器主机，与生产网络、生产数据库和生产凭据隔离。
-- 安装 `git`、固定版本的 Symphony 运行时和兼容的 `codex`。
+- 安装 `git`、固定版本的 Symphony 运行时和稳定版`codex`；仓库不绑定单一Codex版本，启动前必须通过App Server v2兼容性smoke。
 - 创建仅供该服务使用的 workspace 和 log 根目录，禁止使用仓库根或用户主目录作为递归清理目标。
 - 将 `JSTORE_SYMPHONY_WORKSPACE_ROOT` 设置为显式绝对路径。
 - 将 `JSTORE_SYMPHONY_SOURCE` 设置为锁定提交的 Symphony 源码绝对路径。
@@ -73,7 +73,7 @@
 
 需要 Linux 交付证据时，在用户指定的远端 Linux 开发主机及其原生文件系统上运行；连接信息保留在仓库外。不得把 WSL 对 Windows 工作区的 `/mnt/*` 挂载路径作为全量质量门禁执行目录，避免跨文件系统扫描和 Gradle I/O 限制进度。验证应从精确 `origin/develop` 创建临时副本，只复制候选 diff，不修改远端长期工作目录。
 
-部署前先运行只读预检。它只检查源码提交、安全祖先、工作树、Codex 精确版本和 Elixir 构建工具，不启动 Symphony、Codex thread 或模型 turn：
+部署前先运行只读预检。它只检查源码提交、安全祖先、工作树、Codex稳定版输出和 Elixir 构建工具，不启动 Symphony、Codex thread 或模型 turn：
 
 ```bash
 export JSTORE_SYMPHONY_SOURCE=/absolute/path/to/symphony
@@ -88,7 +88,7 @@ UV_CACHE_DIR="${TMPDIR:-/tmp}/j-store-uv-cache" \
   python scripts/smoke-codex-app-server.py
 ```
 
-smoke 会核对 `config/agentic-cicd/codex-app-server.lock.json` 中的精确版本、用同一二进制生成 v2 JSON schema、校验 Implementer/Reviewer 请求并完成初始化握手。它不会创建 thread 或发送模型 turn。
+smoke 会按`config/agentic-cicd/codex-app-server.lock.json`接受当前已安装的稳定版Codex CLI，用同一二进制生成 v2 JSON schema、校验 Implementer/Reviewer 请求并完成初始化握手。它不会创建 thread 或发送模型 turn。构建入口把通过检查的实际版本写入镜像tag、label和source record，最终制品身份仍由完整镜像digest固定。
 
 Gradle 验证必须使用 JDK 25。运行服务或 CI 时在受管环境中从实际 `java` 路径显式设置 `JAVA_HOME`，不要依赖交互 shell 的默认 JDK：
 
@@ -236,6 +236,41 @@ kubectl --context kubernetes-admin@kubernetes \
 重新运行 deploy 脚本会恢复单副本。删除 PVC、PV、namespace 或宿主机目录属于物料清理，不是普通停止动作，必须在审计日志后人工执行。
 
 真实只读观察前，管理员需要为专用 GitHub App 生成短期 installation token，通过不入库的 overlay/Secret 注入 `JSTORE_SYMPHONY_GITHUB_TOKEN`，并移除哨兵值。不得把个人 token、管理员 kubeconfig 或宿主机 Codex 登录目录挂入 Pod。
+
+### 短期 GitHub token 注入
+
+仓库中的 `development-credentialed-observer` overlay只把 Level 0哨兵替换为固定的 `agentic-cicd/symphony-github-token` Secret引用；它不生成 Secret、不包含秘密值，也不改变 capability合同。锁定的 Symphony源码必须通过 runtime preflight，证明 `JSTORE_SYMPHONY_GITHUB_TOKEN`、`GITHUB_TOKEN`、`GH_TOKEN`、`GITHUB_ENTERPRISE_TOKEN`和`GH_ENTERPRISE_TOKEN`在 Codex/App Server子进程边界全部清除。
+
+先把专用 GitHub App生成的短期 installation token放入仓库外的 `0400`或`0600`文件。以下命令只执行 server-side dry-run，不写集群，也不打印 token：
+
+```bash
+./scripts/agentic-cicd-github-token-secret.sh \
+  --context kubernetes-admin@kubernetes \
+  --token-file /absolute/restricted/path/github-installation-token \
+  --dry-run
+```
+
+只有凭据所有者确认受影响旧凭据已撤销/轮换，并再次取得对精确 context、namespace和 Secret的写授权后，才能执行：
+
+```bash
+./scripts/agentic-cicd-github-token-secret.sh \
+  --context kubernetes-admin@kubernetes \
+  --token-file /absolute/restricted/path/github-installation-token \
+  --apply
+```
+
+Secret创建和 Deployment rollout是两个独立写操作。只有 rollout也取得授权后，才从已提交且洁净的受审 controller revision运行部署入口；`--credentialed-observer`只选择 Secret引用 overlay，不开启 Level 1或任何远程写能力：
+
+部署入口会在任何`sudo`、镜像构建或集群写入前强制执行source-only runtime preflight，核对锁定Symphony HEAD、祖先、洁净源码和全部GitHub token清除边界；失败即停止。受审routing patch同时把模型可见的host-side `github_api`限制为GET，写方法在调用GitHub client前拒绝。
+
+```bash
+./scripts/agentic-cicd-kubernetes-deploy.sh \
+  --context kubernetes-admin@kubernetes \
+  --symphony-source "$HOME/source/symphony" \
+  --credentialed-observer
+```
+
+token到期、撤销或演练结束后，先缩容 Supervisor为 0；删除或替换 Secret属于单独凭据写操作，不能从停止授权中推定。不要直接 `kubectl apply -k` credentialed overlay，因为部署入口还负责绑定受审 controller镜像 digest、patch摘要和新 Pod UID。
 
 ## 停止与 kill switch
 

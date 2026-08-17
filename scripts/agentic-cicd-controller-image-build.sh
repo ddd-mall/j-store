@@ -6,7 +6,6 @@ symphony_source="${SYMPHONY_SOURCE:-$HOME/source/symphony}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 manifest_dir="$repo_root/deploy/kubernetes/agentic-cicd"
 lock_file="$repo_root/config/agentic-cicd/symphony.lock.json"
-codex_version=0.146.0
 elixir_image="hexpm/elixir:1.19.5-erlang-28.3-debian-bookworm-20260202-slim@sha256:09279250196a9ad971ebe4673ec2df47bc760c0409a055df8ea283954ac6a099"
 node_image="node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436"
 
@@ -50,12 +49,20 @@ if [[ -z "$output_dir" ]]; then
   printf '%s\n' 'ERROR: --output-dir is required.' >&2
   exit 2
 fi
-for command in docker git python3 sha256sum tar; do
+for command in codex docker git python3 sha256sum tar; do
   command -v "$command" >/dev/null || {
     printf 'ERROR: required command is missing: %s\n' "$command" >&2
     exit 2
   }
 done
+codex_output=$(codex --version 2>/dev/null || true)
+if [[ "$codex_output" =~ ^codex-cli\ ([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+  codex_version=${BASH_REMATCH[1]}
+else
+  printf 'ERROR: Codex CLI must report a stable version, got: %s\n' \
+    "${codex_output:-unavailable}" >&2
+  exit 2
+fi
 docker buildx version >/dev/null
 
 read_lock() {

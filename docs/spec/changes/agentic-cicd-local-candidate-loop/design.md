@@ -190,7 +190,7 @@ implement turn
 2. 按依赖治理单独提交升级候选，记录漏洞、许可证、兼容性和回滚 commit；
 3. 使用官方镜像/软件源构建；代理不可用时回退官方源，需要认证时停止并向用户申请；
 4. 在 Linux 原生文件系统完成 patch apply、`mix compile`、`mix test` 和依赖审计；
-5. 构建双 revision、双 patch hash、Codex 版本和基础镜像 digest 固定的 OCI 镜像；
+5. 构建双 revision、双 patch hash和基础镜像 digest固定的 OCI镜像，记录构建时实际稳定版Codex CLI并验证App Server v2兼容性，最终以完整镜像digest绑定制品；
 6. Registry不可用时将同一 OCI archive按 digest导入 master和/或worker1，回查 containerd image ID；镜像代理不可用时使用官方源，需要认证时停止请求用户登录；
 7. 独立安全评审通过后才允许注入短期只读 GitHub App token或启动模型 turn。
 

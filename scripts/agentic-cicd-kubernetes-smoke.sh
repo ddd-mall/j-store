@@ -74,7 +74,7 @@ claim_phase=$(kubectl --context "$context" -n "$namespace" get pvc symphony-stat
   exit 1
 }
 codex_version=$(kubectl --context "$context" -n "$namespace" exec "$pod" -- codex --version)
-[[ "$codex_version" == "codex-cli 0.146.0" ]] || {
+[[ "$codex_version" =~ ^codex-cli\ [0-9]+\.[0-9]+\.[0-9]+$ ]] || {
   printf 'ERROR: unexpected Codex version: %s\n' "$codex_version" >&2
   exit 1
 }

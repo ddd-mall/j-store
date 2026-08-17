@@ -379,14 +379,15 @@ class AppServerProtocolTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "trusted implementer"):
             client.start_review_turn("thread-review-1", packet)
 
-    def test_runtime_lock_pins_codex_cli_and_protocol(self) -> None:
+    def test_runtime_lock_accepts_stable_codex_cli_and_pins_protocol(self) -> None:
         lock = json.loads(
             (REPO_ROOT / "config" / "agentic-cicd" / "codex-app-server.lock.json").read_text(
                 encoding="utf-8"
             )
         )
 
-        self.assertEqual("0.146.0", lock["codex_cli_version"])
+        self.assertEqual("installed-stable", lock["version_policy"])
+        self.assertNotIn("codex_cli_version", lock)
         self.assertEqual("v2", lock["protocol_version"])
         self.assertEqual("stdio-jsonl", lock["transport"])
 

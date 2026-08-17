@@ -23,6 +23,7 @@
 - [ ] `LC-02` 完成此前暴露的远程环境/provider/GitHub 凭据轮换确认，并迁移到不进入交互 shell、日志或 Codex 子进程的短期注入方式。
   - 所有者：凭据所有者；仓库只记录脱敏处置结论，不记录值。
   - 阻塞：未确认前不得注入真实 token或启动模型 turn。
+  - 2026-08-17进度：新增不含 Secret值的 `development-credentialed-observer` overlay和显式`--dry-run`/`--apply`注入工具；工具只从受限文件或非交互stdin管道读取，固定context/namespace/Secret/key且不打印token。runtime preflight核对锁定Symphony源码同时清除四个GitHub通用别名和配置引用的`JSTORE_SYMPHONY_GITHUB_TOKEN`；credentialed部署在任何`sudo`或集群写入前强制执行source-only检查。锁定routing patch把host-side `github_api`收窄为GET-only，并以四个写方法负测证明GitHub client不会被调用。凭据所有者尚未确认旧凭据撤销/轮换，本项保持未完成；未执行Secret写入、rollout、Issue或模型turn。
 - [ ] `LC-03` 完成 I0-04 的 disposable Draft PR/ruleset 正反例演练计划并取得精确外部写授权。
   - 证据：合法分支方向、required checks、删除/force-push拒绝；演练对象和清理记录可审计。
   - 说明：该项是进入远程写入迭代 4 的硬门；不单独阻塞无远程写的 Snapshotter/Gate Runner 组件开发。
@@ -32,10 +33,10 @@
 - [x] `LC-04` 审计锁定 Symphony commit及其依赖，形成单独的运行时升级/缓解候选。
   - 证据：上游 commit、漏洞与许可证清单、兼容性、回滚 commit和独立安全评审。
   - 2026-08-16证据：锁定上游 `8001b52e...4d0` 的原始依赖有27个Hex公告；审查后的39项依赖锁清除全部公告，许可证仅MIT、Apache-2.0和BSD-2-Clause，并记录兼容修正、既有部署回滚digest与独立复评。完整记录见 `evidence/2026-08-16-symphony-supply-chain-audit.md`。
-- [x] `LC-05` 在指定 Linux 主机原生文件系统完成两段 patch顺序应用、`mix compile`、`mix test`、依赖审计和 Codex 精确版本 smoke。
+- [x] `LC-05` 在指定 Linux 主机原生文件系统完成两段 patch顺序应用、`mix compile`、`mix test`、依赖审计和稳定版Codex App Server smoke。
   - 网络策略：优先既有代理；不可用时使用官方镜像/软件源；需要登录时停止并向用户申请。
   - 2026-08-16证据：提交 `89c7b462...be401` 的两阶段审计JSON绑定最新routing patch `b60be305...7535`、依赖锁、fixture和两个基础镜像；`mix compile --warnings-as-errors`、296项测试、Hex审计、escript构建和 `codex-cli 0.146.0` 精确smoke全部PASS。报告SHA-256为 `736c8a35...8954`。
-- [x] `LC-06` 构建不可变 Supervisor 候选，固定 Symphony/j-store revision、patch hash、Codex 版本、基础镜像 digest和 WORKFLOW hash。
+- [x] `LC-06` 构建不可变 Supervisor 候选，固定 Symphony/j-store revision、patch hash、基础镜像 digest和 WORKFLOW hash，记录实际Codex版本并以镜像digest绑定制品。
   - 证据：镜像 digest、OCI labels、SBOM/来源记录和无浮动 tag 检查。
   - 2026-08-16证据：controller `3a537df4...24f52` 构建的runtime manifest为 `sha256:305a2b8a...4d1a9`；实际labels逐项匹配，唯一SPDX与SLSA statement均绑定该digest，Docker archive和三份来源制品均记录独立SHA-256。详见 `evidence/2026-08-16-controller-image-build.md`。
 

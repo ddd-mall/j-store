@@ -129,6 +129,15 @@ def validate() -> list[str]:
         "required_ancestor_commits", []
     ):
         failures.append("Symphony lock is missing the GitHub token isolation baseline")
+    expected_github_secret_names = [
+        "GITHUB_TOKEN",
+        "GH_TOKEN",
+        "GITHUB_ENTERPRISE_TOKEN",
+        "GH_ENTERPRISE_TOKEN",
+        "JSTORE_SYMPHONY_GITHUB_TOKEN",
+    ]
+    if lock.get("github_secret_environment_names") != expected_github_secret_names:
+        failures.append("Symphony lock has an invalid GitHub token scrubbing contract")
     patch_relative = lock.get("patch")
     expected_patch_sha256 = lock.get("patch_sha256")
     if patch_relative != "deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch":
@@ -156,6 +165,17 @@ def validate() -> list[str]:
             != expected_routing_patch_sha256
         ):
             failures.append("Symphony phase routing patch differs from its lock")
+        else:
+            routing_patch = routing_patch_path.read_text(encoding="utf-8")
+            if '@allowed_methods ["GET"]' not in routing_patch:
+                failures.append("Symphony github_api must advertise GET only")
+            if 'Enum.each(["POST", "PATCH", "PUT", "DELETE"]' not in routing_patch:
+                failures.append("Symphony routing patch lacks write-method rejection tests")
+            if (
+                "read-only github_api must reject write methods before calling the client"
+                not in routing_patch
+            ):
+                failures.append("Symphony write-method tests must prove the client is not called")
     dependency_lock_relative = lock.get("dependency_lock")
     expected_dependency_lock_sha256 = lock.get("dependency_lock_sha256")
     if dependency_lock_relative != "deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock":
@@ -187,8 +207,10 @@ def validate() -> list[str]:
         ):
             failures.append("Symphony controller fixture differs from its lock")
 
-    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", app_server_lock.get("codex_cli_version", "")):
-        failures.append("Codex App Server lock must use an exact CLI version")
+    if app_server_lock.get("version_policy") != "installed-stable":
+        failures.append("Codex App Server must accept the installed stable CLI version")
+    if "codex_cli_version" in app_server_lock:
+        failures.append("Codex App Server lock must not bind an exact CLI version")
     if app_server_lock.get("protocol_version") != "v2":
         failures.append("Codex App Server protocol must be pinned to v2")
     if app_server_lock.get("transport") != "stdio-jsonl":

@@ -1,6 +1,6 @@
 {
   "binary": "codex",
-  "codex_cli_version": "0.146.0",
+  "version_policy": "installed-stable",
   "protocol_version": "v2",
   "transport": "stdio-jsonl",
   "schema_command": "codex app-server generate-json-schema --out <trusted-temporary-directory>",
