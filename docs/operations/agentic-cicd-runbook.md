@@ -235,11 +235,11 @@ kubectl --context kubernetes-admin@kubernetes \
 
 重新运行 deploy 脚本会恢复单副本。删除 PVC、PV、namespace 或宿主机目录属于物料清理，不是普通停止动作，必须在审计日志后人工执行。
 
-真实只读观察前，管理员需要为专用 GitHub App 生成短期 installation token，通过不入库的 overlay/Secret 注入 `JSTORE_SYMPHONY_GITHUB_TOKEN`，并移除哨兵值。不得把个人 token、管理员 kubeconfig 或宿主机 Codex 登录目录挂入 Pod。
+真实只读观察前，管理员需要为专用 GitHub App 生成短期 installation token，通过不入库的 overlay/Secret 注入 `JSTORE_SYMPHONY_GITHUB_TOKEN`，并移除哨兵值。模型认证使用单独的固定 Secret，只挂载受限 `auth.json`和经白名单裁剪的`config.toml`；不得把个人 token、管理员 kubeconfig 或宿主机 Codex 登录目录挂入 Pod。
 
 ### 短期 GitHub token 注入
 
-仓库中的 `development-credentialed-observer` overlay只把 Level 0哨兵替换为固定的 `agentic-cicd/symphony-github-token` Secret引用；它不生成 Secret、不包含秘密值，也不改变 capability合同。锁定的 Symphony源码必须通过 runtime preflight，证明 `JSTORE_SYMPHONY_GITHUB_TOKEN`、`GITHUB_TOKEN`、`GH_TOKEN`、`GITHUB_ENTERPRISE_TOKEN`和`GH_ENTERPRISE_TOKEN`在 Codex/App Server子进程边界全部清除。
+仓库中的 `development-credentialed-observer` overlay把 Level 0哨兵替换为固定的 `agentic-cicd/symphony-github-token` Secret引用，并把 `agentic-cicd/symphony-codex-auth` 的`auth.json`和裁剪后`config.toml`只读挂载到专用 Pod HOME；它不生成 Secret、不包含秘密值，也不改变 capability合同。锁定的 Symphony源码必须通过 runtime preflight，证明 `JSTORE_SYMPHONY_GITHUB_TOKEN`、`GITHUB_TOKEN`、`GH_TOKEN`、`GITHUB_ENTERPRISE_TOKEN`和`GH_ENTERPRISE_TOKEN`在 Codex/App Server子进程边界全部清除。
 
 先把专用 GitHub App生成的短期 installation token放入仓库外的 `0400`或`0600`文件。以下命令只执行 server-side dry-run，不写集群，也不打印 token：
 
@@ -259,7 +259,33 @@ kubectl --context kubernetes-admin@kubernetes \
   --apply
 ```
 
-Secret创建和 Deployment rollout是两个独立写操作。只有 rollout也取得授权后，才从已提交且洁净的受审 controller revision运行部署入口；`--credentialed-observer`只选择 Secret引用 overlay，不开启 Level 1或任何远程写能力：
+### Codex API Key认证注入
+
+当前受审入口只接受 Codex CLI API Key登录缓存和一份裁剪后的自定义provider配置：JSON对象必须且只能包含非空`OPENAI_API_KEY`；配置必须选择一个无内嵌凭据的HTTPS Responses provider，并只保留模型、推理强度、provider名称和URL。根据OpenAI官方认证说明，API Key适用于受信自动化并按Platform标准费率计费；`CODEX_API_KEY`只支持`codex exec`，不得用于Symphony的`codex app-server`。`auth.json`等同密码处理；原始`config.toml`也可能包含其他provider、MCP或策略配置，两者均不得提交、打印或通过挂载整个宿主机`.codex`目录注入。
+
+模型调用前使用专用OpenAI Platform项目和可撤销API Key，并按模型设置保守的request/token rate limit及spend alert。OpenAI官方说明spend alert只通知、不停止API请求，因此它不是硬费用上限；rate limit也只约束一段时间内的请求/Token数量。`state-contract.json`中的`max_cost_microusd`目前是审计合同，不是可验证的上游计费硬熔断；费用所有者没有明确接受“一次turn但无硬美元上限”的残余风险时不得启动真实turn。
+
+先执行不写集群的server-side dry-run：
+
+```bash
+./scripts/agentic-cicd-codex-auth-secret.sh \
+  --context kubernetes-admin@kubernetes \
+  --auth-file /absolute/restricted/path/auth.json \
+  --config-file /absolute/restricted/path/config.toml \
+  --dry-run
+```
+
+只有凭据所有者对精确`kubernetes-admin@kubernetes / agentic-cicd / symphony-codex-auth`写入授权后，才能执行：
+
+```bash
+./scripts/agentic-cicd-codex-auth-secret.sh \
+  --context kubernetes-admin@kubernetes \
+  --auth-file /absolute/restricted/path/auth.json \
+  --config-file /absolute/restricted/path/config.toml \
+  --apply
+```
+
+两个Secret创建和Deployment rollout都是独立写操作。只有rollout也取得授权后，才从已提交且洁净的受审controller revision运行部署入口；`--credentialed-observer`只选择Secret引用overlay并检查`codex login status`，不启动模型、不开启Level 1或任何远程写能力：
 
 部署入口会在任何`sudo`、镜像构建或集群写入前强制执行source-only runtime preflight，核对锁定Symphony HEAD、祖先、洁净源码和全部GitHub token清除边界；失败即停止。受审routing patch同时把模型可见的host-side `github_api`限制为GET，写方法在调用GitHub client前拒绝。
 
@@ -270,7 +296,7 @@ Secret创建和 Deployment rollout是两个独立写操作。只有 rollout也�
   --credentialed-observer
 ```
 
-token到期、撤销或演练结束后，先缩容 Supervisor为 0；删除或替换 Secret属于单独凭据写操作，不能从停止授权中推定。不要直接 `kubectl apply -k` credentialed overlay，因为部署入口还负责绑定受审 controller镜像 digest、patch摘要和新 Pod UID。
+GitHub token到期、模型Key撤销或演练结束后，先缩容 Supervisor为 0；删除或替换任一Secret属于单独凭据写操作，不能从停止授权中推定。不要直接 `kubectl apply -k` credentialed overlay，因为部署入口还负责绑定受审 controller镜像 digest、patch摘要、新 Pod UID和Codex登录就绪状态。
 
 ## 停止与 kill switch
 

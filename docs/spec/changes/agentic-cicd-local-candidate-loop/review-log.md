@@ -160,3 +160,13 @@ LC-14 Reviewer fixture在新接口上先因缺少可信invocation绑定参数失
 历史证据中的`codex-cli 0.146.0`描述已构建制品的真实身份，未被改写。该策略变更不扩大capability、GitHub权限或部署授权；LC-02状态不变，未构建最终运行镜像，也未执行Secret写入、rollout、Issue或模型turn。
 
 验证中，本机`codex-cli 0.147.0`通过runtime稳定版检查，并完成无模型App Server v2 schema生成和Linux初始化握手；预发布版本负测保持fail-closed。Dockerfile的Codex stage以显式`CODEX_VERSION=0.147.0`执行cache-only构建，npm安装后精确输出`codex-cli 0.147.0`，未生成最终运行镜像。56项聚焦测试、Agentic CI/CD与治理合同、shell/Python语法、`git diff --check`和完整六阶段quality gate均PASS；宿主机完整runtime preflight仅因缺少Elixir/mise继续失败，不再因Codex版本失败。
+
+## 2026-08-18 LC-20模型认证与费用门准备
+
+官方Codex认证文档确认API Key适用于受信自动化，`codex login --with-api-key`产生的登录缓存可供CLI复用；`CODEX_API_KEY`只支持`codex exec`，不能据此宣称Symphony的`codex app-server`已认证。仓库因此新增固定`symphony-codex-auth`工具，只接受`0400`/`0600`且仅含一个非空`OPENAI_API_KEY`的JSON，以及经白名单验证、只保留选中HTTPS Responses provider的Codex配置，不打印凭据或provider URL；credentialed overlay通过非root init container准备Pod专用`.codex`目录，只读挂载`auth.json`和裁剪后的`config.toml`，不挂宿主机登录目录。部署完成后只运行不产生模型调用的`codex login status`就绪检查。
+
+聚焦32项凭据/Kubernetes合同测试、真实Codex Secret server-side dry-run、credentialed overlay server-side dry-run和`git diff --check`均PASS。只读GitHub核验确认App仍限定到`ddd-mall/j-store`，但installation token权限仍为`issues: read`，无法创建disposable Issue；现有Issue中也没有重复的Agentic observer演练对象。另发现`max_cost_microusd=5000000`只存在于声明式合同，控制器没有可验证的实时费用熔断；OpenAI官方文档同时明确project spend alert只通知、不停止API请求，因此合同或alert都不能宣称真实5美元硬上限。LC-20保持未完成；本次未写Codex Secret、未rollout、未创建或标记Issue、未启动模型。
+
+GitHub App所有者随后将Issues权限改为write，`ddd-mall`组织接受installation权限更新；新签发token实际返回`issues: write`且仍只覆盖`ddd-mall/j-store`。在无重复候选后创建disposable Issue `#50`，标题为`[Agent Goal]: 只读核对本地开发文档入口`，初始唯一标签`agent:candidate`，任务正文明确禁止文件、GitHub、部署和生产写入。创建完成后立即撤销该写token，再按installation token API显式请求Actions、Checks、Contents、Issues和Pull requests只读权限；新token只见目标仓库，返回`issues: read`，对Issue `#50`的真实PATCH负测被GitHub拒绝且标题未改变。LC-20仍未关闭：未写Kubernetes Secret、未rollout、未添加`agent:queued`且未启动模型。
+
+宿主现有Codex认证使用API-Key登录缓存和自定义HTTPS Responses provider；Secret工具现将原始配置缩减为当前模型、推理强度及选中provider的名称和URL，拒绝内嵌凭据、非HTTPS、非Responses配置，并丢弃其他provider、MCP和策略设置。真实`auth.json`与`config.toml`通过目标集群server-side dry-run，未打印Key或provider URL，也未写Secret。聚焦凭据/Kubernetes合同34项、全部tooling 205项、Agentic CI/CD与治理合同、`git diff --check`及完整六阶段quality gate均PASS；后者包含55个runtime classpath、55个Licensee模块、Gradle回归和58个发布制品许可证检查。Symphony仍为0副本，Issue `#50`仍未调度，未发生模型调用。

@@ -4,3 +4,4 @@ resources:
   - ../development-local-image
 patches:
   - path: github-token-patch.yaml
+  - path: codex-auth-patch.yaml

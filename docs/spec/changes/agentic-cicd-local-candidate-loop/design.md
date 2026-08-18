@@ -182,6 +182,8 @@ implement turn
 
 `max_turns: 1`保持不变。validate、freeze和complete都在App Server创建前短路；after hook只提交可信TurnReceipt/请求，不执行candidate archive。Symphony在启动model turn前读取host-owned phase context，并在受信turn receipt中携带该次invocation的phase、role、head SHA和可选CandidateRevision；complete hook必须逐项回传，controller在任何状态写入前与当前snapshot核对。成功receipt还以session/thread/turn规范元组消费幂等键，因此Review FAIL回流后或未来再次进入同名phase时，旧callback都不能被重新分类或重复消费。
 
+`max_cost_microusd`当前只表达主机侧预算和审计意图，控制器尚未从Codex App Server取得可验证的实时金额，也不能在上游请求前硬熔断费用。OpenAI Platform的spend alert只通知而不停止请求，project rate limit只约束一段时间内的请求/Token数量。真实模型演练必须使用专用项目、保守rate limit和spend alert，并由费用所有者对“一次turn但金额不由当前控制器硬限制”的精确残余风险单独批准；不得把合同字段或spend alert误报为实际5美元上限。
+
 ## Symphony 供应链顺序
 
 供应链资格是 Level 1 部署的前置门：

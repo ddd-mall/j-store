@@ -24,7 +24,7 @@ Options:
   --image <name:tag>          Immutable reviewed image tag (normally derived)
   --timeout-seconds <value>   Rollout timeout (default: 900)
   --symphony-source <path>    Clean pinned Symphony checkout
-  --credentialed-observer     Reference the fixed short-lived GitHub token Secret
+  --credentialed-observer     Reference fixed GitHub and Codex auth Secrets
 EOF
 }
 
@@ -285,3 +285,12 @@ fi
   --context "$context" --namespace "$namespace" --timeout-seconds "$timeout_seconds" \
   --image "$image_ref" --symphony-revision "$expected_symphony_revision" \
   --controller-revision "$controller_revision"
+if $credentialed_observer; then
+  kubectl --context "$context" -n "$namespace" exec deployment/symphony \
+    -- codex login status >/dev/null 2>&1 || {
+      printf '%s\n' 'ERROR: credentialed observer has no valid Codex login.' >&2
+      exit 1
+    }
+  printf 'CREDENTIALS_READY namespace=%s github_secret=%s codex_secret=%s\n' \
+    "$namespace" symphony-github-token symphony-codex-auth
+fi

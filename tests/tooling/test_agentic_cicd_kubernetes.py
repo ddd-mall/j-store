@@ -117,7 +117,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             any(document.get("kind") in {"Role", "RoleBinding"} for document in self.base)
         )
 
-    def test_credentialed_observer_only_replaces_the_level_zero_token_sentinel(self) -> None:
+    def test_credentialed_observer_mounts_only_fixed_credential_secrets(self) -> None:
         base_deployment = by_kind_name(self.base, "Deployment", "symphony")
         base_container = base_deployment["spec"]["template"]["spec"]["containers"][0]
         base_environment = {item["name"]: item for item in base_container["env"]}
@@ -149,6 +149,45 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertFalse(pod["automountServiceAccountToken"])
         self.assertEqual("k8s-master", pod["nodeSelector"]["kubernetes.io/hostname"])
         self.assertEqual("Never", container["imagePullPolicy"])
+        self.assertEqual(1, len(pod["initContainers"]))
+        prepare_home = pod["initContainers"][0]
+        self.assertEqual("prepare-codex-home", prepare_home["name"])
+        self.assertEqual(
+            [
+                "/usr/bin/install",
+                "-d",
+                "-m",
+                "0700",
+                "/var/lib/symphony/home/.codex",
+            ],
+            prepare_home["command"],
+        )
+        self.assertTrue(prepare_home["securityContext"]["readOnlyRootFilesystem"])
+        self.assertFalse(prepare_home["securityContext"]["allowPrivilegeEscalation"])
+        self.assertEqual(
+            ["ALL"], prepare_home["securityContext"]["capabilities"]["drop"]
+        )
+        codex_mounts = {
+            mount["subPath"]: mount
+            for mount in container["volumeMounts"]
+            if mount["name"] == "codex-auth"
+        }
+        self.assertEqual({"auth.json", "config.toml"}, set(codex_mounts))
+        self.assertEqual(
+            "/var/lib/symphony/home/.codex/auth.json",
+            codex_mounts["auth.json"]["mountPath"],
+        )
+        self.assertEqual(
+            "/var/lib/symphony/home/.codex/config.toml",
+            codex_mounts["config.toml"]["mountPath"],
+        )
+        self.assertTrue(all(mount["readOnly"] for mount in codex_mounts.values()))
+        codex_volume = next(
+            volume for volume in pod["volumes"] if volume["name"] == "codex-auth"
+        )
+        self.assertEqual("symphony-codex-auth", codex_volume["secret"]["secretName"])
+        self.assertFalse(codex_volume["secret"]["optional"])
+        self.assertEqual(0o440, codex_volume["secret"]["defaultMode"])
 
     def test_runtime_is_non_root_read_only_and_persistent(self) -> None:
         deployment = by_kind_name(self.base, "Deployment", "symphony")
