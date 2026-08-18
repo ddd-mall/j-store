@@ -20,10 +20,10 @@
 - [x] `LC-01` 更新总计划与机器能力合同，拆分本地 bootstrap、workspace write、candidate freeze、isolated gate 和远端写能力；增加非法组合负向测试。
   - 证据：合同、治理检查和 Level 0 回归测试一致；所有远端写能力仍为 false。
   - 2026-08-15证据：合同升级为 version 2 / capability level 0，`bootstrap_local_workspace=true`，其余本地写入和全部远端写入保持 false；治理测试拒绝旧 `create_branch`、Level 0本地写入和 Level 1远端写入组合。
-- [ ] `LC-02` 完成此前暴露的远程环境/provider/GitHub 凭据轮换确认，并迁移到不进入交互 shell、日志或 Codex 子进程的短期注入方式。
+- [x] `LC-02` 完成此前暴露的远程环境/provider/GitHub 凭据轮换确认，并迁移到不进入交互 shell、日志或 Codex 子进程的短期注入方式。
   - 所有者：凭据所有者；仓库只记录脱敏处置结论，不记录值。
   - 阻塞：未确认前不得注入真实 token或启动模型 turn。
-  - 2026-08-17进度：新增不含 Secret值的 `development-credentialed-observer` overlay和显式`--dry-run`/`--apply`注入工具；工具只从受限文件或非交互stdin管道读取，固定context/namespace/Secret/key且不打印token。runtime preflight核对锁定Symphony源码同时清除四个GitHub通用别名和配置引用的`JSTORE_SYMPHONY_GITHUB_TOKEN`；credentialed部署在任何`sudo`或集群写入前强制执行source-only检查。锁定routing patch把host-side `github_api`收窄为GET-only，并以四个写方法负测证明GitHub client不会被调用。凭据所有者尚未确认旧凭据撤销/轮换，本项保持未完成；未执行Secret写入、rollout、Issue或模型turn。
+  - 2026-08-18证据：凭据所有者确认此前暴露的个人GitHub PAT已撤销；专用GitHub App仅安装到`ddd-mall/j-store`且只授予Metadata、Contents、Issues、Pull requests、Actions和Checks读取权限。短期installation token由受限`0600`文件注入固定Secret并完成credentialed Level 0 rollout；Pod `d8f7cd2b-f7cd-4fcc-bfa7-eec9de87f72d`使用controller digest `sha256:a703ea0f...2ac951`，从Pod内以注入凭据调用GitHub installation repositories API返回200且只见目标仓库，零重启、无排队Issue、无模型turn。实机发现并修复末尾换行可绕过逐行空白检查、继而产生非法Authorization header的问题；工具现按原始字节拒绝任何空白，7项凭据测试、149项Agentic CI/CD工具测试、合同/治理检查和真实server-side dry-run均PASS。runtime preflight继续证明全部GitHub token别名在Codex/App Server子进程边界清除；Secret值、token摘要和私钥未进入仓库或证据。
 - [ ] `LC-03` 完成 I0-04 的 disposable Draft PR/ruleset 正反例演练计划并取得精确外部写授权。
   - 证据：合法分支方向、required checks、删除/force-push拒绝；演练对象和清理记录可审计。
   - 说明：该项是进入远程写入迭代 4 的硬门；不单独阻塞无远程写的 Snapshotter/Gate Runner 组件开发。

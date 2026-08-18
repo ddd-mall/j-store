@@ -145,6 +145,23 @@ class AgenticCicdCredentialToolTest(unittest.TestCase):
         self.assertEqual(2, context.returncode)
         self.assertIn("kubernetes-admin@kubernetes", context.stderr)
 
+    def test_rejects_a_token_file_with_a_trailing_newline(self) -> None:
+        token_file = self.root / "token"
+        token_file.write_text("ghs_fixture_token_not_a_secret\n", encoding="utf-8")
+        token_file.chmod(0o600)
+
+        result = self.run_tool(
+            "--context",
+            "kubernetes-admin@kubernetes",
+            "--token-file",
+            str(token_file),
+            "--dry-run",
+        )
+
+        self.assertEqual(2, result.returncode)
+        self.assertIn("must not contain whitespace", result.stderr)
+        self.assertNotIn("create secret generic", self.log.read_text(encoding="utf-8"))
+
     def test_rejects_tty_stdin_without_reading_or_echoing_a_token(self) -> None:
         token = "ghs_fixture_token_not_a_secret"
         master, slave = pty.openpty()

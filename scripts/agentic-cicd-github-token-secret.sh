@@ -131,7 +131,8 @@ if ((token_size < 20 || token_size > 4096)); then
   printf '%s\n' 'ERROR: token must contain 20-4096 bytes.' >&2
   exit 2
 fi
-if LC_ALL=C grep -q '[[:space:]]' "$token_path"; then
+token_without_whitespace_size=$(LC_ALL=C tr -d '[:space:]' <"$token_path" | wc -c)
+if ((token_without_whitespace_size != token_size)); then
   printf '%s\n' 'ERROR: token must not contain whitespace.' >&2
   exit 2
 fi
