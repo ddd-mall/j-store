@@ -5,7 +5,7 @@
   "patch": "deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
   "patch_sha256": "bbaad0e4ad04377b5b64238f7fabbfd383915cf60692f321493dd5f3372bcb8a",
   "routing_patch": "deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
-  "routing_patch_sha256": "b60be30500e95f7fd8d61ea4f73cab4b618e646f541ede6f67e8e0f3eac27535",
+  "routing_patch_sha256": "31be82e13d8660dabcfb4be9ea1a94b2a33a7aa1b2f1ed422c81350ea9343622",
   "dependency_lock": "deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock",
   "dependency_lock_sha256": "9e22b8a3a5cb3ff49fb14899e224a0ac8dc08523e75b7835724071f00593890a",
   "test_fixture": "deploy/kubernetes/agentic-cicd/test-fixtures/controller.py",
@@ -21,6 +21,13 @@
     "github-token-alias-scrubbing",
     "workspace-write-sandbox",
     "bounded-agent-turns"
+  ],
+  "github_secret_environment_names": [
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_ENTERPRISE_TOKEN",
+    "GH_ENTERPRISE_TOKEN",
+    "JSTORE_SYMPHONY_GITHUB_TOKEN"
   ],
   "deployment_policy": "Build from the pinned source commit and verify its ancestry before use; do not follow a floating branch or unverified binary."
 }

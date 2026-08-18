@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -26,7 +27,6 @@ LOCK_PATH = REPO_ROOT / "config" / "agentic-cicd" / "codex-app-server.lock.json"
 def main() -> int:
     lock = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
     binary = str(lock["binary"])
-    expected = f"codex-cli {lock['codex_cli_version']}"
     version = subprocess.run(
         [binary, "--version"],
         check=True,
@@ -34,9 +34,11 @@ def main() -> int:
         text=True,
         timeout=10,
     ).stdout.strip()
-    if version != expected:
+    if lock.get("version_policy") != "installed-stable" or not re.fullmatch(
+        r"codex-cli [0-9]+\.[0-9]+\.[0-9]+", version
+    ):
         print(
-            f"FAIL: expected {expected!r}, found {version!r}",
+            f"FAIL: expected an installed stable Codex CLI, found {version!r}",
             file=sys.stderr,
         )
         return 1
@@ -115,7 +117,7 @@ def main() -> int:
             process.wait(timeout=5)
 
     print(
-        f"PASS: {expected} schema and app-server initialize handshake completed on Linux."
+        f"PASS: {version} schema and app-server initialize handshake completed on Linux."
     )
     return 0
 

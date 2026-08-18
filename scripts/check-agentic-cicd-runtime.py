@@ -23,6 +23,11 @@ def parse_arguments() -> argparse.Namespace:
             "through JSTORE_SYMPHONY_SOURCE."
         ),
     )
+    parser.add_argument(
+        "--source-only",
+        action="store_true",
+        help="Validate only the pinned Symphony source and GitHub secret boundaries.",
+    )
     return parser.parse_args()
 
 
@@ -35,7 +40,7 @@ def main() -> int:
         )
         return 1
 
-    result = RuntimePreflight(
+    preflight = RuntimePreflight(
         symphony_source=Path(arguments.symphony_source),
         symphony_lock=REPOSITORY_ROOT
         / "config"
@@ -45,7 +50,12 @@ def main() -> int:
         / "config"
         / "agentic-cicd"
         / "codex-app-server.lock.json",
-    ).check()
+    )
+    result = (
+        preflight.check_symphony_source()
+        if arguments.source_only
+        else preflight.check()
+    )
     for check in result.checks:
         print(f"PASS: {check}")
     for failure in result.failures:

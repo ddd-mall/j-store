@@ -20,9 +20,10 @@
 - [x] `LC-01` 更新总计划与机器能力合同，拆分本地 bootstrap、workspace write、candidate freeze、isolated gate 和远端写能力；增加非法组合负向测试。
   - 证据：合同、治理检查和 Level 0 回归测试一致；所有远端写能力仍为 false。
   - 2026-08-15证据：合同升级为 version 2 / capability level 0，`bootstrap_local_workspace=true`，其余本地写入和全部远端写入保持 false；治理测试拒绝旧 `create_branch`、Level 0本地写入和 Level 1远端写入组合。
-- [ ] `LC-02` 完成此前暴露的远程环境/provider/GitHub 凭据轮换确认，并迁移到不进入交互 shell、日志或 Codex 子进程的短期注入方式。
+- [x] `LC-02` 完成此前暴露的远程环境/provider/GitHub 凭据轮换确认，并迁移到不进入交互 shell、日志或 Codex 子进程的短期注入方式。
   - 所有者：凭据所有者；仓库只记录脱敏处置结论，不记录值。
   - 阻塞：未确认前不得注入真实 token或启动模型 turn。
+  - 2026-08-18证据：凭据所有者确认此前暴露的个人GitHub PAT已撤销；专用GitHub App仅安装到`ddd-mall/j-store`且只授予Metadata、Contents、Issues、Pull requests、Actions和Checks读取权限。短期installation token由受限`0600`文件注入固定Secret并完成credentialed Level 0 rollout；Pod `d8f7cd2b-f7cd-4fcc-bfa7-eec9de87f72d`使用controller digest `sha256:a703ea0f...2ac951`，从Pod内以注入凭据调用GitHub installation repositories API返回200且只见目标仓库，零重启、无排队Issue、无模型turn。实机发现并修复末尾换行可绕过逐行空白检查、继而产生非法Authorization header的问题；工具现按原始字节拒绝任何空白，7项凭据测试、149项Agentic CI/CD工具测试、合同/治理检查和真实server-side dry-run均PASS。runtime preflight继续证明全部GitHub token别名在Codex/App Server子进程边界清除；Secret值、token摘要和私钥未进入仓库或证据。
 - [ ] `LC-03` 完成 I0-04 的 disposable Draft PR/ruleset 正反例演练计划并取得精确外部写授权。
   - 证据：合法分支方向、required checks、删除/force-push拒绝；演练对象和清理记录可审计。
   - 说明：该项是进入远程写入迭代 4 的硬门；不单独阻塞无远程写的 Snapshotter/Gate Runner 组件开发。
@@ -32,10 +33,10 @@
 - [x] `LC-04` 审计锁定 Symphony commit及其依赖，形成单独的运行时升级/缓解候选。
   - 证据：上游 commit、漏洞与许可证清单、兼容性、回滚 commit和独立安全评审。
   - 2026-08-16证据：锁定上游 `8001b52e...4d0` 的原始依赖有27个Hex公告；审查后的39项依赖锁清除全部公告，许可证仅MIT、Apache-2.0和BSD-2-Clause，并记录兼容修正、既有部署回滚digest与独立复评。完整记录见 `evidence/2026-08-16-symphony-supply-chain-audit.md`。
-- [x] `LC-05` 在指定 Linux 主机原生文件系统完成两段 patch顺序应用、`mix compile`、`mix test`、依赖审计和 Codex 精确版本 smoke。
+- [x] `LC-05` 在指定 Linux 主机原生文件系统完成两段 patch顺序应用、`mix compile`、`mix test`、依赖审计和稳定版Codex App Server smoke。
   - 网络策略：优先既有代理；不可用时使用官方镜像/软件源；需要登录时停止并向用户申请。
   - 2026-08-16证据：提交 `89c7b462...be401` 的两阶段审计JSON绑定最新routing patch `b60be305...7535`、依赖锁、fixture和两个基础镜像；`mix compile --warnings-as-errors`、296项测试、Hex审计、escript构建和 `codex-cli 0.146.0` 精确smoke全部PASS。报告SHA-256为 `736c8a35...8954`。
-- [x] `LC-06` 构建不可变 Supervisor 候选，固定 Symphony/j-store revision、patch hash、Codex 版本、基础镜像 digest和 WORKFLOW hash。
+- [x] `LC-06` 构建不可变 Supervisor 候选，固定 Symphony/j-store revision、patch hash、基础镜像 digest和 WORKFLOW hash，记录实际Codex版本并以镜像digest绑定制品。
   - 证据：镜像 digest、OCI labels、SBOM/来源记录和无浮动 tag 检查。
   - 2026-08-16证据：controller `3a537df4...24f52` 构建的runtime manifest为 `sha256:305a2b8a...4d1a9`；实际labels逐项匹配，唯一SPDX与SLSA statement均绑定该digest，Docker archive和三份来源制品均记录独立SHA-256。详见 `evidence/2026-08-16-controller-image-build.md`。
 
@@ -65,22 +66,26 @@
 
 ## 切片 D：Level 1 阶段接线
 
-- [ ] `LC-14` Reviewer从 CandidateRevision只读制品启动，ReviewProposal/TurnReceipt/ReviewDecision绑定同一 revision和独立 session。
-  - 当前进度：独立复评发现跨Issue receipt与同UID先chmod后篡改可绕过首版验收；实现现已在review启动时重验PASS request/receipt/task/revision完整身份，并在接受review turn前再次逐文件校验只读制品。候选controller代码的集群内无模型复验已拒绝两种反例；待新controller digest部署后以镜像内代码重跑并独立复评再关闭。
+- [x] `LC-14` Reviewer从 CandidateRevision只读制品启动，ReviewProposal/TurnReceipt/ReviewDecision绑定同一 revision和独立 session。
+  - 2026-08-16证据：独立复评发现并修复跨Issue receipt与同UID先chmod后篡改两个绕过路径；不可变controller digest `sha256:305a2b8a...84d1a9`部署后，从镜像内`/opt/jstore-agentic-controller`重跑同一CandidateRevision正反例。2,553个条目全部只读，直接写入和chmod后篡改均被拒绝，implementer session不能充当Reviewer，独立session生成绑定同一revision的PASS decision。聚焦55项测试、治理检查和镜像内复验均PASS；未启动模型或写正式Supervisor状态。
 - [ ] `LC-15` 在所有前置门通过后，将候选部署合同的 `local_workspace_write`、`freeze_local_candidate` 和 `run_isolated_gate` 置为 true；远端写、邮件、合并、发布和生产写保持 false。
 - [ ] `LC-16` 验证 implement/validate/review/complete 的单 turn路由、无第二 App Server、new-candidate失效、finding回流、两次修复和第三次熔断。
-- [ ] `LC-17` 运行聚焦测试、治理检查、镜像安全检查和 `./scripts/quality-gate.sh`，再进行独立 Product Steward/Security review。
+  - 当前进度：本地无模型102项组合合同测试已覆盖implement完成、validate重入单次调度、Gate PASS→review、Review FAIL回流、重复/延迟callback拒绝、历史ReviewDecision保留但exact-candidate失效、两次不同修复和第三次熔断，以及validate/complete不启动模型。两段patch在锁定Symphony源码上顺序apply后，使用单次构建且身份可审计的工具链镜像完成`mix compile --warnings-as-errors`、296项测试、Hex审计和escript；报告SHA-256为`87db57f4...a053`。最新镜像`sha256:7edcb88b...66bf6`已部署并完成Level 0、exact-candidate Reviewer及AC-LC-08四个恢复点复验；真实单turn/无第二App Server仍需LC-20/LC-21的凭据与模型授权，因此本项保持未关闭。
+- [x] `LC-17` 运行聚焦测试、治理检查、镜像安全检查和 `./scripts/quality-gate.sh`，再进行独立 Product Steward/Security review。
+  - 2026-08-16证据：最终revision上的16项candidate、23项runtime、21项Kubernetes/构建合同测试、102项无模型组合测试、治理检查和完整六阶段`./scripts/quality-gate.sh`均PASS；新routing patch的Symphony compile/test已PASS。独立评审阻塞中间候选后，controller `86480b1f...c2c4`统一隔离bootstrap与CandidateSnapshotter全部Git子进程环境，并构建不可变候选`sha256:7edcb88b...66bf6`；SBOM/provenance唯一subject均绑定该digest，镜像内真实freeze wrapper probe证明ambient凭据和Git状态不传播。最终扫描仍为178组/12组非`unimportant` critical；独立安全复评确认环境泄漏已关闭且12项必要触发条件不可达，身份链和AC-LC-09安全资格PASS。中间`cc26...`候选已作废；实际部署仍为`BLOCKED_BY_AUTHORITY`，不得据此提前关闭LC-16/LC-22。详见`evidence/2026-08-16-lc17-controller-image-security.md`。
 
 ## 切片 E：开发集群验收
 
 - [x] `LC-18` 经精确授权部署新 digest；验证新 Pod UID、image ID、双 revision、WORKFLOW hash、capability和 Supervisor无 Kubernetes token。
-  - 2026-08-16证据：Symphony、Broker和 Dispatcher均以新 Pod UID运行 controller digest `sha256:d6537f49...72b697`，运行时精确绑定 Symphony revision `8001b52e...4d0`、controller revision `73065781...cda` 和 WORKFLOW SHA-256 `a8c18b98...fa5f`；Symphony Pod无 API token且不能创建 Gate Job，三个本地写能力和全部远程写仍为 false。
+  - 2026-08-16证据：Symphony、Broker和 Dispatcher已升级为 controller digest `sha256:305a2b8a...84d1a9`，运行时精确绑定 Symphony revision `8001b52e...4d0`、controller revision `3a537df4...24f52` 和 WORKFLOW SHA-256 `a8c18b98...fa5f`；当前Symphony Pod UID为 `4a8cdf05-2ba0-4715-ab63-bf399d0a126f`，runtime image ID与完整digest一致且零重启。Symphony Pod无 API token且不能创建 Gate Job，三个本地写能力和全部远程写仍为 false。
+  - 2026-08-16/17加固复验：经精确授权导入并部署controller `86480b1f...c2c4` / digest `sha256:7edcb88b...66bf6`。Symphony、Broker和Dispatcher均产生新Pod UID且runtime image ID一致；双revision、routing patch `00af6b18...fbe2`、WORKFLOW `ca821efe...344d`、Level 0合同、无Secret及最小RBAC全部PASS。Symphony/Broker无Kubernetes token；Dispatcher只显式挂载3600秒、固定API audience的projected token。四点恢复演练后的当前Symphony Pod UID为`d1438178-c386-4109-a322-54569f8f809e`。详见`evidence/2026-08-16-lc18-lc22-hardened-runtime.md`。
 - [x] `LC-19` 运行无模型跨节点 Gate Job smoke，验证 master Broker → worker1 fetch、NetworkPolicy真实隔离、receipt、超时/失败分类和不访问现有 `jstore`/数据库 workload。
   - 2026-08-16证据：同一 CandidateRevision的成功 Job产生 exact-identity PASS receipt并在前台删除后写 cleanup marker；早期创建/fetch故障被分类为基础设施失败，旧 runner的候选命令失败产生 FAIL finding；临时 60 秒策略真实触发 `DeadlineExceeded`，产生无 candidate finding的 `INFRASTRUCTURE_FAILURE` 并清理 Job，随后恢复 900 秒策略和新 Dispatcher UID；worker1同等受限探针确认 Broker可达时 j-store、Redis和 PostgreSQL仍不可达。
 - [ ] `LC-20` 经精确授权注入短期只读 GitHub App token并创建/标记 disposable Issue；完成只读 observer 单 turn。
+  - 当前进度：已增加固定`symphony-codex-auth`注入工具、API-Key登录缓存和经白名单裁剪的自定义Responses provider配置只读挂载、非root HOME准备及部署后`codex login status`检查。真实宿主认证文件通过目标集群server-side dry-run；聚焦合同34项、全部tooling 205项和完整六阶段quality gate均PASS。GitHub App安装已接受`issues: write`，disposable Issue `#50`已创建且初始唯一标签为`agent:candidate`；创建后立即撤销写token，并重新签发显式降权为`issues: read`的运行时token，真实PATCH负测返回拒绝。实际模型演练仍阻塞于`max_cost_microusd`不是运行时硬限额且OpenAI spend alert不会停止请求（需专用项目、保守rate limit/spend alert和精确残余风险批准）。尚未写Codex Secret、rollout、添加`agent:queued`或启动模型。
 - [ ] `LC-21` 经模型费用授权完成本地候选成功路径：Implementer → CandidateRevision → Gate PASS → 独立 Reviewer exact-candidate PASS；GitHub 无远程候选分支或 PR。
-- [ ] `LC-22` 使用可信 fixture完成 Gate FAIL、Review FAIL、new revision、同根因熔断以及 implement/validate/review 三个恢复点演练。
-  - 当前进度：validate恢复点、Gate FAIL和new revision已完成实机演练；Dispatcher在主 Gate运行期间重启后仅恢复原 Job UID `b3458e86-e7dc-44b0-a025-109a633a8138` 和 Pod UID `97791ba7-8f11-4b93-857d-cd181123e835`，最终回执 PASS；两个不同恶意revision分别得到自己的FAIL receipt。implement/review恢复、Review FAIL和熔断仍未完成。
+- [x] `LC-22` 使用可信 fixture完成 Gate FAIL、Review FAIL、new revision、同根因熔断以及 implement完成后、等待Gate、Gate PASS后、等待review四个恢复点演练。
+  - 2026-08-16/17证据：两个恶意new revision分别得到自己的FAIL receipt，本地正式合同测试覆盖Review FAIL、旧callback、历史decision和第三次熔断。新digest部署后，可信PVC fixture分别证明implement完成后恢复为validate/no-model、等待Gate时复用同一Job/Pod、PASS receipt持久化后且消费前重启仍保持snapshot/receipt/request/预算、等待review时复用唯一只读workspace和Reviewer decision。第四点使用Job UID `ee8f220b...717151` / Pod UID `c0be4e7d...b9846`，重启后才由正式ValidatePhaseDriver消费原receipt并进入review。当前fixture SHA-256为`bbf4aadf...a4865`，详见`evidence/2026-08-16-lc18-lc22-hardened-runtime.md`。
 - [ ] `LC-23` 移除调度资格并缩容为 0，保留 PVC/日志；生成 `summary.md` 映射 AC-LC-01 至 AC-LC-12。
 
 ## Level 1 退出条件

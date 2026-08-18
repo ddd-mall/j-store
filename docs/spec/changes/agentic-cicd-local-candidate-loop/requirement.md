@@ -74,7 +74,7 @@ Gate FAIL 或 Review FAIL 必须形成稳定根因 finding 并回到 implement�
 
 ### AC-LC-09 Symphony 供应链门禁
 
-部署候选必须从审查过的 Symphony 完整 commit 和洁净 j-store controller commit 构建，完整 `mix compile/test` 通过。已知网络依赖漏洞必须升级、缓解或由人工明确拒绝上线；不得仅因私有开发网络降低风险评级。镜像必须固定两个源码 revision、补丁摘要、Codex 版本和基础镜像 digest。
+部署候选必须从审查过的 Symphony 完整 commit 和洁净 j-store controller commit 构建，完整 `mix compile/test` 通过。已知网络依赖漏洞必须升级、缓解或由人工明确拒绝上线；不得仅因私有开发网络降低风险评级。镜像必须固定两个源码 revision、补丁摘要和基础镜像 digest，记录构建时实际使用的稳定版 Codex CLI并通过App Server v2 schema与初始化握手；仓库不得绑定单一Codex CLI版本，单个制品仍必须由完整镜像digest唯一标识。
 
 ### AC-LC-10 不可变部署与回退
 

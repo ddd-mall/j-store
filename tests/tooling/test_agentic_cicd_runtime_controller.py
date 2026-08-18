@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.agentic_cicd.coordinator import SnapshotStore, TaskSnapshot
-from scripts.agentic_cicd.protocol import GateRequest
+from scripts.agentic_cicd.protocol import GateRequest, ReviewDecision, ReviewFinding
 from scripts.agentic_cicd.runtime_controller import (
     CandidateRevisionStore,
     GateRequestStore,
@@ -101,6 +103,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         self.develop_sha = self.git(self.seed, "rev-parse", "HEAD").stdout.strip()
         self.git(self.seed, "push", "-u", "origin", "develop")
         self.workspace.mkdir(parents=True)
+        self.bootstrap = SymphonyWorkspaceBootstrap(allow_local_repository=True)
 
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
@@ -116,7 +119,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         )
 
     def test_bootstrap_ignores_default_master_and_locks_fetched_develop(self) -> None:
-        result = SymphonyWorkspaceBootstrap().bootstrap(
+        result = self.bootstrap.bootstrap(
             repository_url=self.remote.as_posix(),
             workspace=self.workspace,
         )
@@ -133,7 +136,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         )
 
     def test_bootstrap_writes_excluded_trusted_metadata(self) -> None:
-        result = SymphonyWorkspaceBootstrap().bootstrap(
+        result = self.bootstrap.bootstrap(
             repository_url=self.remote.as_posix(),
             workspace=self.workspace,
         )
@@ -146,7 +149,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         self.assertEqual("", self.git(self.workspace, "status", "--porcelain").stdout)
 
     def test_bootstrap_result_initializes_recoverable_host_snapshot(self) -> None:
-        result = SymphonyWorkspaceBootstrap().bootstrap(
+        result = self.bootstrap.bootstrap(
             repository_url=self.remote.as_posix(),
             workspace=self.workspace,
         )
@@ -167,10 +170,106 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
         unsafe_workspace = self.root / "workspaces" / "../../unsafe"
 
         with self.assertRaisesRegex(ValueError, "GH-<positive-number>"):
-            SymphonyWorkspaceBootstrap().bootstrap(
+            self.bootstrap.bootstrap(
                 repository_url=self.remote.as_posix(),
                 workspace=unsafe_workspace,
             )
+
+    def test_production_bootstrap_accepts_the_trusted_https_repository(self) -> None:
+        def fake_git(
+            _cwd: Path, *arguments: str
+        ) -> subprocess.CompletedProcess[str]:
+            if arguments[0] == "clone":
+                info = self.workspace / ".git" / "info"
+                info.mkdir(parents=True)
+                (info / "exclude").write_text("", encoding="utf-8")
+            stdout = self.develop_sha + "\n" if arguments[0] == "rev-parse" else ""
+            return subprocess.CompletedProcess(["git", *arguments], 0, stdout, "")
+
+        bootstrap = SymphonyWorkspaceBootstrap()
+        with patch.object(bootstrap, "_git", side_effect=fake_git) as git:
+            result = bootstrap.bootstrap(
+                repository_url="https://github.com/ddd-mall/j-store.git",
+                workspace=self.workspace,
+            )
+
+        self.assertEqual(self.develop_sha, result.base_sha)
+        self.assertEqual("clone", git.call_args_list[0].args[1])
+        self.assertEqual(
+            "https://github.com/ddd-mall/j-store.git",
+            git.call_args_list[0].args[-2],
+        )
+
+    def test_production_bootstrap_rejects_untrusted_repository_urls(self) -> None:
+        for repository_url in (
+            "http://github.com/ddd-mall/j-store.git",
+            "ssh://git@github.com/ddd-mall/j-store.git",
+            "git@github.com:ddd-mall/j-store.git",
+            "https://example.com/ddd-mall/j-store.git",
+            self.remote.as_posix(),
+        ):
+            with self.subTest(repository_url=repository_url):
+                with self.assertRaisesRegex(ValueError, "trusted HTTPS repository"):
+                    SymphonyWorkspaceBootstrap().bootstrap(
+                        repository_url=repository_url,
+                        workspace=self.workspace,
+                    )
+
+    def test_trusted_git_environment_disables_ambient_network_configuration(self) -> None:
+        inherited = {
+            "HTTP_PROXY": "http://proxy-a.invalid",
+            "HTTPS_PROXY": "http://proxy-b.invalid",
+            "ALL_PROXY": "socks5://proxy-c.invalid",
+            "http_proxy": "http://proxy-d.invalid",
+            "https_proxy": "http://proxy-e.invalid",
+            "all_proxy": "socks5://proxy-f.invalid",
+            "GIT_ASKPASS": "/tmp/askpass",
+            "SSH_ASKPASS": "/tmp/ssh-askpass",
+            "GIT_SSH": "/tmp/ssh",
+            "GIT_SSH_COMMAND": "ssh -F /tmp/config",
+            "GIT_CONFIG_GLOBAL": "/tmp/global-gitconfig",
+            "GIT_CONFIG_PARAMETERS": "'http.sslVerify=false'",
+            "GIT_SSL_NO_VERIFY": "1",
+            "GIT_HTTP_LOW_SPEED_LIMIT": "0",
+            "GIT_HTTP_LOW_SPEED_TIME": "0",
+            "JSTORE_SYMPHONY_GITHUB_TOKEN": "github-secret",
+            "OPENAI_API_KEY": "model-secret",
+        }
+        completed = subprocess.CompletedProcess(["git", "status"], 0, "", "")
+
+        with patch.dict(os.environ, inherited, clear=False), patch(
+            "scripts.agentic_cicd.runtime_controller.subprocess.run",
+            return_value=completed,
+        ) as run:
+            SymphonyWorkspaceBootstrap()._git(self.workspace, "status")
+
+        environment = run.call_args.kwargs["env"]
+        for name in inherited:
+            if name != "GIT_CONFIG_GLOBAL":
+                self.assertFalse(
+                    name in environment,
+                    f"trusted Git environment inherited {name}",
+                )
+        self.assertEqual("/dev/null", environment["GIT_CONFIG_GLOBAL"])
+        self.assertEqual("/dev/null", environment["GIT_CONFIG_SYSTEM"])
+        self.assertEqual("1", environment["GIT_CONFIG_NOSYSTEM"])
+        self.assertEqual("0", environment["GIT_TERMINAL_PROMPT"])
+        config = {
+            environment[f"GIT_CONFIG_KEY_{index}"]: environment[
+                f"GIT_CONFIG_VALUE_{index}"
+            ]
+            for index in range(int(environment["GIT_CONFIG_COUNT"]))
+        }
+        self.assertEqual("never", config["protocol.allow"])
+        self.assertEqual("always", config["protocol.https.allow"])
+        self.assertEqual("HTTP/1.1", config["http.version"])
+        self.assertEqual("false", config["http.followRedirects"])
+        self.assertEqual("", config["http.proxy"])
+        self.assertEqual("false", config["http.saveCookies"])
+        self.assertEqual("1", config["http.lowSpeedLimit"])
+        self.assertEqual("30", config["http.lowSpeedTime"])
+        self.assertEqual("", config["credential.helper"])
+        self.assertEqual(120, run.call_args.kwargs["timeout"])
 
 
 class ReviewProposalStoreTest(unittest.TestCase):
@@ -420,9 +519,93 @@ class RuntimePhaseControllerTest(unittest.TestCase):
                 session_id="reviewer-session",
                 thread_id="reviewer-thread",
                 turn_id="reviewer-turn",
+                expected_phase="review",
+                expected_role="reviewer",
+                expected_head_sha=self.head,
+                expected_candidate_revision=candidate.candidate_revision,
             )
         self.assertEqual(
             "review", SnapshotStore(self.snapshot_path).load().iteration_phase
+        )
+
+    def test_replayed_review_fail_callback_cannot_be_reclassified_as_implementer(self) -> None:
+        self.snapshot.iteration_phase = "validate"
+        self.snapshot.implementer_session_id = "implementer-session"
+        SnapshotStore(self.snapshot_path).save(self.snapshot)
+        artifact_root = self.root / "artifacts"
+        candidate = CandidateRevisionStore(
+            self.root / "state", artifact_root=artifact_root, freeze_enabled=True
+        ).freeze("GH-123", self.workspace)
+        request = gate_request(candidate.to_json())
+        trusted_request_store(self.root / "state").record("GH-123", request)
+        trusted_receipt_store(self.root / "state").record(
+            "GH-123", gate_receipt(request)
+        )
+        PhaseContextStore(
+            self.root / "state",
+            workspace_write_enabled=True,
+            artifact_root=artifact_root,
+        ).load("GH-123", self.workspace)
+        finding = ReviewFinding(
+            root_cause_id="review:missing-recovery-test",
+            severity="high",
+            evidence="The repeated callback path is not covered.",
+            impact="A stale reviewer callback can advance a new implementation round.",
+            expected_behavior="Reject callbacks whose invocation binding is stale.",
+            verification="Replay the same reviewer callback after Review FAIL.",
+        )
+        ReviewProposalStore(self.root / "state").submit(
+            "GH-123",
+            {
+                "verdict": "FAIL",
+                "head_sha": self.head,
+                "candidate_revision": candidate.candidate_revision,
+                "reviewer_role": "spec-evaluator",
+                "findings": [finding.to_json()],
+            },
+        )
+        controller = TurnStateController(
+            self.root / "state",
+            workspace_write_enabled=True,
+            artifact_root=artifact_root,
+        )
+        invocation = {
+            "session_id": "reviewer-session",
+            "thread_id": "reviewer-thread",
+            "turn_id": "reviewer-turn",
+            "expected_phase": "review",
+            "expected_role": "reviewer",
+            "expected_head_sha": self.head,
+            "expected_candidate_revision": candidate.candidate_revision,
+        }
+
+        controller.complete_turn("GH-123", self.workspace, **invocation)
+        after_first = SnapshotStore(self.snapshot_path).load().to_json()
+        self.assertEqual("implement", after_first["iteration_phase"])
+        self.assertEqual(
+            finding.to_json(), after_first["pending_review_findings"][0]
+        )
+        self.assertIn(candidate.candidate_revision, after_first["review_decisions"])
+
+        with self.assertRaisesRegex(RuntimeError, "invocation phase"):
+            controller.complete_turn("GH-123", self.workspace, **invocation)
+
+        self.assertEqual(
+            after_first, SnapshotStore(self.snapshot_path).load().to_json()
+        )
+        self.assertFalse(
+            (self.root / "state" / "proposals" / "GH-123.json").exists()
+        )
+
+        later_review = SnapshotStore(self.snapshot_path).load()
+        later_review.iteration_phase = "review"
+        later_review.implementer_session_id = "implementer-session-2"
+        SnapshotStore(self.snapshot_path).save(later_review)
+        before_late_replay = later_review.to_json()
+        with self.assertRaisesRegex(RuntimeError, "already consumed"):
+            controller.complete_turn("GH-123", self.workspace, **invocation)
+        self.assertEqual(
+            before_late_replay, SnapshotStore(self.snapshot_path).load().to_json()
         )
 
     def test_turn_completion_and_gate_receipt_advance_without_executing_workspace_code(self) -> None:
@@ -435,6 +618,10 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             session_id="implementer-session",
             thread_id="thread-1",
             turn_id="turn-1",
+            expected_phase="implement",
+            expected_role="implementer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
         )
         self.assertEqual("validate", SnapshotStore(self.snapshot_path).load().iteration_phase)
 
@@ -504,6 +691,10 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             session_id="implementer-session",
             thread_id="thread-1",
             turn_id="turn-1",
+            expected_phase="implement",
+            expected_role="implementer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
         )
 
         store = CandidateRevisionStore(self.root / "state", freeze_enabled=True)
@@ -541,6 +732,17 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         previous = store.freeze("GH-123", self.workspace)
 
         snapshot = SnapshotStore(self.snapshot_path).load()
+        snapshot.record_review_decision(
+            ReviewDecision(
+                verdict="PASS",
+                head_sha=self.head,
+                candidate_revision=previous.candidate_revision,
+                reviewer_role="spec-evaluator",
+                reviewer_session_id="reviewer-session-1",
+                implementer_session_id="implementer-session-1",
+                findings=(),
+            )
+        )
         snapshot.iteration_phase = "implement"
         SnapshotStore(self.snapshot_path).save(snapshot)
         (self.workspace / "candidate.txt").write_text("new candidate\n", encoding="utf-8")
@@ -552,6 +754,10 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             session_id="implementer-session-2",
             thread_id="thread-2",
             turn_id="turn-2",
+            expected_phase="implement",
+            expected_role="implementer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
         )
 
         current = store.freeze("GH-123", self.workspace)
@@ -560,6 +766,11 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         self.assertEqual(
             current.to_json(), SnapshotStore(self.snapshot_path).load().candidate_revision
         )
+        restored = SnapshotStore(self.snapshot_path).load()
+        self.assertIsNotNone(
+            restored.review_decision_for(previous.candidate_revision)
+        )
+        self.assertFalse(restored.has_review_pass_for(current.candidate_revision))
 
     def test_level_zero_cannot_freeze_a_candidate(self) -> None:
         self.snapshot.iteration_phase = "validate"
@@ -603,6 +814,10 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             session_id="session",
             thread_id="thread",
             turn_id="turn",
+            expected_phase="implement",
+            expected_role="observer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
         )
         snapshot = SnapshotStore(self.snapshot_path).load()
         self.assertEqual("complete", snapshot.iteration_phase)

@@ -11,6 +11,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
@@ -235,6 +236,49 @@ class CandidateSnapshotterTest(unittest.TestCase):
 
         self.assertRegex(revision.tree_sha, r"^[0-9a-f]{40}$")
         self.assertFalse(marker.exists())
+
+    def test_freeze_git_subprocesses_do_not_inherit_controller_secrets(self) -> None:
+        real_git = shutil.which("git")
+        self.assertIsNotNone(real_git)
+        wrapper_directory = self.root / "bin"
+        wrapper_directory.mkdir()
+        observed_names = self.root / "git-environment-names"
+        wrapper = wrapper_directory / "git"
+        wrapper.write_text(
+            "#!/usr/bin/python3\n"
+            "import os\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            f"with Path({str(observed_names)!r}).open('a', encoding='utf-8') as stream:\n"
+            "    stream.write(' '.join(sorted(os.environ)) + '\\n')\n"
+            f"os.execv({real_git!r}, [{real_git!r}, *sys.argv[1:]])\n",
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        inherited = {
+            "PATH": f"{wrapper_directory}:{os.environ['PATH']}",
+            "JSTORE_SYMPHONY_GITHUB_TOKEN": "github-secret",
+            "OPENAI_API_KEY": "model-secret",
+            "GIT_ASKPASS": "/tmp/untrusted-askpass",
+            "GIT_HTTP_LOW_SPEED_LIMIT": "1",
+            "GIT_HTTP_LOW_SPEED_TIME": "3600",
+            "GIT_PROXY_COMMAND": "/tmp/untrusted-proxy",
+            "GIT_SSL_NO_VERIFY": "1",
+            "GIT_CONFIG_PARAMETERS": "'http.sslVerify=false'",
+        }
+
+        with patch.dict(os.environ, inherited, clear=False):
+            revision = self._snapshotter().freeze(self.base_sha)
+
+        self.assertRegex(revision.tree_sha, r"^[0-9a-f]{40}$")
+        observed = {
+            name
+            for line in observed_names.read_text(encoding="utf-8").splitlines()
+            for name in line.split()
+        }
+        forbidden = set(inherited) - {"PATH"}
+        leaked = sorted(forbidden & observed)
+        self.assertFalse(leaked, f"candidate Git inherited variables: {leaked}")
 
     def test_freeze_rejects_line_breaks_in_candidate_paths(self) -> None:
         (self.workspace / "ambiguous\npath.txt").write_text("payload\n", encoding="utf-8")

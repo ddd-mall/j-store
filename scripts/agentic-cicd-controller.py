@@ -94,6 +94,19 @@ def parse_arguments() -> argparse.Namespace:
         "--thread-id", default=os.environ.get("JSTORE_TURN_THREAD_ID")
     )
     complete.add_argument("--turn-id", default=os.environ.get("JSTORE_TURN_ID"))
+    complete.add_argument(
+        "--expected-phase", default=os.environ.get("JSTORE_INVOCATION_PHASE")
+    )
+    complete.add_argument(
+        "--expected-role", default=os.environ.get("JSTORE_INVOCATION_ROLE")
+    )
+    complete.add_argument(
+        "--expected-head-sha", default=os.environ.get("JSTORE_INVOCATION_HEAD_SHA")
+    )
+    complete.add_argument(
+        "--expected-candidate-revision",
+        default=os.environ.get("JSTORE_INVOCATION_CANDIDATE_REVISION"),
+    )
     freeze = subparsers.add_parser(
         "freeze-candidate",
         help="Freeze the bound workspace into a host-owned CandidateRevision",
@@ -175,7 +188,14 @@ def main() -> int:
     if arguments.command == "complete-turn":
         if not arguments.state_root:
             raise ValueError("JSTORE_AGENTIC_CICD_STATE_ROOT is required")
-        for name in ("session_id", "thread_id", "turn_id"):
+        for name in (
+            "session_id",
+            "thread_id",
+            "turn_id",
+            "expected_phase",
+            "expected_role",
+            "expected_head_sha",
+        ):
             if not getattr(arguments, name):
                 raise ValueError(f"{name} is required")
         TurnStateController(
@@ -190,6 +210,12 @@ def main() -> int:
             session_id=arguments.session_id,
             thread_id=arguments.thread_id,
             turn_id=arguments.turn_id,
+            expected_phase=arguments.expected_phase,
+            expected_role=arguments.expected_role,
+            expected_head_sha=arguments.expected_head_sha,
+            expected_candidate_revision=(
+                arguments.expected_candidate_revision or None
+            ),
         )
         print(f"TURN_RECEIPT_ACCEPTED issue={arguments.issue}")
         return 0

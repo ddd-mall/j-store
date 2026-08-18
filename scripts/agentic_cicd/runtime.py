@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -54,6 +55,17 @@ class RuntimePreflight:
 
         return PreflightResult(tuple(checks), tuple(failures))
 
+    def check_symphony_source(self) -> PreflightResult:
+        """Validate only the pinned Symphony source and secret boundaries."""
+        checks: list[str] = []
+        failures: list[str] = []
+
+        symphony = self._load_json(self.symphony_lock, "Symphony lock", failures)
+        if symphony is not None:
+            self._check_symphony(symphony, checks, failures)
+
+        return PreflightResult(tuple(checks), tuple(failures))
+
     @staticmethod
     def _load_json(path: Path, label: str, failures: list[str]) -> dict | None:
         try:
@@ -92,6 +104,8 @@ class RuntimePreflight:
             failures.append("Symphony Elixir implementation is missing elixir/mix.exs")
             return
 
+        self._check_github_secret_scrubbing(lock, checks, failures)
+
         head = self._git_output(("rev-parse", "HEAD"), failures)
         if head is None:
             return
@@ -126,24 +140,94 @@ class RuntimePreflight:
             else:
                 checks.append("Symphony tracked source is clean")
 
+    def _check_github_secret_scrubbing(
+        self, lock: dict, checks: list[str], failures: list[str]
+    ) -> None:
+        expected_names = lock.get("github_secret_environment_names")
+        required_names = [
+            "GITHUB_TOKEN",
+            "GH_TOKEN",
+            "GITHUB_ENTERPRISE_TOKEN",
+            "GH_ENTERPRISE_TOKEN",
+            "JSTORE_SYMPHONY_GITHUB_TOKEN",
+        ]
+        if expected_names != required_names:
+            failures.append("Symphony lock has an invalid GitHub secret environment contract")
+            return
+
+        client_path = (
+            self.symphony_source
+            / "elixir"
+            / "lib"
+            / "symphony_elixir"
+            / "github"
+            / "client.ex"
+        )
+        app_server_path = (
+            self.symphony_source
+            / "elixir"
+            / "lib"
+            / "symphony_elixir"
+            / "codex"
+            / "app_server.ex"
+        )
+        try:
+            client = client_path.read_text(encoding="utf-8")
+            app_server = app_server_path.read_text(encoding="utf-8")
+        except OSError as error:
+            failures.append(f"Symphony token scrubbing source cannot be read: {error}")
+            return
+
+        missing_aliases = [
+            name for name in required_names[:4] if f'"{name}"' not in client
+        ]
+        if missing_aliases:
+            failures.append(
+                "Symphony GitHub token aliases are not scrubbed: "
+                + ", ".join(missing_aliases)
+            )
+        if 'env_reference_names([provider["token"]])' not in client:
+            failures.append(
+                "Symphony does not scrub the configured GitHub token environment"
+            )
+
+        required_app_server_counts = {
+            "tracker_secret_port_env(dynamic_tool_binding)": 2,
+            "tracker_secret_unset_command(dynamic_tool_binding)": 3,
+            "dynamic_tool_binding.secret_environment_names": 2,
+        }
+        missing_boundaries = [
+            fragment
+            for fragment, minimum in required_app_server_counts.items()
+            if app_server.count(fragment) < minimum
+        ]
+        if missing_boundaries:
+            failures.append(
+                "Symphony App Server launch does not scrub tracker secrets at every boundary"
+            )
+        if (
+            not missing_aliases
+            and not missing_boundaries
+            and 'env_reference_names([provider["token"]])' in client
+        ):
+            checks.append("Symphony App Server scrubs all locked GitHub token aliases")
+
     def _check_codex(
         self, lock: dict, checks: list[str], failures: list[str]
     ) -> None:
-        expected = lock.get("codex_cli_version")
-        if not isinstance(expected, str) or not expected.strip():
-            failures.append("Codex lock contains an invalid CLI version")
+        if lock.get("version_policy") != "installed-stable":
+            failures.append("Codex lock contains an invalid version policy")
             return
         try:
             actual = self.command_output(("codex", "--version")).strip()
         except (OSError, subprocess.SubprocessError) as error:
             failures.append(f"Codex CLI cannot be executed: {error}")
             return
-        expected_output = f"codex-cli {expected}"
-        if actual == expected_output:
-            checks.append(f"Codex CLI matches {expected}")
+        if re.fullmatch(r"codex-cli [0-9]+\.[0-9]+\.[0-9]+", actual):
+            checks.append(f"Codex CLI reports stable version {actual.removeprefix('codex-cli ')}")
         else:
             failures.append(
-                f"Codex CLI version is {actual or '<empty>'}; expected {expected_output}"
+                f"Codex CLI version output is not a stable release: {actual or '<empty>'}"
             )
 
     def _check_elixir_runtime(

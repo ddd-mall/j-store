@@ -5,10 +5,12 @@ context=""
 namespace="agentic-cicd"
 image=""
 timeout_seconds=900
+credentialed_observer=false
 symphony_source="${SYMPHONY_SOURCE:-$HOME/source/symphony}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 manifest_dir="$repo_root/deploy/kubernetes/agentic-cicd"
 overlay="$manifest_dir/overlays/development-local-image"
+lock_file="$repo_root/config/agentic-cicd/symphony.lock.json"
 
 usage() {
   cat <<'EOF'
@@ -22,6 +24,7 @@ Options:
   --image <name:tag>          Immutable reviewed image tag (normally derived)
   --timeout-seconds <value>   Rollout timeout (default: 900)
   --symphony-source <path>    Clean pinned Symphony checkout
+  --credentialed-observer     Reference fixed GitHub and Codex auth Secrets
 EOF
 }
 
@@ -47,6 +50,10 @@ while (($#)); do
       symphony_source=${2:?missing Symphony source path}
       shift 2
       ;;
+    --credentialed-observer)
+      credentialed_observer=true
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -58,6 +65,10 @@ while (($#)); do
       ;;
   esac
 done
+
+if $credentialed_observer; then
+  overlay="$manifest_dir/overlays/development-credentialed-observer"
+fi
 
 if [[ -z "$context" || "$(kubectl config current-context)" != "$context" ]]; then
   printf '%s\n' 'ERROR: --context must equal the current kubectl context.' >&2
@@ -71,19 +82,52 @@ if [[ ! "$timeout_seconds" =~ ^[0-9]+$ || "$timeout_seconds" -lt 60 ]]; then
   printf '%s\n' 'ERROR: --timeout-seconds must be an integer of at least 60.' >&2
   exit 2
 fi
-for command in docker git kubectl sudo; do
+for command in codex docker git kubectl python3 sudo; do
   command -v "$command" >/dev/null || {
     printf 'ERROR: required command is missing: %s\n' "$command" >&2
     exit 2
   }
 done
-expected_symphony_revision=8001b52e3062495a16e520e4ceaf8f9de868c4d0
-patch_path="$manifest_dir/patches/symphony-phase-bridge.patch"
-patch_sha256=bbaad0e4ad04377b5b64238f7fabbfd383915cf60692f321493dd5f3372bcb8a
-routing_patch_path="$manifest_dir/patches/symphony-phase-routing.patch"
-routing_patch_sha256=b60be30500e95f7fd8d61ea4f73cab4b618e646f541ede6f67e8e0f3eac27535
-dependency_lock_path="$manifest_dir/patches/symphony-mix.lock"
-dependency_lock_sha256=9e22b8a3a5cb3ff49fb14899e224a0ac8dc08523e75b7835724071f00593890a
+codex_output=$(codex --version 2>/dev/null || true)
+if [[ "$codex_output" =~ ^codex-cli\ ([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+  codex_version=${BASH_REMATCH[1]}
+else
+  printf 'ERROR: Codex CLI must report a stable version, got: %s\n' \
+    "${codex_output:-unavailable}" >&2
+  exit 2
+fi
+read_lock() {
+  python3 - "$lock_file" "$1" <<'PY'
+import json
+import sys
+
+value = json.load(open(sys.argv[1], encoding="utf-8")).get(sys.argv[2])
+if not isinstance(value, str) or not value:
+    raise SystemExit(f"missing Symphony lock field: {sys.argv[2]}")
+print(value)
+PY
+}
+expected_symphony_revision=$(read_lock commit)
+patch_relative=$(read_lock patch)
+patch_sha256=$(read_lock patch_sha256)
+routing_patch_relative=$(read_lock routing_patch)
+routing_patch_sha256=$(read_lock routing_patch_sha256)
+dependency_lock_relative=$(read_lock dependency_lock)
+dependency_lock_sha256=$(read_lock dependency_lock_sha256)
+if [[ "$patch_relative" != "deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch" \
+  || "$routing_patch_relative" != "deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch" \
+  || "$dependency_lock_relative" != "deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock" ]]; then
+  printf '%s\n' 'ERROR: Symphony lock names unexpected deployment inputs.' >&2
+  exit 2
+fi
+patch_path="$repo_root/$patch_relative"
+routing_patch_path="$repo_root/$routing_patch_relative"
+dependency_lock_path="$repo_root/$dependency_lock_relative"
+if $credentialed_observer; then
+  "$repo_root/scripts/check-agentic-cicd-runtime.py" \
+    --symphony-source "$symphony_source" \
+    --source-only
+fi
 workflow_sha256=$(sha256sum "$manifest_dir/base/WORKFLOW.md" | awk '{print $1}')
 actual_symphony_revision=$(git -C "$symphony_source" rev-parse HEAD 2>/dev/null || true)
 if [[ "$actual_symphony_revision" != "$expected_symphony_revision" ]]; then
@@ -129,7 +173,7 @@ if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=all)" ]]; t
   printf 'ERROR: j-store controller source must be clean: %s\n' "$repo_root" >&2
   exit 2
 fi
-expected_image="docker.io/library/jstore-agentic-cicd:${expected_symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-0.146.0"
+expected_image="docker.io/library/jstore-agentic-cicd:${expected_symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-$codex_version"
 image=${image:-$expected_image}
 if [[ "$image" != "$expected_image" ]]; then
   printf 'ERROR: --image must equal the derived immutable tag: %s\n' "$expected_image" >&2
@@ -156,6 +200,7 @@ docker build \
   --build-arg https_proxy= \
   --build-arg all_proxy= \
   --build-context "symphony-source=$symphony_source" \
+  --build-arg "CODEX_VERSION=$codex_version" \
   --build-arg "SYMPHONY_COMMIT=$expected_symphony_revision" \
   --build-arg "JSTORE_CONTROLLER_REVISION=$controller_revision" \
   --build-arg "SYMPHONY_PATCH_SHA256=$patch_sha256" \
@@ -178,9 +223,9 @@ PY
 )
 image_repository=${image%:*}
 image_ref="$image_repository@$image_digest"
-docker run --rm --entrypoint codex "$image" --version | grep -Fx 'codex-cli 0.146.0'
+docker run --rm --entrypoint codex "$image" --version | grep -Fx "codex-cli $codex_version"
 revision=$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
-[[ "$revision" == "8001b52e3062495a16e520e4ceaf8f9de868c4d0" ]] || {
+[[ "$revision" == "$expected_symphony_revision" ]] || {
   printf 'ERROR: unexpected Symphony revision label: %s\n' "$revision" >&2
   exit 1
 }
@@ -220,7 +265,7 @@ fi
 old_pod_uid=$(kubectl --context "$context" -n "$namespace" get pod \
   -l app.kubernetes.io/name=symphony -o jsonpath='{.items[0].metadata.uid}' 2>/dev/null || true)
 kubectl --context "$context" kustomize "$overlay" \
-  | sed "s#image: jstore-agentic-cicd:8001b52e-codex-0.146.0#image: $image_ref#" \
+  | sed "s#image: jstore-agentic-cicd:development-placeholder#image: $image_ref#" \
   >"$rendered"
 grep -F "image: $image_ref" "$rendered" >/dev/null
 kubectl --context "$context" apply --dry-run=client -f "$rendered" >/dev/null
@@ -240,3 +285,12 @@ fi
   --context "$context" --namespace "$namespace" --timeout-seconds "$timeout_seconds" \
   --image "$image_ref" --symphony-revision "$expected_symphony_revision" \
   --controller-revision "$controller_revision"
+if $credentialed_observer; then
+  kubectl --context "$context" -n "$namespace" exec deployment/symphony \
+    -- codex login status >/dev/null 2>&1 || {
+      printf '%s\n' 'ERROR: credentialed observer has no valid Codex login.' >&2
+      exit 1
+    }
+  printf 'CREDENTIALS_READY namespace=%s github_secret=%s codex_secret=%s\n' \
+    "$namespace" symphony-github-token symphony-codex-auth
+fi

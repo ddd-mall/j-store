@@ -14,5 +14,5 @@ spec:
           effect: NoSchedule
       containers:
         - name: symphony
-          image: jstore-agentic-cicd:8001b52e-codex-0.146.0
+          image: jstore-agentic-cicd:development-placeholder
           imagePullPolicy: Never

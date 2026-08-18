@@ -129,6 +129,10 @@ try:
             session_id=REVIEWER_SESSION,
             thread_id="lc14-tamper-thread",
             turn_id="lc14-tamper-turn",
+            expected_phase="review",
+            expected_role="reviewer",
+            expected_head_sha=head,
+            expected_candidate_revision=revision.candidate_revision,
         )
     except Exception as error:
         completion_tamper_rejected = "materialized candidate" in str(error)
@@ -159,6 +163,10 @@ try:
             session_id=IMPLEMENTER_SESSION,
             thread_id="lc14-negative-thread",
             turn_id="lc14-negative-turn",
+            expected_phase="review",
+            expected_role="reviewer",
+            expected_head_sha=head,
+            expected_candidate_revision=revision.candidate_revision,
         )
     except RuntimeError as error:
         same_session_rejected = "must differ" in str(error)
@@ -176,6 +184,10 @@ try:
         session_id=REVIEWER_SESSION,
         thread_id="lc14-review-thread",
         turn_id="lc14-review-turn",
+        expected_phase="review",
+        expected_role="reviewer",
+        expected_head_sha=head,
+        expected_candidate_revision=revision.candidate_revision,
     )
     completed = SnapshotStore(snapshot_path).load()
     decision = completed.review_decision_for(revision.candidate_revision)

@@ -20,6 +20,14 @@ DEVELOPMENT = (
     / "overlays"
     / "development-local-image"
 )
+CREDENTIALED_OBSERVER = (
+    REPOSITORY_ROOT
+    / "deploy"
+    / "kubernetes"
+    / "agentic-cicd"
+    / "overlays"
+    / "development-credentialed-observer"
+)
 NETWORK_POLICY_ENGINE = (
     REPOSITORY_ROOT
     / "deploy"
@@ -66,6 +74,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.base = render(BASE)
         cls.development = render(DEVELOPMENT)
+        cls.credentialed_observer = render(CREDENTIALED_OBSERVER)
         cls.network_policy_engine = render(NETWORK_POLICY_ENGINE)
         cls.gates = render(GATES)
 
@@ -107,6 +116,78 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertFalse(
             any(document.get("kind") in {"Role", "RoleBinding"} for document in self.base)
         )
+
+    def test_credentialed_observer_mounts_only_fixed_credential_secrets(self) -> None:
+        base_deployment = by_kind_name(self.base, "Deployment", "symphony")
+        base_container = base_deployment["spec"]["template"]["spec"]["containers"][0]
+        base_environment = {item["name"]: item for item in base_container["env"]}
+        self.assertEqual(
+            "level0-no-github-access",
+            base_environment["JSTORE_SYMPHONY_GITHUB_TOKEN"]["value"],
+        )
+
+        self.assertFalse(
+            any(document.get("kind") == "Secret" for document in self.credentialed_observer)
+        )
+        deployment = by_kind_name(
+            self.credentialed_observer, "Deployment", "symphony"
+        )
+        pod = deployment["spec"]["template"]["spec"]
+        container = pod["containers"][0]
+        environment = {item["name"]: item for item in container["env"]}
+        self.assertEqual(
+            {
+                "name": "symphony-github-token",
+                "key": "token",
+                "optional": False,
+            },
+            environment["JSTORE_SYMPHONY_GITHUB_TOKEN"]["valueFrom"][
+                "secretKeyRef"
+            ],
+        )
+        self.assertNotIn("value", environment["JSTORE_SYMPHONY_GITHUB_TOKEN"])
+        self.assertFalse(pod["automountServiceAccountToken"])
+        self.assertEqual("k8s-master", pod["nodeSelector"]["kubernetes.io/hostname"])
+        self.assertEqual("Never", container["imagePullPolicy"])
+        self.assertEqual(1, len(pod["initContainers"]))
+        prepare_home = pod["initContainers"][0]
+        self.assertEqual("prepare-codex-home", prepare_home["name"])
+        self.assertEqual(
+            [
+                "/usr/bin/install",
+                "-d",
+                "-m",
+                "0700",
+                "/var/lib/symphony/home/.codex",
+            ],
+            prepare_home["command"],
+        )
+        self.assertTrue(prepare_home["securityContext"]["readOnlyRootFilesystem"])
+        self.assertFalse(prepare_home["securityContext"]["allowPrivilegeEscalation"])
+        self.assertEqual(
+            ["ALL"], prepare_home["securityContext"]["capabilities"]["drop"]
+        )
+        codex_mounts = {
+            mount["subPath"]: mount
+            for mount in container["volumeMounts"]
+            if mount["name"] == "codex-auth"
+        }
+        self.assertEqual({"auth.json", "config.toml"}, set(codex_mounts))
+        self.assertEqual(
+            "/var/lib/symphony/home/.codex/auth.json",
+            codex_mounts["auth.json"]["mountPath"],
+        )
+        self.assertEqual(
+            "/var/lib/symphony/home/.codex/config.toml",
+            codex_mounts["config.toml"]["mountPath"],
+        )
+        self.assertTrue(all(mount["readOnly"] for mount in codex_mounts.values()))
+        codex_volume = next(
+            volume for volume in pod["volumes"] if volume["name"] == "codex-auth"
+        )
+        self.assertEqual("symphony-codex-auth", codex_volume["secret"]["secretName"])
+        self.assertFalse(codex_volume["secret"]["optional"])
+        self.assertEqual(0o440, codex_volume["secret"]["defaultMode"])
 
     def test_runtime_is_non_root_read_only_and_persistent(self) -> None:
         deployment = by_kind_name(self.base, "Deployment", "symphony")
@@ -153,6 +234,13 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "/usr/bin/python3 /opt/jstore-agentic-controller/controller.py complete-turn",
             deployed_workflow,
         )
+        for binding in (
+            "--expected-phase \"$JSTORE_INVOCATION_PHASE\"",
+            "--expected-role \"$JSTORE_INVOCATION_ROLE\"",
+            "--expected-head-sha \"$JSTORE_INVOCATION_HEAD_SHA\"",
+            "--expected-candidate-revision \"$JSTORE_INVOCATION_CANDIDATE_REVISION\"",
+        ):
+            self.assertIn(binding, deployed_workflow)
         self.assertIn('{% if agentic_cicd.role == "reviewer" %}', deployed_workflow)
         self.assertIn('{% elsif agentic_cicd.role == "implementer" %}', deployed_workflow)
         self.assertIn("submit_review_proposal", deployed_workflow)
@@ -166,13 +254,11 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         )
         self.assertEqual(generated["metadata"]["name"], workflow_volume["configMap"]["name"])
 
-    def test_image_and_development_node_are_explicitly_pinned(self) -> None:
+    def test_image_placeholder_and_development_node_are_explicit(self) -> None:
         deployment = by_kind_name(self.development, "Deployment", "symphony")
         pod = deployment["spec"]["template"]["spec"]
         container = pod["containers"][0]
-        self.assertEqual(
-            "jstore-agentic-cicd:8001b52e-codex-0.146.0", container["image"]
-        )
+        self.assertEqual("jstore-agentic-cicd:development-placeholder", container["image"])
         self.assertEqual("Never", container["imagePullPolicy"])
         self.assertEqual("k8s-master", pod["nodeSelector"]["kubernetes.io/hostname"])
         tolerations = pod["tolerations"]
@@ -201,7 +287,9 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436",
             dockerfile,
         )
-        self.assertIn("ARG CODEX_VERSION=0.146.0", dockerfile)
+        self.assertIn("ARG CODEX_VERSION", dockerfile)
+        self.assertNotIn("ARG CODEX_VERSION=", dockerfile)
+        self.assertIn('test -n "${CODEX_VERSION}"', dockerfile)
         self.assertIn(
             "COPY --from=symphony-source /elixir /build/symphony/elixir",
             dockerfile,
@@ -257,6 +345,12 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         for check in (
             'archive "$symphony_revision"',
             "git apply --recount --check",
+            '--iidfile "$audit_toolchain_iidfile"',
+            "audit_toolchain_dockerfile_sha256",
+            "audit_toolchain_image_id",
+            "Acquire::Retries=2",
+            "Acquire::http::Timeout=30",
+            "Acquire::https::Timeout=30",
             "mix compile --warnings-as-errors",
             "mix test",
             "mix hex.audit",
@@ -270,6 +364,25 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "codex-cli $codex_version",
         ):
             self.assertIn(check, audit_script)
+        self.assertEqual(
+            audit_script.count(
+                "install --yes --no-install-recommends build-essential cmake "
+                "git ca-certificates python3"
+            ),
+            1,
+        )
+        self.assertGreaterEqual(audit_script.count('"$audit_toolchain_image_id"'), 2)
+        self.assertIn("--network host", audit_script)
+        self.assertIn("--build-arg HTTP_PROXY", audit_script)
+        self.assertIn(
+            '"audit_toolchain_dockerfile_sha256": '
+            '"$audit_toolchain_dockerfile_sha256"',
+            audit_script,
+        )
+        self.assertIn(
+            '"audit_toolchain_image_id": "$audit_toolchain_image_id"',
+            audit_script,
+        )
         self.assertIn(
             "hexpm/elixir:1.19.5-erlang-28.3-debian-bookworm-20260202-slim@sha256:",
             audit_script,
@@ -279,6 +392,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             audit_script,
         )
         self.assertIn("@openai/codex@$codex_version", audit_script)
+        self.assertIn("codex_output=$(codex --version", audit_script)
 
         build_script = (
             REPOSITORY_ROOT
@@ -288,6 +402,8 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         for evidence in (
             "--sbom=true",
             "--provenance=mode=max",
+            "--build-arg HTTP_PROXY",
+            "--network host",
             "runtime_manifest_digest",
             "phase_bridge_patch_sha256",
             "phase_routing_patch_sha256",
@@ -302,7 +418,21 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         ):
             self.assertIn(evidence, build_script)
         self.assertNotIn(":latest", build_script)
+        self.assertIn("codex_output=$(codex --version", build_script)
+        self.assertIn('--build-arg "CODEX_VERSION=$codex_version"', build_script)
         self.assertNotIn('symphony-source=$symphony_source', build_script)
+        self.assertIn("HEX_HTTP_CONCURRENCY=1", dockerfile)
+        self.assertIn("HEX_HTTP_TIMEOUT=120", dockerfile)
+        self.assertIn(
+            "apt-get upgrade --yes --no-install-recommends",
+            dockerfile,
+        )
+        self.assertIn(
+            "ca-certificates git bash python3",
+            dockerfile,
+        )
+        self.assertNotIn("openssh-client", dockerfile)
+        self.assertNotIn(" bash curl python3", dockerfile)
 
         dockerignore = (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8")
         self.assertTrue(dockerignore.startswith("**\n"))
@@ -371,6 +501,22 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("model_workspace", routing_patch)
         self.assertIn("candidate_revision", routing_patch)
         self.assertIn("runtime_policy", routing_patch)
+        self.assertIn(":agentic_cicd_context", routing_patch)
+        self.assertIn('@allowed_methods ["GET"]', routing_patch)
+        self.assertIn(
+            'Enum.each(["POST", "PATCH", "PUT", "DELETE"]', routing_patch
+        )
+        self.assertIn(
+            "read-only github_api must reject write methods before calling the client",
+            routing_patch,
+        )
+        for binding in (
+            "JSTORE_INVOCATION_PHASE",
+            "JSTORE_INVOCATION_ROLE",
+            "JSTORE_INVOCATION_HEAD_SHA",
+            "JSTORE_INVOCATION_CANDIDATE_REVISION",
+        ):
+            self.assertIn(binding, routing_patch)
         self.assertNotIn("codex app-server", routing_patch)
 
     def test_dashboard_is_internal_and_probed(self) -> None:
@@ -481,8 +627,35 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("org.opencontainers.image.revision", deploy)
         self.assertIn("symphony-phase-bridge.patch", deploy)
         self.assertIn("symphony-phase-routing.patch", deploy)
+        self.assertIn("--credentialed-observer", deploy)
+        self.assertIn("development-credentialed-observer", deploy)
         self.assertIn("patch_sha256", deploy)
         self.assertIn("dependency_lock_sha256", deploy)
+        self.assertIn('lock_file="$repo_root/config/agentic-cicd/symphony.lock.json"', deploy)
+        self.assertIn("routing_patch_sha256=$(read_lock routing_patch_sha256)", deploy)
+        self.assertIn("codex_output=$(codex --version", deploy)
+        self.assertIn('--build-arg "CODEX_VERSION=$codex_version"', deploy)
+        self.assertNotIn("codex-0.146.0", deploy)
+        self.assertIn(
+            '[[ "$codex_version" =~ ^codex-cli\\ [0-9]+\\.[0-9]+\\.[0-9]+$ ]]',
+            smoke,
+        )
+        source_preflight = (
+            '"$repo_root/scripts/check-agentic-cicd-runtime.py" \\\n'
+            '    --symphony-source "$symphony_source" \\\n'
+            "    --source-only"
+        )
+        self.assertIn(source_preflight, deploy)
+        self.assertLess(deploy.index(source_preflight), deploy.index("sudo ctr"))
+        self.assertIn('[[ "$revision" == "$expected_symphony_revision" ]]', deploy)
+        self.assertNotIn(
+            '[[ "$revision" == "8001b52e3062495a16e520e4ceaf8f9de868c4d0" ]]',
+            deploy,
+        )
+        self.assertNotIn(
+            "b60be30500e95f7fd8d61ea4f73cab4b618e646f541ede6f67e8e0f3eac27535",
+            deploy,
+        )
         self.assertIn("--dry-run=server", gate_deploy)
         self.assertIn("@sha256:", gate_deploy)
         self.assertIn("run-quality-gate", gate_deploy)

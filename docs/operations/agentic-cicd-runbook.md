@@ -12,13 +12,13 @@
 
 能力升级必须通过受审 PR 更新合同、测试和本手册；仅扩大 GitHub token 权限不会自动扩大流程授权。
 
-仓库已包含未来阶段路由和 CandidateRevision 冻结实现，但 `local_workspace_write=false`、`freeze_local_candidate=false`、`run_isolated_gate=false`，因此 implementer workspace-write 与冻结入口均不可达。开放这些能力前还必须落地隔离 gate runner；Supervisor 和 after hook 禁止直接执行 workspace 中的验证脚本。
+仓库已包含未来阶段路由、CandidateRevision 冻结和隔离 Gate Runner 实现，但 `local_workspace_write=false`、`freeze_local_candidate=false`、`run_isolated_gate=false`，因此 implementer workspace-write、冻结和 Gate 调度入口仍不可达。只有完成 Level 1 剩余准入、恢复和真实模型验收后才能通过单独受审变更开放；Supervisor 和 after hook 始终禁止直接执行 workspace 中的验证脚本。每个model turn的complete hook还必须回传由host phase context绑定的phase、role、head SHA和可选CandidateRevision；controller在写状态前校验该绑定并幂等消费session/thread/turn，禁止把延迟或重复Reviewer callback按回流后的implement phase重新分类。
 
 ## 当前准入状态
 
 1. 远端 develop ruleset（`Protect develop`）已 active，六个 required contexts 与模板一致且无 bypass actor；仍需用合法和故意违规的 disposable Draft PR 验证实际 enforcement。
 2. 历史 Gitleaks finding 已审计为未合并测试 fixture，并按精确 fingerprint 处置；最新 `develop` 的 Quality、Security（包含 `secret-scan`）和 Qodana 已绿色。
-3. 固定 Symphony/Codex 运行时、真实独立 Reviewer turn 和 disposable Issue 端到端演练仍缺证据。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
+3. 固定 Symphony源码与不可变运行镜像、无模型 exact-candidate Reviewer 与四个恢复点已有镜像内证据；凭据轮换确认、真实独立 Reviewer turn和 disposable Issue 端到端演练仍未完成。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
 
 ## Symphony 来源
 
@@ -53,7 +53,7 @@
 ## 主机准备
 
 - 使用专用 Linux VM 或容器主机，与生产网络、生产数据库和生产凭据隔离。
-- 安装 `git`、固定版本的 Symphony 运行时和兼容的 `codex`。
+- 安装 `git`、固定版本的 Symphony 运行时和稳定版`codex`；仓库不绑定单一Codex版本，启动前必须通过App Server v2兼容性smoke。
 - 创建仅供该服务使用的 workspace 和 log 根目录，禁止使用仓库根或用户主目录作为递归清理目标。
 - 将 `JSTORE_SYMPHONY_WORKSPACE_ROOT` 设置为显式绝对路径。
 - 将 `JSTORE_SYMPHONY_SOURCE` 设置为锁定提交的 Symphony 源码绝对路径。
@@ -73,7 +73,7 @@
 
 需要 Linux 交付证据时，在用户指定的远端 Linux 开发主机及其原生文件系统上运行；连接信息保留在仓库外。不得把 WSL 对 Windows 工作区的 `/mnt/*` 挂载路径作为全量质量门禁执行目录，避免跨文件系统扫描和 Gradle I/O 限制进度。验证应从精确 `origin/develop` 创建临时副本，只复制候选 diff，不修改远端长期工作目录。
 
-部署前先运行只读预检。它只检查源码提交、安全祖先、工作树、Codex 精确版本和 Elixir 构建工具，不启动 Symphony、Codex thread 或模型 turn：
+部署前先运行只读预检。它只检查源码提交、安全祖先、工作树、Codex稳定版输出和 Elixir 构建工具，不启动 Symphony、Codex thread 或模型 turn：
 
 ```bash
 export JSTORE_SYMPHONY_SOURCE=/absolute/path/to/symphony
@@ -88,7 +88,7 @@ UV_CACHE_DIR="${TMPDIR:-/tmp}/j-store-uv-cache" \
   python scripts/smoke-codex-app-server.py
 ```
 
-smoke 会核对 `config/agentic-cicd/codex-app-server.lock.json` 中的精确版本、用同一二进制生成 v2 JSON schema、校验 Implementer/Reviewer 请求并完成初始化握手。它不会创建 thread 或发送模型 turn。
+smoke 会按`config/agentic-cicd/codex-app-server.lock.json`接受当前已安装的稳定版Codex CLI，用同一二进制生成 v2 JSON schema、校验 Implementer/Reviewer 请求并完成初始化握手。它不会创建 thread 或发送模型 turn。构建入口把通过检查的实际版本写入镜像tag、label和source record，最终制品身份仍由完整镜像digest固定。
 
 Gradle 验证必须使用 JDK 25。运行服务或 CI 时在受管环境中从实际 `java` 路径显式设置 `JAVA_HOME`，不要依赖交互 shell 的默认 JDK：
 
@@ -143,7 +143,7 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 - dashboard bind：部署副本只在受信根 `WORKFLOW.md` 上增加 `server.host: 0.0.0.0`，使 Pod 探针和 ClusterIP 可访问；无 NodePort、LoadBalancer 或 Ingress。
 - 首次 smoke：使用非秘密哨兵 token `level0-no-github-access`，GitHub 会拒绝请求，因此不能取得 Issue 或触发 Codex turn。
 - NetworkPolicy执行器：Flannel保持不变，独立 `kube-router-firewall` DaemonSet只运行 firewall controller；固定镜像和回滚约束见 `deploy/kubernetes/agentic-cicd/network-policy-engine/`。`kube-network-policies`曾因返回流量兼容性在实机失败，不能恢复使用。
-- Gate基础设施：`agentic-cicd-gates` namespace已启用 restricted Pod Security、ResourceQuota、LimitRange和 default-deny；`agentic-cicd/gate-dispatcher`只可在该 namespace管理 Job、观察 Pod和读取日志。Artifact Broker、正式 Dispatcher和离线 Gate Runner物料已在仓库中就绪，但在双节点镜像导入、跨节点 Broker smoke和独立复评完成前仍保持 Level 0。
+- Gate基础设施：`agentic-cicd-gates` namespace已启用 restricted Pod Security、ResourceQuota、LimitRange和 default-deny；`agentic-cicd/gate-dispatcher`只可在该 namespace管理 Job、观察 Pod和读取日志。Artifact Broker、正式 Dispatcher和离线 Gate Runner已完成双节点镜像导入、跨节点 Broker/Gate 正反例、凭据隔离和无模型 exact-candidate Reviewer 验收。机器合同仍保持 Level 0，直到剩余准入和端到端验收完成。
 
 NetworkPolicy执行器使用独立入口部署；它会运行 preflight、server dry-run、两节点 rollout、跨节点 ingress/egress正反例以及现有业务回归，失败自动回滚：
 
@@ -235,7 +235,68 @@ kubectl --context kubernetes-admin@kubernetes \
 
 重新运行 deploy 脚本会恢复单副本。删除 PVC、PV、namespace 或宿主机目录属于物料清理，不是普通停止动作，必须在审计日志后人工执行。
 
-真实只读观察前，管理员需要为专用 GitHub App 生成短期 installation token，通过不入库的 overlay/Secret 注入 `JSTORE_SYMPHONY_GITHUB_TOKEN`，并移除哨兵值。不得把个人 token、管理员 kubeconfig 或宿主机 Codex 登录目录挂入 Pod。
+真实只读观察前，管理员需要为专用 GitHub App 生成短期 installation token，通过不入库的 overlay/Secret 注入 `JSTORE_SYMPHONY_GITHUB_TOKEN`，并移除哨兵值。模型认证使用单独的固定 Secret，只挂载受限 `auth.json`和经白名单裁剪的`config.toml`；不得把个人 token、管理员 kubeconfig 或宿主机 Codex 登录目录挂入 Pod。
+
+### 短期 GitHub token 注入
+
+仓库中的 `development-credentialed-observer` overlay把 Level 0哨兵替换为固定的 `agentic-cicd/symphony-github-token` Secret引用，并把 `agentic-cicd/symphony-codex-auth` 的`auth.json`和裁剪后`config.toml`只读挂载到专用 Pod HOME；它不生成 Secret、不包含秘密值，也不改变 capability合同。锁定的 Symphony源码必须通过 runtime preflight，证明 `JSTORE_SYMPHONY_GITHUB_TOKEN`、`GITHUB_TOKEN`、`GH_TOKEN`、`GITHUB_ENTERPRISE_TOKEN`和`GH_ENTERPRISE_TOKEN`在 Codex/App Server子进程边界全部清除。
+
+先把专用 GitHub App生成的短期 installation token放入仓库外的 `0400`或`0600`文件。以下命令只执行 server-side dry-run，不写集群，也不打印 token：
+
+```bash
+./scripts/agentic-cicd-github-token-secret.sh \
+  --context kubernetes-admin@kubernetes \
+  --token-file /absolute/restricted/path/github-installation-token \
+  --dry-run
+```
+
+只有凭据所有者确认受影响旧凭据已撤销/轮换，并再次取得对精确 context、namespace和 Secret的写授权后，才能执行：
+
+```bash
+./scripts/agentic-cicd-github-token-secret.sh \
+  --context kubernetes-admin@kubernetes \
+  --token-file /absolute/restricted/path/github-installation-token \
+  --apply
+```
+
+### Codex API Key认证注入
+
+当前受审入口只接受 Codex CLI API Key登录缓存和一份裁剪后的自定义provider配置：JSON对象必须且只能包含非空`OPENAI_API_KEY`；配置必须选择一个无内嵌凭据的HTTPS Responses provider，并只保留模型、推理强度、provider名称和URL。根据OpenAI官方认证说明，API Key适用于受信自动化并按Platform标准费率计费；`CODEX_API_KEY`只支持`codex exec`，不得用于Symphony的`codex app-server`。`auth.json`等同密码处理；原始`config.toml`也可能包含其他provider、MCP或策略配置，两者均不得提交、打印或通过挂载整个宿主机`.codex`目录注入。
+
+模型调用前使用专用OpenAI Platform项目和可撤销API Key，并按模型设置保守的request/token rate limit及spend alert。OpenAI官方说明spend alert只通知、不停止API请求，因此它不是硬费用上限；rate limit也只约束一段时间内的请求/Token数量。`state-contract.json`中的`max_cost_microusd`目前是审计合同，不是可验证的上游计费硬熔断；费用所有者没有明确接受“一次turn但无硬美元上限”的残余风险时不得启动真实turn。
+
+先执行不写集群的server-side dry-run：
+
+```bash
+./scripts/agentic-cicd-codex-auth-secret.sh \
+  --context kubernetes-admin@kubernetes \
+  --auth-file /absolute/restricted/path/auth.json \
+  --config-file /absolute/restricted/path/config.toml \
+  --dry-run
+```
+
+只有凭据所有者对精确`kubernetes-admin@kubernetes / agentic-cicd / symphony-codex-auth`写入授权后，才能执行：
+
+```bash
+./scripts/agentic-cicd-codex-auth-secret.sh \
+  --context kubernetes-admin@kubernetes \
+  --auth-file /absolute/restricted/path/auth.json \
+  --config-file /absolute/restricted/path/config.toml \
+  --apply
+```
+
+两个Secret创建和Deployment rollout都是独立写操作。只有rollout也取得授权后，才从已提交且洁净的受审controller revision运行部署入口；`--credentialed-observer`只选择Secret引用overlay并检查`codex login status`，不启动模型、不开启Level 1或任何远程写能力：
+
+部署入口会在任何`sudo`、镜像构建或集群写入前强制执行source-only runtime preflight，核对锁定Symphony HEAD、祖先、洁净源码和全部GitHub token清除边界；失败即停止。受审routing patch同时把模型可见的host-side `github_api`限制为GET，写方法在调用GitHub client前拒绝。
+
+```bash
+./scripts/agentic-cicd-kubernetes-deploy.sh \
+  --context kubernetes-admin@kubernetes \
+  --symphony-source "$HOME/source/symphony" \
+  --credentialed-observer
+```
+
+GitHub token到期、模型Key撤销或演练结束后，先缩容 Supervisor为 0；删除或替换任一Secret属于单独凭据写操作，不能从停止授权中推定。不要直接 `kubectl apply -k` credentialed overlay，因为部署入口还负责绑定受审 controller镜像 digest、patch摘要、新 Pod UID和Codex登录就绪状态。
 
 ## 停止与 kill switch
 

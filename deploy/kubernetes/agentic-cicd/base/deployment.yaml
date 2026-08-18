@@ -34,7 +34,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: symphony
-          image: jstore-agentic-cicd:8001b52e-codex-0.146.0
+          image: jstore-agentic-cicd:development-placeholder
           imagePullPolicy: IfNotPresent
           args:
             - --i-understand-that-this-will-be-running-without-the-usual-guardrails

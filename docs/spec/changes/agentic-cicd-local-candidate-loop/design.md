@@ -121,7 +121,7 @@ Gate Job先运行受信的 network-admission init：等待固定收敛窗口后�
 
 ### 状态失效
 
-Snapshot 中保存 CandidateRevision。进入下一轮 implement 前清除旧 GateReceipt、ReviewProposal 和 ReviewDecision；新冻结结果即使只改变文件模式，也必须得到新 revision。恢复时若 archive、tree 或 workspace metadata 不匹配，任务进入 blocked，不自动重建证据。
+Snapshot 中保存 CandidateRevision。进入下一轮 implement 前清除 active CandidateRevision、GateRequest、GateReceipt、ReviewProposal和review workspace指针，但保留以CandidateRevision索引的历史ReviewDecision审计账本。任何授权判断只查询当前exact CandidateRevision，因此旧PASS不能批准新候选；新冻结结果即使只改变文件模式，也必须得到新revision。恢复时若archive、tree或workspace metadata不匹配，任务进入blocked，不自动重建证据。
 
 ## 隔离 Gate Runner
 
@@ -180,7 +180,9 @@ implement turn
 - Review FAIL：finding 回到 implement，旧候选证据保留审计但不再有效。
 - Review PASS：Level 1 complete，等待人工停止或批准下一阶段；不创建 PR。
 
-`max_turns: 1` 保持不变。validate、freeze 和 complete 都在 App Server 创建前短路；after hook 只提交可信 TurnReceipt/请求，不执行 candidate archive。
+`max_turns: 1`保持不变。validate、freeze和complete都在App Server创建前短路；after hook只提交可信TurnReceipt/请求，不执行candidate archive。Symphony在启动model turn前读取host-owned phase context，并在受信turn receipt中携带该次invocation的phase、role、head SHA和可选CandidateRevision；complete hook必须逐项回传，controller在任何状态写入前与当前snapshot核对。成功receipt还以session/thread/turn规范元组消费幂等键，因此Review FAIL回流后或未来再次进入同名phase时，旧callback都不能被重新分类或重复消费。
+
+`max_cost_microusd`当前只表达主机侧预算和审计意图，控制器尚未从Codex App Server取得可验证的实时金额，也不能在上游请求前硬熔断费用。OpenAI Platform的spend alert只通知而不停止请求，project rate limit只约束一段时间内的请求/Token数量。真实模型演练必须使用专用项目、保守rate limit和spend alert，并由费用所有者对“一次turn但金额不由当前控制器硬限制”的精确残余风险单独批准；不得把合同字段或spend alert误报为实际5美元上限。
 
 ## Symphony 供应链顺序
 
@@ -190,7 +192,7 @@ implement turn
 2. 按依赖治理单独提交升级候选，记录漏洞、许可证、兼容性和回滚 commit；
 3. 使用官方镜像/软件源构建；代理不可用时回退官方源，需要认证时停止并向用户申请；
 4. 在 Linux 原生文件系统完成 patch apply、`mix compile`、`mix test` 和依赖审计；
-5. 构建双 revision、双 patch hash、Codex 版本和基础镜像 digest 固定的 OCI 镜像；
+5. 构建双 revision、双 patch hash和基础镜像 digest固定的 OCI镜像，记录构建时实际稳定版Codex CLI并验证App Server v2兼容性，最终以完整镜像digest绑定制品；
 6. Registry不可用时将同一 OCI archive按 digest导入 master和/或worker1，回查 containerd image ID；镜像代理不可用时使用官方源，需要认证时停止请求用户登录；
 7. 独立安全评审通过后才允许注入短期只读 GitHub App token或启动模型 turn。
 
@@ -204,7 +206,7 @@ implement turn
 2. **只读 observer**：使用短期只读 token读取一个 disposable Issue，证明单 turn 和 complete 短路。
 3. **本地成功路径**：开启 Level 1 合同，Implementer 仅修改 disposable 低风险文件；Gate 和 Reviewer检查同一 CandidateRevision。
 4. **失败回流**：用可信测试 fixture 产生一次 Gate FAIL 和一次 Review FAIL，确认稳定 finding 与新 revision 失效。
-5. **恢复**：分别在 implement、等待 gate、等待 review 时缩容/重启 Supervisor，确认没有重复副作用。
+5. **恢复**：分别在 implement完成后、等待Gate、Gate PASS receipt持久化后但消费前、等待review四个点缩容/重启 Supervisor，确认没有重复副作用。
 6. **熔断**：在隔离 fixture 中证明同根因第三次尝试进入 fused，不依赖真实模型故意犯错。
 7. **停止**：移除调度资格并缩容为 0，保留状态供人工审计。
 

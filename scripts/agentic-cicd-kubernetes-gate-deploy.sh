@@ -125,7 +125,7 @@ kubectl --context "$context" -n agentic-cicd create configmap gate-policy \
   --from-file=gate-policy.json="$policy" --dry-run=client -o yaml \
   | kubectl --context "$context" apply -f - >/dev/null
 kubectl --context "$context" kustomize "$manifest_dir/gates" \
-  | sed "s#image: jstore-agentic-cicd:8001b52e-codex-0.146.0#image: $controller_image#g" \
+  | sed "s#image: jstore-agentic-cicd:development-placeholder#image: $controller_image#g" \
   > "$rendered"
 grep -F "image: $controller_image" "$rendered" >/dev/null
 kubectl --context "$context" apply --dry-run=client -f "$manifest_dir/base/gate-storage.yaml" >/dev/null

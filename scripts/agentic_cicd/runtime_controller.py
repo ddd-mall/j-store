@@ -18,6 +18,7 @@ from .phase_bridge import (
     PHASE_VALIDATE,
     SymphonyPhaseBridge,
 )
+from .process_environment import trusted_process_environment
 from .protocol import GateReceipt, GateRequest, ReviewProposal, TurnReceipt
 
 
@@ -25,6 +26,8 @@ ISSUE_WORKSPACE = re.compile(r"GH-([1-9][0-9]*)\Z")
 FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
 METADATA_DIRECTORY = ".agentic-cicd"
 METADATA_FILE = "workspace.json"
+TRUSTED_REPOSITORY_URL = "https://github.com/ddd-mall/j-store.git"
+GIT_COMMAND_TIMEOUT_SECONDS = 120
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,9 @@ class BootstrapResult:
 class SymphonyWorkspaceBootstrap:
     """Creates one Symphony workspace from the fetched develop ref."""
 
+    def __init__(self, *, allow_local_repository: bool = False):
+        self.allow_local_repository = allow_local_repository
+
     def bootstrap(self, *, repository_url: str, workspace: Path) -> BootstrapResult:
         resolved_workspace = workspace.resolve()
         match = ISSUE_WORKSPACE.fullmatch(resolved_workspace.name)
@@ -45,6 +51,16 @@ class SymphonyWorkspaceBootstrap:
         normalized_url = repository_url.strip()
         if not normalized_url:
             raise ValueError("repository_url must not be blank")
+        if normalized_url != TRUSTED_REPOSITORY_URL:
+            local_repository = Path(normalized_url)
+            if not (
+                self.allow_local_repository
+                and local_repository.is_absolute()
+                and local_repository.is_dir()
+            ):
+                raise ValueError(
+                    "repository_url must be the trusted HTTPS repository"
+                )
 
         resolved_workspace.mkdir(parents=True, exist_ok=True)
         if any(resolved_workspace.iterdir()):
@@ -96,14 +112,42 @@ class SymphonyWorkspaceBootstrap:
         if entry not in existing:
             exclude_path.write_text(existing + entry, encoding="utf-8")
 
-    @staticmethod
-    def _git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    def _git(self, cwd: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+        environment = trusted_process_environment()
+
+        git_config = [
+            ("protocol.allow", "never"),
+            ("protocol.https.allow", "always"),
+            ("http.version", "HTTP/1.1"),
+            ("http.followRedirects", "false"),
+            ("http.proxy", ""),
+            ("http.saveCookies", "false"),
+            ("http.lowSpeedLimit", "1"),
+            ("http.lowSpeedTime", "30"),
+            ("credential.helper", ""),
+        ]
+        if self.allow_local_repository:
+            git_config.append(("protocol.file.allow", "always"))
+        environment.update(
+            {
+                "GIT_CONFIG_GLOBAL": "/dev/null",
+                "GIT_CONFIG_SYSTEM": "/dev/null",
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_TERMINAL_PROMPT": "0",
+                "GIT_CONFIG_COUNT": str(len(git_config)),
+            }
+        )
+        for index, (key, value) in enumerate(git_config):
+            environment[f"GIT_CONFIG_KEY_{index}"] = key
+            environment[f"GIT_CONFIG_VALUE_{index}"] = value
         return subprocess.run(
             ["git", *arguments],
             cwd=cwd,
+            env=environment,
             check=True,
             capture_output=True,
             text=True,
+            timeout=GIT_COMMAND_TIMEOUT_SECONDS,
         )
 
 
@@ -230,7 +274,7 @@ class _TaskStateAccess:
         snapshot = store.load()
         if snapshot.workspace != str(resolved_workspace):
             raise RuntimeError("task snapshot does not match trusted workspace")
-        actual_head = SymphonyWorkspaceBootstrap._git(
+        actual_head = SymphonyWorkspaceBootstrap()._git(
             resolved_workspace, "rev-parse", "HEAD"
         ).stdout.strip()
         if actual_head != snapshot.head_sha:
@@ -398,14 +442,25 @@ class TurnStateController(_TaskStateAccess):
         session_id: str,
         thread_id: str,
         turn_id: str,
+        expected_phase: str,
+        expected_role: str,
+        expected_head_sha: str,
+        expected_candidate_revision: str | None,
     ) -> None:
         store, snapshot = self._load_bound_snapshot(issue_identifier, workspace)
-        if snapshot.iteration_phase == PHASE_IMPLEMENT:
-            role = "implementer" if self.workspace_write_enabled else "observer"
-        elif snapshot.iteration_phase == PHASE_REVIEW:
-            role = "reviewer"
-        else:
-            raise RuntimeError("current phase does not accept a model turn receipt")
+        self._require_invocation_binding(
+            snapshot,
+            expected_phase=expected_phase,
+            expected_role=expected_role,
+            expected_head_sha=expected_head_sha,
+            expected_candidate_revision=expected_candidate_revision,
+        )
+        receipt_key = "turn:" + json.dumps(
+            [session_id, thread_id, turn_id], separators=(",", ":")
+        )
+        if not snapshot.consume_idempotency_key(receipt_key):
+            raise RuntimeError("turn receipt was already consumed")
+        role = expected_role
         receipt = TurnReceipt(
             session_id=session_id,
             thread_id=thread_id,
@@ -425,7 +480,6 @@ class TurnStateController(_TaskStateAccess):
             snapshot.gate_request = None
             snapshot.gate_receipt = None
             snapshot.review_workspace = None
-            snapshot.review_decisions = {}
             bridge.complete_implementation(snapshot, receipt)
         elif role == "observer":
             bridge.complete_observation(snapshot, receipt)
@@ -456,6 +510,40 @@ class TurnStateController(_TaskStateAccess):
         store.save(snapshot)
         if consumed_proposal is not None:
             consumed_proposal.unlink()
+
+    def _require_invocation_binding(
+        self,
+        snapshot: TaskSnapshot,
+        *,
+        expected_phase: str,
+        expected_role: str,
+        expected_head_sha: str,
+        expected_candidate_revision: str | None,
+    ) -> None:
+        if snapshot.iteration_phase != expected_phase:
+            raise RuntimeError(
+                "trusted invocation phase no longer matches current task phase"
+            )
+        if expected_phase == PHASE_IMPLEMENT:
+            actual_role = "implementer" if self.workspace_write_enabled else "observer"
+            actual_candidate_revision = None
+        elif expected_phase == PHASE_REVIEW:
+            actual_role = "reviewer"
+            actual_candidate_revision = (
+                snapshot.candidate_revision["candidate_revision"]
+                if snapshot.candidate_revision is not None
+                else None
+            )
+        else:
+            raise RuntimeError("trusted invocation phase does not accept a model turn")
+        if expected_role != actual_role:
+            raise RuntimeError("trusted invocation role does not match current capability")
+        if expected_head_sha != snapshot.head_sha:
+            raise RuntimeError("trusted invocation head no longer matches task head")
+        if expected_candidate_revision != actual_candidate_revision:
+            raise RuntimeError(
+                "trusted invocation candidate no longer matches task candidate"
+            )
 
 
 class GateRequestStore(_TaskStateAccess):
@@ -605,7 +693,6 @@ class CandidateRevisionStore(_TaskStateAccess):
         snapshot.candidate_revision = revision.to_json()
         snapshot.gate_request = None
         snapshot.gate_receipt = None
-        snapshot.review_decisions = {}
         store.save(snapshot)
         return revision
 

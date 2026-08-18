@@ -181,7 +181,6 @@ class SymphonyPhaseBridge:
         snapshot.gate_request = None
         snapshot.gate_receipt = None
         snapshot.review_workspace = None
-        snapshot.review_decisions = {}
         snapshot.iteration_phase = PHASE_IMPLEMENT
 
     @staticmethod
