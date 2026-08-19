@@ -12,7 +12,7 @@
 
 在开发 Kubernetes 集群中完成 **Level 1：本地候选闭环**：一个经人工准入的 disposable Issue 由唯一 Symphony Supervisor 驱动，在隔离 workspace 中产生本地候选，经无控制面凭据的 Gate Runner 验证，再由独立只读 Reviewer 对同一不可变候选给出决定；失败 finding 可返回下一轮实现，Supervisor 重启后能够从可信状态恢复。
 
-Level 1 的终点仍是本地证据和人工确认，不创建远程分支、提交、PR，不发送邮件，不合并、发布或写生产。
+Level 1 的终点仍是本地证据和人工确认，不创建远程分支、提交、PR，不写Issue控制面、不请求PR review，不合并、发布或写生产。
 
 ## 范围
 
@@ -29,18 +29,18 @@ Level 1 的终点仍是本地证据和人工确认，不创建远程分支、提
 
 ## 非目标
 
-- 不开放远端 branch、commit push、Draft PR、Draft -> Ready 或 Issue 自动写入。
+- 不开放远端 branch、commit push、Draft PR、Draft -> Ready、Issue comment/label写入或PR review request。
 - 不授予 GitHub Administration、Actions/Workflow write、Secrets、Deployments、生产 namespace 或数据库权限。
 - 不自动合并、发布、部署业务应用或执行数据库迁移。
 - 不提高并发；同一仓库仍只允许一个 Supervisor 和一个活跃 Agent。
-- 不在本阶段实现邮件通知、跨仓库事务或多 Supervisor 高可用。
+- 不在本阶段实现GitHub人工交接、跨仓库事务或多 Supervisor 高可用。
 - 不把组件测试、Pod Ready 或一次模型自述当作端到端完成证据。
 
 ## 验收标准
 
 ### AC-LC-01 能力语义收敛
 
-机器合同必须分别表达本地 workspace bootstrap、本地内容写入、候选冻结、远端分支/push/PR 等能力。Level 1 只能开启前三项；远端写入、邮件、合并、发布和生产写入必须保持关闭。合同测试必须拒绝会隐式连带开启远端能力的配置。
+机器合同必须分别表达本地workspace bootstrap、本地内容写入、候选冻结、隔离Gate、远端分支/push/PR、Issue comment/label和PR review request等能力。Level 1必须保持`bootstrap_local_workspace=true`，并且只把`local_workspace_write`、`freeze_local_candidate`和`run_isolated_gate`从false改为true；全部GitHub写入、合并、发布和生产写入必须保持关闭。合同测试必须拒绝会隐式连带开启远端能力的配置。
 
 ### AC-LC-02 不可变候选身份
 
@@ -64,13 +64,13 @@ GateReceipt 必须由可信 dispatcher 产生并原子持久化，绑定 Issue�
 
 Reviewer 必须使用不同于 Implementer 的可信 session，以只读方式检查 Gate PASS 对应的同一 CandidateRevision。候选变化立即使 GateReceipt 和 ReviewDecision 失效。ReviewProposal 不得携带或伪造 session、thread、turn 或 gate 身份。
 
-### AC-LC-07 返工、预算与熔断
+### AC-LC-07 返工与熔断
 
 Gate FAIL 或 Review FAIL 必须形成稳定根因 finding 并回到 implement。相同根因只允许两次有实质差异的本地修复，第三次进入 `agent:fused`；基础设施重试独立计数，不消耗语义修复预算。
 
 ### AC-LC-08 可恢复性
 
-必须在 implement 完成后、等待 gate、gate PASS 后和等待 review 四个点执行停止/重启演练。恢复后不得重复模型 turn、Gate Job 或 Reviewer 决定；现有 CandidateRevision、turn receipt、gate ID 和预算计数保持一致。
+必须在 implement 完成后、等待 gate、gate PASS 后和等待 review 四个点执行停止/重启演练。恢复后不得重复模型 turn、Gate Job 或 Reviewer 决定；现有 CandidateRevision、turn receipt、gate ID 及 turn、时间和重试计数保持一致。
 
 ### AC-LC-09 Symphony 供应链门禁
 
@@ -90,15 +90,15 @@ Supervisor 继续固定到 master；Gate Job固定到 worker1并设置不高于 
 
 ### AC-LC-12 退出审计
 
-最终摘要必须记录 base/candidate/runtime identity、turn/gate/review ID、命令及退出码、重试与预算、Pod/Job UID、脱敏日志摘要、恢复结果和残余风险。删除 Issue workspace、PVC、namespace、镜像或远端对象仍需单独授权。
+最终摘要必须记录 base/candidate/runtime identity、turn/gate/review ID、命令及退出码、重试、turn/时间使用量、Pod/Job UID、脱敏日志摘要、恢复结果和残余风险。删除 Issue workspace、PVC、namespace、镜像或远端对象仍需单独授权。
 
 ## 质量目标
 
 - **安全性**：不可信候选执行环境与 GitHub/Kubernetes/Supervisor 凭据完全隔离；模型不能伪造阶段、候选、gate 或评审身份。
 - **可靠性**：同一 CandidateRevision 的 gate 和 review 副作用幂等，重复调度不会重复执行。
-- **可恢复性**：单实例 Supervisor 在五分钟内恢复到停止前阶段，且不丢失预算和 finding。
+- **可恢复性**：单实例 Supervisor 在五分钟内恢复到停止前阶段，且不丢失 turn、时间、重试计数和 finding。
 - **可审计性**：每次模型、gate、review 和状态转换都有稳定身份与内容摘要。
-- **性能与成本**：并发保持 1；单任务沿用现有 turn、时间和费用上限；Gate Job 必须有 active deadline 和资源上限。
+- **性能与资源**：并发保持 1；单任务沿用现有 turn 和时间限制；Gate Job 必须有 active deadline 和资源上限。
 - **可运维性**：kill switch、缩容为 0 和上一 digest 回退均可在不删除状态的情况下执行。
 
 ## 人工审批点
@@ -109,5 +109,5 @@ Supervisor 继续固定到 master；Gate Job固定到 worker1并设置不高于 
 - 轮换/注入 GitHub App、provider 或集群凭据；
 - 创建/标记 disposable Issue；
 - 在开发集群创建 Gate Runner RBAC、Deployment/Job、Secret 或执行 rollout；
-- 启动真实模型 turn及其费用；
+- 启动真实模型 turn；
 - 推送分支、创建 PR、转 Ready、合并、发布或清理持久状态。

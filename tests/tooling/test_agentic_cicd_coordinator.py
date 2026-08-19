@@ -97,6 +97,17 @@ class CoordinatorTest(unittest.TestCase):
         self.assertEqual("blocked", self.snapshot.state)
         self.assertEqual("budget:turns", self.snapshot.blocked_reason)
 
+    def test_token_usage_is_recorded_without_in_process_pricing(self) -> None:
+        self.coordinator.consume_budget(
+            self.snapshot,
+            input_tokens=12_345,
+            output_tokens=678,
+        )
+
+        self.assertEqual(12_345, self.snapshot.budget.input_tokens)
+        self.assertEqual(678, self.snapshot.budget.output_tokens)
+        self.assertEqual(0, self.snapshot.budget.cost_microusd)
+
     def test_cancel_releases_claim_and_is_terminal_for_automation(self) -> None:
         self.coordinator.claim(self.snapshot, "run-a")
 
@@ -241,6 +252,100 @@ class WorkspaceManagerTest(unittest.TestCase):
             self.manager.remove(workspace, "GH-123")
 
         self.assertTrue(workspace.path.is_dir())
+
+    def test_base_sync_merges_advanced_develop_without_rewriting_head(self) -> None:
+        workspace = self.manager.create_or_recover("GH-123", "Order Total")
+        self.git(workspace.path, "config", "user.name", "Agentic CI Test")
+        self.git(workspace.path, "config", "user.email", "agentic-ci@example.invalid")
+        (workspace.path / "candidate.txt").write_text("candidate\n", encoding="utf-8")
+        self.git(workspace.path, "add", "candidate.txt")
+        self.git(workspace.path, "commit", "-m", "candidate change")
+        previous_head = self.git(workspace.path, "rev-parse", "HEAD").stdout.strip()
+
+        (self.seed / "upstream.txt").write_text("upstream\n", encoding="utf-8")
+        self.git(self.seed, "add", "upstream.txt")
+        self.git(self.seed, "commit", "-m", "base three")
+        self.git(self.seed, "push", "origin", "develop")
+        advanced_base = self.git(self.seed, "rev-parse", "HEAD").stdout.strip()
+
+        result = self.manager.sync_base(workspace, expected_head_sha=previous_head)
+
+        self.assertEqual("UPDATED", result.status)
+        self.assertEqual(workspace.base_sha, result.previous_base_sha)
+        self.assertEqual(advanced_base, result.base_sha)
+        self.assertEqual(previous_head, result.previous_head_sha)
+        self.assertNotEqual(previous_head, result.head_sha)
+        self.git(workspace.path, "merge-base", "--is-ancestor", previous_head, result.head_sha)
+        self.git(workspace.path, "merge-base", "--is-ancestor", advanced_base, result.head_sha)
+
+    def test_base_sync_is_noop_when_develop_has_not_advanced(self) -> None:
+        workspace = self.manager.create_or_recover("GH-123", "Order Total")
+        head = self.git(workspace.path, "rev-parse", "HEAD").stdout.strip()
+
+        result = self.manager.sync_base(workspace, expected_head_sha=head)
+
+        self.assertEqual("UNCHANGED", result.status)
+        self.assertEqual(workspace.base_sha, result.base_sha)
+        self.assertEqual(head, result.head_sha)
+
+    def test_base_sync_recovers_after_metadata_write_before_snapshot_save(self) -> None:
+        workspace = self.manager.create_or_recover("GH-123", "Order Total")
+        self.git(workspace.path, "config", "user.name", "Agentic CI Test")
+        self.git(workspace.path, "config", "user.email", "agentic-ci@example.invalid")
+        (workspace.path / "candidate.txt").write_text("candidate\n", encoding="utf-8")
+        self.git(workspace.path, "add", "candidate.txt")
+        self.git(workspace.path, "commit", "-m", "candidate")
+        previous_head = self.git(workspace.path, "rev-parse", "HEAD").stdout.strip()
+        (self.seed / "advanced.txt").write_text("advanced\n", encoding="utf-8")
+        self.git(self.seed, "add", "advanced.txt")
+        self.git(self.seed, "commit", "-m", "advance develop")
+        self.git(self.seed, "push", "origin", "develop")
+
+        first = self.manager.sync_base(workspace, expected_head_sha=previous_head)
+        recovered = self.manager.sync_base(workspace, expected_head_sha=previous_head)
+
+        self.assertEqual("UPDATED", first.status)
+        self.assertEqual(first, recovered)
+
+        (workspace.path / "unrelated.txt").write_text("unrelated\n", encoding="utf-8")
+        self.git(workspace.path, "add", "unrelated.txt")
+        self.git(workspace.path, "commit", "-m", "unrelated after sync")
+        with self.assertRaisesRegex(RuntimeError, "trusted workspace metadata"):
+            self.manager.sync_base(workspace, expected_head_sha=previous_head)
+
+    def test_base_sync_aborts_conflict_and_preserves_previous_head(self) -> None:
+        workspace = self.manager.create_or_recover("GH-123", "Order Total")
+        self.git(workspace.path, "config", "user.name", "Agentic CI Test")
+        self.git(workspace.path, "config", "user.email", "agentic-ci@example.invalid")
+        (workspace.path / "value.txt").write_text("candidate value\n", encoding="utf-8")
+        self.git(workspace.path, "add", "value.txt")
+        self.git(workspace.path, "commit", "-m", "candidate conflict")
+        previous_head = self.git(workspace.path, "rev-parse", "HEAD").stdout.strip()
+
+        (self.seed / "value.txt").write_text("upstream value\n", encoding="utf-8")
+        self.git(self.seed, "add", "value.txt")
+        self.git(self.seed, "commit", "-m", "base conflict")
+        self.git(self.seed, "push", "origin", "develop")
+        advanced_base = self.git(self.seed, "rev-parse", "HEAD").stdout.strip()
+
+        result = self.manager.sync_base(workspace, expected_head_sha=previous_head)
+
+        self.assertEqual("CONFLICT", result.status)
+        self.assertEqual(advanced_base, result.base_sha)
+        self.assertEqual(previous_head, result.head_sha)
+        self.assertEqual(
+            previous_head,
+            self.git(workspace.path, "rev-parse", "HEAD").stdout.strip(),
+        )
+        self.assertEqual("candidate value\n", (workspace.path / "value.txt").read_text())
+        merge_head = subprocess.run(
+            ["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"],
+            cwd=workspace.path,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(0, merge_head.returncode)
 
 
 if __name__ == "__main__":

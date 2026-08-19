@@ -1,5 +1,7 @@
 # Level 1 本地候选闭环评审记录
 
+本文件是仍在推进的 Level 1 变更的原始评审证据，不维护当前能力或跨阶段任务状态。当前状态只在 `../../agentic-cicd/tasks.md` 和本变更的 `tasks.md` 中维护；变更完成后，本记录随证据一起并入总归档。
+
 ## 2026-08-15 CandidateRevision 首个切片
 
 独立安全评估首次结论为 FAIL，识别两个阻塞问题：受信 Snapshotter 的 `git add` / filtered `hash-object` 可执行候选影响的 Git clean/process filter；物化入口会解析并跟随调用方提供的 destination符号链接。

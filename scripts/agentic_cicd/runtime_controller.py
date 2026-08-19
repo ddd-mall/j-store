@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .candidate import CandidateRevision, CandidateSnapshotter
-from .coordinator import SnapshotStore, TaskSnapshot
+from .coordinator import BudgetExceeded, Coordinator, SnapshotStore, TaskSnapshot
 from .phase_bridge import (
     PHASE_COMPLETE,
     PHASE_IMPLEMENT,
@@ -19,20 +19,23 @@ from .phase_bridge import (
     SymphonyPhaseBridge,
 )
 from .process_environment import trusted_process_environment
+from .pr_packet import TaskBrief
 from .protocol import GateReceipt, GateRequest, ReviewProposal, TurnReceipt
 
 
 ISSUE_WORKSPACE = re.compile(r"GH-([1-9][0-9]*)\Z")
+GITHUB_REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
 FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
 METADATA_DIRECTORY = ".agentic-cicd"
 METADATA_FILE = "workspace.json"
-TRUSTED_REPOSITORY_URL = "https://github.com/ddd-mall/j-store.git"
+DEFAULT_TRUSTED_REPOSITORY = "ddd-mall/j-store"
 GIT_COMMAND_TIMEOUT_SECONDS = 120
 
 
 @dataclass(frozen=True)
 class BootstrapResult:
     issue_identifier: str
+    repository: str
     base_sha: str
     branch: str
 
@@ -40,7 +43,18 @@ class BootstrapResult:
 class SymphonyWorkspaceBootstrap:
     """Creates one Symphony workspace from the fetched develop ref."""
 
-    def __init__(self, *, allow_local_repository: bool = False):
+    def __init__(
+        self,
+        *,
+        trusted_repository: str = DEFAULT_TRUSTED_REPOSITORY,
+        allow_local_repository: bool = False,
+    ):
+        if GITHUB_REPOSITORY.fullmatch(trusted_repository) is None:
+            raise ValueError("trusted_repository must use canonical owner/name form")
+        self.trusted_repository = trusted_repository
+        self.trusted_repository_url = (
+            f"https://github.com/{trusted_repository}.git"
+        )
         self.allow_local_repository = allow_local_repository
 
     def bootstrap(self, *, repository_url: str, workspace: Path) -> BootstrapResult:
@@ -51,7 +65,7 @@ class SymphonyWorkspaceBootstrap:
         normalized_url = repository_url.strip()
         if not normalized_url:
             raise ValueError("repository_url must not be blank")
-        if normalized_url != TRUSTED_REPOSITORY_URL:
+        if normalized_url != self.trusted_repository_url:
             local_repository = Path(normalized_url)
             if not (
                 self.allow_local_repository
@@ -93,6 +107,7 @@ class SymphonyWorkspaceBootstrap:
             json.dumps(
                 {
                     "issue_identifier": issue_identifier,
+                    "repository": self.trusted_repository,
                     "base_sha": base_sha,
                     "branch": branch,
                 },
@@ -102,7 +117,9 @@ class SymphonyWorkspaceBootstrap:
             + "\n",
             encoding="utf-8",
         )
-        return BootstrapResult(issue_identifier, base_sha, branch)
+        return BootstrapResult(
+            issue_identifier, self.trusted_repository, base_sha, branch
+        )
 
     @staticmethod
     def _exclude_runtime_metadata(workspace: Path) -> None:
@@ -199,22 +216,30 @@ class TaskStateInitializer:
     def __init__(self, state_root: Path):
         self.state_root = state_root.resolve()
 
-    def initialize(self, result: BootstrapResult, workspace: Path) -> Path:
+    def initialize(
+        self, result: BootstrapResult, workspace: Path, task_brief: TaskBrief
+    ) -> Path:
         destination = self.state_root / "tasks" / f"{result.issue_identifier}.json"
+        if task_brief.issue_identifier != result.issue_identifier:
+            raise RuntimeError("task brief does not match trusted workspace")
         if destination.exists():
             snapshot = SnapshotStore(destination).load()
             expected = (
                 result.issue_identifier,
+                result.repository,
                 result.base_sha,
                 result.branch,
                 str(workspace.resolve()),
             )
             actual = (
                 snapshot.issue_identifier,
+                snapshot.repository,
                 snapshot.base_sha,
                 snapshot.branch,
                 snapshot.workspace,
+                snapshot.task_brief,
             )
+            expected = expected + (task_brief.to_json(),)
             if actual != expected:
                 raise RuntimeError("existing task snapshot does not match trusted workspace")
             return destination.resolve()
@@ -222,10 +247,12 @@ class TaskStateInitializer:
         snapshot = TaskSnapshot(
             issue_identifier=result.issue_identifier,
             state="queued",
+            repository=result.repository,
             base_sha=result.base_sha,
             head_sha=result.base_sha,
             branch=result.branch,
             workspace=str(workspace.resolve()),
+            task_brief=task_brief.to_json(),
             iteration_phase="implement",
         )
         SnapshotStore(destination).save(snapshot)
@@ -243,6 +270,8 @@ class PhaseContext:
     head_sha: str
     candidate_revision: str | None
     model_workspace: str
+    base_sync: dict[str, str] | None = None
+    review_packet: dict | None = None
 
     def to_json(self) -> dict:
         return {
@@ -255,6 +284,10 @@ class PhaseContext:
             "head_sha": self.head_sha,
             "candidate_revision": self.candidate_revision,
             "model_workspace": self.model_workspace,
+            "base_sync": dict(self.base_sync) if self.base_sync is not None else None,
+            "review_packet": (
+                dict(self.review_packet) if self.review_packet is not None else None
+            ),
         }
 
 
@@ -311,6 +344,11 @@ class PhaseContextStore(_TaskStateAccess):
                 head_sha=snapshot.head_sha or "",
                 candidate_revision=None,
                 model_workspace=str(resolved_workspace),
+                base_sync=(dict(snapshot.base_sync) if snapshot.base_sync else None),
+                review_packet=(
+                    dict(snapshot.github_review_packet)
+                    if snapshot.github_review_packet else None
+                ),
             )
         if phase == PHASE_IMPLEMENT:
             return PhaseContext(
@@ -327,6 +365,11 @@ class PhaseContextStore(_TaskStateAccess):
                 head_sha=snapshot.head_sha or "",
                 candidate_revision=None,
                 model_workspace=str(resolved_workspace),
+                base_sync=(dict(snapshot.base_sync) if snapshot.base_sync else None),
+                review_packet=(
+                    dict(snapshot.github_review_packet)
+                    if snapshot.github_review_packet else None
+                ),
             )
         if phase == PHASE_REVIEW:
             if not snapshot.implementer_session_id:
@@ -366,6 +409,8 @@ class PhaseContextStore(_TaskStateAccess):
                 head_sha=snapshot.head_sha or "",
                 candidate_revision=revision.candidate_revision,
                 model_workspace=str(review_workspace),
+                base_sync=(dict(snapshot.base_sync) if snapshot.base_sync else None),
+                review_packet=None,
             )
         if phase in {PHASE_VALIDATE, PHASE_COMPLETE}:
             return PhaseContext(
@@ -382,6 +427,8 @@ class PhaseContextStore(_TaskStateAccess):
                     else None
                 ),
                 model_workspace=str(resolved_workspace),
+                base_sync=(dict(snapshot.base_sync) if snapshot.base_sync else None),
+                review_packet=None,
             )
         raise RuntimeError(f"unsupported iteration phase: {phase}")
 
@@ -429,10 +476,29 @@ class TurnStateController(_TaskStateAccess):
         *,
         workspace_write_enabled: bool,
         artifact_root: Path | None = None,
+        contract_path: Path | None = None,
     ):
         super().__init__(state_root)
         self.workspace_write_enabled = workspace_write_enabled
         self.artifact_root = artifact_root.resolve() if artifact_root else None
+        if contract_path is not None:
+            resolved_contract = contract_path.resolve()
+        else:
+            deployed_contract = Path(
+                "/opt/jstore-agentic-controller/state-contract.json"
+            )
+            resolved_contract = (
+                deployed_contract
+                if deployed_contract.is_file()
+                else Path(__file__).resolve().parents[2]
+                / "config"
+                / "agentic-cicd"
+                / "state-contract.json"
+            )
+        contract = json.loads(resolved_contract.read_text(encoding="utf-8"))
+        if not isinstance(contract, dict):
+            raise ValueError("state contract must be a JSON object")
+        self.coordinator = Coordinator.from_contract(contract)
 
     def complete_turn(
         self,
@@ -446,6 +512,11 @@ class TurnStateController(_TaskStateAccess):
         expected_role: str,
         expected_head_sha: str,
         expected_candidate_revision: str | None,
+        wall_clock_seconds: int = 0,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        outcome: str = "succeeded",
+        token_usage_observed: bool = True,
     ) -> None:
         store, snapshot = self._load_bound_snapshot(issue_identifier, workspace)
         self._require_invocation_binding(
@@ -455,11 +526,28 @@ class TurnStateController(_TaskStateAccess):
             expected_head_sha=expected_head_sha,
             expected_candidate_revision=expected_candidate_revision,
         )
+        if type(wall_clock_seconds) is not int or wall_clock_seconds < 0:
+            raise ValueError("wall-clock usage must be a non-negative integer")
+        if outcome not in {"succeeded", "failed"}:
+            raise ValueError("turn outcome must be succeeded or failed")
+        if type(token_usage_observed) is not bool:
+            raise ValueError("token_usage_observed must be a boolean")
         receipt_key = "turn:" + json.dumps(
             [session_id, thread_id, turn_id], separators=(",", ":")
         )
         if not snapshot.consume_idempotency_key(receipt_key):
             raise RuntimeError("turn receipt was already consumed")
+        try:
+            self.coordinator.consume_budget(
+                snapshot,
+                turns=1,
+                wall_clock_seconds=wall_clock_seconds,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+        except BudgetExceeded:
+            store.save(snapshot)
+            raise
         role = expected_role
         receipt = TurnReceipt(
             session_id=session_id,
@@ -474,12 +562,35 @@ class TurnStateController(_TaskStateAccess):
             ),
         )
         bridge = SymphonyPhaseBridge()
+        if not token_usage_observed:
+            bridge.record_terminal_turn(
+                snapshot,
+                receipt,
+                outcome=outcome,
+                token_usage_observed=False,
+            )
+            self.coordinator.transition(snapshot, "blocked")
+            snapshot.blocked_reason = "receipt:missing-token-usage"
+            snapshot.claim_id = None
+            store.save(snapshot)
+            raise RuntimeError(snapshot.blocked_reason)
+        if outcome == "failed":
+            bridge.record_terminal_turn(
+                snapshot,
+                receipt,
+                outcome=outcome,
+                token_usage_observed=True,
+            )
+            store.save(snapshot)
+            return
         consumed_proposal: Path | None = None
         if role == "implementer":
             snapshot.candidate_revision = None
+            snapshot.candidate_commit_sha = None
             snapshot.gate_request = None
             snapshot.gate_receipt = None
             snapshot.review_workspace = None
+            snapshot.github_review_packet = None
             bridge.complete_implementation(snapshot, receipt)
         elif role == "observer":
             bridge.complete_observation(snapshot, receipt)
@@ -679,18 +790,19 @@ class CandidateRevisionStore(_TaskStateAccess):
         store, snapshot = self._load_bound_snapshot(issue_identifier, workspace)
         if snapshot.iteration_phase != PHASE_VALIDATE:
             raise RuntimeError("candidate freeze is accepted only in validate phase")
-        if snapshot.base_sha is None:
-            raise RuntimeError("task snapshot has no trusted base SHA")
+        if snapshot.head_sha is None:
+            raise RuntimeError("task snapshot has no trusted head SHA")
         self._validate_runtime_metadata(snapshot, workspace.resolve())
         revision = CandidateSnapshotter(
             workspace, self.artifact_root
-        ).freeze(snapshot.base_sha)
+        ).freeze(snapshot.head_sha)
         if snapshot.candidate_revision is not None:
             existing = CandidateRevision.from_json(snapshot.candidate_revision)
             if existing != revision:
                 raise RuntimeError("validate phase already binds a different candidate")
             return existing
         snapshot.candidate_revision = revision.to_json()
+        snapshot.candidate_commit_sha = None
         snapshot.gate_request = None
         snapshot.gate_receipt = None
         store.save(snapshot)

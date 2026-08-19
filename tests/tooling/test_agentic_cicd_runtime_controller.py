@@ -5,11 +5,13 @@ import os
 import subprocess
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.agentic_cicd.coordinator import SnapshotStore, TaskSnapshot
+from scripts.agentic_cicd.coordinator import BudgetExceeded, SnapshotStore, TaskSnapshot
 from scripts.agentic_cicd.protocol import GateRequest, ReviewDecision, ReviewFinding
+from scripts.agentic_cicd.pr_packet import AcceptanceCriterion, TaskBrief
 from scripts.agentic_cicd.runtime_controller import (
     CandidateRevisionStore,
     GateRequestStore,
@@ -28,6 +30,12 @@ CONTRACT_PATH = (
     / "config"
     / "agentic-cicd"
     / "state-contract.json"
+)
+DISPOSABLE_CONTRACT_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "config"
+    / "agentic-cicd"
+    / "state-contract.level2-disposable.example.json"
 )
 COMMAND_POLICY = GateRequest.calculate_command_policy_sha256(
     ("./scripts/quality-gate.sh",)
@@ -50,7 +58,7 @@ def gate_receipt(request: dict, verdict: str = "PASS") -> dict:
         "command_policy_sha256": request["command_policy_sha256"], "verdict": verdict,
         "started_at": "2026-08-15T00:00:01Z", "finished_at": "2026-08-15T00:00:02Z",
         "exit_code": 0 if verdict == "PASS" else None, "log_sha256": "f" * 64,
-        "job_uid": "job-uid", "pod_uid": "pod-uid", "findings": [],
+        "job_uid": "job-uid", "pod_uid": "pod-uid", "findings": [], "skipped_checks": [],
     }
 
 
@@ -154,17 +162,47 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
             workspace=self.workspace,
         )
 
+        brief = TaskBrief(
+            issue_identifier="GH-123",
+            title="[Agent Goal]: initialize test state",
+            intent="Persist trusted task intent.",
+            value="Make restart behavior deterministic.",
+            in_scope="Task snapshot initialization.",
+            out_of_scope="Remote writes.",
+            acceptance=(
+                AcceptanceCriterion(
+                    "AC-INIT-01",
+                    "The task brief survives restart.",
+                    "./scripts/quality-gate.sh",
+                ),
+            ),
+            validation_commands=("./scripts/quality-gate.sh",),
+            compatibility="Internal state extension only.",
+            recovery="Reload the atomic snapshot.",
+            required_human_approvals=("None",),
+            residual_risks=("No external behavior is exercised.",),
+            risk="Low risk internal implementation.",
+        )
         path = TaskStateInitializer(self.root / "state").initialize(
-            result, self.workspace
+            result, self.workspace, brief
         )
         snapshot = SnapshotStore(path).load()
 
         self.assertEqual("GH-123", snapshot.issue_identifier)
+        self.assertEqual("ddd-mall/j-store", snapshot.repository)
         self.assertEqual(result.base_sha, snapshot.base_sha)
         self.assertEqual(result.base_sha, snapshot.head_sha)
         self.assertEqual(result.branch, snapshot.branch)
         self.assertEqual(str(self.workspace.resolve()), snapshot.workspace)
         self.assertEqual("implement", snapshot.iteration_phase)
+        self.assertEqual(brief.to_json(), snapshot.task_brief)
+
+        with self.assertRaisesRegex(RuntimeError, "does not match trusted workspace"):
+            TaskStateInitializer(self.root / "state").initialize(
+                result,
+                self.workspace,
+                replace(brief, intent="Changed after the snapshot was created."),
+            )
 
     def test_bootstrap_rejects_noncanonical_workspace_identity(self) -> None:
         unsafe_workspace = self.root / "workspaces" / "../../unsafe"
@@ -194,6 +232,7 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
             )
 
         self.assertEqual(self.develop_sha, result.base_sha)
+        self.assertEqual("ddd-mall/j-store", result.repository)
         self.assertEqual("clone", git.call_args_list[0].args[1])
         self.assertEqual(
             "https://github.com/ddd-mall/j-store.git",
@@ -214,6 +253,46 @@ class SymphonyWorkspaceBootstrapTest(unittest.TestCase):
                         repository_url=repository_url,
                         workspace=self.workspace,
                     )
+
+    def test_production_bootstrap_binds_one_configured_disposable_repository(self) -> None:
+        def fake_git(
+            _cwd: Path, *arguments: str
+        ) -> subprocess.CompletedProcess[str]:
+            if arguments[0] == "clone":
+                info = self.workspace / ".git" / "info"
+                info.mkdir(parents=True)
+                (info / "exclude").write_text("", encoding="utf-8")
+            stdout = self.develop_sha + "\n" if arguments[0] == "rev-parse" else ""
+            return subprocess.CompletedProcess(["git", *arguments], 0, stdout, "")
+
+        bootstrap = SymphonyWorkspaceBootstrap(
+            trusted_repository="ddd-mall/agentic-cicd-disposable"
+        )
+        with patch.object(bootstrap, "_git", side_effect=fake_git):
+            result = bootstrap.bootstrap(
+                repository_url=(
+                    "https://github.com/ddd-mall/agentic-cicd-disposable.git"
+                ),
+                workspace=self.workspace,
+            )
+
+        self.assertEqual("ddd-mall/agentic-cicd-disposable", result.repository)
+        self.assertEqual(
+            "ddd-mall/agentic-cicd-disposable",
+            json.loads(
+                (self.workspace / ".agentic-cicd" / "workspace.json").read_text(
+                    encoding="utf-8"
+                )
+            )["repository"],
+        )
+
+        with self.assertRaisesRegex(ValueError, "trusted HTTPS repository"):
+            SymphonyWorkspaceBootstrap(
+                trusted_repository="ddd-mall/agentic-cicd-disposable"
+            ).bootstrap(
+                repository_url="https://github.com/ddd-mall/j-store.git",
+                workspace=self.root / "workspaces" / "GH-124",
+            )
 
     def test_trusted_git_environment_disables_ambient_network_configuration(self) -> None:
         inherited = {
@@ -279,6 +358,7 @@ class ReviewProposalStoreTest(unittest.TestCase):
         self.snapshot_path = self.root / "tasks" / "GH-123.json"
         self.snapshot = TaskSnapshot(
             issue_identifier="GH-123",
+            repository="ddd-mall/j-store",
             state="queued",
             base_sha="a" * 40,
             head_sha="b" * 40,
@@ -352,6 +432,7 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         self.snapshot_path = self.root / "state" / "tasks" / "GH-123.json"
         self.snapshot = TaskSnapshot(
             issue_identifier="GH-123",
+            repository="ddd-mall/j-store",
             state="queued",
             base_sha=self.head,
             head_sha=self.head,
@@ -391,6 +472,38 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         self.assertEqual("implementer", implementer.role)
         self.assertEqual("workspace-write", implementer.thread_sandbox)
         self.assertTrue(implementer.complete_turn)
+
+    def test_implement_context_exposes_trusted_base_conflict_target(self) -> None:
+        self.snapshot.base_sync = {
+            "status": "CONFLICT",
+            "previous_base_sha": self.head,
+            "base_sha": "c" * 40,
+            "previous_head_sha": self.head,
+            "head_sha": self.head,
+        }
+        SnapshotStore(self.snapshot_path).save(self.snapshot)
+
+        context = PhaseContextStore(
+            self.root / "state", workspace_write_enabled=True
+        ).load("GH-123", self.workspace)
+
+        self.assertEqual("CONFLICT", context.base_sync["status"])
+        self.assertEqual("c" * 40, context.base_sync["base_sha"])
+
+    def test_implement_context_exposes_actionable_github_review_packet(self) -> None:
+        self.snapshot.github_review_packet = {
+            "repository": "ddd-mall/j-store",
+            "pull_request_number": 51,
+            "head_sha": self.head,
+            "threads": [],
+        }
+        SnapshotStore(self.snapshot_path).save(self.snapshot)
+
+        context = PhaseContextStore(
+            self.root / "state", workspace_write_enabled=True
+        ).load("GH-123", self.workspace)
+
+        self.assertEqual(51, context.review_packet["pull_request_number"])
 
     def test_review_is_read_only_and_validate_complete_do_not_start_model(self) -> None:
         self.snapshot.iteration_phase = "validate"
@@ -633,6 +746,190 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         )
         self.assertEqual("review", SnapshotStore(self.snapshot_path).load().iteration_phase)
 
+    def test_turn_completion_atomically_records_trusted_usage(self) -> None:
+        controller = TurnStateController(
+            self.root / "state",
+            workspace_write_enabled=True,
+            contract_path=CONTRACT_PATH,
+        )
+
+        controller.complete_turn(
+            "GH-123",
+            self.workspace,
+            session_id="implementer-session",
+            thread_id="thread-usage",
+            turn_id="turn-usage",
+            expected_phase="implement",
+            expected_role="implementer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
+            wall_clock_seconds=7,
+            input_tokens=10_000,
+            output_tokens=10_000,
+        )
+
+        snapshot = SnapshotStore(self.snapshot_path).load()
+        self.assertEqual("validate", snapshot.iteration_phase)
+        self.assertEqual(1, snapshot.budget.turns)
+        self.assertEqual(7, snapshot.budget.wall_clock_seconds)
+        self.assertEqual(10_000, snapshot.budget.input_tokens)
+        self.assertEqual(10_000, snapshot.budget.output_tokens)
+        self.assertEqual(0, snapshot.budget.cost_microusd)
+
+    def test_invalid_turn_usage_fails_before_snapshot_mutation(self) -> None:
+        before = SnapshotStore(self.snapshot_path).load().to_json()
+
+        with self.assertRaisesRegex(ValueError, "budget increments"):
+            TurnStateController(
+                self.root / "state",
+                workspace_write_enabled=True,
+                contract_path=CONTRACT_PATH,
+            ).complete_turn(
+                "GH-123",
+                self.workspace,
+                session_id="implementer-session",
+                thread_id="thread-invalid-usage",
+                turn_id="turn-invalid-usage",
+                expected_phase="implement",
+                expected_role="implementer",
+                expected_head_sha=self.head,
+                expected_candidate_revision=None,
+                wall_clock_seconds=1,
+                input_tokens=-1,
+                output_tokens=0,
+            )
+
+        self.assertEqual(before, SnapshotStore(self.snapshot_path).load().to_json())
+
+    def test_budget_overflow_is_persisted_without_advancing_phase(self) -> None:
+        contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+        contract["limits"]["max_turns_per_task"] = 0
+        contract_path = self.root / "state-contract.json"
+        contract_path.write_text(json.dumps(contract), encoding="utf-8")
+
+        with self.assertRaisesRegex(BudgetExceeded, "budget:turns"):
+            TurnStateController(
+                self.root / "state",
+                workspace_write_enabled=True,
+                contract_path=contract_path,
+            ).complete_turn(
+                "GH-123",
+                self.workspace,
+                session_id="implementer-session",
+                thread_id="thread-overflow",
+                turn_id="turn-overflow",
+                expected_phase="implement",
+                expected_role="implementer",
+                expected_head_sha=self.head,
+                expected_candidate_revision=None,
+                wall_clock_seconds=1,
+                input_tokens=1,
+                output_tokens=1,
+            )
+
+        blocked = SnapshotStore(self.snapshot_path).load()
+        self.assertEqual("blocked", blocked.state)
+        self.assertEqual("budget:turns", blocked.blocked_reason)
+        self.assertEqual("implement", blocked.iteration_phase)
+        self.assertEqual(1, blocked.budget.turns)
+        self.assertIn(
+            'turn:["implementer-session","thread-overflow","turn-overflow"]',
+            blocked.consumed_idempotency_keys,
+        )
+
+    def test_wall_clock_overflow_is_persisted_without_advancing_phase(self) -> None:
+        contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+        contract["limits"]["max_wall_clock_seconds"] = 0
+        contract_path = self.root / "state-contract.json"
+        contract_path.write_text(json.dumps(contract), encoding="utf-8")
+
+        with self.assertRaisesRegex(BudgetExceeded, "budget:wall-clock"):
+            TurnStateController(
+                self.root / "state",
+                workspace_write_enabled=True,
+                contract_path=contract_path,
+            ).complete_turn(
+                "GH-123",
+                self.workspace,
+                session_id="implementer-session",
+                thread_id="thread-wall-clock-overflow",
+                turn_id="turn-wall-clock-overflow",
+                expected_phase="implement",
+                expected_role="implementer",
+                expected_head_sha=self.head,
+                expected_candidate_revision=None,
+                wall_clock_seconds=1,
+            )
+
+        blocked = SnapshotStore(self.snapshot_path).load()
+        self.assertEqual("blocked", blocked.state)
+        self.assertEqual("budget:wall-clock", blocked.blocked_reason)
+        self.assertEqual("implement", blocked.iteration_phase)
+        self.assertEqual(1, blocked.budget.turns)
+        self.assertEqual(1, blocked.budget.wall_clock_seconds)
+        self.assertIn(
+            'turn:["implementer-session","thread-wall-clock-overflow","turn-wall-clock-overflow"]',
+            blocked.consumed_idempotency_keys,
+        )
+
+    def test_failed_turn_records_budget_without_advancing_phase(self) -> None:
+        TurnStateController(
+            self.root / "state",
+            workspace_write_enabled=True,
+            contract_path=CONTRACT_PATH,
+        ).complete_turn(
+            "GH-123",
+            self.workspace,
+            session_id="implementer-session",
+            thread_id="thread-failed",
+            turn_id="turn-failed",
+            expected_phase="implement",
+            expected_role="implementer",
+            expected_head_sha=self.head,
+            expected_candidate_revision=None,
+            wall_clock_seconds=3,
+            input_tokens=100,
+            output_tokens=20,
+            outcome="failed",
+        )
+
+        snapshot = SnapshotStore(self.snapshot_path).load()
+        self.assertEqual("implement", snapshot.iteration_phase)
+        self.assertEqual(1, snapshot.budget.turns)
+        self.assertEqual(3, snapshot.budget.wall_clock_seconds)
+        self.assertEqual("failed", snapshot.last_turn_receipt["outcome"])
+
+    def test_missing_token_usage_blocks_after_recording_turn_and_wall_clock(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "receipt:missing-token-usage"):
+            TurnStateController(
+                self.root / "state",
+                workspace_write_enabled=True,
+                contract_path=CONTRACT_PATH,
+            ).complete_turn(
+                "GH-123",
+                self.workspace,
+                session_id="implementer-session",
+                thread_id="thread-unmetered",
+                turn_id="turn-unmetered",
+                expected_phase="implement",
+                expected_role="implementer",
+                expected_head_sha=self.head,
+                expected_candidate_revision=None,
+                wall_clock_seconds=5,
+                input_tokens=0,
+                output_tokens=0,
+                outcome="failed",
+                token_usage_observed=False,
+            )
+
+        snapshot = SnapshotStore(self.snapshot_path).load()
+        self.assertEqual("blocked", snapshot.state)
+        self.assertEqual("receipt:missing-token-usage", snapshot.blocked_reason)
+        self.assertEqual("implement", snapshot.iteration_phase)
+        self.assertEqual(1, snapshot.budget.turns)
+        self.assertEqual(5, snapshot.budget.wall_clock_seconds)
+        self.assertEqual("false", snapshot.last_turn_receipt["token_usage_observed"])
+
     def test_gate_rejects_stale_candidate_and_infrastructure_retry_preserves_candidate(self) -> None:
         self.snapshot.iteration_phase = "validate"
         SnapshotStore(self.snapshot_path).save(self.snapshot)
@@ -763,6 +1060,7 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         current = store.freeze("GH-123", self.workspace)
 
         self.assertNotEqual(previous.candidate_revision, current.candidate_revision)
+        self.assertIsNone(SnapshotStore(self.snapshot_path).load().candidate_commit_sha)
         self.assertEqual(
             current.to_json(), SnapshotStore(self.snapshot_path).load().candidate_revision
         )
@@ -793,8 +1091,6 @@ class RuntimePhaseControllerTest(unittest.TestCase):
                 "{}",
                 "--state-root",
                 str(self.root / "state"),
-                "--contract",
-                str(CONTRACT_PATH),
             ],
             capture_output=True,
             text=True,
@@ -803,6 +1099,86 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("isolated gate capability is disabled", result.stderr)
         self.assertNotIn("TypeError", result.stderr)
+
+    def test_github_e2e_preflight_is_configuration_only(self) -> None:
+        environment = dict(os.environ)
+        environment.update(
+            JSTORE_SYMPHONY_GITHUB_TOKEN="must-not-be-read",
+            HTTPS_PROXY="http://127.0.0.1:1",
+            HTTP_PROXY="http://127.0.0.1:1",
+        )
+        result = subprocess.run(
+            [
+                "python3",
+                str(Path(__file__).resolve().parents[2] / "scripts" / "agentic-cicd-controller.py"),
+                "github-e2e-preflight",
+                "--repository",
+                "ddd-mall/agentic-cicd-disposable",
+                "--repository-url",
+                "https://github.com/ddd-mall/agentic-cicd-disposable.git",
+                "--contract",
+                str(DISPOSABLE_CONTRACT_PATH),
+            ],
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual(
+            "GITHUB_E2E_PREFLIGHT_READY "
+            "repository=ddd-mall/agentic-cicd-disposable capability_level=2\n",
+            result.stdout,
+        )
+        self.assertNotIn("must-not-be-read", result.stdout + result.stderr)
+
+    def test_runtime_commands_reject_caller_selected_contracts(self) -> None:
+        result = subprocess.run(
+            [
+                "python3",
+                str(Path(__file__).resolve().parents[2] / "scripts" / "agentic-cicd-controller.py"),
+                "freeze-candidate",
+                "--issue",
+                "GH-123",
+                "--workspace",
+                str(self.workspace),
+                "--state-root",
+                str(self.root / "state"),
+                "--artifact-root",
+                str(self.root / "artifacts"),
+                "--contract",
+                str(DISPOSABLE_CONTRACT_PATH),
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("unrecognized arguments: --contract", result.stderr)
+        self.assertIsNone(SnapshotStore(self.snapshot_path).load().candidate_revision)
+
+    def test_runtime_rejects_task_repository_drift_before_gate_processing(self) -> None:
+        self.snapshot.repository = "ddd-mall/other"
+        SnapshotStore(self.snapshot_path).save(self.snapshot)
+        result = subprocess.run(
+            [
+                "python3",
+                str(Path(__file__).resolve().parents[2] / "scripts" / "agentic-cicd-controller.py"),
+                "record-gate",
+                "--issue",
+                "GH-123",
+                "--payload",
+                "{}",
+                "--state-root",
+                str(self.root / "state"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("task repository does not match", result.stderr)
+        self.assertNotIn("isolated gate capability is disabled", result.stderr)
 
     def test_observation_turn_completes_without_forging_implementation_identity(self) -> None:
         controller = TurnStateController(

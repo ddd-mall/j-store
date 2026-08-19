@@ -8,7 +8,10 @@ import re
 import sys
 from pathlib import Path
 
-from agentic_cicd.capabilities import validate_capabilities
+from agentic_cicd.capabilities import (
+    validate_capabilities,
+    validate_disposable_github_e2e,
+)
 
 
 REPO_ROOT = Path(
@@ -38,6 +41,9 @@ def validate() -> list[str]:
 
     try:
         contract = load_json("config/agentic-cicd/state-contract.json")
+        disposable_contract = load_json(
+            "config/agentic-cicd/state-contract.level2-disposable.example.json"
+        )
         lock = load_json("config/agentic-cicd/symphony.lock.json")
         app_server_lock = load_json(
             "config/agentic-cicd/codex-app-server.lock.json"
@@ -93,6 +99,19 @@ def validate() -> list[str]:
     failures.extend(
         validate_capabilities(
             contract.get("capability_level"), contract.get("capabilities")
+        )
+    )
+    if contract.get("capability_level") != 0:
+        failures.append("authoritative state contract must remain at Level 0")
+    failures.extend(
+        "disposable profile: " + failure
+        for failure in validate_disposable_github_e2e(
+            repository="example-owner/agentic-cicd-disposable",
+            repository_url=(
+                "https://github.com/example-owner/agentic-cicd-disposable.git"
+            ),
+            contract=disposable_contract,
+            authoritative_contract=contract,
         )
     )
 
@@ -253,7 +272,7 @@ def validate() -> list[str]:
         failures.append("GateRequest schema must bind candidate and runner identity")
     expected_receipt_evidence = expected_gate_binding | {
         "verdict", "started_at", "finished_at", "exit_code", "log_sha256",
-        "job_uid", "pod_uid", "findings",
+        "job_uid", "pod_uid", "findings", "skipped_checks",
     }
     if set(gate_receipt_schema.get("required", [])) != expected_receipt_evidence:
         failures.append("GateReceipt schema must contain exact runtime evidence")
@@ -326,7 +345,21 @@ def validate() -> list[str]:
     if "不得包含密码、token、私钥或生产数据" not in issue_form:
         failures.append("Issue Form does not warn against secret submission")
 
-    for boundary in ("只读观察", "不得自动合并", "kill switch"):
+    for boundary in (
+        "只读观察",
+        "不得自动合并",
+        "kill switch",
+        "Level 2 disposable真实演练契约",
+        "GH15-01",
+        "GH15-02",
+        "GH15-03",
+        "GH15-04",
+        "GH15-05",
+        "GH15-06",
+        "GH15-07",
+        "GH16-01",
+        "不构成外部写授权",
+    ):
         if boundary not in runbook:
             failures.append(f"runbook is missing boundary: {boundary}")
 

@@ -96,7 +96,8 @@ Gate Job先运行受信的 network-admission init：等待固定收敛窗口后�
 | `create_remote_branch` | false | false | 不向 GitHub 创建 ref |
 | `push_commit` | false | false | 不推送候选 |
 | `create_draft_pull_request` | false | false | 不创建或更新 PR |
-| `mark_pull_request_ready` / `send_email` | false | false | 后续阶段能力 |
+| `write_issue_comment` / `update_issue_labels` | false | false | 后续Issue控制面能力 |
+| `mark_pull_request_ready` / `request_pull_request_review` | false | false | 后续GitHub人工交接能力 |
 | `auto_approve` / `auto_merge` / `auto_release` / `production_write` | false | false | 永久不因 Level 1 开启 |
 
 `create_branch` 旧字段在一个受测试的合同迁移中替换；不保留同时代表本地和远端行为的模糊语义。
@@ -182,7 +183,7 @@ implement turn
 
 `max_turns: 1`保持不变。validate、freeze和complete都在App Server创建前短路；after hook只提交可信TurnReceipt/请求，不执行candidate archive。Symphony在启动model turn前读取host-owned phase context，并在受信turn receipt中携带该次invocation的phase、role、head SHA和可选CandidateRevision；complete hook必须逐项回传，controller在任何状态写入前与当前snapshot核对。成功receipt还以session/thread/turn规范元组消费幂等键，因此Review FAIL回流后或未来再次进入同名phase时，旧callback都不能被重新分类或重复消费。
 
-`max_cost_microusd`当前只表达主机侧预算和审计意图，控制器尚未从Codex App Server取得可验证的实时金额，也不能在上游请求前硬熔断费用。OpenAI Platform的spend alert只通知而不停止请求，project rate limit只约束一段时间内的请求/Token数量。真实模型演练必须使用专用项目、保守rate limit和spend alert，并由费用所有者对“一次turn但金额不由当前控制器硬限制”的精确残余风险单独批准；不得把合同字段或spend alert误报为实际5美元上限。
+可信turn receipt把turn、墙钟时间和input/output token用量原子写入TaskSnapshot；turn或墙钟超限时Coordinator把任务转入blocked。token只作为审计与度量事实，控制器不维护模型费率表，也不把token换算值宣称为账单。`max_cost_microusd`保留为兼容的未接线合同字段，不是当前能力升级的完成条件；真实费用由专用provider project、外部spend controls和仓库统一的模型调用授权治理。
 
 ## Symphony 供应链顺序
 

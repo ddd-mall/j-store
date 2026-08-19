@@ -22,6 +22,7 @@ from scripts.agentic_cicd.protocol import (
     ReviewProposal,
     TurnReceipt,
 )
+from scripts.agentic_cicd.workspace import BaseSyncResult
 
 
 SHA_A = "a" * 40
@@ -272,6 +273,96 @@ class SymphonyPhaseBridgeTest(unittest.TestCase):
         self.assertIsNone(restored.implementer_session_id)
         self.assertTrue(restored.has_review_pass_for(previous_revision))
         self.assertFalse(restored.has_review_pass_for("9" * 64))
+
+    def test_new_head_returns_human_review_task_to_the_gate_loop(self) -> None:
+        self.snapshot.state = "human_review"
+        self.snapshot.iteration_phase = PHASE_COMPLETE
+        self.snapshot.handoff_head_sha = SHA_B
+
+        self.bridge.invalidate_for_new_head(self.snapshot, SHA_C)
+
+        self.assertEqual("queued", self.snapshot.state)
+        self.assertEqual(PHASE_IMPLEMENT, self.snapshot.iteration_phase)
+        self.assertEqual(SHA_C, self.snapshot.head_sha)
+        self.assertIsNone(self.snapshot.handoff_head_sha)
+        self.assertIsNone(self.snapshot.candidate_commit_sha)
+
+    def test_successful_base_sync_invalidates_all_current_head_gates(self) -> None:
+        self.snapshot.state = "human_review"
+        self.snapshot.iteration_phase = PHASE_COMPLETE
+        self.snapshot.implementer_session_id = "implementer-session"
+        self.snapshot.gate_request = {"gate_id": "old-gate"}
+        self.snapshot.gate_receipt = {"verdict": "PASS"}
+        self.snapshot.review_workspace = "/tmp/old-review"
+        self.snapshot.handoff_head_sha = SHA_B
+
+        self.bridge.apply_base_sync(
+            self.snapshot,
+            BaseSyncResult(
+                status="UPDATED",
+                previous_base_sha=SHA_A,
+                base_sha=SHA_C,
+                previous_head_sha=SHA_B,
+                head_sha="d" * 40,
+            ),
+        )
+
+        self.assertEqual(SHA_C, self.snapshot.base_sha)
+        self.assertEqual("d" * 40, self.snapshot.head_sha)
+        self.assertEqual("queued", self.snapshot.state)
+        self.assertEqual(PHASE_IMPLEMENT, self.snapshot.iteration_phase)
+        self.assertIsNone(self.snapshot.candidate_revision)
+        self.assertIsNone(self.snapshot.gate_request)
+        self.assertIsNone(self.snapshot.gate_receipt)
+        self.assertIsNone(self.snapshot.implementer_session_id)
+        self.assertIsNone(self.snapshot.review_workspace)
+        self.assertIsNone(self.snapshot.handoff_head_sha)
+        self.assertEqual("UPDATED", self.snapshot.base_sync["status"])
+
+    def test_base_conflict_is_persisted_without_accepting_the_new_base(self) -> None:
+        self.snapshot.iteration_phase = PHASE_COMPLETE
+
+        self.bridge.apply_base_sync(
+            self.snapshot,
+            BaseSyncResult(
+                status="CONFLICT",
+                previous_base_sha=SHA_A,
+                base_sha=SHA_C,
+                previous_head_sha=SHA_B,
+                head_sha=SHA_B,
+            ),
+        )
+
+        self.assertEqual(SHA_A, self.snapshot.base_sha)
+        self.assertEqual(SHA_B, self.snapshot.head_sha)
+        self.assertEqual("queued", self.snapshot.state)
+        self.assertEqual(PHASE_IMPLEMENT, self.snapshot.iteration_phase)
+        self.assertIsNone(self.snapshot.candidate_revision)
+        self.assertEqual("CONFLICT", self.snapshot.base_sync["status"])
+        self.assertEqual(SHA_C, self.snapshot.base_sync["base_sha"])
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = SnapshotStore(Path(directory) / "snapshot.json")
+            store.save(self.snapshot)
+            restored = store.load()
+        self.assertEqual(self.snapshot.base_sync, restored.base_sync)
+
+    def test_base_sync_identity_mismatch_fails_before_snapshot_mutation(self) -> None:
+        before = self.snapshot.to_json()
+
+        with self.assertRaisesRegex(PhaseBridgeError, "differs from task identity"):
+            self.bridge.apply_base_sync(
+                self.snapshot,
+                BaseSyncResult(
+                    status="UPDATED",
+                    previous_base_sha=SHA_A,
+                    base_sha=SHA_C,
+                    previous_head_sha="9" * 40,
+                    head_sha="d" * 40,
+                ),
+            )
+
+        self.assertEqual(before, self.snapshot.to_json())
 
 
 if __name__ == "__main__":

@@ -13,7 +13,10 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate pinned Symphony and Codex runtimes without starting a model turn."
+        description=(
+            "Validate pinned Symphony source and the installed stable Codex runtime "
+            "without starting a model turn."
+        )
     )
     parser.add_argument(
         "--symphony-source",

@@ -47,10 +47,9 @@ body:
     id: acceptance
     attributes:
       label: 验收标准
-      description: 每行一个可执行或可观察的验收场景，包含关键失败路径。
+      description: 每行一个可执行或可观察的验收场景，使用稳定ID并绑定下方必需验证中的一条命令。
       placeholder: |
-        - [ ] Given ... When ... Then ...
-        - [ ] 对应测试或证据为 ...
+        - [ ] AC-EXAMPLE-01 | Given ... When ... Then ... | Evidence: `./gradlew :module:test`
     validations:
       required: true
 
@@ -74,6 +73,39 @@ body:
         - 高风险：公共契约、认证授权、隐私、多租户
         - 高风险：金额、库存、订单状态或数据语义
         - 高风险：不可逆数据、生产、密钥、权限或付费操作
+    validations:
+      required: true
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: 兼容性与迁移
+      description: 明确公开 API、事件、schema、数据或依赖的兼容性结论；不适用时说明原因。
+    validations:
+      required: true
+
+  - type: textarea
+    id: recovery
+    attributes:
+      label: 恢复与回滚
+      description: 说明失败后的恢复或回滚方式；不适用时说明原因。
+    validations:
+      required: true
+
+  - type: textarea
+    id: required_approvals
+    attributes:
+      label: 所需人工审批
+      description: 低风险且无额外审批时填写 None；否则每行列出一个审批所有者。
+      placeholder: None
+    validations:
+      required: true
+
+  - type: textarea
+    id: residual_risk
+    attributes:
+      label: 残余风险
+      description: 每行列出一个交付后仍需人工理解的限制、未运行检查或观察事项。
     validations:
       required: true
 

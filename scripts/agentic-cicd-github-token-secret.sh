@@ -5,6 +5,7 @@ context=""
 expected_context="kubernetes-admin@kubernetes"
 namespace="agentic-cicd"
 token_file=""
+expires_at_epoch_seconds=""
 read_stdin=false
 mode=""
 
@@ -12,7 +13,8 @@ usage() {
   cat <<'EOF'
 Usage:
   agentic-cicd-github-token-secret.sh --context <context> \
-    (--token-file <path> | --stdin) (--dry-run | --apply)
+    (--token-file <path> | --stdin) \
+    --expires-at-epoch-seconds <epoch> (--dry-run | --apply)
 
 Creates or validates the fixed agentic-cicd/symphony-github-token Secret.
 Token values are never accepted as arguments or environment variables and are
@@ -23,6 +25,8 @@ Options:
   --namespace <name>     Fixed target namespace (default: agentic-cicd)
   --token-file <path>    Read a token from a regular 0400/0600 file
   --stdin                Read a token from a non-interactive pipe
+  --expires-at-epoch-seconds <epoch>
+                         Trusted installation token expiration (5m-2h ahead)
   --dry-run              Validate with Kubernetes server dry-run only
   --apply                Create or replace the Secret
 EOF
@@ -45,6 +49,10 @@ while (($#)); do
     --stdin)
       read_stdin=true
       shift
+      ;;
+    --expires-at-epoch-seconds)
+      expires_at_epoch_seconds=${2:?missing token expiration}
+      shift 2
       ;;
     --dry-run)
       if [[ -n "$mode" ]]; then
@@ -90,6 +98,17 @@ if [[ "$namespace" != "agentic-cicd" ]]; then
 fi
 if [[ "$mode" != "dry-run" && "$mode" != "apply" ]]; then
   printf '%s\n' 'ERROR: choose exactly one of --dry-run or --apply.' >&2
+  exit 2
+fi
+if [[ ! "$expires_at_epoch_seconds" =~ ^[0-9]{10,12}$ ]]; then
+  printf '%s\n' 'ERROR: --expires-at-epoch-seconds is required.' >&2
+  exit 2
+fi
+current_epoch_seconds=$(date +%s)
+remaining_lifetime=$((expires_at_epoch_seconds - current_epoch_seconds))
+if ((remaining_lifetime < 300 || remaining_lifetime > 7200)); then
+  printf '%s\n' \
+    'ERROR: token expiration must be between 5 minutes and 2 hours ahead.' >&2
   exit 2
 fi
 if [[ (-n "$token_file" && "$read_stdin" == true) \
@@ -139,7 +158,9 @@ fi
 
 kubectl --context "$context" get namespace "$namespace" >/dev/null
 if ! kubectl --context "$context" -n "$namespace" create secret generic \
-  symphony-github-token --from-file=token="$token_path" --dry-run=client -o yaml \
+  symphony-github-token --from-file=token="$token_path" \
+  --from-literal=expires-at-epoch-seconds="$expires_at_epoch_seconds" \
+  --dry-run=client -o yaml \
   >"$manifest_path" 2>/dev/null; then
   printf '%s\n' 'ERROR: kubectl could not generate the Secret manifest.' >&2
   exit 1

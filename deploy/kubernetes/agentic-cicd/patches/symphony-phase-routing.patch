@@ -1,19 +1,24 @@
 diff --git a/elixir/lib/symphony_elixir/agent_runner.ex b/elixir/lib/symphony_elixir/agent_runner.ex
-index 9efbac7..15edea4 100644
+index 9efbac7..8e3d296 100644
 --- a/elixir/lib/symphony_elixir/agent_runner.ex
 +++ b/elixir/lib/symphony_elixir/agent_runner.ex
 @@ -5,7 +5,7 @@ defmodule SymphonyElixir.AgentRunner do
-
+ 
    require Logger
    alias SymphonyElixir.Codex.AppServer
 -  alias SymphonyElixir.{Config, PromptBuilder, Tracker, Workspace}
 +  alias SymphonyElixir.{AgenticCicd, Config, PromptBuilder, Tracker, Workspace}
    alias SymphonyElixir.Tracker.Issue
-
+ 
    @type worker_host :: String.t() | nil
-@@ -54,12 +54,21 @@ defmodule SymphonyElixir.AgentRunner do
+@@ -50,21 +50,34 @@ defmodule SymphonyElixir.AgentRunner do
+         turn_receipt =
+           case run_result do
+             {:ok, receipt} -> receipt
++            {:error, _reason, receipt} -> receipt
+             _ -> nil
            end
-
+ 
          after_result =
 -          Workspace.run_after_run_hook(workspace, issue, worker_host, turn_receipt)
 +          case run_result do
@@ -23,21 +28,30 @@ index 9efbac7..15edea4 100644
 +            _ ->
 +              Workspace.run_after_run_hook(workspace, issue, worker_host, turn_receipt)
 +          end
-
+ 
          case {run_result, after_result} do
            {{:ok, _receipt}, :ok} ->
              :ok
-
+ 
 +          {{:skip_model, _phase_context}, :ok} ->
 +            :ok
 +
            {{:ok, _receipt}, {:error, reason}} ->
              {:error, reason}
-
-@@ -103,12 +112,52 @@ defmodule SymphonyElixir.AgentRunner do
+ 
+           {{:error, reason}, _after_result} ->
+             {:error, reason}
++
++          {{:error, reason, _receipt}, _after_result} ->
++            {:error, reason}
+         end
+ 
+       {:error, reason} ->
+@@ -103,12 +116,62 @@ defmodule SymphonyElixir.AgentRunner do
    defp send_worker_runtime_info(_recipient, _issue, _worker_host, _workspace), do: :ok
-
+ 
    defp run_codex_turns(workspace, issue, codex_update_recipient, opts, worker_host) do
+-    max_turns = Keyword.get(opts, :max_turns, Config.settings!().agent.max_turns)
 +    with {:ok, phase_context} <- AgenticCicd.phase_context(workspace, issue, worker_host) do
 +      case phase_context do
 +        %{"run_model" => true} ->
@@ -58,10 +72,17 @@ index 9efbac7..15edea4 100644
 +
 +  defp run_codex_model(workspace, issue, codex_update_recipient, opts, worker_host, phase_context) do
 +    model_workspace = phase_context["model_workspace"]
-     max_turns = Keyword.get(opts, :max_turns, Config.settings!().agent.max_turns)
++
++    max_turns =
++      if phase_context["complete_turn"] do
++        1
++      else
++        Keyword.get(opts, :max_turns, Config.settings!().agent.max_turns)
++      end
++
      issue_state_fetcher = Keyword.get(opts, :issue_state_fetcher, &Tracker.fetch_issues_by_ids/1)
 +    opts = Keyword.put(opts, :agentic_cicd_context, phase_context)
-
+ 
 -    with {:ok, session} <- AppServer.start_session(workspace, worker_host: worker_host) do
 +    with {:ok, session} <-
 +           AppServer.start_session(model_workspace,
@@ -83,129 +104,388 @@ index 9efbac7..15edea4 100644
 +          {:ok, receipt} ->
 +            {:ok, Map.put(receipt, :agentic_cicd_context, phase_context)}
 +
++          {:error, reason, receipt} ->
++            {:error, reason, Map.put(receipt, :agentic_cicd_context, phase_context)}
++
 +          other ->
 +            other
 +        end
        after
          AppServer.stop_session(session)
        end
+@@ -117,42 +180,118 @@ defmodule SymphonyElixir.AgentRunner do
+ 
+   defp do_run_codex_turns(app_session, workspace, issue, codex_update_recipient, opts, issue_state_fetcher, turn_number, max_turns) do
+     prompt = build_turn_prompt(issue, opts, turn_number, max_turns)
++    turn_started_at_ms = System.monotonic_time(:millisecond)
++
++    turn_result =
++      AppServer.run_turn(
++        app_session,
++        prompt,
++        issue,
++        on_message: codex_message_handler(codex_update_recipient, issue)
++      )
++
++    wall_clock_seconds =
++      max(1, div(System.monotonic_time(:millisecond) - turn_started_at_ms + 999, 1_000))
++
++    case turn_result do
++      {:ok, turn_session} ->
++        with {:ok, usage} <- trusted_turn_usage(turn_session[:result]) do
++          turn_session =
++            turn_session
++            |> Map.merge(usage)
++            |> Map.put(:wall_clock_seconds, wall_clock_seconds)
++            |> Map.put(:outcome, "succeeded")
++
++          Logger.info("Completed agent run for #{issue_context(issue)} session_id=#{turn_session[:session_id]} workspace=#{workspace} turn=#{turn_number}/#{max_turns}")
++
++          case continue_with_issue?(issue, issue_state_fetcher) do
++            {:continue, refreshed_issue} when turn_number < max_turns ->
++              Logger.info("Continuing agent run for #{issue_context(refreshed_issue)} after normal turn completion turn=#{turn_number}/#{max_turns}")
++
++              do_run_codex_turns(
++                app_session,
++                workspace,
++                refreshed_issue,
++                codex_update_recipient,
++                opts,
++                issue_state_fetcher,
++                turn_number + 1,
++                max_turns
++              )
++
++            {:continue, refreshed_issue} ->
++              Logger.info("Reached agent.max_turns for #{issue_context(refreshed_issue)} with issue still active; returning control to orchestrator")
++
++              {:ok, turn_session}
++
++            {:done, _refreshed_issue} ->
++              {:ok, turn_session}
++
++            {:error, reason} ->
++              {:error, reason, turn_session}
++          end
++        else
++          {:error, reason} ->
++            {:error, reason, failed_turn_receipt(turn_session, wall_clock_seconds)}
++        end
+ 
+-    with {:ok, turn_session} <-
+-           AppServer.run_turn(
+-             app_session,
+-             prompt,
+-             issue,
+-             on_message: codex_message_handler(codex_update_recipient, issue)
+-           ) do
+-      Logger.info("Completed agent run for #{issue_context(issue)} session_id=#{turn_session[:session_id]} workspace=#{workspace} turn=#{turn_number}/#{max_turns}")
++      {:error, reason, turn_session} ->
++        {:error, reason, failed_turn_receipt(turn_session, wall_clock_seconds)}
+ 
+-      case continue_with_issue?(issue, issue_state_fetcher) do
+-        {:continue, refreshed_issue} when turn_number < max_turns ->
+-          Logger.info("Continuing agent run for #{issue_context(refreshed_issue)} after normal turn completion turn=#{turn_number}/#{max_turns}")
++      {:error, reason} ->
++        {:error, reason}
++    end
++  end
+ 
+-          do_run_codex_turns(
+-            app_session,
+-            workspace,
+-            refreshed_issue,
+-            codex_update_recipient,
+-            opts,
+-            issue_state_fetcher,
+-            turn_number + 1,
+-            max_turns
+-          )
++  defp failed_turn_receipt(turn_session, wall_clock_seconds) do
++    usage =
++      case trusted_turn_usage(turn_session[:result]) do
++        {:ok, observed} -> Map.put(observed, :token_usage_observed, true)
++        {:error, _reason} -> %{input_tokens: 0, output_tokens: 0, token_usage_observed: false}
++      end
+ 
+-        {:continue, refreshed_issue} ->
+-          Logger.info("Reached agent.max_turns for #{issue_context(refreshed_issue)} with issue still active; returning control to orchestrator")
++    turn_session
++    |> Map.merge(usage)
++    |> Map.put(:wall_clock_seconds, wall_clock_seconds)
++    |> Map.put(:outcome, "failed")
++  end
+ 
+-          {:ok, turn_session}
++  defp trusted_turn_usage(%{"usage" => %{"total" => usage}}) when is_map(usage),
++    do: normalize_turn_usage(usage)
+ 
+-        {:done, _refreshed_issue} ->
+-          {:ok, turn_session}
++  defp trusted_turn_usage(_payload), do: {:error, :missing_trusted_turn_usage}
+ 
+-        {:error, reason} ->
+-          {:error, reason}
+-      end
++  defp normalize_turn_usage(usage) do
++    with {:ok, input_tokens} <-
++           nonnegative_integer(usage, ["inputTokens"]),
++         {:ok, output_tokens} <-
++           nonnegative_integer(usage, ["outputTokens"]) do
++      {:ok,
++       %{
++         input_tokens: input_tokens,
++         output_tokens: output_tokens,
++         token_usage_observed: true
++       }}
++    else
++      _ -> {:error, :invalid_trusted_turn_usage}
++    end
++  end
++
++  defp nonnegative_integer(payload, keys) do
++    value = Enum.find_value(keys, &Map.get(payload, &1))
++
++    case value do
++      integer when is_integer(integer) and integer >= 0 ->
++        {:ok, integer}
++
++      binary when is_binary(binary) ->
++        case Integer.parse(binary) do
++          {integer, ""} when integer >= 0 -> {:ok, integer}
++          _ -> :error
++        end
++
++      _ ->
++        :error
+     end
+   end
+ 
 diff --git a/elixir/lib/symphony_elixir/agentic_cicd.ex b/elixir/lib/symphony_elixir/agentic_cicd.ex
 new file mode 100644
-index 0000000..3ea4702
+index 0000000..8b0b219
 --- /dev/null
 +++ b/elixir/lib/symphony_elixir/agentic_cicd.ex
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,104 @@
 +defmodule SymphonyElixir.AgenticCicd do
 +  @moduledoc """
-+  Reads j-store phase policy from the image-owned trusted controller.
++  Narrow bridge from Symphony's scheduler to the trusted j-store host controller.
 +  """
 +
 +  @controller "/opt/jstore-agentic-controller/controller.py"
-+  @allowed_roles ["observer", "implementer", "reviewer", "none"]
-+  @allowed_thread_sandboxes ["read-only", "workspace-write"]
++  @timeout_ms 120_000
++  @required_keys MapSet.new([
++                   "phase",
++                   "role",
++                   "run_model",
++                   "complete_turn",
++                   "thread_sandbox",
++                   "turn_sandbox_policy",
++                   "head_sha",
++                   "candidate_revision",
++                   "model_workspace"
++                 ])
++  @phases ["implement", "validate", "review", "complete"]
++  @roles ["observer", "implementer", "reviewer", "none"]
 +
-+  @spec phase_context(Path.t(), map(), String.t() | nil) :: {:ok, map()} | {:error, term()}
-+  def phase_context(_workspace, _issue, worker_host) when is_binary(worker_host) do
-+    {:error, :agentic_cicd_remote_worker_not_supported}
-+  end
-+
++  @spec phase_context(String.t(), map(), String.t() | nil) ::
++          {:ok, map()} | {:error, atom()}
 +  def phase_context(workspace, %{identifier: identifier}, nil)
 +      when is_binary(workspace) and is_binary(identifier) do
-+    case System.cmd(
-+           "/usr/bin/python3",
-+           [
-+             @controller,
-+             "phase-context",
-+             "--issue",
-+             identifier,
-+             "--workspace",
-+             workspace
-+           ],
-+           stderr_to_stdout: true
-+         ) do
-+      {output, 0} -> decode_context(output)
-+      {output, status} -> {:error, {:agentic_cicd_phase_context_failed, status, output}}
++    task =
++      Task.async(fn ->
++        System.cmd(
++          "/usr/bin/python3",
++          [
++            @controller,
++            "phase-context",
++            "--issue",
++            identifier,
++            "--workspace",
++            workspace
++          ],
++          stderr_to_stdout: true
++        )
++      end)
++
++    case Task.yield(task, @timeout_ms) do
++      {:ok, {output, 0}} -> decode_context(output)
++      {:ok, {_output, _status}} -> {:error, :phase_context_rejected}
++      nil ->
++        Task.shutdown(task, :brutal_kill)
++        {:error, :phase_context_timeout}
 +    end
 +  end
 +
-+  def phase_context(_workspace, _issue, _worker_host), do: {:error, :invalid_agentic_cicd_issue}
++  def phase_context(_workspace, %{identifier: identifier}, worker_host)
++      when is_binary(identifier) and is_binary(worker_host) do
++    {:error, :remote_phase_context_not_supported}
++  end
++
++  def phase_context(_workspace, _issue, _worker_host), do: {:error, :invalid_phase_context_identity}
 +
 +  defp decode_context(output) do
 +    with {:ok, context} when is_map(context) <- Jason.decode(String.trim(output)),
-+         :ok <- validate_context(context) do
++         true <- MapSet.new(Map.keys(context)) == @required_keys,
++         true <- valid_context?(context) do
 +      {:ok, context}
 +    else
-+      {:error, reason} -> {:error, {:invalid_agentic_cicd_phase_context, reason}}
-+      _ -> {:error, :invalid_agentic_cicd_phase_context}
++      _ -> {:error, :invalid_phase_context_response}
 +    end
 +  end
 +
-+  defp validate_context(context) do
-+    required = [
-+      "phase",
-+      "role",
-+      "run_model",
-+      "complete_turn",
-+      "thread_sandbox",
-+      "turn_sandbox_policy",
-+      "head_sha",
-+      "candidate_revision",
-+      "model_workspace"
-+    ]
-+
-+    cond do
-+      Enum.sort(Map.keys(context)) != Enum.sort(required) ->
-+        {:error, :unexpected_fields}
-+
-+      context["role"] not in @allowed_roles ->
-+        {:error, :invalid_role}
-+
-+      context["thread_sandbox"] not in @allowed_thread_sandboxes ->
-+        {:error, :invalid_thread_sandbox}
-+
-+      not is_boolean(context["run_model"]) or not is_boolean(context["complete_turn"]) ->
-+        {:error, :invalid_boolean}
-+
-+      not is_map(context["turn_sandbox_policy"]) ->
-+        {:error, :invalid_turn_sandbox_policy}
-+
-+      not is_binary(context["head_sha"]) or
-+          not String.match?(context["head_sha"], ~r/^[0-9a-f]{40}$/) ->
-+        {:error, :invalid_head_sha}
-+
-+      context["candidate_revision"] != nil and
-+          (not is_binary(context["candidate_revision"]) or
-+             not String.match?(context["candidate_revision"], ~r/^[0-9a-f]{64}$/)) ->
-+        {:error, :invalid_candidate_revision}
-+
-+      not is_binary(context["model_workspace"]) or context["model_workspace"] == "" ->
-+        {:error, :invalid_model_workspace}
-+
-+      true ->
-+        :ok
-+    end
++  defp valid_context?(context) do
++    context["phase"] in @phases and
++      context["role"] in @roles and
++      is_boolean(context["run_model"]) and
++      is_boolean(context["complete_turn"]) and
++      context["thread_sandbox"] in ["read-only", "workspace-write"] and
++      is_map(context["turn_sandbox_policy"]) and
++      valid_sha?(context["head_sha"], 40) and
++      valid_optional_candidate?(context["candidate_revision"]) and
++      is_binary(context["model_workspace"]) and
++      Path.type(context["model_workspace"]) == :absolute and
++      valid_phase_role?(context)
 +  end
++
++  defp valid_phase_role?(%{
++         "phase" => "implement",
++         "role" => role,
++         "run_model" => true
++       })
++       when role in ["observer", "implementer"],
++       do: true
++
++  defp valid_phase_role?(%{
++         "phase" => "review",
++         "role" => "reviewer",
++         "run_model" => true
++       }),
++       do: true
++
++  defp valid_phase_role?(%{
++         "phase" => phase,
++         "role" => "none",
++         "run_model" => false,
++         "complete_turn" => false
++       })
++       when phase in ["validate", "complete"],
++       do: true
++
++  defp valid_phase_role?(_context), do: false
++
++  defp valid_optional_candidate?(nil), do: true
++  defp valid_optional_candidate?(value), do: valid_sha?(value, 64)
++
++  defp valid_sha?(value, length) when is_binary(value) do
++    byte_size(value) == length and String.match?(value, ~r/\A[0-9a-f]+\z/)
++  end
++
++  defp valid_sha?(_value, _length), do: false
 +end
 diff --git a/elixir/lib/symphony_elixir/codex/app_server.ex b/elixir/lib/symphony_elixir/codex/app_server.ex
-index ae3db62..fa79d58 100644
+index ae3db62..ed89b7f 100644
 --- a/elixir/lib/symphony_elixir/codex/app_server.ex
 +++ b/elixir/lib/symphony_elixir/codex/app_server.ex
-@@ -43,8 +43,10 @@ defmodule SymphonyElixir.Codex.AppServer do
+@@ -11,6 +11,7 @@ defmodule SymphonyElixir.Codex.AppServer do
+   @turn_start_id 3
+   @port_line_bytes 1_048_576
+   @max_stream_log_bytes 1_000
++  @token_usage_grace_ms 1_000
+   @type session :: %{
+           port: port(),
+           metadata: map(),
+@@ -21,7 +22,8 @@ defmodule SymphonyElixir.Codex.AppServer do
+           thread_id: String.t(),
+           workspace: Path.t(),
+           worker_host: String.t() | nil,
+-          dynamic_tool_binding: map()
++          dynamic_tool_binding: map(),
++          trusted_usage_required: boolean()
+         }
+ 
+   @spec run(Path.t(), String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+@@ -43,8 +45,10 @@ defmodule SymphonyElixir.Codex.AppServer do
      with {:ok, expanded_workspace} <- validate_workspace_cwd(workspace, worker_host),
           {:ok, port} <- start_port(expanded_workspace, worker_host, dynamic_tool_binding) do
        metadata = port_metadata(port, worker_host)
 +      runtime_policy = Keyword.get(opts, :runtime_policy)
-
+ 
 -      with {:ok, session_policies} <- session_policies(expanded_workspace, worker_host),
 +      with {:ok, base_policies} <- session_policies(expanded_workspace, worker_host),
 +           {:ok, session_policies} <- apply_runtime_policy(base_policies, runtime_policy),
             {:ok, thread_id} <-
               do_start_session(port, expanded_workspace, session_policies, dynamic_tool_binding) do
          {:ok,
-@@ -304,6 +306,28 @@ defmodule SymphonyElixir.Codex.AppServer do
+@@ -58,7 +62,8 @@ defmodule SymphonyElixir.Codex.AppServer do
+            thread_id: thread_id,
+            workspace: expanded_workspace,
+            worker_host: worker_host,
+-           dynamic_tool_binding: dynamic_tool_binding
++           dynamic_tool_binding: dynamic_tool_binding,
++           trusted_usage_required: not is_nil(runtime_policy)
+          }}
+       else
+         {:error, reason} ->
+@@ -78,7 +83,8 @@ defmodule SymphonyElixir.Codex.AppServer do
+           turn_sandbox_policy: turn_sandbox_policy,
+           thread_id: thread_id,
+           workspace: workspace,
+-          dynamic_tool_binding: dynamic_tool_binding
++          dynamic_tool_binding: dynamic_tool_binding,
++          trusted_usage_required: trusted_usage_required
+         },
+         prompt,
+         issue,
+@@ -107,7 +113,15 @@ defmodule SymphonyElixir.Codex.AppServer do
+           metadata
+         )
+ 
+-        case await_turn_completion(port, on_message, tool_executor, auto_approve_requests) do
++        case await_turn_completion(
++               port,
++               on_message,
++               tool_executor,
++               auto_approve_requests,
++               trusted_usage_required,
++               thread_id,
++               turn_id
++             ) do
+           {:ok, result} ->
+             Logger.info("Codex session completed for #{issue_context(issue)} session_id=#{session_id}")
+ 
+@@ -119,6 +133,27 @@ defmodule SymphonyElixir.Codex.AppServer do
+                turn_id: turn_id
+              }}
+ 
++          {:error, reason, result} ->
++            Logger.warning("Codex session ended with error for #{issue_context(issue)} session_id=#{session_id}: #{inspect(reason)}")
++
++            emit_message(
++              on_message,
++              :turn_ended_with_error,
++              %{
++                session_id: session_id,
++                reason: reason
++              },
++              metadata
++            )
++
++            {:error, reason,
++             %{
++               result: result,
++               session_id: session_id,
++               thread_id: thread_id,
++               turn_id: turn_id
++             }}
++
+           {:error, reason} ->
+             Logger.warning("Codex session ended with error for #{issue_context(issue)} session_id=#{session_id}: #{inspect(reason)}")
+ 
+@@ -304,6 +339,28 @@ defmodule SymphonyElixir.Codex.AppServer do
      Config.codex_runtime_settings(workspace, remote: true)
    end
-
+ 
 +  defp apply_runtime_policy(policies, nil), do: {:ok, policies}
 +
 +  defp apply_runtime_policy(
@@ -231,6 +511,378 @@ index ae3db62..fa79d58 100644
    defp do_start_session(port, workspace, session_policies, dynamic_tool_binding) do
      case send_initialize(port) do
        :ok -> start_thread(port, workspace, session_policies, dynamic_tool_binding)
+@@ -365,22 +422,53 @@ defmodule SymphonyElixir.Codex.AppServer do
+     end
+   end
+ 
+-  defp await_turn_completion(port, on_message, tool_executor, auto_approve_requests) do
++  defp await_turn_completion(
++         port,
++         on_message,
++         tool_executor,
++         auto_approve_requests,
++         trusted_usage_required,
++         thread_id,
++         turn_id
++       ) do
++    turn_state =
++      if trusted_usage_required do
++        %{thread_id: thread_id, turn_id: turn_id, usage: nil, terminal: nil}
++      end
++
+     receive_loop(
+       port,
+       on_message,
+       Config.settings!().codex.turn_timeout_ms,
+       "",
+       tool_executor,
+-      auto_approve_requests
++      auto_approve_requests,
++      turn_state
+     )
+   end
+ 
+-  defp receive_loop(port, on_message, timeout_ms, pending_line, tool_executor, auto_approve_requests) do
++  defp receive_loop(
++         port,
++         on_message,
++         timeout_ms,
++         pending_line,
++         tool_executor,
++         auto_approve_requests,
++         turn_state
++       ) do
+     receive do
+       {^port, {:data, {:eol, chunk}}} ->
+         complete_line = pending_line <> to_string(chunk)
+-        handle_incoming(port, on_message, complete_line, timeout_ms, tool_executor, auto_approve_requests)
++
++        handle_incoming(
++          port,
++          on_message,
++          complete_line,
++          timeout_ms,
++          tool_executor,
++          auto_approve_requests,
++          turn_state
++        )
+ 
+       {^port, {:data, {:noeol, chunk}}} ->
+         receive_loop(
+@@ -389,24 +477,41 @@ defmodule SymphonyElixir.Codex.AppServer do
+           timeout_ms,
+           pending_line <> to_string(chunk),
+           tool_executor,
+-          auto_approve_requests
++          auto_approve_requests,
++          turn_state
+         )
+ 
+       {^port, {:exit_status, status}} ->
+-        {:error, {:port_exit, status}}
++        reason =
++          if turn_state && turn_state.terminal && is_nil(turn_state.usage) do
++            :missing_trusted_turn_usage
++          else
++            {:port_exit, status}
++          end
++
++        turn_error(reason, turn_state)
+     after
+       timeout_ms ->
+-        {:error, :turn_timeout}
++        reason = if turn_state && turn_state.terminal, do: :missing_trusted_turn_usage, else: :turn_timeout
++        turn_error(reason, turn_state)
+     end
+   end
+ 
+-  defp handle_incoming(port, on_message, data, timeout_ms, tool_executor, auto_approve_requests) do
++  defp handle_incoming(
++         port,
++         on_message,
++         data,
++         timeout_ms,
++         tool_executor,
++         auto_approve_requests,
++         turn_state
++       ) do
+     payload_string = to_string(data)
+ 
+     case Jason.decode(payload_string) do
+       {:ok, %{"method" => "turn/completed"} = payload} ->
+         emit_turn_event(on_message, :turn_completed, payload, payload_string, port, payload)
+-        {:ok, :turn_completed}
++        complete_terminal({:ok, payload}, turn_state, port, on_message, timeout_ms, tool_executor, auto_approve_requests)
+ 
+       {:ok, %{"method" => "turn/failed", "params" => _} = payload} ->
+         emit_turn_event(
+@@ -418,7 +523,15 @@ defmodule SymphonyElixir.Codex.AppServer do
+           Map.get(payload, "params")
+         )
+ 
+-        {:error, {:turn_failed, Map.get(payload, "params")}}
++        complete_terminal(
++          {:error, {:turn_failed, Map.get(payload, "params")}, payload},
++          turn_state,
++          port,
++          on_message,
++          timeout_ms,
++          tool_executor,
++          auto_approve_requests
++        )
+ 
+       {:ok, %{"method" => "turn/cancelled", "params" => _} = payload} ->
+         emit_turn_event(
+@@ -430,7 +543,26 @@ defmodule SymphonyElixir.Codex.AppServer do
+           Map.get(payload, "params")
+         )
+ 
+-        {:error, {:turn_cancelled, Map.get(payload, "params")}}
++        complete_terminal(
++          {:error, {:turn_cancelled, Map.get(payload, "params")}, payload},
++          turn_state,
++          port,
++          on_message,
++          timeout_ms,
++          tool_executor,
++          auto_approve_requests
++        )
++
++      {:ok, %{"method" => "thread/tokenUsage/updated"} = payload} ->
++        handle_trusted_usage(
++          payload,
++          turn_state,
++          port,
++          on_message,
++          timeout_ms,
++          tool_executor,
++          auto_approve_requests
++        )
+ 
+       {:ok, %{"method" => method} = payload}
+       when is_binary(method) ->
+@@ -442,7 +574,8 @@ defmodule SymphonyElixir.Codex.AppServer do
+           method,
+           timeout_ms,
+           tool_executor,
+-          auto_approve_requests
++          auto_approve_requests,
++          turn_state
+         )
+ 
+       {:ok, payload} ->
+@@ -456,7 +589,7 @@ defmodule SymphonyElixir.Codex.AppServer do
+           metadata_from_message(port, payload)
+         )
+ 
+-        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests)
++        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests, turn_state)
+ 
+       {:error, _reason} ->
+         log_non_json_stream_line(payload_string, "turn stream")
+@@ -473,10 +606,151 @@ defmodule SymphonyElixir.Codex.AppServer do
+           )
+         end
+ 
+-        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests)
++        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests, turn_state)
++    end
++  end
++
++  defp handle_trusted_usage(
++         payload,
++         nil,
++         port,
++         on_message,
++         timeout_ms,
++         tool_executor,
++         auto_approve_requests
++       ) do
++    emit_message(on_message, :notification, %{payload: payload, raw: Jason.encode!(payload)}, metadata_from_message(port, payload))
++    receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests, nil)
++  end
++
++  defp handle_trusted_usage(
++         %{
++           "params" => %{
++             "threadId" => thread_id,
++             "turnId" => turn_id,
++             "tokenUsage" => %{"total" => total} = usage
++           }
++         },
++         %{thread_id: thread_id, turn_id: turn_id} = turn_state,
++         port,
++         on_message,
++         timeout_ms,
++         tool_executor,
++         auto_approve_requests
++       )
++       when is_map(total) do
++    with :ok <- monotonic_usage(turn_state.usage, usage) do
++      next_state = %{turn_state | usage: usage}
++
++      case next_state.terminal do
++        nil ->
++          receive_loop(
++            port,
++            on_message,
++            timeout_ms,
++            "",
++            tool_executor,
++            auto_approve_requests,
++            next_state
++          )
++
++        terminal ->
++          terminal_result(terminal, next_state)
++      end
++    else
++      {:error, reason} -> turn_error(reason, turn_state)
++    end
++  end
++
++  defp handle_trusted_usage(_payload, turn_state, _port, _on_message, _timeout_ms, _tool_executor, _auto_approve_requests),
++    do: turn_error(:invalid_trusted_turn_usage_identity, turn_state)
++
++  defp complete_terminal(terminal, nil, _port, _on_message, _timeout_ms, _tool_executor, _auto_approve_requests) do
++    case terminal do
++      {:ok, payload} -> {:ok, payload}
++      {:error, reason, _payload} -> {:error, reason}
++    end
++  end
++
++  defp complete_terminal(
++         terminal,
++         turn_state,
++         port,
++         on_message,
++         _timeout_ms,
++         tool_executor,
++         auto_approve_requests
++       ) do
++    with :ok <- validate_terminal_identity(terminal, turn_state) do
++      if turn_state.terminal && turn_state.terminal != terminal do
++        turn_error(:conflicting_trusted_turn_terminal, turn_state)
++      else
++        next_state = %{turn_state | terminal: terminal}
++
++        if next_state.usage do
++          terminal_result(terminal, next_state)
++        else
++          receive_loop(
++            port,
++            on_message,
++            @token_usage_grace_ms,
++            "",
++            tool_executor,
++            auto_approve_requests,
++            next_state
++          )
++        end
++      end
++    else
++      {:error, reason} -> turn_error(reason, turn_state)
++    end
++  end
++
++  defp validate_terminal_identity(terminal, turn_state) do
++    payload = if elem(terminal, 0) == :ok, do: elem(terminal, 1), else: elem(terminal, 2)
++
++    case payload do
++      %{
++        "params" => %{
++          "threadId" => thread_id,
++          "turn" => %{"id" => turn_id}
++        }
++      }
++      when thread_id == turn_state.thread_id and turn_id == turn_state.turn_id ->
++        :ok
++
++      _ ->
++        {:error, :invalid_trusted_turn_terminal_identity}
+     end
+   end
+ 
++  defp terminal_result({:ok, payload}, turn_state),
++    do: {:ok, %{"terminal" => payload, "usage" => turn_state.usage}}
++
++  defp terminal_result({:error, reason, payload}, turn_state),
++    do: {:error, reason, %{"terminal" => payload, "usage" => turn_state.usage}}
++
++  defp turn_error(reason, nil), do: {:error, reason}
++
++  defp turn_error(reason, turn_state),
++    do: {:error, reason, %{"terminal" => turn_state.terminal, "usage" => turn_state.usage}}
++
++  defp monotonic_usage(nil, _usage), do: :ok
++
++  defp monotonic_usage(%{"total" => previous}, %{"total" => current}) do
++    keys = ["totalTokens", "inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens"]
++
++    if Enum.all?(keys, fn key ->
++         is_integer(previous[key]) and is_integer(current[key]) and current[key] >= previous[key]
++       end) do
++      :ok
++    else
++      {:error, :non_monotonic_trusted_turn_usage}
++    end
++  end
++
++  defp monotonic_usage(_previous, _current), do: {:error, :invalid_trusted_turn_usage}
++
+   defp emit_turn_event(on_message, event, payload, payload_string, port, payload_details) do
+     emit_message(
+       on_message,
+@@ -498,7 +772,8 @@ defmodule SymphonyElixir.Codex.AppServer do
+          method,
+          timeout_ms,
+          tool_executor,
+-         auto_approve_requests
++         auto_approve_requests,
++         turn_state
+        ) do
+     metadata = metadata_from_message(port, payload)
+ 
+@@ -520,10 +795,10 @@ defmodule SymphonyElixir.Codex.AppServer do
+           metadata
+         )
+ 
+-        {:error, {:turn_input_required, payload}}
++        turn_error({:turn_input_required, payload}, turn_state)
+ 
+       :approved ->
+-        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests)
++        receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests, turn_state)
+ 
+       :approval_required ->
+         emit_message(
+@@ -533,7 +808,7 @@ defmodule SymphonyElixir.Codex.AppServer do
+           metadata
+         )
+ 
+-        {:error, {:approval_required, payload}}
++        turn_error({:approval_required, payload}, turn_state)
+ 
+       :unhandled ->
+         if needs_input?(method, payload) do
+@@ -544,7 +819,7 @@ defmodule SymphonyElixir.Codex.AppServer do
+             metadata
+           )
+ 
+-          {:error, {:turn_input_required, payload}}
++          turn_error({:turn_input_required, payload}, turn_state)
+         else
+           emit_message(
+             on_message,
+@@ -557,7 +832,7 @@ defmodule SymphonyElixir.Codex.AppServer do
+           )
+ 
+           Logger.debug("Codex notification: #{inspect(method)}")
+-          receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests)
++          receive_loop(port, on_message, timeout_ms, "", tool_executor, auto_approve_requests, turn_state)
+         end
+     end
+   end
 diff --git a/elixir/lib/symphony_elixir/config/schema.ex b/elixir/lib/symphony_elixir/config/schema.ex
 index 6ebb278..9a9a064 100644
 --- a/elixir/lib/symphony_elixir/config/schema.ex
@@ -262,12 +914,12 @@ index 87939d8..54f498a 100644
      "type" => "object",
 @@ -224,7 +224,7 @@ defmodule SymphonyElixir.GitHub.AgentTool do
    end
-
+ 
    defp tool_error_payload(:invalid_method) do
 -    %{"error" => %{"message" => "`github_api.method` must be GET, POST, PATCH, PUT, or DELETE."}}
 +    %{"error" => %{"message" => "`github_api.method` must be GET in the read-only runtime."}}
    end
-
+ 
    defp tool_error_payload(:invalid_path) do
 diff --git a/elixir/lib/symphony_elixir/orchestrator.ex b/elixir/lib/symphony_elixir/orchestrator.ex
 index b52e991..986a54a 100644
@@ -305,12 +957,12 @@ index 70c519f..f99c21f 100644
        },
        @render_opts
 diff --git a/elixir/lib/symphony_elixir/workspace.ex b/elixir/lib/symphony_elixir/workspace.ex
-index 406645b..7d3ef8f 100644
+index 406645b..344e358 100644
 --- a/elixir/lib/symphony_elixir/workspace.ex
 +++ b/elixir/lib/symphony_elixir/workspace.ex
 @@ -243,7 +243,14 @@ defmodule SymphonyElixir.Workspace do
          :ok
-
+ 
        command ->
 -        run_hook(command, workspace, issue_context, "after_run", worker_host, receipt_environment(turn_receipt))
 +        run_hook(
@@ -323,11 +975,11 @@ index 406645b..7d3ef8f 100644
 +        )
      end
    end
-
-@@ -453,6 +460,28 @@ defmodule SymphonyElixir.Workspace do
+ 
+@@ -460,27 +467,68 @@ defmodule SymphonyElixir.Workspace do
      {:error, {:workspace_hook_failed, hook_name, status, output}}
    end
-
+ 
 +  defp hook_environment(issue_context, receipt) do
 +    phase_context =
 +      if is_map(receipt), do: Map.get(receipt, :agentic_cicd_context, %{}), else: %{}
@@ -337,8 +989,7 @@ index 406645b..7d3ef8f 100644
 +      {"JSTORE_INVOCATION_PHASE", invocation_value(phase_context, "phase")},
 +      {"JSTORE_INVOCATION_ROLE", invocation_value(phase_context, "role")},
 +      {"JSTORE_INVOCATION_HEAD_SHA", invocation_value(phase_context, "head_sha")},
-+      {"JSTORE_INVOCATION_CANDIDATE_REVISION",
-+       invocation_value(phase_context, "candidate_revision")}
++      {"JSTORE_INVOCATION_CANDIDATE_REVISION", invocation_value(phase_context, "candidate_revision")}
 +      | receipt_environment(receipt)
 +    ]
 +  end
@@ -351,10 +1002,288 @@ index 406645b..7d3ef8f 100644
 +  end
 +
    defp receipt_environment(nil), do: []
-
+ 
    defp receipt_environment(receipt) when is_map(receipt) do
+     [
+       {"JSTORE_TURN_SESSION_ID", receipt[:session_id]},
+       {"JSTORE_TURN_THREAD_ID", receipt[:thread_id]},
+-      {"JSTORE_TURN_ID", receipt[:turn_id]}
++      {"JSTORE_TURN_ID", receipt[:turn_id]},
++      {"JSTORE_TURN_OUTCOME", receipt[:outcome]},
++      {"JSTORE_TURN_TOKEN_USAGE_OBSERVED", boolean_receipt_value(receipt, :token_usage_observed)},
++      {"JSTORE_TURN_WALL_CLOCK_SECONDS", integer_receipt_value(receipt, :wall_clock_seconds)},
++      {"JSTORE_TURN_INPUT_TOKENS", integer_receipt_value(receipt, :input_tokens)},
++      {"JSTORE_TURN_OUTPUT_TOKENS", integer_receipt_value(receipt, :output_tokens)}
+     ]
+     |> Enum.filter(fn {_key, value} -> is_binary(value) and value != "" end)
+   end
+ 
+   defp receipt_environment(_receipt), do: []
+ 
+   defp issue_environment(issue_context) do
+     [
+       {"JSTORE_ISSUE_TITLE", issue_context.issue_title},
+       {"JSTORE_ISSUE_BODY", issue_context.issue_description}
+     ]
+     |> Enum.filter(fn {_key, value} -> is_binary(value) and String.trim(value) != "" end)
+   end
+ 
++  defp integer_receipt_value(receipt, key) do
++    case receipt[key] do
++      value when is_integer(value) and value >= 0 -> Integer.to_string(value)
++      _ -> ""
++    end
++  end
++
++  defp boolean_receipt_value(receipt, key) do
++    case receipt[key] do
++      true -> "true"
++      false -> "false"
++      _ -> ""
++    end
++  end
++
+   defp sanitize_hook_output_for_log(output, max_bytes \\ 2_048) do
+     binary_output = IO.iodata_to_binary(output)
+ 
+diff --git a/elixir/test/symphony_elixir/agentic_cicd_test.exs b/elixir/test/symphony_elixir/agentic_cicd_test.exs
+new file mode 100644
+index 0000000..f1d99aa
+--- /dev/null
++++ b/elixir/test/symphony_elixir/agentic_cicd_test.exs
+@@ -0,0 +1,33 @@
++defmodule SymphonyElixir.AgenticCicdTest do
++  use ExUnit.Case, async: true
++
++  alias SymphonyElixir.AgenticCicd
++
++  test "phase context is loaded only through the fixed host controller" do
++    workspace = Path.join(System.tmp_dir!(), "agentic-cicd-bridge")
++
++    assert {:ok, context} =
++             AgenticCicd.phase_context(workspace, %{identifier: "GH-50"}, nil)
++
++    assert context["phase"] == "implement"
++    assert context["role"] == "observer"
++    assert context["run_model"] == true
++    assert context["head_sha"] == String.duplicate("0", 40)
++    assert context["model_workspace"] == workspace
++  end
++
++  test "remote worker routing is rejected explicitly" do
++    assert {:error, :remote_phase_context_not_supported} =
++             AgenticCicd.phase_context(
++               "/remote/workspace",
++               %{identifier: "GH-50"},
++               "worker.example"
++             )
++  end
++
++  test "invalid issue identity is rejected before starting the controller" do
++    assert {:error, :invalid_phase_context_identity} =
++             AgenticCicd.phase_context("/workspace", %{}, nil)
++  end
++end
+diff --git a/elixir/test/symphony_elixir/app_server_test.exs b/elixir/test/symphony_elixir/app_server_test.exs
+index 4b23aed..665ee77 100644
+--- a/elixir/test/symphony_elixir/app_server_test.exs
++++ b/elixir/test/symphony_elixir/app_server_test.exs
+@@ -165,6 +165,95 @@ defmodule SymphonyElixir.AppServerTest do
+     end
+   end
+ 
++  test "trusted token usage is joined when turn completion arrives first" do
++    events = [
++      %{
++        "method" => "turn/completed",
++        "params" => %{"threadId" => "thread-usage", "turn" => %{"id" => "turn-usage"}}
++      },
++      trusted_usage_event("thread-usage", "turn-usage", 12, 10, 2)
++    ]
++
++    assert {:ok, %{result: %{"usage" => %{"total" => total}}}} =
++             run_trusted_usage_case(events)
++
++    assert total["inputTokens"] == 10
++    assert total["outputTokens"] == 2
++  end
++
++  test "trusted turn completion rejects a conflicting terminal event" do
++    events = [
++      %{
++        "method" => "turn/completed",
++        "params" => %{"threadId" => "thread-usage", "turn" => %{"id" => "turn-usage"}}
++      },
++      %{
++        "method" => "turn/failed",
++        "params" => %{
++          "threadId" => "thread-usage",
++          "turn" => %{"id" => "turn-usage", "status" => "failed"}
++        }
++      }
++    ]
++
++    assert {:error, :conflicting_trusted_turn_terminal, %{thread_id: "thread-usage", turn_id: "turn-usage"}} =
++             run_trusted_usage_case(events)
++  end
++
++  test "trusted token usage rejects a different turn identity" do
++    events = [
++      trusted_usage_event("thread-usage", "other-turn", 12, 10, 2)
++    ]
++
++    assert {:error, :invalid_trusted_turn_usage_identity, %{thread_id: "thread-usage", turn_id: "turn-usage"}} =
++             run_trusted_usage_case(events)
++  end
++
++  test "trusted token usage fails closed when terminal usage is missing" do
++    events = [
++      %{
++        "method" => "turn/completed",
++        "params" => %{"threadId" => "thread-usage", "turn" => %{"id" => "turn-usage"}}
++      }
++    ]
++
++    assert {:error, :missing_trusted_turn_usage, %{thread_id: "thread-usage", turn_id: "turn-usage"}} =
++             run_trusted_usage_case(events)
++  end
++
++  test "trusted token usage rejects a non-monotonic duplicate" do
++    events = [
++      trusted_usage_event("thread-usage", "turn-usage", 12, 10, 2),
++      trusted_usage_event("thread-usage", "turn-usage", 11, 9, 2)
++    ]
++
++    assert {:error, :non_monotonic_trusted_turn_usage, %{thread_id: "thread-usage", turn_id: "turn-usage"}} =
++             run_trusted_usage_case(events)
++  end
++
++  test "failed turns return their trusted identity and observed usage" do
++    events = [
++      trusted_usage_event("thread-usage", "turn-usage", 12, 10, 2),
++      %{
++        "method" => "turn/failed",
++        "params" => %{
++          "threadId" => "thread-usage",
++          "turn" => %{"id" => "turn-usage", "status" => "failed"}
++        }
++      }
++    ]
++
++    assert {:error, {:turn_failed, _details},
++            %{
++              thread_id: "thread-usage",
++              turn_id: "turn-usage",
++              result: %{"usage" => %{"total" => total}}
++            }} = run_trusted_usage_case(events)
++
++    assert total["inputTokens"] == 10
++    assert total["outputTokens"] == 2
++  end
++
+   test "app server passes explicit turn sandbox policies through unchanged" do
+     test_root =
+       Path.join(
+@@ -1628,4 +1717,97 @@ defmodule SymphonyElixir.AppServerTest do
+       File.rm_rf(test_root)
+     end
+   end
++
++  defp run_trusted_usage_case(events) do
++    test_root =
++      Path.join(
++        System.tmp_dir!(),
++        "symphony-elixir-trusted-usage-#{System.unique_integer([:positive])}"
++      )
++
++    workspace_root = Path.join(test_root, "workspaces")
++    workspace = Path.join(workspace_root, "MT-USAGE")
++    codex_binary = Path.join(test_root, "fake-codex")
++    File.mkdir_p!(workspace)
++
++    event_lines =
++      Enum.map_join(events, "\n", fn event ->
++        "printf '%s\\n' '#{Jason.encode!(event)}'"
++      end)
++
++    File.write!(codex_binary, """
++    #!/bin/sh
++    count=0
++    while IFS= read -r _line; do
++      count=$((count + 1))
++      case "$count" in
++        1) printf '%s\\n' '{"id":1,"result":{}}' ;;
++        2) ;;
++        3) printf '%s\\n' '{"id":2,"result":{"thread":{"id":"thread-usage"}}}' ;;
++        4)
++          printf '%s\\n' '{"id":3,"result":{"turn":{"id":"turn-usage"}}}'
++          #{event_lines}
++          exit 0
++          ;;
++        *) exit 0 ;;
++      esac
++    done
++    """)
++
++    File.chmod!(codex_binary, 0o755)
++
++    write_workflow_file!(Workflow.workflow_file_path(),
++      workspace_root: workspace_root,
++      codex_command: "#{codex_binary} app-server",
++      codex_turn_timeout_ms: 2_000
++    )
++
++    issue = %Issue{
++      id: "issue-trusted-usage",
++      identifier: "MT-USAGE",
++      title: "Trusted usage",
++      description: "Exercise the real Codex event contract",
++      state: "In Progress",
++      url: "https://example.org/issues/MT-USAGE",
++      labels: ["backend"]
++    }
++
++    try do
++      AppServer.run(
++        workspace,
++        "trusted usage",
++        issue,
++        runtime_policy: %{
++          "thread_sandbox" => "read-only",
++          "turn_sandbox_policy" => %{"type" => "readOnly"}
++        }
++      )
++    after
++      File.rm_rf(test_root)
++    end
++  end
++
++  defp trusted_usage_event(thread_id, turn_id, total_tokens, input_tokens, output_tokens) do
++    breakdown = %{
++      "totalTokens" => total_tokens,
++      "inputTokens" => input_tokens,
++      "cachedInputTokens" => 0,
++      "cacheWriteInputTokens" => 0,
++      "outputTokens" => output_tokens,
++      "reasoningOutputTokens" => 0
++    }
++
++    %{
++      "method" => "thread/tokenUsage/updated",
++      "params" => %{
++        "threadId" => thread_id,
++        "turnId" => turn_id,
++        "tokenUsage" => %{
++          "total" => breakdown,
++          "last" => breakdown,
++          "modelContextWindow" => 200_000
++        }
++      }
++    }
++  end
+ end
 diff --git a/elixir/test/symphony_elixir/core_test.exs b/elixir/test/symphony_elixir/core_test.exs
-index 1263601..fe4d73c 100644
+index 1263601..58b5b34 100644
 --- a/elixir/test/symphony_elixir/core_test.exs
 +++ b/elixir/test/symphony_elixir/core_test.exs
 @@ -1056,7 +1056,7 @@ defmodule SymphonyElixir.CoreTest do
@@ -364,38 +1293,38 @@ index 1263601..fe4d73c 100644
 -    assert_due_in_range(due_at_ms, 500, 1_100)
 +    assert_retry_schedule(state.retry_attempts[issue_id], 1_000)
    end
-
+ 
    test "abnormal worker exit increments retry attempt progressively" do
 @@ -1093,10 +1093,10 @@ defmodule SymphonyElixir.CoreTest do
      Process.sleep(50)
      state = :sys.get_state(pid)
-
+ 
 -    assert %{attempt: 3, due_at_ms: due_at_ms, identifier: "MT-559", error: "agent exited: :boom"} =
 +    assert %{attempt: 3, due_at_ms: _, identifier: "MT-559", error: "agent exited: :boom"} =
               state.retry_attempts[issue_id]
-
+ 
 -    assert_due_in_range(due_at_ms, 39_500, 40_500)
 +    assert_retry_schedule(state.retry_attempts[issue_id], 40_000)
    end
-
+ 
    test "first abnormal worker exit waits before retrying" do
 @@ -1132,10 +1132,10 @@ defmodule SymphonyElixir.CoreTest do
      Process.sleep(50)
      state = :sys.get_state(pid)
-
+ 
 -    assert %{attempt: 1, due_at_ms: due_at_ms, identifier: "MT-560", error: "agent exited: :boom"} =
 +    assert %{attempt: 1, due_at_ms: _, identifier: "MT-560", error: "agent exited: :boom"} =
               state.retry_attempts[issue_id]
-
+ 
 -    assert_due_in_range(due_at_ms, 9_000, 10_500)
 +    assert_retry_schedule(state.retry_attempts[issue_id], 10_000)
    end
-
+ 
    test "stale retry timer messages do not consume newer retry entries" do
 @@ -1255,11 +1255,12 @@ defmodule SymphonyElixir.CoreTest do
      assert Orchestrator.select_worker_host_for_test(state, "worker-a") == "worker-a"
    end
-
+ 
 -  defp assert_due_in_range(due_at_ms, min_remaining_ms, max_remaining_ms) do
 -    remaining_ms = due_at_ms - System.monotonic_time(:millisecond)
 -
@@ -408,8 +1337,90 @@ index 1263601..fe4d73c 100644
 +    assert delay_ms == expected_delay_ms
 +    assert due_at_ms - scheduled_at_ms == expected_delay_ms
    end
-
+ 
    defp restore_app_env(key, nil), do: Application.delete_env(:symphony_elixir, key)
+@@ -1572,7 +1573,8 @@ defmodule SymphonyElixir.CoreTest do
+             ;;
+           4)
+             printf '%s\\n' '{\"id\":3,\"result\":{\"turn\":{\"id\":\"turn-1\"}}}'
+-            printf '%s\\n' '{\"method\":\"turn/completed\"}'
++            printf '%s\\n' '{\"method\":\"thread/tokenUsage/updated\",\"params\":{\"threadId\":\"thread-1\",\"turnId\":\"turn-1\",\"tokenUsage\":{\"total\":{\"totalTokens\":12,\"inputTokens\":10,\"cachedInputTokens\":0,\"cacheWriteInputTokens\":0,\"outputTokens\":2,\"reasoningOutputTokens\":0},\"last\":{\"totalTokens\":12,\"inputTokens\":10,\"cachedInputTokens\":0,\"cacheWriteInputTokens\":0,\"outputTokens\":2,\"reasoningOutputTokens\":0},\"modelContextWindow\":200000}}}'
++            printf '%s\\n' '{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"thread-1\",\"turn\":{\"id\":\"turn-1\"}}}'
+             exit 0
+             ;;
+           *)
+@@ -1657,7 +1659,8 @@ defmodule SymphonyElixir.CoreTest do
+               printf '%s\\n' '{\"id\":3,\"result\":{\"turn\":{\"id\":\"turn-live\"}}}'
+               ;;
+             4)
+-              printf '%s\\n' '{\"method\":\"turn/completed\"}'
++              printf '%s\\n' '{\"method\":\"thread/tokenUsage/updated\",\"params\":{\"threadId\":\"thread-live\",\"turnId\":\"turn-live\",\"tokenUsage\":{\"total\":{\"totalTokens\":12,\"inputTokens\":10,\"cachedInputTokens\":0,\"cacheWriteInputTokens\":0,\"outputTokens\":2,\"reasoningOutputTokens\":0},\"last\":{\"totalTokens\":12,\"inputTokens\":10,\"cachedInputTokens\":0,\"cacheWriteInputTokens\":0,\"outputTokens\":2,\"reasoningOutputTokens\":0},\"modelContextWindow\":200000}}}'
++              printf '%s\\n' '{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"thread-live\",\"turn\":{\"id\":\"turn-live\"}}}'
+               ;;
+             *)
+               ;;
+@@ -1819,11 +1822,13 @@ defmodule SymphonyElixir.CoreTest do
+             ;;
+           4)
+             printf '%s\\n' '{"id":3,"result":{"turn":{"id":"turn-cont-1"}}}'
+-            printf '%s\\n' '{"method":"turn/completed"}'
++            printf '%s\\n' '{"method":"thread/tokenUsage/updated","params":{"threadId":"thread-cont","turnId":"turn-cont-1","tokenUsage":{"total":{"totalTokens":12,"inputTokens":10,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":2,"reasoningOutputTokens":0},"last":{"totalTokens":12,"inputTokens":10,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":2,"reasoningOutputTokens":0},"modelContextWindow":200000}}}'
++            printf '%s\\n' '{"method":"turn/completed","params":{"threadId":"thread-cont","turn":{"id":"turn-cont-1"}}}'
+             ;;
+           5)
+             printf '%s\\n' '{"id":3,"result":{"turn":{"id":"turn-cont-2"}}}'
+-            printf '%s\\n' '{"method":"turn/completed"}'
++            printf '%s\\n' '{"method":"thread/tokenUsage/updated","params":{"threadId":"thread-cont","turnId":"turn-cont-2","tokenUsage":{"total":{"totalTokens":24,"inputTokens":20,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":4,"reasoningOutputTokens":0},"last":{"totalTokens":12,"inputTokens":10,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":2,"reasoningOutputTokens":0},"modelContextWindow":200000}}}'
++            printf '%s\\n' '{"method":"turn/completed","params":{"threadId":"thread-cont","turn":{"id":"turn-cont-2"}}}'
+             ;;
+         esac
+       done
+@@ -1950,11 +1955,13 @@ defmodule SymphonyElixir.CoreTest do
+             ;;
+           4)
+             printf '%s\\n' '{"id":3,"result":{"turn":{"id":"turn-max-1"}}}'
+-            printf '%s\\n' '{"method":"turn/completed"}'
++            printf '%s\\n' '{"method":"thread/tokenUsage/updated","params":{"threadId":"thread-max","turnId":"turn-max-1","tokenUsage":{"total":{"totalTokens":12,"inputTokens":10,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":2,"reasoningOutputTokens":0},"last":{"totalTokens":12,"inputTokens":10,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":2,"reasoningOutputTokens":0},"modelContextWindow":200000}}}'
++            printf '%s\\n' '{"method":"turn/completed","params":{"threadId":"thread-max","turn":{"id":"turn-max-1"}}}'
+             ;;
+           5)
+             printf '%s\\n' '{"id":3,"result":{"turn":{"id":"turn-max-2"}}}'
+-            printf '%s\\n' '{"method":"turn/completed"}'
++            printf '%s\\n' '{"method":"thread/tokenUsage/updated","params":{"threadId":"thread-max","turnId":"turn-max-2","tokenUsage":{"total":{"totalTokens":24,"inputTokens":20,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":4,"reasoningOutputTokens":0},"last":{"totalTokens":12,"inputTokens":10,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":2,"reasoningOutputTokens":0},"modelContextWindow":200000}}}'
++            printf '%s\\n' '{"method":"turn/completed","params":{"threadId":"thread-max","turn":{"id":"turn-max-2"}}}'
+             ;;
+         esac
+       done
+@@ -2053,7 +2060,8 @@ defmodule SymphonyElixir.CoreTest do
+             printf '%s\\n' '{\"id\":3,\"result\":{\"turn\":{\"id\":\"turn-77\"}}}'
+             ;;
+           4)
+-            printf '%s\\n' '{\"method\":\"turn/completed\"}'
++            printf '%s\\n' '{\"method\":\"thread/tokenUsage/updated\",\"params\":{\"threadId\":\"thread-77\",\"turnId\":\"turn-77\",\"tokenUsage\":{\"total\":{\"totalTokens\":12,\"inputTokens\":10,\"cachedInputTokens\":0,\"cacheWriteInputTokens\":0,\"outputTokens\":2,\"reasoningOutputTokens\":0},\"last\":{\"totalTokens\":12,\"inputTokens\":10,\"cachedInputTokens\":0,\"cacheWriteInputTokens\":0,\"outputTokens\":2,\"reasoningOutputTokens\":0},\"modelContextWindow\":200000}}}'
++            printf '%s\\n' '{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"thread-77\",\"turn\":{\"id\":\"turn-77\"}}}'
+             exit 0
+             ;;
+           *)
+@@ -2197,7 +2205,8 @@ defmodule SymphonyElixir.CoreTest do
+             printf '%s\\n' '{\"id\":3,\"result\":{\"turn\":{\"id\":\"turn-88\"}}}'
+             ;;
+           4)
+-            printf '%s\\n' '{\"method\":\"turn/completed\"}'
++            printf '%s\\n' '{\"method\":\"thread/tokenUsage/updated\",\"params\":{\"threadId\":\"thread-88\",\"turnId\":\"turn-88\",\"tokenUsage\":{\"total\":{\"totalTokens\":12,\"inputTokens\":10,\"cachedInputTokens\":0,\"cacheWriteInputTokens\":0,\"outputTokens\":2,\"reasoningOutputTokens\":0},\"last\":{\"totalTokens\":12,\"inputTokens\":10,\"cachedInputTokens\":0,\"cacheWriteInputTokens\":0,\"outputTokens\":2,\"reasoningOutputTokens\":0},\"modelContextWindow\":200000}}}'
++            printf '%s\\n' '{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"thread-88\",\"turn\":{\"id\":\"turn-88\"}}}'
+             exit 0
+             ;;
+           *)
+@@ -2283,7 +2292,8 @@ defmodule SymphonyElixir.CoreTest do
+             printf '%s\\n' '{"id":3,"result":{"turn":{"id":"turn-99"}}}'
+             ;;
+           4)
+-            printf '%s\\n' '{"method":"turn/completed"}'
++            printf '%s\\n' '{"method":"thread/tokenUsage/updated","params":{"threadId":"thread-99","turnId":"turn-99","tokenUsage":{"total":{"totalTokens":12,"inputTokens":10,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":2,"reasoningOutputTokens":0},"last":{"totalTokens":12,"inputTokens":10,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":2,"reasoningOutputTokens":0},"modelContextWindow":200000}}}'
++            printf '%s\\n' '{"method":"turn/completed","params":{"threadId":"thread-99","turn":{"id":"turn-99"}}}'
+             exit 0
+             ;;
+           *)
 diff --git a/elixir/test/symphony_elixir/github_adapter_test.exs b/elixir/test/symphony_elixir/github_adapter_test.exs
 index 2475853..d841bee 100644
 --- a/elixir/test/symphony_elixir/github_adapter_test.exs
@@ -417,11 +1428,11 @@ index 2475853..d841bee 100644
 @@ -64,7 +64,8 @@ defmodule SymphonyElixir.GitHub.AdapterTest do
      assert {:ok, ["42"]} = GitHubAdapter.fetch_issues_by_ids(["42"])
      assert_receive {:github_ids_called, ["42"]}
-
+ 
 -    assert [%{"name" => "github_api"}] = GitHubAdapter.agent_tool_specs()
 +    assert ["github_api", "submit_review_proposal"] ==
 +             Enum.map(GitHubAdapter.agent_tool_specs(), & &1["name"])
-
+ 
      assert GitHubAdapter.execute_agent_tool(
               "github_api",
 @@ -246,22 +247,21 @@ defmodule SymphonyElixir.GitHub.AdapterTest do
@@ -443,15 +1454,15 @@ index 2475853..d841bee 100644
 +          {:ok, %{status: 200, body: %{"id" => 9}}}
          end
        )
-
+ 
 -    assert_received {:github_tool_called, "POST", "/repos/octo/repo/issues/42/comments", %{"per_page" => 10}, %{"body" => "hello"}, [tracker_settings: ^tracker_settings]}
 +    assert_received {:github_tool_called, "GET", "/repos/octo/repo/issues/42", %{"per_page" => 10}, nil, [tracker_settings: ^tracker_settings]}
-
+ 
      assert response["success"] == true
 -    assert Jason.decode!(response["output"]) == %{"status" => 201, "body" => %{"id" => 9}}
 +    assert Jason.decode!(response["output"]) == %{"status" => 200, "body" => %{"id" => 9}}
      assert response["contentItems"] == [%{"type" => "inputText", "text" => response["output"]}]
-
+ 
      failure =
 @@ -299,12 +299,33 @@ defmodule SymphonyElixir.GitHub.AdapterTest do
          assert invalid["success"] == false
@@ -477,7 +1488,7 @@ index 2475853..d841bee 100644
 +             }
 +    end)
    end
-
+ 
    test "github_api reports unsupported tools, malformed calls, and client failures" do
      unsupported = GitHubAgentTool.execute("not_github_api", %{}, [])
      assert unsupported["success"] == false
@@ -485,16 +1496,17 @@ index 2475853..d841bee 100644
 +
 +    assert Jason.decode!(unsupported["output"])["error"]["supportedTools"] ==
 +             ["github_api", "submit_review_proposal"]
-
+ 
      Enum.each(
        [
 @@ -392,7 +413,9 @@ defmodule SymphonyElixir.GitHub.AdapterTest do
               token_env
             ]
-
+ 
 -    assert [%{"name" => "github_api"}] = binding.tool_specs
 +    assert ["github_api", "submit_review_proposal"] ==
 +             Enum.map(binding.tool_specs, & &1["name"])
 +
      assert :ok = Config.validate!()
    end
+ 

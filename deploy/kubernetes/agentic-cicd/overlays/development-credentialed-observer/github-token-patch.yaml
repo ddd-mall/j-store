@@ -16,3 +16,9 @@ spec:
                   name: symphony-github-token
                   key: token
                   optional: false
+            - name: JSTORE_GITHUB_TOKEN_EXPIRES_AT_EPOCH_SECONDS
+              valueFrom:
+                secretKeyRef:
+                  name: symphony-github-token
+                  key: expires-at-epoch-seconds
+                  optional: false

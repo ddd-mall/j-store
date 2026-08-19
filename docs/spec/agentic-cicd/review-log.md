@@ -224,7 +224,7 @@
 - 新增 `ReviewProposal` schema 与 `TurnReceipt`；首次实现 IterationPacket 允许 `implementer_session_id=null`，评审入口则强制已有可信 implementer session。
 - TaskSnapshot 新增 `iteration_phase`、`implementer_session_id`、`pending_review_findings` 和 `last_turn_receipt`，继续使用同目录原子替换恢复。
 - 阶段桥覆盖 implement → review → complete、gate 失败留在实现、FAIL finding 回流、新 head 失效、错误 role/head 和同 session 拒绝。
-- 新增变更规格 `docs/spec/changes/agentic-cicd-symphony-phase-bridge/`，将剩余 I3-08 拆为固定源码适配 `I3-08B` 与真实演练 `I3-08C`；I3-04、I3-07、I3-08 保持未完成。
+- 当时新增的 Symphony Phase Bridge 变更现已归档到 `docs/spec/agentic-cicd/archive.md`；剩余 I3-08继续由本地候选闭环的真实演练承接，I3-04、I3-07、I3-08保持未完成。
 
 ### 验证证据
 
@@ -268,7 +268,7 @@
 
 - 固定 Elixir builder 镜像从 Docker Hub 拉取超时；使用旧 runtime 镜像补装 build-essential 时 apt 也超时，因此完整 Symphony `mix compile/test` 尚无通过证据。
 - 依赖解析再次报告 Bandit、Mint、Phoenix、Plug、Req 等多项高危公告；PB-11 和真实 token 门禁继续阻塞。
-- 当前 WORKFLOW 仍是 Level 0 `max_turns: 12` + read-only。只有动态 implement/review sandbox、阶段输入/完成 hook 和确定性 gate 接通后，才能改为 `max_turns: 1`；提前修改会造成无阶段终止条件的付费重复调度。
+- 当时的 WORKFLOW 仍是 Level 0 `max_turns: 12` + read-only。只有动态 implement/review sandbox、阶段输入/完成 hook 和确定性 gate 接通后，才能改为 `max_turns: 1`；该历史阻塞后来已由单 turn阶段路由收敛。
 - 未获得本轮 Kubernetes rollout、Secret、GitHub Issue 或模型 turn 的精确写授权，因此没有改动现有 Pod，也未执行真实评审。
 
 ## 2026-08-14：I3-08B 第二轮动态阶段修复
@@ -303,3 +303,33 @@
 - 固定 Symphony 依赖仍含多项高危公告，完整 `mix compile/test` 和供应链升级尚未完成。
 - routing patch 尚未通过新镜像在 Kubernetes 上进行真实 observer/validate/reviewer invocation；部署、Secret 和模型调用仍需精确授权。
 - pre-commit 候选如何获得稳定、可复核的 Git tree identity 仍需下一 delta；当前 `head_sha` 只适用于未修改的 Level 0 或已形成 Git commit 的候选。
+
+## 2026-08-18：费用目标收敛（后续已修订）
+
+费用硬熔断不再属于 Agentic CI/CD 核心功能目标、Level 1 验收条件或真实模型 turn 的额外准入门。总 requirement、设计、跨阶段任务、Level 1 delta 和 runbook 已统一改为以并发、turn、墙钟时间、重试与熔断约束运行资源；缺少可验证的硬美元上限不再阻塞 LC-20、LC-21 或能力升级。
+
+`max_cost_microusd` 暂作为可选的主机侧审计元数据和防御性限制保留，不宣称为上游实时金额硬上限。真实模型调用仍属于仓库治理定义的外部付费操作，必须取得对应调用授权；这项授权是通用治理边界，不是本功能需要实现的费用门禁。
+
+本节关于“仅为可选元数据”的决定曾被下方“交接、费用与进度语义复核”修订；最新决定以本文件最下方的范围复核为准。
+
+## 2026-08-18：核心目标与控制面收敛
+
+- 运行权限明确为默认只读，仅Implementer阶段按能力合同取得当前workspace写权限。
+- Level 1明确保持`bootstrap_local_workspace=true`，并只开启`local_workspace_write`、`freeze_local_candidate`和`run_isolated_gate`；不再使用“前三项”描述能力边界。
+- 机器合同升级为version 3，以`write_issue_comment`、`update_issue_labels`和`request_pull_request_review`分别表达GitHub控制面与人工交接副作用；当前Level 0和未来Level 1均保持这些能力为false。
+- 迭代4补齐唯一Workpad、互斥状态标签、准入缺失说明及恢复测试；Issue权限与Contents/PR权限一并按最小范围单独批准。
+- 总任务顺序保持不变：迭代5完成GitHub原生人工交接后，迭代6把j-store试点重新切换为只读profile观察两周，再逐步开放低风险任务。
+- 独立邮件Notifier、邮件凭据和邮件幂等链路移出产品目标；Ready后的交接使用Issue状态、Workpad或按配置发起的PR review request。
+
+## 2026-08-18：交接、费用与进度语义复核
+
+- GitHub人工交接以Issue状态、唯一Workpad或配置的PR review request至少一种成功为完成条件；其余失败信号作为增强项独立重试，全部失败时handoff保持pending，但不回滚Ready。
+- 保留`max_cost_microusd`主机侧费用估算硬熔断；它可以阻断任务，但不宣称等同OpenAI Platform实时账单或最终结算。
+- 当前进度区分GitHub-only credentialed Level 0 rollout和Codex-auth observer rollout：前者已经完成并缩容，当前集群没有Codex auth Secret，后者仍未执行。
+- Workflow统一禁止未获能力合同授权的外部通知或控制面写入，不再单列邮件动作。
+
+## 2026-08-19：Codex经验与费用范围再收敛
+
+- 采用Codex的最小公共接口、有界执行、确定性身份、权限拒绝不可绕过和集成测试经验；不复制其通用runtime、插件、任务、transport或多模型能力。
+- 撤销仓库自维护模型费率和按token推算美元成本的方案。可信turn receipt只累计turn、墙钟时间和input/output token用量；turn或墙钟超限继续原子进入blocked。
+- `max_cost_microusd`保留为兼容的未接线合同字段，不是当前验收门禁，也不得被解释为provider实时账单。真实费用由外部provider控制和逐次模型调用授权治理。
