@@ -26,6 +26,8 @@ if len(sys.argv) > 1 and sys.argv[1] == "phase-context":
                 "head_sha": "0" * 40,
                 "candidate_revision": None,
                 "model_workspace": argument("--workspace"),
+                "base_sync": None,
+                "review_packet": None,
             },
             separators=(",", ":"),
             sort_keys=True,

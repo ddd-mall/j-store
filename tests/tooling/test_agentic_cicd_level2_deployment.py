@@ -146,6 +146,23 @@ class LevelTwoDeploymentCandidateTest(unittest.TestCase):
             "symphony-github-token",
             environment["JSTORE_SYMPHONY_GITHUB_TOKEN"]["valueFrom"]["secretKeyRef"]["name"],
         )
+        volume_mounts = {
+            item["name"]: item
+            for item in pod["spec"]["containers"][0]["volumeMounts"]
+        }
+        self.assertEqual(
+            {
+                "name": "gate-policy",
+                "mountPath": "/etc/agentic-cicd",
+                "readOnly": True,
+            },
+            volume_mounts["gate-policy"],
+        )
+        volumes = {item["name"]: item for item in pod["spec"]["volumes"]}
+        self.assertEqual(
+            {"name": "gate-policy", "configMap": {"name": "gate-policy"}},
+            volumes["gate-policy"],
+        )
         annotations = pod["metadata"]["annotations"]
         self.assertEqual(self.binding_digest, annotations["agentic-cicd.jstore.io/runtime-binding-sha256"])
         self.assertEqual(self.repository, annotations["agentic-cicd.jstore.io/target-repository"])

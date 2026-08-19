@@ -263,8 +263,21 @@ def _render_manifest(
                                     "value": reviewer,
                                 },
                             ],
+                            "volumeMounts": [
+                                {
+                                    "name": "gate-policy",
+                                    "mountPath": "/etc/agentic-cicd",
+                                    "readOnly": True,
+                                }
+                            ],
                         }
-                    ]
+                    ],
+                    "volumes": [
+                        {
+                            "name": "gate-policy",
+                            "configMap": {"name": "gate-policy"},
+                        }
+                    ],
                 },
             }
         },
@@ -322,6 +335,8 @@ def _render_manifest(
         reviewer,
         "symphony-github-token",
         "symphony-codex-auth",
+        "gate-policy",
+        "/etc/agentic-cicd",
     ):
         if expected not in manifest:
             raise RuntimeError(f"rendered manifest is missing required binding: {expected}")

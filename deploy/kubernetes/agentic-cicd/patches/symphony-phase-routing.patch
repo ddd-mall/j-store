@@ -266,7 +266,7 @@ new file mode 100644
 index 0000000..8b0b219
 --- /dev/null
 +++ b/elixir/lib/symphony_elixir/agentic_cicd.ex
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,111 @@
 +defmodule SymphonyElixir.AgenticCicd do
 +  @moduledoc """
 +  Narrow bridge from Symphony's scheduler to the trusted j-store host controller.
@@ -283,7 +283,9 @@ index 0000000..8b0b219
 +                   "turn_sandbox_policy",
 +                   "head_sha",
 +                   "candidate_revision",
-+                   "model_workspace"
++                   "model_workspace",
++                   "base_sync",
++                   "review_packet"
 +                 ])
 +  @phases ["implement", "validate", "review", "complete"]
 +  @roles ["observer", "implementer", "reviewer", "none"]
@@ -345,6 +347,8 @@ index 0000000..8b0b219
 +      valid_optional_candidate?(context["candidate_revision"]) and
 +      is_binary(context["model_workspace"]) and
 +      Path.type(context["model_workspace"]) == :absolute and
++      valid_optional_map?(context["base_sync"]) and
++      valid_optional_map?(context["review_packet"]) and
 +      valid_phase_role?(context)
 +  end
 +
@@ -376,6 +380,9 @@ index 0000000..8b0b219
 +
 +  defp valid_optional_candidate?(nil), do: true
 +  defp valid_optional_candidate?(value), do: valid_sha?(value, 64)
++
++  defp valid_optional_map?(nil), do: true
++  defp valid_optional_map?(value), do: is_map(value)
 +
 +  defp valid_sha?(value, length) when is_binary(value) do
 +    byte_size(value) == length and String.match?(value, ~r/\A[0-9a-f]+\z/)
