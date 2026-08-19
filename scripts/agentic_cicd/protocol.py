@@ -20,6 +20,9 @@ TURN_ROLES = {"observer", "implementer", "reviewer"}
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 GATE_ID = re.compile(r"gate-[a-z0-9][a-z0-9-]{0,63}\Z")
 PINNED_IMAGE = re.compile(r"[^\s@]+@sha256:[0-9a-f]{64}\Z")
+REPOSITORY_NAME = re.compile(
+    r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z"
+)
 
 
 def _nonblank(value: str, field_name: str) -> str:
@@ -194,6 +197,7 @@ class GateReceipt:
     job_uid: str
     pod_uid: str | None
     findings: tuple[ReviewFinding, ...]
+    skipped_checks: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not GATE_ID.fullmatch(self.gate_id):
@@ -225,6 +229,11 @@ class GateReceipt:
             raise ValueError("gate FAIL requires a non-zero exit_code")
         if self.verdict == "INFRASTRUCTURE_FAILURE" and self.findings:
             raise ValueError("infrastructure failure cannot contain candidate findings")
+        if any(
+            not isinstance(value, str) or not value.strip()
+            for value in self.skipped_checks
+        ):
+            raise ValueError("skipped checks must be nonblank strings")
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -234,11 +243,12 @@ class GateReceipt:
             "started_at": self.started_at, "finished_at": self.finished_at, "exit_code": self.exit_code,
             "log_sha256": self.log_sha256, "job_uid": self.job_uid, "pod_uid": self.pod_uid,
             "findings": [finding.to_json() for finding in self.findings],
+            "skipped_checks": list(self.skipped_checks),
         }
 
     @classmethod
     def from_json(cls, payload: dict[str, Any]) -> "GateReceipt":
-        required = {"gate_id", "issue_identifier", "candidate_revision", "runner_image", "command_policy_sha256", "verdict", "started_at", "finished_at", "exit_code", "log_sha256", "job_uid", "pod_uid", "findings"}
+        required = {"gate_id", "issue_identifier", "candidate_revision", "runner_image", "command_policy_sha256", "verdict", "started_at", "finished_at", "exit_code", "log_sha256", "job_uid", "pod_uid", "findings", "skipped_checks"}
         if set(payload) != required:
             raise ValueError("gate receipt fields do not match the contract")
         string_fields = required - {
@@ -246,6 +256,7 @@ class GateReceipt:
             "exit_code",
             "pod_uid",
             "findings",
+            "skipped_checks",
         }
         if not all(isinstance(payload[name], str) for name in string_fields):
             raise ValueError("gate receipt scalar identity fields must be strings")
@@ -257,6 +268,10 @@ class GateReceipt:
             isinstance(value, dict) for value in payload["findings"]
         ):
             raise ValueError("gate findings must be an array of objects")
+        if not isinstance(payload["skipped_checks"], list) or not all(
+            isinstance(value, str) for value in payload["skipped_checks"]
+        ):
+            raise ValueError("gate skipped_checks must be an array of strings")
         return cls(
             gate_id=payload["gate_id"], issue_identifier=payload["issue_identifier"],
             candidate_revision=CandidateRevision.from_json(dict(payload["candidate_revision"])),
@@ -266,6 +281,7 @@ class GateReceipt:
             findings=tuple(
                 ReviewFinding.from_json(dict(value)) for value in payload["findings"]
             ),
+            skipped_checks=tuple(payload["skipped_checks"]),
         )
 
 
@@ -399,6 +415,257 @@ class IterationPacket:
                 str(value) for value in payload["validation_commands"]
             ),
             implementer_session_id=payload["implementer_session_id"],
+        )
+
+
+@dataclass(frozen=True)
+class ReviewCommentFeedback:
+    comment_id: str
+    author_login: str | None
+    body: str
+    commit_sha: str | None
+    outdated: bool
+    created_at: str
+    updated_at: str
+
+    def __post_init__(self) -> None:
+        _nonblank(self.comment_id, "comment_id")
+        if self.author_login is not None:
+            _nonblank(self.author_login, "author_login")
+        _nonblank(self.body, "review comment body")
+        if self.commit_sha is not None:
+            _full_sha(self.commit_sha, "commit_sha")
+        if not isinstance(self.outdated, bool):
+            raise ValueError("outdated must be a boolean")
+        created = _utc_timestamp(self.created_at, "created_at")
+        updated = _utc_timestamp(self.updated_at, "updated_at")
+        if updated < created:
+            raise ValueError("updated_at must not precede created_at")
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "comment_id": self.comment_id,
+            "author_login": self.author_login,
+            "body": self.body,
+            "commit_sha": self.commit_sha,
+            "outdated": self.outdated,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+    @classmethod
+    def from_json(cls, payload: dict[str, Any]) -> "ReviewCommentFeedback":
+        required = {
+            "comment_id",
+            "author_login",
+            "body",
+            "commit_sha",
+            "outdated",
+            "created_at",
+            "updated_at",
+        }
+        if set(payload) != required:
+            raise ValueError("review comment fields do not match the contract")
+        for name in ("comment_id", "body", "created_at", "updated_at"):
+            if not isinstance(payload[name], str):
+                raise ValueError(f"{name} must be a string")
+        for name in ("author_login", "commit_sha"):
+            if payload[name] is not None and not isinstance(payload[name], str):
+                raise ValueError(f"{name} must be a string or null")
+        if not isinstance(payload["outdated"], bool):
+            raise ValueError("outdated must be a boolean")
+        return cls(
+            comment_id=payload["comment_id"],
+            author_login=payload["author_login"],
+            body=payload["body"],
+            commit_sha=payload["commit_sha"],
+            outdated=payload["outdated"],
+            created_at=payload["created_at"],
+            updated_at=payload["updated_at"],
+        )
+
+
+@dataclass(frozen=True)
+class ReviewThreadFeedback:
+    thread_id: str
+    path: str
+    line: int | None
+    original_line: int | None
+    resolved: bool
+    classification: str
+    comments: tuple[ReviewCommentFeedback, ...]
+
+    def __post_init__(self) -> None:
+        _nonblank(self.thread_id, "thread_id")
+        _nonblank(self.path, "review path")
+        for field_name in ("line", "original_line"):
+            value = getattr(self, field_name)
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value <= 0
+            ):
+                raise ValueError(f"{field_name} must be a positive integer or null")
+        if not isinstance(self.resolved, bool):
+            raise ValueError("resolved must be a boolean")
+        if self.classification not in {"actionable", "audit"}:
+            raise ValueError("classification must be actionable or audit")
+        if not self.comments:
+            raise ValueError("review thread feedback must contain comments")
+        if self.classification == "actionable" and self.resolved:
+            raise ValueError("resolved review thread cannot be actionable")
+        comment_ids = [comment.comment_id for comment in self.comments]
+        if len(comment_ids) != len(set(comment_ids)):
+            raise ValueError("review thread contains duplicate comments")
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "thread_id": self.thread_id,
+            "path": self.path,
+            "line": self.line,
+            "original_line": self.original_line,
+            "resolved": self.resolved,
+            "classification": self.classification,
+            "comments": [comment.to_json() for comment in self.comments],
+        }
+
+    @classmethod
+    def from_json(cls, payload: dict[str, Any]) -> "ReviewThreadFeedback":
+        required = {
+            "thread_id",
+            "path",
+            "line",
+            "original_line",
+            "resolved",
+            "classification",
+            "comments",
+        }
+        if set(payload) != required:
+            raise ValueError("review thread fields do not match the contract")
+        for name in ("thread_id", "path", "classification"):
+            if not isinstance(payload[name], str):
+                raise ValueError(f"{name} must be a string")
+        if not isinstance(payload["resolved"], bool):
+            raise ValueError("resolved must be a boolean")
+        if not isinstance(payload["comments"], list) or not all(
+            isinstance(value, dict) for value in payload["comments"]
+        ):
+            raise ValueError("comments must be an array of objects")
+        return cls(
+            thread_id=payload["thread_id"],
+            path=payload["path"],
+            line=payload["line"],
+            original_line=payload["original_line"],
+            resolved=payload["resolved"],
+            classification=payload["classification"],
+            comments=tuple(
+                ReviewCommentFeedback.from_json(dict(value))
+                for value in payload["comments"]
+            ),
+        )
+
+
+@dataclass(frozen=True)
+class ReviewPacket:
+    repository: str
+    pull_request_number: int
+    head_sha: str
+    threads: tuple[ReviewThreadFeedback, ...]
+
+    def __post_init__(self) -> None:
+        if not REPOSITORY_NAME.fullmatch(self.repository):
+            raise ValueError("repository must use a safe owner/name")
+        if (
+            isinstance(self.pull_request_number, bool)
+            or not isinstance(self.pull_request_number, int)
+            or self.pull_request_number <= 0
+        ):
+            raise ValueError("pull_request_number must be positive")
+        _full_sha(self.head_sha, "head_sha")
+
+        segment_keys: set[tuple[str, str]] = set()
+        metadata: dict[str, tuple[object, ...]] = {}
+        comment_ids: set[str] = set()
+        for thread in self.threads:
+            key = (thread.thread_id, thread.classification)
+            if key in segment_keys:
+                raise ValueError("review packet contains duplicate thread segments")
+            segment_keys.add(key)
+            identity = (
+                thread.path,
+                thread.line,
+                thread.original_line,
+                thread.resolved,
+            )
+            existing = metadata.setdefault(thread.thread_id, identity)
+            if existing != identity:
+                raise ValueError("review thread metadata differs across segments")
+            for comment in thread.comments:
+                if comment.comment_id in comment_ids:
+                    raise ValueError("review packet contains duplicate comment IDs")
+                comment_ids.add(comment.comment_id)
+                if thread.classification == "actionable" and (
+                    comment.commit_sha != self.head_sha or comment.outdated
+                ):
+                    raise ValueError(
+                        "actionable review comment must bind the current head"
+                    )
+
+    @property
+    def actionable_comments(self) -> tuple[ReviewCommentFeedback, ...]:
+        return tuple(
+            comment
+            for thread in self.threads
+            if thread.classification == "actionable"
+            for comment in thread.comments
+        )
+
+    @property
+    def audit_comments(self) -> tuple[ReviewCommentFeedback, ...]:
+        return tuple(
+            comment
+            for thread in self.threads
+            if thread.classification == "audit"
+            for comment in thread.comments
+        )
+
+    @property
+    def unresolved_actionable_threads(self) -> int:
+        return len(
+            {
+                thread.thread_id
+                for thread in self.threads
+                if thread.classification == "actionable"
+            }
+        )
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "repository": self.repository,
+            "pull_request_number": self.pull_request_number,
+            "head_sha": self.head_sha,
+            "threads": [thread.to_json() for thread in self.threads],
+        }
+
+    @classmethod
+    def from_json(cls, payload: dict[str, Any]) -> "ReviewPacket":
+        required = {"repository", "pull_request_number", "head_sha", "threads"}
+        if set(payload) != required:
+            raise ValueError("review packet fields do not match the contract")
+        if not isinstance(payload["repository"], str) or not isinstance(
+            payload["head_sha"], str
+        ):
+            raise ValueError("review packet identity fields must be strings")
+        if not isinstance(payload["threads"], list) or not all(
+            isinstance(value, dict) for value in payload["threads"]
+        ):
+            raise ValueError("threads must be an array of objects")
+        return cls(
+            repository=payload["repository"],
+            pull_request_number=payload["pull_request_number"],
+            head_sha=payload["head_sha"],
+            threads=tuple(
+                ReviewThreadFeedback.from_json(dict(value))
+                for value in payload["threads"]
+            ),
         )
 
 

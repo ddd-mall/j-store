@@ -125,6 +125,7 @@ class GateDispatcher:
             job_uid=result.job_uid,
             pod_uid=result.pod_uid,
             findings=findings,
+            skipped_checks=(),
         )
 
     def cleanup(self, gate_id: str) -> None:
@@ -149,4 +150,5 @@ class GateDispatcher:
             job_uid=f"uncreated:{request.gate_id}",
             pod_uid=None,
             findings=(),
+            skipped_checks=(),
         )

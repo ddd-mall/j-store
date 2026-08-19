@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .protocol import ReviewDecision
+from .github_receipt import GitHubEventReceipt
 
 
 class ClaimConflict(RuntimeError):
@@ -27,12 +28,15 @@ class BudgetUsage:
     turns: int = 0
     wall_clock_seconds: int = 0
     cost_microusd: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 @dataclass
 class TaskSnapshot:
     issue_identifier: str
     state: str
+    repository: str | None = None
     claim_id: str | None = None
     base_sha: str | None = None
     head_sha: str | None = None
@@ -41,6 +45,9 @@ class TaskSnapshot:
     pull_request_number: int | None = None
     semantic_fix_strategies: dict[str, list[str]] = field(default_factory=dict)
     infrastructure_retries: int = 0
+    flaky_reruns: dict[str, int] = field(default_factory=dict)
+    failure_routes: dict[str, dict[str, str]] = field(default_factory=dict)
+    check_history: dict[str, list[str]] = field(default_factory=dict)
     budget: BudgetUsage = field(default_factory=BudgetUsage)
     consumed_idempotency_keys: set[str] = field(default_factory=set)
     review_decisions: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -53,6 +60,14 @@ class TaskSnapshot:
     review_workspace: str | None = None
     gate_request: dict[str, Any] | None = None
     gate_receipt: dict[str, Any] | None = None
+    github_events: dict[str, dict[str, Any]] = field(default_factory=dict)
+    github_operational_findings: dict[str, str] = field(default_factory=dict)
+    handoff_head_sha: str | None = None
+    base_sync: dict[str, str] | None = None
+    candidate_commit_sha: str | None = None
+    task_brief: dict[str, Any] | None = None
+    pull_request_packet: dict[str, Any] | None = None
+    github_review_packet: dict[str, Any] | None = None
 
     def consume_idempotency_key(self, key: str) -> bool:
         normalized = key.strip()
@@ -92,6 +107,20 @@ class TaskSnapshot:
                 "semantic_fix_strategies", {}
             ).items()
         }
+        data["flaky_reruns"] = {
+            str(root_cause): int(reruns)
+            for root_cause, reruns in data.get("flaky_reruns", {}).items()
+        }
+        data["failure_routes"] = {
+            str(event_key): {
+                str(key): str(value) for key, value in route.items()
+            }
+            for event_key, route in data.get("failure_routes", {}).items()
+        }
+        data["check_history"] = {
+            str(check_key): [str(conclusion) for conclusion in conclusions]
+            for check_key, conclusions in data.get("check_history", {}).items()
+        }
         data["review_decisions"] = {
             str(head_sha): dict(decision)
             for head_sha, decision in data.get("review_decisions", {}).items()
@@ -99,6 +128,14 @@ class TaskSnapshot:
         data["pending_review_findings"] = [
             dict(finding) for finding in data.get("pending_review_findings", [])
         ]
+        data["github_events"] = {
+            str(key): GitHubEventReceipt.from_json(value).to_json()
+            for key, value in data.get("github_events", {}).items()
+        }
+        data["github_operational_findings"] = {
+            str(key): str(value)
+            for key, value in data.get("github_operational_findings", {}).items()
+        }
         if data.get("last_turn_receipt") is not None:
             data["last_turn_receipt"] = {
                 str(key): str(value)
@@ -109,7 +146,17 @@ class TaskSnapshot:
                 str(key): str(value)
                 for key, value in data["candidate_revision"].items()
             }
-        for field_name in ("gate_request", "gate_receipt"):
+        if data.get("base_sync") is not None:
+            data["base_sync"] = {
+                str(key): str(value) for key, value in data["base_sync"].items()
+            }
+        for field_name in (
+            "gate_request",
+            "gate_receipt",
+            "task_brief",
+            "pull_request_packet",
+            "github_review_packet",
+        ):
             if data.get(field_name) is not None:
                 data[field_name] = dict(data[field_name])
         return cls(**data)
@@ -173,6 +220,7 @@ class KillSwitch:
 class CoordinatorLimits:
     semantic_fixes_per_root_cause: int
     infrastructure_retries: int
+    flaky_reruns_per_root_cause: int
     max_turns_per_task: int
     max_wall_clock_seconds: int
     max_cost_microusd: int
@@ -197,6 +245,9 @@ class Coordinator:
                 raw_limits["semantic_fixes_per_root_cause"]
             ),
             infrastructure_retries=int(raw_limits["infrastructure_retries"]),
+            flaky_reruns_per_root_cause=int(
+                raw_limits["flaky_reruns_per_root_cause"]
+            ),
             max_turns_per_task=int(raw_limits["max_turns_per_task"]),
             max_wall_clock_seconds=int(raw_limits["max_wall_clock_seconds"]),
             max_cost_microusd=int(raw_limits["max_cost_microusd"]),
@@ -267,6 +318,21 @@ class Coordinator:
         snapshot.infrastructure_retries += 1
         return "retry"
 
+    def record_flaky_rerun(
+        self, snapshot: TaskSnapshot, root_cause_id: str
+    ) -> str:
+        root_cause = root_cause_id.strip()
+        if not root_cause:
+            raise ValueError("root cause must not be blank")
+        reruns = snapshot.flaky_reruns.get(root_cause, 0)
+        if reruns >= self.limits.flaky_reruns_per_root_cause:
+            self.transition(snapshot, "blocked")
+            snapshot.blocked_reason = f"flaky-rerun-limit:{root_cause}"
+            snapshot.claim_id = None
+            return "blocked"
+        snapshot.flaky_reruns[root_cause] = reruns + 1
+        return "retry"
+
     def consume_budget(
         self,
         snapshot: TaskSnapshot,
@@ -274,13 +340,23 @@ class Coordinator:
         turns: int = 0,
         wall_clock_seconds: int = 0,
         cost_microusd: int = 0,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
     ) -> None:
-        increments = (turns, wall_clock_seconds, cost_microusd)
-        if any(value < 0 for value in increments):
-            raise ValueError("budget increments must be non-negative")
+        increments = (
+            turns,
+            wall_clock_seconds,
+            cost_microusd,
+            input_tokens,
+            output_tokens,
+        )
+        if any(type(value) is not int or value < 0 for value in increments):
+            raise ValueError("budget increments must be non-negative integers")
         snapshot.budget.turns += turns
         snapshot.budget.wall_clock_seconds += wall_clock_seconds
         snapshot.budget.cost_microusd += cost_microusd
+        snapshot.budget.input_tokens += input_tokens
+        snapshot.budget.output_tokens += output_tokens
 
         exceeded: str | None = None
         if snapshot.budget.turns > self.limits.max_turns_per_task:

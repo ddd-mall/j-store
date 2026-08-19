@@ -6,7 +6,7 @@
 
 - 可以读取带 `agent:queued` 的 GitHub Issue、代码、PR 和 CI 状态；
 - 可以在临时 workspace 中形成计划和风险报告；
-- 不允许修改代码、提交、推送、创建/更新 PR、发送邮件、合并或发布；
+- 不允许修改代码、提交、推送、创建/更新PR、写Issue comment/label、请求PR review、合并或发布；
 - `config/agentic-cicd/state-contract.json` 中的 capability level 与 flag 是当前能力权威事实。Level 0 已明确区分 `bootstrap_local_workspace=true` 与保持关闭的 `local_workspace_write`、`freeze_local_candidate`、`run_isolated_gate`、`create_remote_branch`、push 和 PR 能力；本地可信 bootstrap 不再与远端建分支共用模糊字段。
 - 每个 Issue 最多启动一个只读 observer turn；可信 complete hook 随后把内部 phase 置为 complete，后续轮询在创建 App Server 前短路，不产生重复模型调用。
 
@@ -18,7 +18,7 @@
 
 1. 远端 develop ruleset（`Protect develop`）已 active，六个 required contexts 与模板一致且无 bypass actor；仍需用合法和故意违规的 disposable Draft PR 验证实际 enforcement。
 2. 历史 Gitleaks finding 已审计为未合并测试 fixture，并按精确 fingerprint 处置；最新 `develop` 的 Quality、Security（包含 `secret-scan`）和 Qodana 已绿色。
-3. 固定 Symphony源码与不可变运行镜像、无模型 exact-candidate Reviewer 与四个恢复点已有镜像内证据；凭据轮换确认、真实独立 Reviewer turn和 disposable Issue 端到端演练仍未完成。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
+3. 固定 Symphony源码与不可变运行镜像、凭据轮换、无模型 exact-candidate Reviewer、四个恢复点、disposable Issue `#50`创建及GitHub-only credentialed Level 0 rollout已有证据；该Deployment随后已缩容为0。Issue仍为`agent:candidate`，当前集群没有Codex auth Secret，Codex-auth observer rollout、真实 observer/Independent Reviewer turn和端到端闭环尚未完成。在这些事项完成前保持 Level 0，不得开放分支、push 或 Draft PR。
 
 ## Symphony 来源
 
@@ -40,13 +40,13 @@
 |---|---|
 | Metadata | Read |
 | Contents | Read |
-| Issues | Read；如需写 Workpad，单独批准 Write |
+| Issues | Read |
 | Pull requests | Read |
 | Actions / Checks | Read |
 | Administration | None |
 | Secrets / Environments / Deployments / Workflows | None |
 
-后续 Contents/PR write、Issue label/comment write、Draft -> Ready 均需在对应迭代单独批准。无论权限如何，自动化不得自动合并、approve 或发布。
+迭代4的Contents/PR write与Issue label/comment write、迭代5的Draft -> Ready及可选review request均需分别批准并由独立机器能力控制。无论权限如何，自动化不得自动合并、approve或发布。
 
 不要把 App private key 或长期 token 写入仓库、`WORKFLOW.md`、Issue、日志或 workspace。向 Symphony 注入 `JSTORE_SYMPHONY_GITHUB_TOKEN` 时，必须使用短期 installation token；运行版本必须能从 Codex 子进程中清除 GitHub token 环境变量及其别名。
 
@@ -99,6 +99,65 @@ export PATH="$JAVA_HOME/bin:$PATH"
 ./scripts/quality-gate.sh
 ```
 
+## Level 2 disposable仓库本地预检
+
+真实GitHub E2E前先运行纯配置预检。该命令只读取两个本地JSON文件，不读取token、不访问网络、不部署，也不改变权威能力合同：
+
+```bash
+python3 scripts/agentic-cicd-controller.py github-e2e-preflight \
+  --repository '<owner/disposable-repository>' \
+  --repository-url 'https://github.com/<owner/disposable-repository>.git' \
+  --contract config/agentic-cicd/state-contract.level2-disposable.example.json
+```
+
+预检会拒绝`ddd-mall/j-store`、非规范仓库名、URL不一致、Level 0/1或不完整Level 2能力、终端能力开启以及required checks漂移。示例profile不是部署合同；默认运行镜像仍只包含权威Level 0合同。预检通过不构成GitHub App权限、token注入、模型调用、push、PR、Issue、Ready或review request授权。
+
+取得精确disposable仓库目标后，可以从洁净、受审源码生成尚未部署的Level 2制品候选：
+
+```bash
+./scripts/agentic-cicd-controller-image-build.sh \
+  --output-dir /absolute/reviewed/output \
+  --symphony-source /absolute/path/to/pinned/symphony \
+  --disposable-level2-repository '<owner/disposable-repository>'
+```
+
+构建入口不接受任意合同路径，只使用固定示例profile；它在Docker调用前生成并验证repository、HTTPS URL、capability level和合同摘要绑定。输出tag、labels、source record和最终digest区分Level 0与该Level 2候选。此命令只构建本地制品，不导入containerd、不写集群、不读取token、不访问GitHub。后续部署必须使用单独受审入口，把同一repository和digest写入专用overlay并再次取得外部写授权；不得直接复用Level 0部署脚本或手工覆盖Deployment环境变量。
+
+人工核对构建输出中的source record和摘要后，可生成不写集群的部署候选。`--source-record-sha256`必须来自前一步受审证据，不得在同一命令中临时计算后即视为人工确认：
+
+```bash
+python3 scripts/agentic-cicd-level2-deployment-prepare.py \
+  --source-record /absolute/reviewed/output/jstore-agentic-controller-<revision>-level2-<contract>-binding-<binding>.source.json \
+  --source-record-sha256 '<reviewed-source-record-sha256>' \
+  --repository '<owner/disposable-repository>' \
+  --github-app-login '<app-slug>[bot]' \
+  --reviewer '<reviewer-login>' \
+  --output-dir /absolute/reviewed/level2-deployment-candidate
+```
+
+入口验证source record、archive SHA-256、SBOM/SLSA subject、完整镜像digest、合同/binding摘要、repository和handoff身份一致性，再生成只读`manifest.yaml`与`deployment-profile.json`。manifest固定使用`symphony-github-token`和`symphony-codex-auth`引用，不含Secret值；App bot login与reviewer作为非Secret的受审环境值，主容器和init container使用同一digest-qualified镜像。该命令只调用本地Kustomize渲染，不访问Kubernetes API，也不执行`apply`。后续镜像导入、Secret、server dry-run、Deployment rollout及GitHub写操作仍是独立授权步骤。
+
+运行时不会把render成功当作凭据可用证明。`phase-context`只有在任务phase为`complete`且合同开启push后才读取GitHub运行输入；在任何candidate promotion、Git命令、GitHub adapter构造或Snapshot写入前，它要求token及GitHub签发expiry同时存在且剩余至少65秒，并按能力要求合法的App bot login和人工reviewer。任一输入缺失、过期、非法或身份冲突都立即失败；Git push和每个HTTP请求仍会再次检查token lease。该fail-closed行为只防止漂移配置产生部分副作用，不构成token权限或真实E2E验收。
+
+## Level 2 disposable真实演练契约
+
+本节固定GH-15与GH-16的执行边界，不构成外部写授权。开始前必须在仓库外形成一次性授权记录，至少写明：精确disposable `owner/name`、GitHub App bot与人工reviewer、controller和Symphony完整revision、镜像digest、Kubernetes context/namespace、允许的GitHub写操作、演练时间窗、最多Issue/branch/PR数量、token签发与到期时间，以及证据保留和远端清理决定。目标不得是`ddd-mall/j-store`或其大小写别名；任一字段变化都需要新的授权记录。
+
+每个场景只接受同一授权记录绑定的GitHub API原始响应、TaskSnapshot、Supervisor脱敏日志和必要的Git命令输出作为证据。证据保存在仓库外的只读目录，记录采集时间、退出码、repository、Issue/PR number、base/head SHA、Pod UID和文件SHA-256；不得保存token、Authorization header、Secret内容、未脱敏远端正文或个人Codex认证。单元测试、fake transport、render结果、复选框和操作者口述不能替代以下远端事实：
+
+| ID | 操作与故障注入 | 必须观察到的远端与持久状态 |
+|---|---|---|
+| `GH15-01` | 正常候选首次进入远端闭环，随后重放同一`phase-context` | 只有一个任务branch和一个以`develop`为base的Draft PR；PR number与head在Snapshot中一致；重放不增加PR、Workpad或review request |
+| `GH15-02` | 当前head的一个required check失败，再由新候选修复 | 失败head始终保持Draft并形成候选失败路由；新head不复用旧CI、review或Ready回执，六个required contexts重新取证 |
+| `GH15-03` | 当前head产生actionable review thread并完成返工 | thread未解决时保持Draft；返工产生新head并重新执行本地Gate、独立Reviewer、CI和review门禁；旧评论只作为audit证据 |
+| `GH15-04` | `develop`在候选期间前移，分别覆盖可合并与冲突路径 | 可合并路径产生包含新base的新head且不force push；冲突路径恢复原workspace并返回实现阶段，不创建第二个branch或PR |
+| `GH15-05` | 所有当前head门禁通过后转Ready，并使三个handoff信号中的至少一个暂时失败 | Ready只发生一次；至少一个有效远端回执后进入`human_review`；失败增强项独立重试，已成功信号不重复；三者全失败的对照场景保持handoff pending |
+| `GH15-06` | 分别在push、Draft、Ready和handoff远端成功但本地保存前停止Supervisor，再用同一状态卷恢复 | 恢复后仍是同一branch、PR number和head；已存在远端事实以`observation`回执恢复，不重复远端副作用 |
+| `GH15-07` | 用独立测试身份尝试绕过required checks和`develop`保护 | 违规push或不满足门禁的合入尝试被ruleset拒绝；controller自身没有approve、merge、release、deployment或workflow写调用 |
+| `GH16-01` | 独立核对App安装范围、仓库权限和进程/文件边界 | App只安装到该disposable仓库；仅具备本闭环所需Metadata/Contents/Issues/Pull requests/Checks读取或写入，Administration、Secrets、Environments、Deployments和Workflows均无写权限；Codex环境、workspace、Snapshot和脱敏日志均搜索不到token |
+
+场景必须按`GH15-01`至`GH15-07`顺序执行；每个故障注入都使用新的任务Issue，但总量不得超过授权记录。只有全部场景、`GH16-01`独立复核和证据SHA-256清单均通过，才能勾选GH-15/GH-16。真实验证失败时保留Draft和证据，先把Supervisor缩容为0；不得通过手工修正Snapshot、force push、关闭竞争PR、扩大App权限或跳过场景继续。删除Secret、关闭PR、删除branch、Issue/label清理和撤销App安装分别属于新的外部写操作，按授权记录中的清理决定执行。
+
 ## 标签初始化
 
 创建以下标签前先确认不存在同名但含义不同的标签：
@@ -120,18 +179,18 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 
 1. 确认 `python scripts/check-agentic-cicd.py` 通过。
 2. 设置 `JSTORE_SYMPHONY_SOURCE`，确认 `python scripts/check-agentic-cicd-runtime.py` 和 App Server smoke 通过。
-3. 确认真实模型 turn 的费用上限、模型、认证来源和审计归属已经批准；smoke 成功不代表已获模型调用授权。
+3. 确认真实模型 turn 使用的模型、认证来源、审计归属和本次模型调用已经批准；smoke 成功不代表已获模型调用授权。
 4. 从可信 `origin/develop` 提取 `WORKFLOW.md` 到部署配置目录，记录其 blob SHA；不得运行候选分支版本。
 5. 注入短期只读 GitHub token 和明确 workspace root。
 6. 启动 Symphony，并开启只允许管理员访问的本地 dashboard/API。
 7. 用一个不要求代码修改的 disposable Agent Goal Issue 验证读取和计划输出。
-8. 连续观察两周，记录误调度、重复认领、恢复、turn 消耗和人工接管原因。
+8. 记录该次observer的误调度、重复认领、恢复、turn消耗和人工接管结果；连续两周只读观察按总任务迭代6执行。
 
 由于当前 `WORKFLOW.md` 禁止远端写，Workpad 在 Level 0 可以只写入部署端审计日志。开放 Issue comment write 后才回写唯一 `## Codex Workpad` 评论。
 
 ## 开发 Kubernetes 集成环境
 
-内部开发集群 `jstore-dev-k8s` 承载首个 Level 0 实例。实际地址由操作者的 SSH/kubeconfig 管理，不写入仓库；部署边界和可复现证据见 `docs/spec/changes/agentic-cicd-kubernetes-level0/`。
+内部开发集群 `jstore-dev-k8s` 承载首个 Level 0 实例。实际地址由操作者的 SSH/kubeconfig 管理，不写入仓库；首个 Level 0 候选的历史边界和证据摘要见 `docs/spec/agentic-cicd/archive.md`，当前准入状态以总任务账本和机器合同为准。
 
 当前 profile：
 
@@ -247,6 +306,7 @@ kubectl --context kubernetes-admin@kubernetes \
 ./scripts/agentic-cicd-github-token-secret.sh \
   --context kubernetes-admin@kubernetes \
   --token-file /absolute/restricted/path/github-installation-token \
+  --expires-at-epoch-seconds '<github-issued-expiration-epoch>' \
   --dry-run
 ```
 
@@ -256,14 +316,17 @@ kubectl --context kubernetes-admin@kubernetes \
 ./scripts/agentic-cicd-github-token-secret.sh \
   --context kubernetes-admin@kubernetes \
   --token-file /absolute/restricted/path/github-installation-token \
+  --expires-at-epoch-seconds '<github-issued-expiration-epoch>' \
   --apply
 ```
+
+Secret同时保存`token`与非秘密的`expires-at-epoch-seconds`。入口要求到期时间在执行时剩余5分钟至2小时；Deployment通过两个独立`secretKeyRef`注入，任一缺失或运行时剩余时间不足都会在Git/HTTP调用前返回`token_unavailable`。更新Secret不会更新已运行Pod的环境变量，后续Deployment rollout仍需单独授权。
 
 ### Codex API Key认证注入
 
 当前受审入口只接受 Codex CLI API Key登录缓存和一份裁剪后的自定义provider配置：JSON对象必须且只能包含非空`OPENAI_API_KEY`；配置必须选择一个无内嵌凭据的HTTPS Responses provider，并只保留模型、推理强度、provider名称和URL。根据OpenAI官方认证说明，API Key适用于受信自动化并按Platform标准费率计费；`CODEX_API_KEY`只支持`codex exec`，不得用于Symphony的`codex app-server`。`auth.json`等同密码处理；原始`config.toml`也可能包含其他provider、MCP或策略配置，两者均不得提交、打印或通过挂载整个宿主机`.codex`目录注入。
 
-模型调用前使用专用OpenAI Platform项目和可撤销API Key，并按模型设置保守的request/token rate limit及spend alert。OpenAI官方说明spend alert只通知、不停止API请求，因此它不是硬费用上限；rate limit也只约束一段时间内的请求/Token数量。`state-contract.json`中的`max_cost_microusd`目前是审计合同，不是可验证的上游计费硬熔断；费用所有者没有明确接受“一次turn但无硬美元上限”的残余风险时不得启动真实turn。
+模型调用前使用专用OpenAI Platform项目和可撤销API Key；request/token rate limit与spend controls作为外部运维防护。Supervisor记录可信turn、墙钟时间和input/output token用量，但不维护模型费率表或推算账单；`max_cost_microusd`保留为兼容的未接线字段，不得据此宣称存在实时费用硬上限。真实模型调用仍须按仓库统一治理规则取得外部付费操作授权。
 
 先执行不写集群的server-side dry-run：
 
@@ -314,7 +377,7 @@ GitHub token到期、模型Key撤销或演练结束后，先缩容 Supervisor为
 3. GitHub 上是否存在对应开放 PR 和 head branch；
 4. 本地 workspace 的 remote、branch、base/head SHA；
 5. 最新 head SHA 对应的 checks 和 review；
-6. 已消费的通知幂等键。
+6. 已消费的GitHub人工交接幂等键。
 
 任何来源冲突都标记 `agent:blocked` 并转人工；不得通过创建第二个分支或 PR 绕过冲突。
 
@@ -331,9 +394,9 @@ GitHub token到期、模型Key撤销或演练结束后，先缩容 Supervisor为
 只有 `docs/spec/agentic-cicd/tasks.md` 对应迭代的退出条件满足后，才能按顺序开放：
 
 1. 本地 workspace 写入；
-2. 远端短分支和提交；
+2. Issue Workpad/状态标签与远端短分支、提交；
 3. 唯一 Draft PR；
-4. Draft -> Ready；
-5. 白名单邮件通知。
+4. Draft -> Ready与可选PR review request；
+5. 迭代5完成后重新切换只读profile观察两周，再按迭代6逐步开放低风险任务。
 
 每次升级都必须先写负向权限测试和恢复测试。自动合并、自动发布、生产写入始终不在升级序列中。

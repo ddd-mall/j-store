@@ -8,6 +8,7 @@
 !config/
 !config/agentic-cicd/
 !config/agentic-cicd/*.json
+config/agentic-cicd/state-contract.level2-disposable.example.json
 !deploy/
 !deploy/kubernetes/
 !deploy/kubernetes/agentic-cicd/

@@ -56,6 +56,8 @@ spec:
               value: /var/lib/gate-exchange
             - name: JSTORE_SYMPHONY_REPOSITORY_URL
               value: https://github.com/ddd-mall/j-store.git
+            - name: JSTORE_SYMPHONY_REPOSITORY
+              value: ddd-mall/j-store
             - name: JSTORE_SYMPHONY_GITHUB_TOKEN
               value: level0-no-github-access
           ports:

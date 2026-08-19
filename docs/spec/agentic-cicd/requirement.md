@@ -1,5 +1,12 @@
 # Agentic CI/CD 编排需求
 
+## 文档职责
+
+- 本文件是 Agentic CI/CD 长期产品意图和验收标准的唯一权威来源。
+- [design.md](design.md) 维护当前技术决策；[tasks.md](tasks.md) 维护唯一当前进度；[review-log.md](review-log.md) 保存评审流水；[archive.md](archive.md) 保存已完成阶段摘要。
+- 仍未收敛的 Level 1 变更保留在 [本地候选闭环规格](../changes/agentic-cicd-local-candidate-loop/)；完成后必须合并回本目录并归档，不再形成第二份当前状态。
+- 部署命令、凭据步骤、停止与恢复操作只维护在 [运行手册](../../operations/agentic-cicd-runbook.md)，规格文件不复制操作流程。
+
 ## 背景与目标
 
 j-store 已具备仓库级 Agent 治理、规格驱动开发、确定性质量门禁和受保护分支模板，但尚缺少一个能够持续承接目标、隔离实施、独立评审、跟踪 PR CI 并恢复执行的常驻编排层。
@@ -25,16 +32,17 @@ j-store 已具备仓库级 Agent 治理、规格驱动开发、确定性质量�
 - 在 review 发现新问题时形成结构化反馈并重新规划，受熔断规则限制。
 - 创建唯一 Draft PR，持续跟踪 required checks 和 review thread。
 - 当 CI 或 review 失败且可归因于候选变更时恢复原任务继续修复。
-- 当 required checks 全部通过、review thread 已处理且独立评审无新问题时，将 Draft PR 转为 Ready for Review 并触发一次邮件通知。
-- 记录状态、基线 SHA、候选 SHA、命令、结果、重试、预算和残余风险，支持 Supervisor 重启后的恢复。
+- 当 required checks 全部通过、review thread 已处理且独立评审无新问题时，将 Draft PR 转为 Ready for Review，并通过 Issue 状态、Workpad 或 PR review request 完成 GitHub 原生人工交接。
+- 记录状态、基线 SHA、候选 SHA、命令、结果、重试、turn/时间使用量和残余风险，支持 Supervisor 重启后的恢复。
 
 ## 非目标
 
 - 不自动批准、合并或发布 PR。
 - 不绕过 required checks、CODEOWNERS、review thread resolution 或分支保护。
-- 不执行生产写入、数据库迁移、密钥轮换、权限变更或外部付费操作。
+- 不执行生产写入、数据库迁移、密钥轮换或权限变更；外部付费操作未经费用所有者对精确范围和残余风险批准不得执行。
 - 第一版不支持多仓库事务、多 Supervisor 高可用或跨任务共享可变 workspace。
 - 第一版不自动发起依赖升级，也不处理无界的“持续优化”目标。
+- 不建设独立邮件通知链路；人工交接使用 GitHub Issue、PR 状态和 review request。
 - 不用 LLM 判断替代编译、测试、安全扫描或 GitHub check conclusion。
 
 ## 功能需求
@@ -82,15 +90,15 @@ Supervisor 必须跟踪仓库规定的 required checks、PR review、review thre
 - 需求或高风险决策：转人工；
 - 目标分支前移或冲突：同步可信基线并重新运行受影响检查。
 
-### AC-08 Ready 与通知
+### AC-08 Ready 与 GitHub 人工交接
 
 仅当最新 head SHA 的所有 required checks 成功、所有 actionable review thread 已处理、Independent Reviewer 无新 finding、PR 元数据和证据完整时，自动化才能把已有 Draft PR 转为 Ready for Review。
 
-转换后向配置的收件人白名单发送一次邮件。邮件发送必须幂等，且不得把邮件凭据暴露给 Coding Agent。通知失败不得回滚已通过的代码状态，但必须形成可重试的独立运维事项。
+转换后，Reconciler 必须根据已获能力合同尝试以下 GitHub 原生信号：将 Issue 迁移到 `agent:human-review`、更新唯一 Workpad、按仓库配置请求指定 PR reviewer。至少一种信号成功才算完成人工交接；其余失败信号作为增强项独立重试。全部信号都失败时不得回滚已通过的代码状态或 Ready 状态，但交接保持未完成并形成可重试的独立运维事项。所有信号必须绑定最新 head SHA并幂等执行。
 
 ### AC-09 恢复、取消与幂等
 
-Supervisor 在规划、实现、等待 CI 和等待 review 任一阶段重启后，必须根据 Issue、Workpad、Git、workspace 和 PR 状态恢复，且不重复创建分支、PR 或通知。Issue 被关闭、取消或移除调度资格后，运行中的 Agent 必须停止并释放 workspace。
+Supervisor 在规划、实现、等待 CI 和等待 review 任一阶段重启后，必须根据 Issue、Workpad、Git、workspace 和 PR 状态恢复，且不重复创建分支、PR 或人工交接副作用。Issue 被关闭、取消或移除调度资格后，运行中的 Agent 必须停止并释放 workspace。
 
 ### AC-10 人工边界
 
@@ -98,11 +106,12 @@ Supervisor 在规划、实现、等待 CI 和等待 review 任一阶段重启后
 
 ## 质量目标
 
-- **安全性**：Coding Agent 不继承 GitHub App、邮件、生产或 Supervisor 主凭据；运行环境默认 `workspace-write`，网络和宿主工具按最小集合开放。
+- **安全性**：Coding Agent 不继承 GitHub App、生产或 Supervisor 主凭据；运行环境默认只读，仅 Implementer 阶段按能力合同获得当前 workspace 写权限，网络和宿主工具按最小集合开放。
 - **可靠性**：任务状态转换幂等；同一 Issue 同时最多一个活跃执行；重复 webhook/poll 不产生重复副作用。
+- **资源约束**：并发、turn和墙钟时间受确定性硬限制；可信input/output token用量只作审计，不在仓库内维护模型费率或推算账单。
 - **可恢复性**：单实例 Supervisor 重启后能在五分钟内从持久控制面恢复可继续任务。
-- **可审计性**：每轮记录 Issue、base/head SHA、Agent 角色、命令结果、finding 根因、重试和通知事件 ID。
-- **可运维性**：具备最大并发、每任务 turn/时间/费用预算、熔断、取消和全局 kill switch。
+- **可审计性**：每轮记录 Issue、base/head SHA、Agent 角色、命令结果、finding 根因、重试和 GitHub 人工交接事件 ID。
+- **可运维性**：具备最大并发、每任务 turn/时间限制、熔断、取消和全局 kill switch。
 - **可维护性**：长期治理继续以 `docs/steering/agent-governance.md` 为唯一权威；平台配置不得复制或弱化它。
 
 ## 外部依赖与前置条件
@@ -110,9 +119,8 @@ Supervisor 在规划、实现、等待 CI 和等待 review 任一阶段重启后
 - `develop` 远端 ruleset 已实际启用并验证 required checks。
 - 当前 `develop` 的 Security Gate 已绿色；历史 secret 已经审计和必要轮换。
 - 具有最小权限的专用 GitHub App，安装范围仅限目标仓库。
-- 已审查并固定版本的 Symphony 运行时和 Codex App Server。
+- 已审查并固定提交的 Symphony 运行时，以及通过稳定版策略、App Server v2兼容性检查和制品身份记录验证的 Codex CLI；仓库不要求单一具体Codex版本。
 - 专用、非生产网络的 Linux 运行主机或容器环境。
-- 邮件发送方、收件人白名单和凭据保管方式经过人工批准。
 
 ## 退出与回滚
 

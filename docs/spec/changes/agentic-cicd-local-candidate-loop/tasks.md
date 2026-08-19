@@ -20,6 +20,7 @@
 - [x] `LC-01` 更新总计划与机器能力合同，拆分本地 bootstrap、workspace write、candidate freeze、isolated gate 和远端写能力；增加非法组合负向测试。
   - 证据：合同、治理检查和 Level 0 回归测试一致；所有远端写能力仍为 false。
   - 2026-08-15证据：合同升级为 version 2 / capability level 0，`bootstrap_local_workspace=true`，其余本地写入和全部远端写入保持 false；治理测试拒绝旧 `create_branch`、Level 0本地写入和 Level 1远端写入组合。
+  - 2026-08-18收敛：合同升级为version 3，删除非目标`send_email`，增加独立且默认关闭的`write_issue_comment`、`update_issue_labels`和`request_pull_request_review`；Level 0/1负向测试继续拒绝全部GitHub写入。
 - [x] `LC-02` 完成此前暴露的远程环境/provider/GitHub 凭据轮换确认，并迁移到不进入交互 shell、日志或 Codex 子进程的短期注入方式。
   - 所有者：凭据所有者；仓库只记录脱敏处置结论，不记录值。
   - 阻塞：未确认前不得注入真实 token或启动模型 turn。
@@ -68,7 +69,7 @@
 
 - [x] `LC-14` Reviewer从 CandidateRevision只读制品启动，ReviewProposal/TurnReceipt/ReviewDecision绑定同一 revision和独立 session。
   - 2026-08-16证据：独立复评发现并修复跨Issue receipt与同UID先chmod后篡改两个绕过路径；不可变controller digest `sha256:305a2b8a...84d1a9`部署后，从镜像内`/opt/jstore-agentic-controller`重跑同一CandidateRevision正反例。2,553个条目全部只读，直接写入和chmod后篡改均被拒绝，implementer session不能充当Reviewer，独立session生成绑定同一revision的PASS decision。聚焦55项测试、治理检查和镜像内复验均PASS；未启动模型或写正式Supervisor状态。
-- [ ] `LC-15` 在所有前置门通过后，将候选部署合同的 `local_workspace_write`、`freeze_local_candidate` 和 `run_isolated_gate` 置为 true；远端写、邮件、合并、发布和生产写保持 false。
+- [ ] `LC-15` 在所有前置门通过后，将候选部署合同的 `local_workspace_write`、`freeze_local_candidate` 和 `run_isolated_gate` 置为 true；远端分支、push、PR、Issue comment/label、review request、合并、发布和生产写保持 false。
 - [ ] `LC-16` 验证 implement/validate/review/complete 的单 turn路由、无第二 App Server、new-candidate失效、finding回流、两次修复和第三次熔断。
   - 当前进度：本地无模型102项组合合同测试已覆盖implement完成、validate重入单次调度、Gate PASS→review、Review FAIL回流、重复/延迟callback拒绝、历史ReviewDecision保留但exact-candidate失效、两次不同修复和第三次熔断，以及validate/complete不启动模型。两段patch在锁定Symphony源码上顺序apply后，使用单次构建且身份可审计的工具链镜像完成`mix compile --warnings-as-errors`、296项测试、Hex审计和escript；报告SHA-256为`87db57f4...a053`。最新镜像`sha256:7edcb88b...66bf6`已部署并完成Level 0、exact-candidate Reviewer及AC-LC-08四个恢复点复验；真实单turn/无第二App Server仍需LC-20/LC-21的凭据与模型授权，因此本项保持未关闭。
 - [x] `LC-17` 运行聚焦测试、治理检查、镜像安全检查和 `./scripts/quality-gate.sh`，再进行独立 Product Steward/Security review。
@@ -82,8 +83,8 @@
 - [x] `LC-19` 运行无模型跨节点 Gate Job smoke，验证 master Broker → worker1 fetch、NetworkPolicy真实隔离、receipt、超时/失败分类和不访问现有 `jstore`/数据库 workload。
   - 2026-08-16证据：同一 CandidateRevision的成功 Job产生 exact-identity PASS receipt并在前台删除后写 cleanup marker；早期创建/fetch故障被分类为基础设施失败，旧 runner的候选命令失败产生 FAIL finding；临时 60 秒策略真实触发 `DeadlineExceeded`，产生无 candidate finding的 `INFRASTRUCTURE_FAILURE` 并清理 Job，随后恢复 900 秒策略和新 Dispatcher UID；worker1同等受限探针确认 Broker可达时 j-store、Redis和 PostgreSQL仍不可达。
 - [ ] `LC-20` 经精确授权注入短期只读 GitHub App token并创建/标记 disposable Issue；完成只读 observer 单 turn。
-  - 当前进度：已增加固定`symphony-codex-auth`注入工具、API-Key登录缓存和经白名单裁剪的自定义Responses provider配置只读挂载、非root HOME准备及部署后`codex login status`检查。真实宿主认证文件通过目标集群server-side dry-run；聚焦合同34项、全部tooling 205项和完整六阶段quality gate均PASS。GitHub App安装已接受`issues: write`，disposable Issue `#50`已创建且初始唯一标签为`agent:candidate`；创建后立即撤销写token，并重新签发显式降权为`issues: read`的运行时token，真实PATCH负测返回拒绝。实际模型演练仍阻塞于`max_cost_microusd`不是运行时硬限额且OpenAI spend alert不会停止请求（需专用项目、保守rate limit/spend alert和精确残余风险批准）。尚未写Codex Secret、rollout、添加`agent:queued`或启动模型。
-- [ ] `LC-21` 经模型费用授权完成本地候选成功路径：Implementer → CandidateRevision → Gate PASS → 独立 Reviewer exact-candidate PASS；GitHub 无远程候选分支或 PR。
+  - 当前进度：已增加固定`symphony-codex-auth`注入工具、API-Key登录缓存和经白名单裁剪的自定义Responses provider配置只读挂载、非root HOME准备及部署后`codex login status`检查。真实宿主认证文件通过目标集群server-side dry-run；聚焦合同34项、全部tooling 205项和完整六阶段quality gate均PASS。GitHub App安装已接受`issues: write`，disposable Issue `#50`已创建且初始唯一标签为`agent:candidate`；创建后立即撤销写token，并重新签发显式降权为`issues: read`的运行时token，真实PATCH负测返回拒绝。GitHub-only credentialed Level 0 rollout已经完成并缩容；当前集群没有Codex auth Secret，尚未执行Codex-auth observer rollout、添加`agent:queued`或启动模型。当前运行路径记录turn、墙钟和token用量，不在仓库内维护模型费率或推算账单。
+- [ ] `LC-21` 经模型调用授权完成本地候选成功路径：Implementer → CandidateRevision → Gate PASS → 独立 Reviewer exact-candidate PASS；GitHub 无远程候选分支或 PR。
 - [x] `LC-22` 使用可信 fixture完成 Gate FAIL、Review FAIL、new revision、同根因熔断以及 implement完成后、等待Gate、Gate PASS后、等待review四个恢复点演练。
   - 2026-08-16/17证据：两个恶意new revision分别得到自己的FAIL receipt，本地正式合同测试覆盖Review FAIL、旧callback、历史decision和第三次熔断。新digest部署后，可信PVC fixture分别证明implement完成后恢复为validate/no-model、等待Gate时复用同一Job/Pod、PASS receipt持久化后且消费前重启仍保持snapshot/receipt/request/预算、等待review时复用唯一只读workspace和Reviewer decision。第四点使用Job UID `ee8f220b...717151` / Pod UID `c0be4e7d...b9846`，重启后才由正式ValidatePhaseDriver消费原receipt并进入review。当前fixture SHA-256为`bbf4aadf...a4865`，详见`evidence/2026-08-16-lc18-lc22-hardened-runtime.md`。
 - [ ] `LC-23` 移除调度资格并缩容为 0，保留 PVC/日志；生成 `summary.md` 映射 AC-LC-01 至 AC-LC-12。

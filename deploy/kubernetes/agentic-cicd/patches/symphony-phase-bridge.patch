@@ -1,21 +1,18 @@
 diff --git a/elixir/lib/symphony_elixir/agent_runner.ex b/elixir/lib/symphony_elixir/agent_runner.ex
-index 2a72a31..af31d94 100644
+index f99a2d9..9efbac7 100644
 --- a/elixir/lib/symphony_elixir/agent_runner.ex
 +++ b/elixir/lib/symphony_elixir/agent_runner.ex
-@@ -39,11 +39,27 @@ defmodule SymphonyElixir.AgentRunner do
+@@ -42,12 +42,29 @@ defmodule SymphonyElixir.AgentRunner do
        {:ok, workspace} ->
          send_worker_runtime_info(codex_update_recipient, issue, worker_host, workspace)
  
 -        try do
--          with :ok <- Workspace.run_before_run_hook(workspace, issue, worker_host) do
--            run_codex_turns(workspace, issue, codex_update_recipient, opts, worker_host)
--          end
++        run_result =
+           with :ok <- Workspace.run_before_run_hook(workspace, issue, worker_host) do
+             run_codex_turns(workspace, issue, codex_update_recipient, opts, worker_host)
+           end
 -        after
 -          Workspace.run_after_run_hook(workspace, issue, worker_host)
-+        run_result =
-+          with :ok <- Workspace.run_before_run_hook(workspace, issue, worker_host) do
-+            run_codex_turns(workspace, issue, codex_update_recipient, opts, worker_host)
-+          end
 +
 +        turn_receipt =
 +          case run_result do
@@ -38,7 +35,7 @@ index 2a72a31..af31d94 100644
          end
  
        {:error, reason} ->
-@@ -120,11 +136,11 @@ defmodule SymphonyElixir.AgentRunner do
+@@ -128,10 +145,10 @@ defmodule SymphonyElixir.AgentRunner do
          {:continue, refreshed_issue} ->
            Logger.info("Reached agent.max_turns for #{issue_context(refreshed_issue)} with issue still active; returning control to orchestrator")
  
@@ -51,91 +48,8 @@ index 2a72a31..af31d94 100644
  
          {:error, reason} ->
            {:error, reason}
-diff --git a/elixir/lib/symphony_elixir/workspace.ex b/elixir/lib/symphony_elixir/workspace.ex
-index 3e62b9f..264cf9b 100644
---- a/elixir/lib/symphony_elixir/workspace.ex
-+++ b/elixir/lib/symphony_elixir/workspace.ex
-@@ -232,17 +232,16 @@ defmodule SymphonyElixir.Workspace do
-     end
-   end
- 
--  @spec run_after_run_hook(Path.t(), map() | String.t() | nil, worker_host()) :: :ok
--  def run_after_run_hook(workspace, issue_or_identifier, worker_host \\ nil) when is_binary(workspace) do
-+  @spec run_after_run_hook(Path.t(), map() | String.t() | nil, worker_host(), map() | nil) ::
-+          :ok | {:error, term()}
-+  def run_after_run_hook(workspace, issue_or_identifier, worker_host \\ nil, turn_receipt \\ nil)
-+      when is_binary(workspace) do
-     issue_context = issue_context(issue_or_identifier)
-     hooks = Config.settings!().hooks
- 
-     case hooks.after_run do
-       nil ->
-         :ok
- 
-       command ->
--        run_hook(command, workspace, issue_context, "after_run", worker_host)
--        |> ignore_hook_failure()
-+        run_hook(command, workspace, issue_context, "after_run", worker_host, receipt_environment(turn_receipt))
-     end
-   end
-@@ -394,14 +393,14 @@ defmodule SymphonyElixir.Workspace do
-   defp ignore_hook_failure(:ok), do: :ok
-   defp ignore_hook_failure({:error, _reason}), do: :ok
- 
--  defp run_hook(command, workspace, issue_context, hook_name, nil) do
-+  defp run_hook(command, workspace, issue_context, hook_name, worker_host, environment \\ [])
-+
-+  defp run_hook(command, workspace, issue_context, hook_name, nil, environment) do
-     timeout_ms = Config.settings!().hooks.timeout_ms
- 
-     Logger.info("Running workspace hook hook=#{hook_name} #{issue_log_context(issue_context)} workspace=#{workspace} worker_host=local")
- 
-     task =
-       Task.async(fn ->
--        System.cmd("sh", ["-lc", command], cd: workspace, stderr_to_stdout: true)
-+        System.cmd("sh", ["-lc", command], cd: workspace, stderr_to_stdout: true, env: environment)
-       end)
- 
-     case Task.yield(task, timeout_ms) do
-@@ -417,12 +416,16 @@ defmodule SymphonyElixir.Workspace do
-     end
-   end
- 
--  defp run_hook(command, workspace, issue_context, hook_name, worker_host) when is_binary(worker_host) do
-+  defp run_hook(command, workspace, issue_context, hook_name, worker_host, environment)
-+       when is_binary(worker_host) do
-     timeout_ms = Config.settings!().hooks.timeout_ms
- 
-     Logger.info("Running workspace hook hook=#{hook_name} #{issue_log_context(issue_context)} workspace=#{workspace} worker_host=#{worker_host}")
- 
--    case run_remote_command(worker_host, "cd #{shell_escape(workspace)} && #{command}", timeout_ms) do
-+    exports = Enum.map_join(environment, " ", fn {key, value} -> "#{key}=#{shell_escape(value)}" end)
-+    script = "cd #{shell_escape(workspace)} && #{exports} #{command}"
-+
-+    case run_remote_command(worker_host, script, timeout_ms) do
-       {:ok, cmd_result} ->
-         handle_hook_command_result(cmd_result, workspace, issue_context, hook_name)
-@@ -444,6 +447,20 @@ defmodule SymphonyElixir.Workspace do
-     {:error, {:workspace_hook_failed, hook_name, status, output}}
-   end
- 
-+  defp receipt_environment(nil), do: []
-+
-+  defp receipt_environment(receipt) when is_map(receipt) do
-+    [
-+      {"JSTORE_TURN_SESSION_ID", receipt[:session_id]},
-+      {"JSTORE_TURN_THREAD_ID", receipt[:thread_id]},
-+      {"JSTORE_TURN_ID", receipt[:turn_id]}
-+    ]
-+    |> Enum.filter(fn {_key, value} -> is_binary(value) and value != "" end)
-+  end
-+
-+  defp receipt_environment(_receipt), do: []
-+
-   defp sanitize_hook_output_for_log(output, max_bytes \\ 2_048) do
-     binary_output = IO.iodata_to_binary(output)
 diff --git a/elixir/lib/symphony_elixir/github/agent_tool.ex b/elixir/lib/symphony_elixir/github/agent_tool.ex
-index ce88d3b..0dd1ef8 100644
+index 9b42aa7..87939d8 100644
 --- a/elixir/lib/symphony_elixir/github/agent_tool.ex
 +++ b/elixir/lib/symphony_elixir/github/agent_tool.ex
 @@ -6,6 +6,8 @@ defmodule SymphonyElixir.GitHub.AgentTool do
@@ -147,7 +61,7 @@ index ce88d3b..0dd1ef8 100644
    @allowed_methods ["GET", "POST", "PATCH", "PUT", "DELETE"]
    @github_api_description """
    Execute a GitHub REST API request using Symphony's configured auth.
-@@ -32,6 +34,53 @@ defmodule SymphonyElixir.GitHub.AgentTool do
+@@ -34,11 +36,55 @@ defmodule SymphonyElixir.GitHub.AgentTool do
        }
      }
    }
@@ -203,7 +117,7 @@ index ce88d3b..0dd1ef8 100644
        other -> unsupported_tool_response(other)
      end
    end
-@@ -50,7 +97,12 @@ defmodule SymphonyElixir.GitHub.AgentTool do
+@@ -50,10 +96,51 @@ defmodule SymphonyElixir.GitHub.AgentTool do
          "name" => @github_api_tool,
          "description" => @github_api_description,
          "inputSchema" => @github_api_input_schema
@@ -215,7 +129,7 @@ index ce88d3b..0dd1ef8 100644
        }
      ]
    end
-+
+ 
 +  defp execute_review_proposal(arguments, opts) when is_map(arguments) do
 +    with %{identifier: issue_identifier} when is_binary(issue_identifier) <- Keyword.get(opts, :issue),
 +         {:ok, payload} <- Jason.encode(arguments),
@@ -251,6 +165,147 @@ index ce88d3b..0dd1ef8 100644
 +  defp execute_review_proposal(_arguments, _opts) do
 +    failure_response(%{"error" => %{"message" => "`submit_review_proposal` expects an object."}})
 +  end
- 
++
    defp execute_github_api(arguments, opts) do
      github_client = Keyword.get(opts, :github_client, &Client.request/5)
+     client_opts = Keyword.take(opts, [:tracker_settings])
+diff --git a/elixir/lib/symphony_elixir/workspace.ex b/elixir/lib/symphony_elixir/workspace.ex
+index 28ee2da..406645b 100644
+--- a/elixir/lib/symphony_elixir/workspace.ex
++++ b/elixir/lib/symphony_elixir/workspace.ex
+@@ -231,8 +231,10 @@ defmodule SymphonyElixir.Workspace do
+     end
+   end
+ 
+-  @spec run_after_run_hook(Path.t(), map() | String.t() | nil, worker_host()) :: :ok
+-  def run_after_run_hook(workspace, issue_or_identifier, worker_host \\ nil) when is_binary(workspace) do
++  @spec run_after_run_hook(Path.t(), map() | String.t() | nil, worker_host(), map() | nil) ::
++          :ok | {:error, term()}
++  def run_after_run_hook(workspace, issue_or_identifier, worker_host \\ nil, turn_receipt \\ nil)
++      when is_binary(workspace) do
+     issue_context = issue_context(issue_or_identifier)
+     hooks = Config.settings!().hooks
+ 
+@@ -241,8 +243,7 @@ defmodule SymphonyElixir.Workspace do
+         :ok
+ 
+       command ->
+-        run_hook(command, workspace, issue_context, "after_run", worker_host)
+-        |> ignore_hook_failure()
++        run_hook(command, workspace, issue_context, "after_run", worker_host, receipt_environment(turn_receipt))
+     end
+   end
+ 
+@@ -296,7 +297,14 @@ defmodule SymphonyElixir.Workspace do
+             :ok
+ 
+           command ->
+-            run_hook(command, workspace, issue_context, "after_create", worker_host)
++            run_hook(
++              command,
++              workspace,
++              issue_context,
++              "after_create",
++              worker_host,
++              issue_environment(issue_context)
++            )
+         end
+ 
+       false ->
+@@ -394,14 +395,16 @@ defmodule SymphonyElixir.Workspace do
+   defp ignore_hook_failure(:ok), do: :ok
+   defp ignore_hook_failure({:error, _reason}), do: :ok
+ 
+-  defp run_hook(command, workspace, issue_context, hook_name, nil) do
++  defp run_hook(command, workspace, issue_context, hook_name, worker_host, environment \\ [])
++
++  defp run_hook(command, workspace, issue_context, hook_name, nil, environment) do
+     timeout_ms = Config.settings!().hooks.timeout_ms
+ 
+     Logger.info("Running workspace hook hook=#{hook_name} #{issue_log_context(issue_context)} workspace=#{workspace} worker_host=local")
+ 
+     task =
+       Task.async(fn ->
+-        System.cmd("sh", ["-lc", command], cd: workspace, stderr_to_stdout: true)
++        System.cmd("sh", ["-lc", command], cd: workspace, stderr_to_stdout: true, env: environment)
+       end)
+ 
+     case Task.yield(task, timeout_ms) do
+@@ -417,12 +420,16 @@ defmodule SymphonyElixir.Workspace do
+     end
+   end
+ 
+-  defp run_hook(command, workspace, issue_context, hook_name, worker_host) when is_binary(worker_host) do
++  defp run_hook(command, workspace, issue_context, hook_name, worker_host, environment)
++       when is_binary(worker_host) do
+     timeout_ms = Config.settings!().hooks.timeout_ms
+ 
+     Logger.info("Running workspace hook hook=#{hook_name} #{issue_log_context(issue_context)} workspace=#{workspace} worker_host=#{worker_host}")
+ 
+-    case run_remote_command(worker_host, "cd #{shell_escape(workspace)} && #{command}", timeout_ms) do
++    exports = Enum.map_join(environment, " ", fn {key, value} -> "#{key}=#{shell_escape(value)}" end)
++    script = "cd #{shell_escape(workspace)} && #{exports} #{command}"
++
++    case run_remote_command(worker_host, script, timeout_ms) do
+       {:ok, cmd_result} ->
+         handle_hook_command_result(cmd_result, workspace, issue_context, hook_name)
+ 
+@@ -446,6 +460,27 @@ defmodule SymphonyElixir.Workspace do
+     {:error, {:workspace_hook_failed, hook_name, status, output}}
+   end
+ 
++  defp receipt_environment(nil), do: []
++
++  defp receipt_environment(receipt) when is_map(receipt) do
++    [
++      {"JSTORE_TURN_SESSION_ID", receipt[:session_id]},
++      {"JSTORE_TURN_THREAD_ID", receipt[:thread_id]},
++      {"JSTORE_TURN_ID", receipt[:turn_id]}
++    ]
++    |> Enum.filter(fn {_key, value} -> is_binary(value) and value != "" end)
++  end
++
++  defp receipt_environment(_receipt), do: []
++
++  defp issue_environment(issue_context) do
++    [
++      {"JSTORE_ISSUE_TITLE", issue_context.issue_title},
++      {"JSTORE_ISSUE_BODY", issue_context.issue_description}
++    ]
++    |> Enum.filter(fn {_key, value} -> is_binary(value) and String.trim(value) != "" end)
++  end
++
+   defp sanitize_hook_output_for_log(output, max_bytes \\ 2_048) do
+     binary_output = IO.iodata_to_binary(output)
+ 
+@@ -571,20 +599,26 @@ defmodule SymphonyElixir.Workspace do
+-  defp issue_context(%{id: issue_id, identifier: identifier}) do
++  defp issue_context(%{id: issue_id, identifier: identifier} = issue) do
+     %{
+       issue_id: issue_id,
+-      issue_identifier: identifier || "issue"
++      issue_identifier: identifier || "issue",
++      issue_title: Map.get(issue, :title),
++      issue_description: Map.get(issue, :description)
+     }
+   end
+ 
+   defp issue_context(identifier) when is_binary(identifier) do
+     %{
+       issue_id: nil,
+-      issue_identifier: identifier
++      issue_identifier: identifier,
++      issue_title: nil,
++      issue_description: nil
+     }
+   end
+ 
+   defp issue_context(_identifier) do
+     %{
+       issue_id: nil,
+-      issue_identifier: "issue"
++      issue_identifier: "issue",
++      issue_title: nil,
++      issue_description: nil
+     }
+   end

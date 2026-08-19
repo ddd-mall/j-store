@@ -2,6 +2,7 @@
 set -euo pipefail
 
 output_dir=""
+disposable_level2_repository=""
 symphony_source="${SYMPHONY_SOURCE:-$HOME/source/symphony}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 manifest_dir="$repo_root/deploy/kubernetes/agentic-cicd"
@@ -20,6 +21,8 @@ The repository and the pinned Symphony checkout must both be clean.
 Options:
   --output-dir <path>       Destination for immutable build artifacts
   --symphony-source <path>  Clean pinned Symphony checkout
+  --disposable-level2-repository <owner/name>
+                             Bind the fixed Level 2 candidate to this repository
 EOF
 }
 
@@ -31,6 +34,10 @@ while (($#)); do
       ;;
     --symphony-source)
       symphony_source=${2:?missing Symphony source path}
+      shift 2
+      ;;
+    --disposable-level2-repository)
+      disposable_level2_repository=${2:?missing disposable repository}
       shift 2
       ;;
     --help|-h)
@@ -110,8 +117,6 @@ if [[ "$(git -C "$symphony_source" rev-parse HEAD 2>/dev/null || true)" != "$sym
   exit 2
 fi
 
-image="docker.io/library/jstore-agentic-cicd:${symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-$codex_version"
-artifact_prefix="jstore-agentic-controller-${controller_revision:0:12}"
 mkdir -p "$output_dir"
 temporary_root=$(mktemp -d "${TMPDIR:-/tmp}/jstore-controller-build.XXXXXX")
 cleanup() {
@@ -125,6 +130,51 @@ symphony_context="$temporary_root/symphony"
 mkdir -p "$symphony_context"
 git -C "$symphony_source" archive "$symphony_revision" \
   | tar -x -C "$symphony_context"
+
+capability_level=0
+target_repository="ddd-mall/j-store"
+state_contract="$repo_root/config/agentic-cicd/state-contract.json"
+state_contract_sha256=$(sha256sum "$state_contract" | awk '{print $1}')
+runtime_binding_sha256=""
+profile_suffix=""
+profile_build_arguments=()
+if [[ -n "$disposable_level2_repository" ]]; then
+  capability_level=2
+  target_repository=$disposable_level2_repository
+  state_contract="$repo_root/config/agentic-cicd/state-contract.level2-disposable.example.json"
+  runtime_profile_context="$temporary_root/runtime-profile"
+  profile_digests=$(PYTHONPATH="$repo_root/scripts" python3 - \
+    "$repo_root/config/agentic-cicd/state-contract.json" \
+    "$state_contract" "$target_repository" "$runtime_profile_context" <<'PY'
+import pathlib
+import sys
+
+from agentic_cicd.runtime_binding import prepare_disposable_runtime_profile
+
+authoritative_path, candidate_path, repository, output_directory = sys.argv[1:]
+digests = prepare_disposable_runtime_profile(
+    authoritative_contract_path=pathlib.Path(authoritative_path),
+    candidate_contract_path=pathlib.Path(candidate_path),
+    repository=repository,
+    output_directory=pathlib.Path(output_directory),
+)
+print(*digests)
+PY
+  )
+  read -r state_contract_sha256 runtime_binding_sha256 <<<"$profile_digests"
+  profile_suffix="-level2-${state_contract_sha256:0:16}-binding-${runtime_binding_sha256:0:16}"
+  profile_build_arguments+=(
+    --target disposable-level2
+    --build-context "runtime-profile=$runtime_profile_context"
+    --build-arg "JSTORE_TARGET_REPOSITORY=$target_repository"
+    --build-arg "JSTORE_CAPABILITY_LEVEL=$capability_level"
+    --build-arg "JSTORE_STATE_CONTRACT_SHA256=$state_contract_sha256"
+    --build-arg "JSTORE_RUNTIME_BINDING_SHA256=$runtime_binding_sha256"
+  )
+fi
+
+image="docker.io/library/jstore-agentic-cicd:${symphony_revision:0:8}-jstore-${controller_revision:0:8}-codex-$codex_version$profile_suffix"
+artifact_prefix="jstore-agentic-controller-${controller_revision:0:12}$profile_suffix"
 
 build_arguments=()
 proxy_values="${HTTP_PROXY:-}${HTTPS_PROXY:-}${http_proxy:-}${https_proxy:-}"
@@ -156,6 +206,7 @@ build_arguments+=(
   --file "$manifest_dir/image/Dockerfile"
   --tag "$image"
 )
+build_arguments+=("${profile_build_arguments[@]}")
 
 docker buildx build \
   --platform linux/amd64 \
@@ -205,6 +256,15 @@ expected = {
     "io.jstore.base.elixir": "$elixir_image",
     "io.jstore.base.node": "$node_image",
 }
+if "$capability_level" == "2":
+    expected.update(
+        {
+            "io.jstore.target.repository": "$target_repository",
+            "io.jstore.capability.level": "$capability_level",
+            "io.jstore.state-contract.sha256": "$state_contract_sha256",
+            "io.jstore.runtime-binding.sha256": "$runtime_binding_sha256",
+        }
+    )
 if labels != {**labels, **expected}:
     missing = {key: value for key, value in expected.items() if labels.get(key) != value}
     raise SystemExit(f"controller image labels are incomplete: {missing}")
@@ -270,6 +330,7 @@ record = {
     "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "image": "$image",
     "runtime_manifest_digest": "$runtime_digest",
+    "archive": pathlib.Path("$archive_path").name,
     "archive_sha256": "$archive_sha256",
     "symphony_revision": "$symphony_revision",
     "controller_revision": "$controller_revision",
@@ -277,6 +338,10 @@ record = {
     "phase_routing_patch_sha256": "$routing_patch_sha256",
     "dependency_lock_sha256": "$dependency_lock_sha256",
     "workflow_sha256": "$workflow_sha256",
+    "capability_level": $capability_level,
+    "target_repository": "$target_repository",
+    "state_contract_sha256": "$state_contract_sha256",
+    "runtime_binding_sha256": "${runtime_binding_sha256:-}",
     "codex_version": "$codex_version",
     "elixir_image": "$elixir_image",
     "node_image": "$node_image",
@@ -300,5 +365,9 @@ printf '%s\n' \
   "CONTROLLER_IMAGE_SBOM=$sbom_path" \
   "CONTROLLER_IMAGE_PROVENANCE=$provenance_path" \
   "CONTROLLER_IMAGE_SOURCE_RECORD=$source_record" \
+  "CONTROLLER_CAPABILITY_LEVEL=$capability_level" \
+  "CONTROLLER_TARGET_REPOSITORY=$target_repository" \
+  "CONTROLLER_STATE_CONTRACT_SHA256=$state_contract_sha256" \
+  "CONTROLLER_RUNTIME_BINDING_SHA256=${runtime_binding_sha256:-}" \
   | tee "$output_dir/$artifact_prefix.env"
 printf 'PASS: immutable controller image candidate %s\n' "$runtime_digest"

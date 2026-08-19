@@ -4,6 +4,7 @@ import os
 import pty
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -72,13 +73,24 @@ class AgenticCicdCredentialToolTest(unittest.TestCase):
         self.environment["PATH"] = f"{self.bin}:{self.environment['PATH']}"
         self.environment["KUBECTL_LOG"] = str(self.log)
         self.environment["CODEX_CONFIG_CAPTURE"] = str(self.codex_config_capture)
+        self.token_expiry = str(int(time.time()) + 3600)
 
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
 
-    def run_tool(self, *arguments: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+    def run_tool(
+        self,
+        *arguments: str,
+        stdin: str | None = None,
+        include_expiry: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        command = [str(SCRIPT), *arguments]
+        if include_expiry:
+            command.extend(
+                ["--expires-at-epoch-seconds", self.token_expiry]
+            )
         return subprocess.run(
-            [str(SCRIPT), *arguments],
+            command,
             cwd=REPOSITORY_ROOT,
             env=self.environment,
             input=stdin,
@@ -116,8 +128,39 @@ class AgenticCicdCredentialToolTest(unittest.TestCase):
         calls = self.log.read_text(encoding="utf-8")
         self.assertNotIn(token, calls)
         self.assertIn("create secret generic symphony-github-token", calls)
+        self.assertIn(
+            f"--from-literal=expires-at-epoch-seconds={self.token_expiry}", calls
+        )
         self.assertIn("apply --dry-run=server", calls)
         self.assertIn("DRY_RUN_OK", result.stdout)
+
+    def test_requires_a_bounded_future_expiration_before_reading_token(self) -> None:
+        missing = self.run_tool(
+            "--context",
+            "kubernetes-admin@kubernetes",
+            "--stdin",
+            "--dry-run",
+            stdin="ghs_fixture_token_not_a_secret",
+            include_expiry=False,
+        )
+        self.assertEqual(2, missing.returncode)
+        self.assertIn("expires-at-epoch-seconds", missing.stderr)
+
+        for expiry in (str(int(time.time()) + 60), str(int(time.time()) + 10800)):
+            result = self.run_tool(
+                "--context",
+                "kubernetes-admin@kubernetes",
+                "--stdin",
+                "--dry-run",
+                "--expires-at-epoch-seconds",
+                expiry,
+                stdin="ghs_fixture_token_not_a_secret",
+                include_expiry=False,
+            )
+            self.assertEqual(2, result.returncode)
+            self.assertIn("5 minutes and 2 hours", result.stderr)
+        calls = self.log.read_text(encoding="utf-8")
+        self.assertNotIn("create secret generic", calls)
 
     def test_apply_requires_an_explicit_mode_and_restricted_token_file(self) -> None:
         token_file = self.root / "token"
@@ -220,6 +263,8 @@ class AgenticCicdCredentialToolTest(unittest.TestCase):
                     "kubernetes-admin@kubernetes",
                     "--stdin",
                     "--dry-run",
+                    "--expires-at-epoch-seconds",
+                    self.token_expiry,
                 ],
                 cwd=REPOSITORY_ROOT,
                 env=self.environment,

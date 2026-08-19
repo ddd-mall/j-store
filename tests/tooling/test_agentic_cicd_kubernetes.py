@@ -146,6 +146,16 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             ],
         )
         self.assertNotIn("value", environment["JSTORE_SYMPHONY_GITHUB_TOKEN"])
+        self.assertEqual(
+            {
+                "name": "symphony-github-token",
+                "key": "expires-at-epoch-seconds",
+                "optional": False,
+            },
+            environment["JSTORE_GITHUB_TOKEN_EXPIRES_AT_EPOCH_SECONDS"][
+                "valueFrom"
+            ]["secretKeyRef"],
+        )
         self.assertFalse(pod["automountServiceAccountToken"])
         self.assertEqual("k8s-master", pod["nodeSelector"]["kubernetes.io/hostname"])
         self.assertEqual("Never", container["imagePullPolicy"])
@@ -239,6 +249,11 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "--expected-role \"$JSTORE_INVOCATION_ROLE\"",
             "--expected-head-sha \"$JSTORE_INVOCATION_HEAD_SHA\"",
             "--expected-candidate-revision \"$JSTORE_INVOCATION_CANDIDATE_REVISION\"",
+            "--outcome \"$JSTORE_TURN_OUTCOME\"",
+            "--token-usage-observed \"$JSTORE_TURN_TOKEN_USAGE_OBSERVED\"",
+            "--wall-clock-seconds \"$JSTORE_TURN_WALL_CLOCK_SECONDS\"",
+            "--input-tokens \"$JSTORE_TURN_INPUT_TOKENS\"",
+            "--output-tokens \"$JSTORE_TURN_OUTPUT_TOKENS\"",
         ):
             self.assertIn(binding, deployed_workflow)
         self.assertIn('{% if agentic_cicd.role == "reviewer" %}', deployed_workflow)
@@ -312,6 +327,21 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "COPY config/agentic-cicd/state-contract.json /opt/jstore-agentic-controller/state-contract.json",
             dockerfile,
         )
+        self.assertNotIn(
+            "state-contract.level2-disposable.example.json "
+            "/opt/jstore-agentic-controller/state-contract.json",
+            dockerfile,
+        )
+        self.assertIn("FROM level0-runtime AS disposable-level2", dockerfile)
+        self.assertIn(
+            "COPY --from=runtime-profile --chmod=0444 /state-contract.json",
+            dockerfile,
+        )
+        self.assertIn(
+            "COPY --from=runtime-profile --chmod=0444 /runtime-binding.json",
+            dockerfile,
+        )
+        self.assertIn("FROM level0-runtime AS default", dockerfile)
         self.assertIn("io.jstore.controller.revision", dockerfile)
         for label in (
             "io.jstore.symphony.patch.sha256",
@@ -410,6 +440,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "dependency_lock_sha256",
             "workflow_sha256",
             "CONTROLLER_IMAGE_ARCHIVE_SHA256",
+            '"archive": pathlib.Path("$archive_path").name',
             'verify_sha256 "$repo_root/$patch_relative"',
             'verify_sha256 "$repo_root/$routing_patch_relative"',
             'verify_sha256 "$repo_root/$dependency_lock_relative"',
@@ -421,6 +452,20 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("codex_output=$(codex --version", build_script)
         self.assertIn('--build-arg "CODEX_VERSION=$codex_version"', build_script)
         self.assertNotIn('symphony-source=$symphony_source', build_script)
+        for profile_boundary in (
+            "--disposable-level2-repository",
+            "state-contract.level2-disposable.example.json",
+            "prepare_disposable_runtime_profile",
+            "--target disposable-level2",
+            "runtime-profile=$runtime_profile_context",
+            "JSTORE_STATE_CONTRACT_SHA256",
+            "JSTORE_RUNTIME_BINDING_SHA256",
+            "io.jstore.target.repository",
+            "CONTROLLER_TARGET_REPOSITORY",
+            'profile_suffix="-level2-${state_contract_sha256:0:16}-binding-${runtime_binding_sha256:0:16}"',
+        ):
+            self.assertIn(profile_boundary, build_script)
+        self.assertNotIn("--capability-contract", build_script)
         self.assertIn("HEX_HTTP_CONCURRENCY=1", dockerfile)
         self.assertIn("HEX_HTTP_TIMEOUT=120", dockerfile)
         self.assertIn(
@@ -441,6 +486,10 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("!scripts/agentic-artifact-broker.py", dockerignore)
         self.assertIn("!scripts/agentic-gate-dispatcher.py", dockerignore)
         self.assertIn("!config/agentic-cicd/*.json", dockerignore)
+        self.assertIn(
+            "config/agentic-cicd/state-contract.level2-disposable.example.json",
+            dockerignore,
+        )
         self.assertIn(
             "!deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
             dockerignore,
@@ -478,10 +527,16 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("JSTORE_TURN_SESSION_ID", patch)
         self.assertIn("JSTORE_TURN_THREAD_ID", patch)
         self.assertIn("JSTORE_TURN_ID", patch)
+        self.assertIn("JSTORE_ISSUE_TITLE", patch)
+        self.assertIn("JSTORE_ISSUE_BODY", patch)
+        self.assertIn("issue_environment(issue_context)", patch)
         self.assertNotIn("codex app-server", patch)
 
         routing_patch_path = patch_path.with_name("symphony-phase-routing.patch")
         routing_patch = routing_patch_path.read_text(encoding="utf-8")
+        self.assertIn("JSTORE_TURN_WALL_CLOCK_SECONDS", routing_patch)
+        self.assertIn("JSTORE_TURN_INPUT_TOKENS", routing_patch)
+        self.assertIn("JSTORE_TURN_OUTPUT_TOKENS", routing_patch)
         self.assertEqual(
             hashlib.sha256(routing_patch_path.read_bytes()).hexdigest(),
             lock["routing_patch_sha256"],
@@ -502,6 +557,8 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn("candidate_revision", routing_patch)
         self.assertIn("runtime_policy", routing_patch)
         self.assertIn(":agentic_cicd_context", routing_patch)
+        self.assertIn("defmodule SymphonyElixir.AgenticCicd do", routing_patch)
+        self.assertIn(":remote_phase_context_not_supported", routing_patch)
         self.assertIn('@allowed_methods ["GET"]', routing_patch)
         self.assertIn(
             'Enum.each(["POST", "PATCH", "PUT", "DELETE"]', routing_patch

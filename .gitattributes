@@ -2,3 +2,4 @@
 /gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+/deploy/kubernetes/agentic-cicd/patches/*.patch -whitespace

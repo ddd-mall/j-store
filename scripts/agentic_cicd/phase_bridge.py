@@ -12,6 +12,7 @@ from .protocol import (
     ReviewProposal,
     TurnReceipt,
 )
+from .workspace import BaseSyncResult
 
 
 PHASE_IMPLEMENT = "implement"
@@ -98,6 +99,22 @@ class SymphonyPhaseBridge:
         snapshot.implementer_session_id = None
         snapshot.iteration_phase = PHASE_COMPLETE
 
+    def record_terminal_turn(
+        self,
+        snapshot: TaskSnapshot,
+        receipt: TurnReceipt,
+        *,
+        outcome: str,
+        token_usage_observed: bool,
+    ) -> None:
+        self._validate_phase(snapshot)
+        self._require_receipt(snapshot, receipt, receipt.role)
+        snapshot.last_turn_receipt = {
+            **self._receipt_json(receipt),
+            "outcome": outcome,
+            "token_usage_observed": str(token_usage_observed).lower(),
+        }
+
     def complete_validation(
         self,
         snapshot: TaskSnapshot,
@@ -175,12 +192,53 @@ class SymphonyPhaseBridge:
             raise ValueError("head_sha must be a lowercase full Git SHA")
         if snapshot.head_sha == head_sha:
             return
+        SymphonyPhaseBridge._require_refreshable_state(snapshot)
         snapshot.head_sha = head_sha
+        SymphonyPhaseBridge._invalidate_current_candidate(snapshot)
+        SymphonyPhaseBridge._return_to_gate_loop(snapshot)
+
+    @staticmethod
+    def apply_base_sync(snapshot: TaskSnapshot, result: BaseSyncResult) -> None:
+        SymphonyPhaseBridge._require_refreshable_state(snapshot)
+        if (
+            snapshot.base_sha != result.previous_base_sha
+            or snapshot.head_sha != result.previous_head_sha
+        ):
+            raise PhaseBridgeError("base synchronization differs from task identity")
+        snapshot.base_sync = result.to_json()
+        if result.status == "UNCHANGED":
+            return
+        if result.status == "UPDATED":
+            snapshot.base_sha = result.base_sha
+            snapshot.head_sha = result.head_sha
+        SymphonyPhaseBridge._invalidate_current_candidate(snapshot)
+        SymphonyPhaseBridge._return_to_gate_loop(snapshot)
+
+    @staticmethod
+    def _return_to_gate_loop(snapshot: TaskSnapshot) -> None:
+        snapshot.state = "queued"
+        snapshot.claim_id = None
+        snapshot.blocked_reason = None
+
+    @staticmethod
+    def _require_refreshable_state(snapshot: TaskSnapshot) -> None:
+        if snapshot.state not in {"queued", "waiting_ci", "human_review"}:
+            raise PhaseBridgeError(
+                f"task state {snapshot.state} cannot refresh candidate identity"
+            )
+
+    @staticmethod
+    def _invalidate_current_candidate(snapshot: TaskSnapshot) -> None:
         snapshot.implementer_session_id = None
         snapshot.candidate_revision = None
+        snapshot.candidate_commit_sha = None
         snapshot.gate_request = None
         snapshot.gate_receipt = None
         snapshot.review_workspace = None
+        snapshot.pending_review_findings = []
+        snapshot.last_turn_receipt = None
+        snapshot.handoff_head_sha = None
+        snapshot.github_review_packet = None
         snapshot.iteration_phase = PHASE_IMPLEMENT
 
     @staticmethod

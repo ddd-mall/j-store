@@ -21,7 +21,6 @@ flowchart LR
     IMP["Implementer"]
     REV["Independent Reviewer"]
     QG["Quality Gate"]
-    MAIL["Notifier"]
     HUMAN["Human Owner"]
 
     GH <--> SUP
@@ -32,7 +31,6 @@ flowchart LR
     APP --> REV
     WS --> QG
     REC --> GH
-    REC --> MAIL
     GH --> HUMAN
 ```
 
@@ -42,7 +40,6 @@ flowchart LR
 - **Implementer**：根据目标和 findings 修改候选；不能给出最终批准。
 - **Independent Reviewer**：使用独立会话和只读权限审查固定 head SHA；一旦修改候选，其批准立即失效。
 - **Quality Gate**：运行仓库命令并保留退出码、摘要和日志位置，不修改代码。
-- **Notifier**：仅消费 `ReadyForHumanReview` 事件，通过独立凭据发送白名单邮件并记录幂等键。
 
 ## 控制面模型
 
@@ -77,7 +74,7 @@ deterministic validation commands and conclusions
 independent review findings with root-cause IDs
 semantic-fix attempts and infrastructure retries
 budget consumption and next transition
-notification event ID
+GitHub handoff event ID
 ```
 
 更新 Workpad 使用 compare-and-reconcile：先读取最新评论，再基于稳定标记更新；API 冲突后重新读取，不盲目覆盖。
@@ -158,8 +155,8 @@ Agent 输出计划、变更、验证建议和阻塞项。Supervisor 不接受 Ag
 - `config/agentic-cicd/role-routing.json`：写入角色、只读门禁和独立批准角色；
 - `scripts/agentic_cicd/protocol.py`：运行时校验、固定 head PASS ledger 和快照可恢复的决定；
 - `scripts/agentic_cicd/app_server.py`：JSONL request/response correlation、拒绝 server-initiated 提权请求、角色 sandbox 和 structured output；
-- `scripts/smoke-codex-app-server.py`：不启动模型 turn，只验证固定 CLI、动态 v2 schema 和初始化握手。
-- `scripts/check-agentic-cicd-runtime.py`：在启动 Supervisor 前验证 Symphony 精确源码提交及安全祖先、tracked source 洁净度、Codex 精确版本和 Elixir/mise 构建工具；不启动服务或模型 turn。
+- `scripts/smoke-codex-app-server.py`：不启动模型 turn，只验证当前已安装稳定版CLI、动态 v2 schema 和初始化握手。
+- `scripts/check-agentic-cicd-runtime.py`：在启动 Supervisor 前验证 Symphony 精确源码提交及安全祖先、tracked source 洁净度、Codex稳定版策略和 Elixir/mise 构建工具；不启动服务或模型 turn。
 
 ### 独立评审
 
@@ -196,7 +193,7 @@ Reconciler 将 Draft PR 转为 Ready 前必须同时验证：
 
 ## 安全设计
 
-- 使用仓库专用 GitHub App。只读期授权 Metadata/Contents/Actions/Checks/PR read 和 Issues write；写入期再增加 Contents 与 PR write。
+- 使用仓库专用 GitHub App。只读期授权 Metadata/Contents/Actions/Checks/PR/Issues read；Issue comment/label、Contents、PR write和review request必须按后续阶段分别批准。
 - 不授予 Administration、Secrets、Environments、Deployments 或 Workflows write。
 - GitHub App installation token 按任务短期签发；Supervisor 的长期私钥不进入 workspace 或 Codex 子进程。
 - 使用 Symphony host-side `github_api` 工具，运行时必须包含会从子进程环境清除 GitHub token 别名的安全修复。
@@ -205,28 +202,28 @@ Reconciler 将 Draft PR 转为 Ready 前必须同时验证：
 - Issue 必须由允许身份创建或人工加 `agent:queued`，降低提示注入成为执行入口的风险。
 - 运行节点与生产网络隔离，不挂载生产密钥和生产数据。
 
-## 运行时与版本固定
+## 运行时与制品身份
 
 第一版使用 OpenAI Symphony Elixir reference implementation 的 GitHub Issues adapter。锁文件记录仓库、commit、校验日期和必须包含的安全修复。部署构建必须从该 commit 产生并校验来源，不下载无校验的浮动二进制。
 
-Codex App Server 单独固定为 `codex-cli 0.146.0`、v2 协议和本机 stdio JSONL transport。部署预检必须由该二进制动态生成 schema 并验证请求参数，再完成 `initialize`/`initialized` 握手。stdio 模式不对外暴露监听端口；当前 smoke 不发送 `thread/start` 或 `turn/start`，不会触发模型费用。
+仓库不绑定单一具体Codex CLI版本。构建和部署入口读取当前已安装CLI的稳定版`X.Y.Z`输出，拒绝预发布、无法识别或空版本，并将该次实际版本显式传入镜像构建；Dockerfile不得提供浮动默认值。部署预检必须由同一二进制动态生成App Server v2 schema并验证请求参数，再完成`initialize`/`initialized`握手。实际版本写入镜像tag、label、runtime revision和来源记录，单个运行制品最终由完整镜像digest唯一标识。stdio JSONL模式不对外暴露监听端口；无模型smoke不发送`thread/start`或`turn/start`，不会触发模型费用。
 
 默认运行策略：
 
 - 单 Supervisor；
 - 最大并发 `1`；
-- 当前 Level 0 配置每次 Agent invocation 最大 `12` turns；接入阶段桥后改为每次 `1` turn，由同一 Symphony Orchestrator 的 active-state continuation 创建下一独立会话；配置切换前必须完成可信 turn-receipt 适配和阻断测试；
+- 每次 Agent invocation 最大 `1` turn，由同一 Symphony Orchestrator 的 active-state continuation 创建下一独立会话；可信 turn-receipt 适配、validate/complete 无模型短路和重放阻断均属于该约束；
 - Level 0 使用 `read-only` sandbox；进入本地实现迭代后才经受审合同变更为 `workspace-write`；
 - 审批请求、规则变更和 MCP elicitation 默认拒绝并转阻塞；
 - 仅在实现阶段按 allowlist 开放外网；只读观察期禁用网络写能力。
 
 模型评审输出使用不含 session/thread/turn 身份的 `ReviewProposal`。host-side 阶段桥从 Symphony TurnReceipt 取得可信身份，与已保存 implementer session 和 exact head 绑定后才生成 `ReviewDecision`；模型自述不能成为独立性证据。
 
-## 通知设计
+## GitHub 人工交接
 
-Ready 转换生成稳定幂等键：`ready:<repo>:<pr-number>:<head-sha>`。Notifier 仅允许向配置白名单发送摘要，不发送源码、日志全文、token 或潜在生产数据。
+Ready 转换生成稳定幂等键：`handoff:<repo>:<pr-number>:<head-sha>`。Reconciler只通过host-side GitHub能力尝试三种信号：更新唯一Workpad、把互斥状态标签迁移到`agent:human-review`、按仓库配置请求指定reviewer；Coding Agent不持有GitHub token，也不能指定任意外部接收者。
 
-邮件失败记录独立的 notification finding；代码候选保持 `agent:human-review`。重试成功后把 provider message ID 写回 Workpad，重复事件直接跳过。
+交接副作用按最新head SHA逐项幂等记录。至少一种已启用信号成功后，handoff才标记完成；其余失败信号形成独立operational finding并继续重试。三种信号全部失败时handoff保持pending。PR已转Ready后，任何信号失败都不回滚候选代码或Ready状态；重试成功后记录对应GitHub事件标识，重复事件直接跳过。
 
 ## 可观测性
 
@@ -237,9 +234,9 @@ Ready 转换生成稳定幂等键：`ready:<repo>:<pr-number>:<head-sha>`。Noti
 - `role`、`state_from`、`state_to`；
 - `root_cause_id`、`semantic_attempt`、`infra_retry`；
 - `turn_count`、耗时和预算；
-- GitHub run/review/notification 外部标识。
+- GitHub run/review/handoff 外部标识。
 
-日志不得包含 prompt 中的秘密、完整 token、未脱敏运行数据或邮件凭据。
+日志不得包含 prompt 中的秘密、完整 token 或未脱敏运行数据。
 
 ## 部署与恢复
 
@@ -256,9 +253,9 @@ Ready 转换生成稳定幂等键：`ready:<repo>:<pr-number>:<head-sha>`。Noti
 - 静态合同测试验证 `WORKFLOW.md`、Issue 模板、状态模型、版本锁和治理边界互相一致。
 - 使用临时 Git 仓库验证分支命名、基线锁定、重复恢复和取消清理。
 - 使用 fake GitHub API 验证重复事件、单 PR、检查汇总、review thread 和 Ready 转换。
-- 使用 fake notifier 验证幂等键和失败重试。
-- 在 disposable GitHub 仓库执行真实 E2E，再进入 j-store 两周只读观察。
-- 故障注入覆盖 Supervisor 在规划、实现、等待 CI 和通知阶段被终止后的恢复。
+- 使用 fake GitHub API 验证Workpad、状态标签、review request的幂等键和失败重试。
+- 在 disposable GitHub 仓库执行真实 E2E；随后按迭代6在j-store重新切换为只读profile观察两周，再逐步开放低风险写入。
+- 故障注入覆盖 Supervisor 在规划、实现、等待 CI 和 GitHub 人工交接阶段被终止后的恢复。
 
 ## 重要风险
 
@@ -267,7 +264,7 @@ Ready 转换生成稳定幂等键：`ready:<repo>:<pr-number>:<head-sha>`。Noti
 | Symphony 属于预览实现 | 固定并审查 commit；先只读；保留停止和替换能力 |
 | Issue/评论提示注入 | 身份/标签准入、最小工具、host-side 凭据、人工高风险审批 |
 | Agent 自审失真 | 实现与最终评审分离；PASS 绑定 SHA；确定性 gate 优先 |
-| 无限修复和费用失控 | 根因化计数、turn/时间/费用预算、两次熔断 |
-| 重启产生重复 PR/邮件 | 以 GitHub 事实恢复，所有副作用使用幂等键 |
+| 无限修复和资源失控 | 根因化计数、turn/时间限制、两次熔断 |
+| 重启产生重复 PR/人工交接 | 以 GitHub 事实恢复，所有副作用使用幂等键 |
 | 候选修改工作流提升权限 | 只执行可信 base SHA 的工作流和 hook |
 | develop 本身红灯 | 上线写模式前修复基线；失败归因为 baseline 时停止修改候选 |

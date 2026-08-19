@@ -29,9 +29,12 @@ from agentic_cicd.protocol import (  # noqa: E402
     GateReceipt,
     GateRequest,
     ReviewDecision,
+    ReviewCommentFeedback,
     ReviewFinding,
     ReviewLedger,
+    ReviewPacket,
     ReviewProposal,
+    ReviewThreadFeedback,
     parse_review_decision,
 )
 from agentic_cicd.coordinator import SnapshotStore, TaskSnapshot  # noqa: E402
@@ -90,6 +93,61 @@ def sample_packet() -> IterationPacket:
 
 
 class ProtocolContractTest(unittest.TestCase):
+    def test_review_packet_separates_actionable_and_audit_feedback(self) -> None:
+        current = ReviewCommentFeedback(
+            comment_id="PRRC_current",
+            author_login="reviewer",
+            body="Fix the current behavior.",
+            commit_sha=SHA_B,
+            outdated=False,
+            created_at="2026-08-19T00:00:00Z",
+            updated_at="2026-08-19T00:00:00Z",
+        )
+        historical = ReviewCommentFeedback(
+            comment_id="PRRC_old",
+            author_login=None,
+            body="Old feedback.",
+            commit_sha=SHA_A,
+            outdated=True,
+            created_at="2026-08-18T00:00:00Z",
+            updated_at="2026-08-18T00:00:00Z",
+        )
+        packet = ReviewPacket(
+            repository="ddd-mall/j-store",
+            pull_request_number=51,
+            head_sha=SHA_B,
+            threads=(
+                ReviewThreadFeedback(
+                    thread_id="PRRT_thread",
+                    path="src/example.py",
+                    line=10,
+                    original_line=8,
+                    resolved=False,
+                    classification="actionable",
+                    comments=(current,),
+                ),
+                ReviewThreadFeedback(
+                    thread_id="PRRT_thread",
+                    path="src/example.py",
+                    line=10,
+                    original_line=8,
+                    resolved=False,
+                    classification="audit",
+                    comments=(historical,),
+                ),
+            ),
+        )
+
+        self.assertEqual(packet, ReviewPacket.from_json(packet.to_json()))
+        self.assertEqual(1, packet.unresolved_actionable_threads)
+        self.assertEqual((current,), packet.actionable_comments)
+        self.assertEqual((historical,), packet.audit_comments)
+
+        invalid = packet.to_json()
+        invalid["threads"][0]["comments"][0]["commit_sha"] = SHA_A
+        with self.assertRaisesRegex(ValueError, "current head"):
+            ReviewPacket.from_json(invalid)
+
     def test_gate_contracts_bind_exact_candidate_and_runtime_identity(self) -> None:
         request = sample_gate_request()
         pass_receipt = sample_gate_receipt()

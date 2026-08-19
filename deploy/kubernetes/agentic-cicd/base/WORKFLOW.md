@@ -2,7 +2,7 @@
 tracker:
   kind: github
   provider:
-    repo: "ddd-mall/j-store"
+    repo: $JSTORE_SYMPHONY_REPOSITORY
     token: $JSTORE_SYMPHONY_GITHUB_TOKEN
   required_labels:
     - agent:queued
@@ -26,7 +26,12 @@ hooks:
       --expected-phase "$JSTORE_INVOCATION_PHASE" \
       --expected-role "$JSTORE_INVOCATION_ROLE" \
       --expected-head-sha "$JSTORE_INVOCATION_HEAD_SHA" \
-      --expected-candidate-revision "$JSTORE_INVOCATION_CANDIDATE_REVISION"
+      --expected-candidate-revision "$JSTORE_INVOCATION_CANDIDATE_REVISION" \
+      --outcome "$JSTORE_TURN_OUTCOME" \
+      --token-usage-observed "$JSTORE_TURN_TOKEN_USAGE_OBSERVED" \
+      --wall-clock-seconds "$JSTORE_TURN_WALL_CLOCK_SECONDS" \
+      --input-tokens "$JSTORE_TURN_INPUT_TOKENS" \
+      --output-tokens "$JSTORE_TURN_OUTPUT_TOKENS"
 agent:
   max_concurrent_agents: 1
   max_turns: 1
@@ -49,11 +54,11 @@ codex:
 {% elsif agentic_cicd.role == "implementer" %}
 你是 j-store Agentic CI/CD 的 Implementer，正在处理 GitHub Issue `{{ issue.identifier }}`，候选基线为 `{{ agentic_cicd.head_sha }}`。
 
-只允许修改当前隔离 workspace，并按规格和 TDD 完成一个有界实现切片。不得访问网络、读取 host state、提交、推送、创建或更新 PR、发送邮件、改变 Issue 状态、合并、发布或写生产。结束 turn 时只报告变更和测试证据；host 将进入独立 validate 阶段，不信任模型自报 gate 结果。
+只允许修改当前隔离 workspace，并按规格和 TDD 完成一个有界实现切片。不得访问网络、读取 host state、提交、推送、创建或更新 PR、改变 Issue 状态、合并、发布或写生产；不得执行未获能力合同授权的外部通知或控制面写入。结束 turn 时只报告变更和测试证据；host 将进入独立 validate 阶段，不信任模型自报 gate 结果。
 {% else %}
 你是 j-store Agentic CI/CD 试点中的只读维护编排执行者，正在处理 GitHub Issue `{{ issue.identifier }}`。
 
-当前迭代只允许只读观察、分析和计划。不得修改文件、创建提交、推送分支、创建或更新 PR、发送邮件、改变 Issue 状态或调用任何生产系统。即使工具权限意外扩大，也必须遵守此边界。
+当前迭代只允许只读观察、分析和计划。不得修改文件、创建提交、推送分支、创建或更新 PR、改变 Issue 状态或调用任何生产系统；不得执行未获能力合同授权的外部通知或控制面写入。即使工具权限意外扩大，也必须遵守此边界。
 
 开始前必须：
 

@@ -31,7 +31,7 @@ RUN mix local.hex --force \
     && mix escript.build \
     && test -x bin/symphony
 
-FROM ${ELIXIR_IMAGE}
+FROM ${ELIXIR_IMAGE} AS level0-runtime
 ARG ELIXIR_IMAGE
 ARG NODE_IMAGE
 ARG CODEX_VERSION
@@ -87,3 +87,22 @@ LABEL org.opencontainers.image.source="https://github.com/openai/symphony" \
 USER 10001:10001
 WORKDIR /var/lib/symphony
 ENTRYPOINT ["/usr/local/bin/symphony"]
+
+FROM level0-runtime AS disposable-level2
+ARG JSTORE_TARGET_REPOSITORY
+ARG JSTORE_CAPABILITY_LEVEL
+ARG JSTORE_STATE_CONTRACT_SHA256
+ARG JSTORE_RUNTIME_BINDING_SHA256
+COPY --from=runtime-profile --chmod=0444 /state-contract.json /opt/jstore-agentic-controller/state-contract.json
+COPY --from=runtime-profile --chmod=0444 /runtime-binding.json /opt/jstore-agentic-controller/runtime-binding.json
+RUN echo "${JSTORE_STATE_CONTRACT_SHA256}  /opt/jstore-agentic-controller/state-contract.json" \
+      | sha256sum --check --strict \
+    && echo "${JSTORE_RUNTIME_BINDING_SHA256}  /opt/jstore-agentic-controller/runtime-binding.json" \
+      | sha256sum --check --strict \
+    && test "${JSTORE_CAPABILITY_LEVEL}" = "2"
+LABEL io.jstore.target.repository="${JSTORE_TARGET_REPOSITORY}" \
+      io.jstore.capability.level="${JSTORE_CAPABILITY_LEVEL}" \
+      io.jstore.state-contract.sha256="${JSTORE_STATE_CONTRACT_SHA256}" \
+      io.jstore.runtime-binding.sha256="${JSTORE_RUNTIME_BINDING_SHA256}"
+
+FROM level0-runtime AS default
