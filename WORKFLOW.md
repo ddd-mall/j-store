@@ -36,10 +36,12 @@ agent:
 codex:
   command: codex app-server
   approval_policy:
-    reject:
-      sandbox_approval: true
-      rules: true
-      mcp_elicitations: true
+    granular:
+      sandbox_approval: false
+      rules: false
+      mcp_elicitations: false
+      request_permissions: false
+      skill_approval: false
   thread_sandbox: read-only
   turn_sandbox_policy:
     type: readOnly

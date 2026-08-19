@@ -292,9 +292,12 @@ class AgenticCicdContractTest(unittest.TestCase):
             "max_concurrent_agents: 1",
             "max_turns: 1",
             "thread_sandbox: read-only",
-            "sandbox_approval: true",
-            "rules: true",
-            "mcp_elicitations: true",
+            "granular:",
+            "sandbox_approval: false",
+            "rules: false",
+            "mcp_elicitations: false",
+            "request_permissions: false",
+            "skill_approval: false",
             "origin/develop",
             "docs/steering/agent-governance.md",
             "Draft PR",
@@ -304,6 +307,7 @@ class AgenticCicdContractTest(unittest.TestCase):
             self.assertIn(fragment, workflow)
 
         self.assertNotIn("approval_policy: never", workflow)
+        self.assertNotIn("reject:", workflow)
         self.assertNotRegex(workflow, r"(?m)^\s*thread_sandbox:\s*danger-full-access\s*$")
 
     def test_agentic_cicd_runbook_is_indexed_by_repository_guidance(self) -> None:

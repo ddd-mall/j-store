@@ -325,16 +325,21 @@ def validate() -> list[str]:
         '{% elsif agentic_cicd.role == "implementer" %}',
         "thread_sandbox: read-only",
         "type: readOnly",
-        "sandbox_approval: true",
-        "rules: true",
-        "mcp_elicitations: true",
+        "granular:",
+        "sandbox_approval: false",
+        "rules: false",
+        "mcp_elicitations: false",
+        "request_permissions: false",
+        "skill_approval: false",
         "不得自动合并",
     )
     for fragment in workflow_requirements:
         if fragment not in workflow:
             failures.append(f"WORKFLOW.md is missing required boundary: {fragment}")
-    if "approval_policy: never" in workflow or re.search(
-        r"(?m)^\s*thread_sandbox:\s*danger-full-access\s*$", workflow
+    if (
+        "approval_policy: never" in workflow
+        or re.search(r"(?m)^\s*reject:\s*$", workflow)
+        or re.search(r"(?m)^\s*thread_sandbox:\s*danger-full-access\s*$", workflow)
     ):
         failures.append("WORKFLOW.md enables an unsafe Codex policy")
 

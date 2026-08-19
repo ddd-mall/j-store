@@ -231,11 +231,18 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             "max_turns: 1",
             "thread_sandbox: read-only",
             "type: readOnly",
-            "sandbox_approval: true",
+            "granular:",
+            "sandbox_approval: false",
+            "rules: false",
+            "mcp_elicitations: false",
+            "request_permissions: false",
+            "skill_approval: false",
             "不得修改文件",
             "不得自动合并、发布或写生产",
         ):
             self.assertIn(contract, deployed_workflow)
+        self.assertNotIn("approval_policy: never", deployed_workflow)
+        self.assertNotIn("reject:", deployed_workflow)
         self.assertIn(
             "/usr/bin/python3 /opt/jstore-agentic-controller/controller.py bootstrap-workspace",
             deployed_workflow,
