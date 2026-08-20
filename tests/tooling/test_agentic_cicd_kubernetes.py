@@ -569,6 +569,7 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
         self.assertIn('"review_packet": None', fixture)
         self.assertIn("runtime_policy", routing_patch)
         self.assertIn(":agentic_cicd_context", routing_patch)
+        self.assertIn(r"~r/\R/u", routing_patch)
         self.assertIn("defmodule SymphonyElixir.AgenticCicd do", routing_patch)
         self.assertIn(":remote_phase_context_not_supported", routing_patch)
         self.assertIn('@allowed_methods ["GET"]', routing_patch)

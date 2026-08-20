@@ -5,7 +5,7 @@
   "patch": "deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch",
   "patch_sha256": "eac2b3b9cdcd89185d7272965693538b1b14c8a63f79e77d4425a24dae339830",
   "routing_patch": "deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
-  "routing_patch_sha256": "81dfa723800c15e2c1c4cbeb0110a31200a58f2184e812cb93a51e257f6f3cd1",
+  "routing_patch_sha256": "1db362def073aa13812d98d3ddc45d7ffc9910b5dd70404bca86ab4a020f424c",
   "dependency_lock": "deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock",
   "dependency_lock_sha256": "9e22b8a3a5cb3ff49fb14899e224a0ac8dc08523e75b7835724071f00593890a",
   "test_fixture": "deploy/kubernetes/agentic-cicd/test-fixtures/controller.py",
