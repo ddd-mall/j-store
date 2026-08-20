@@ -30,6 +30,8 @@ if [[ "$namespace" != "agentic-cicd" ]]; then
   exit 2
 fi
 
-kubectl --context "$context" -n "$namespace" scale deployment/symphony --replicas=0
-kubectl --context "$context" -n "$namespace" rollout status deployment/symphony --timeout=120s
-printf 'AGENTIC_CICD_LEVEL0_STOPPED namespace=%s pvc=retained\n' "$namespace"
+if kubectl --context "$context" -n "$namespace" get deployment/symphony >/dev/null 2>&1; then
+  kubectl --context "$context" -n "$namespace" scale deployment/symphony --replicas=0
+  kubectl --context "$context" -n "$namespace" rollout status deployment/symphony --timeout=120s
+fi
+printf 'KUBERNETES_SUPERVISOR_STOPPED namespace=%s pvc=retained\n' "$namespace"

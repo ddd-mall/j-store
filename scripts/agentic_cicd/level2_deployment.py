@@ -357,6 +357,10 @@ def prepare_level2_deployment_candidate(
         raise FileExistsError(
             f"deployment candidate output already exists: {output_directory}"
         )
+    raise RuntimeError(
+        "Kubernetes Symphony deployment candidates are retired; build the "
+        "host-native execution bundle with scripts/agentic-cicd-host-build.sh"
+    )
     validate_handoff_logins(
         github_app_login=github_app_login,
         reviewer=reviewer,

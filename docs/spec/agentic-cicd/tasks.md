@@ -8,6 +8,7 @@
 
 - 当前机器能力以 `config/agentic-cicd/state-contract.json` 为准：Level 0、`read_only_observation=true`，本地写入/冻结/Gate及全部远端分支、PR、Issue控制面、review request、合并、发布和生产写均关闭。
 - 当前交付阶段是迭代 3L：Level 1 本地候选闭环。唯一细化任务账本为 [local-candidate-loop/tasks.md](../changes/agentic-cicd-local-candidate-loop/tasks.md)，本文件只维护跨阶段依赖和总退出条件。
+- Symphony/Codex因Pod内bubblewrap user namespace被拒绝，执行面正迁移到host-native systemd；仓库候选和剩余实机切换账本见[host-execution-plane/tasks.md](../changes/agentic-cicd-host-execution-plane/tasks.md)。HEP-08至HEP-12完成前不得宣称运行态已迁移。
 - Kubernetes Level 0 与 Symphony 可信阶段桥已经完成或被后继规格吸收，历史目标和验收摘要统一见 [archive.md](archive.md)。
 - CandidateRevision、隔离 Gate Runner、Symphony 供应链资格、无模型 exact-candidate Reviewer 和四个恢复点已有证据；不得把这些局部证据等同于真实模型端到端闭环。
 - disposable Issue `#50` 已创建但保持 `agent:candidate`，尚未调度。GitHub-only credentialed Level 0 rollout已经完成并缩容；当前集群没有Codex auth Secret，Codex-auth observer rollout及真实 observer/Implementer/Reviewer turn仍未执行。

@@ -1,18 +1,1 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: symphony
-  namespace: agentic-cicd
-spec:
-  template:
-    spec:
-      nodeSelector:
-        kubernetes.io/hostname: k8s-master
-      tolerations:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
-      containers:
-        - name: symphony
-          image: jstore-agentic-cicd:development-placeholder
-          imagePullPolicy: Never
+# RETIRED: this overlay cannot restore a Symphony Deployment.

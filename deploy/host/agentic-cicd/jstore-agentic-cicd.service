@@ -1,0 +1,54 @@
+[Unit]
+Description=j-store Agentic CI/CD host-native Symphony supervisor
+Documentation=https://github.com/ddd-mall/j-store
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/opt/jstore-agentic-cicd/current/bin/symphony
+ConditionPathExists=/etc/jstore-agentic-cicd/runtime.env
+
+[Service]
+Type=simple
+User=jstore-agentic-cicd
+Group=jstore-agentic-cicd
+EnvironmentFile=/etc/jstore-agentic-cicd/runtime.env
+EnvironmentFile=-/etc/jstore-agentic-cicd/proxy.env
+Environment=HOME=/var/lib/jstore-agentic-cicd/home
+Environment=CODEX_HOME=/var/lib/jstore-agentic-cicd/home/.codex
+Environment=JSTORE_SYMPHONY_WORKSPACE_ROOT=/var/lib/jstore-agentic-cicd/workspaces
+Environment=JSTORE_AGENTIC_CICD_STATE_ROOT=/var/lib/jstore-agentic-cicd/controller
+Environment=JSTORE_CANDIDATE_ARTIFACT_ROOT=/var/lib/jstore-agentic-candidates
+Environment=JSTORE_GATE_EXCHANGE_ROOT=/var/lib/jstore-agentic-cicd/gate-exchange
+LoadCredential=github-token:/etc/jstore-agentic-cicd/credentials/github-token
+LoadCredential=github-token-expires-at:/etc/jstore-agentic-cicd/credentials/github-token-expires-at
+LoadCredential=codex-auth.json:/etc/jstore-agentic-cicd/credentials/codex-auth.json
+LoadCredential=codex-config.toml:/etc/jstore-agentic-cicd/credentials/codex-config.toml
+ExecStartPre=/opt/jstore-agentic-cicd/current/bin/run-symphony --preflight-only
+ExecStart=/opt/jstore-agentic-cicd/current/bin/run-symphony
+Restart=no
+TimeoutStopSec=30s
+KillSignal=SIGTERM
+UMask=0027
+
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/jstore-agentic-cicd
+ReadWritePaths=/var/lib/jstore-agentic-candidates
+ReadWritePaths=/var/lib/jstore-agentic-gate-requests
+ReadOnlyPaths=/var/lib/jstore-agentic-gate-receipts
+ReadOnlyPaths=/opt/jstore-agentic-cicd
+
+# Deliberately static: activation requires the audited start script and explicit authority.

@@ -266,8 +266,8 @@ class AgenticCicdContractTest(unittest.TestCase):
         ):
             self.assertIn(scenario, runbook)
         self.assertIn("不构成外部写授权", runbook)
-        self.assertIn("单元测试、fake transport、render结果", runbook)
-        self.assertIn("Supervisor缩容为0", runbook)
+        self.assertIn("单元测试、fake transport、bundle结果", runbook)
+        self.assertIn("停止host Supervisor service", runbook)
 
     def test_symphony_runtime_is_pinned_to_reviewed_full_commit(self) -> None:
         lock = json.loads(SYMPHONY_LOCK.read_text(encoding="utf-8"))
