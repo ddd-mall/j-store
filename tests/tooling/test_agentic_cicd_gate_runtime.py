@@ -100,14 +100,16 @@ class GateRuntimeTest(unittest.TestCase):
         metadata.parent.mkdir()
         metadata.write_text(
             json.dumps({
-                "issue_identifier": "GH-123", "base_sha": self.head,
+                "issue_identifier": "GH-123", "repository": "ddd-mall/j-store",
+                "base_sha": self.head,
                 "branch": "codex/gh-123-task",
             }), encoding="utf-8",
         )
         self.state_root = self.root / "state"
         self.snapshot_path = self.state_root / "tasks" / "GH-123.json"
         SnapshotStore(self.snapshot_path).save(TaskSnapshot(
-            issue_identifier="GH-123", state="queued", base_sha=self.head,
+            issue_identifier="GH-123", state="queued",
+            repository="ddd-mall/j-store", base_sha=self.head,
             head_sha=self.head, branch="codex/gh-123-task",
             workspace=str(self.workspace.resolve()), iteration_phase="validate",
             implementer_session_id="implementer-session",

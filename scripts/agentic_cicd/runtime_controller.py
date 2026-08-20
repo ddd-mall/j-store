@@ -816,6 +816,7 @@ class CandidateRevisionStore(_TaskStateAccess):
         payload = json.loads(metadata_path.read_text(encoding="utf-8"))
         expected = {
             "issue_identifier": snapshot.issue_identifier,
+            "repository": snapshot.repository,
             "base_sha": snapshot.base_sha,
             "branch": snapshot.branch,
         }
