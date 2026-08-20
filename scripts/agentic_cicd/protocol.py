@@ -249,6 +249,8 @@ class GateReceipt:
     @classmethod
     def from_json(cls, payload: dict[str, Any]) -> "GateReceipt":
         required = {"gate_id", "issue_identifier", "candidate_revision", "runner_image", "command_policy_sha256", "verdict", "started_at", "finished_at", "exit_code", "log_sha256", "job_uid", "pod_uid", "findings", "skipped_checks"}
+        if set(payload) == required - {"skipped_checks"}:
+            payload = {**payload, "skipped_checks": []}
         if set(payload) != required:
             raise ValueError("gate receipt fields do not match the contract")
         string_fields = required - {
