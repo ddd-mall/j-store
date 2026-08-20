@@ -13,7 +13,7 @@ from typing import Any
 from .candidate import CandidateRevision
 from .coordinator import Coordinator, SnapshotStore
 from .gate_dispatcher import GateDispatcher, GateInfrastructureError
-from .phase_bridge import PHASE_VALIDATE
+from .phase_bridge import PHASE_IMPLEMENT, PHASE_VALIDATE
 from .protocol import GateReceipt, GateRequest
 from .runtime_controller import CandidateRevisionStore, GateReceiptStore, GateRequestStore
 
@@ -228,11 +228,17 @@ class ValidatePhaseDriver:
             freeze_enabled=True,
         ).freeze(issue_identifier, workspace)
         snapshot = SnapshotStore(snapshot_path).load()
+        gate_id = self._gate_id(
+            snapshot.issue_identifier, revision, snapshot.infrastructure_retries
+        )
+        if f"gate:{gate_id}" in snapshot.consumed_idempotency_keys:
+            self._return_duplicate_candidate_to_implementation(snapshot_path, snapshot)
+            return
         if not self._record_semantic_fix_budget(snapshot_path, snapshot, revision):
             return
         if snapshot.gate_request is None:
             request = GateRequest(
-                gate_id=self._gate_id(snapshot.issue_identifier, revision, snapshot.infrastructure_retries),
+                gate_id=gate_id,
                 issue_identifier=snapshot.issue_identifier,
                 candidate_revision=revision,
                 runner_image=self.policy.runner_image,
@@ -272,8 +278,23 @@ class ValidatePhaseDriver:
             if outcome == "fused":
                 SnapshotStore(snapshot_path).save(snapshot)
                 return False
+            if outcome == "duplicate":
+                self._return_duplicate_candidate_to_implementation(
+                    snapshot_path, snapshot
+                )
+                return False
         SnapshotStore(snapshot_path).save(snapshot)
         return True
+
+    @staticmethod
+    def _return_duplicate_candidate_to_implementation(
+        snapshot_path: Path, snapshot
+    ) -> None:
+        snapshot.candidate_revision = None
+        snapshot.candidate_commit_sha = None
+        snapshot.implementer_session_id = None
+        snapshot.iteration_phase = PHASE_IMPLEMENT
+        SnapshotStore(snapshot_path).save(snapshot)
 
     @staticmethod
     def _gate_id(issue: str, revision: CandidateRevision, retry: int) -> str:

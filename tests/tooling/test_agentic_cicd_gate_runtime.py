@@ -20,12 +20,40 @@ from scripts.agentic_cicd.gate_runtime import (
     GatePolicy,
     ValidatePhaseDriver,
 )
+from scripts.agentic_cicd.protocol import GateReceipt, ReviewFinding
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT = REPO_ROOT / "config" / "agentic-cicd" / "state-contract.json"
 FETCH_IMAGE = "registry.internal/fetch@sha256:" + "3" * 64
 RUNNER_IMAGE = "registry.internal/gate@sha256:" + "4" * 64
+
+
+def failed_gate_receipt(request) -> GateReceipt:
+    return GateReceipt(
+        gate_id=request.gate_id,
+        issue_identifier=request.issue_identifier,
+        candidate_revision=request.candidate_revision,
+        runner_image=request.runner_image,
+        command_policy_sha256=request.command_policy_sha256,
+        verdict="FAIL",
+        started_at="2026-08-15T00:00:01Z",
+        finished_at="2026-08-15T00:00:02Z",
+        exit_code=1,
+        log_sha256="5" * 64,
+        job_uid="job-uid",
+        pod_uid="pod-uid",
+        findings=(
+            ReviewFinding(
+                "gate:validation-command-failed",
+                "high",
+                "The isolated gate exited with status 1.",
+                "The frozen candidate cannot enter independent review.",
+                "All commands in the trusted validation policy pass.",
+                "Dispatch a new gate for a newly frozen candidate.",
+            ),
+        ),
+    )
 
 
 class FakeJobClient:
@@ -155,6 +183,30 @@ class GateRuntimeTest(unittest.TestCase):
         self.assertIsNotNone(completed.gate_receipt)
         self.assertEqual([], self.mailbox.pending_requests())
 
+    def test_unchanged_failed_candidate_returns_to_implement_without_repeating_gate(self) -> None:
+        self.driver.advance("GH-123", self.workspace)
+        request = self.mailbox.read_request(self.mailbox.pending_requests()[0])
+        self.mailbox.publish_receipt(failed_gate_receipt(request))
+        self.driver.advance("GH-123", self.workspace)
+
+        snapshot = SnapshotStore(self.snapshot_path).load()
+        self.assertEqual("implement", snapshot.iteration_phase)
+        snapshot.candidate_revision = None
+        snapshot.gate_request = None
+        snapshot.gate_receipt = None
+        snapshot.implementer_session_id = "unchanged-implementer"
+        snapshot.iteration_phase = "validate"
+        SnapshotStore(self.snapshot_path).save(snapshot)
+
+        self.driver.advance("GH-123", self.workspace)
+
+        restored = SnapshotStore(self.snapshot_path).load()
+        self.assertEqual("implement", restored.iteration_phase)
+        self.assertIsNone(restored.candidate_revision)
+        self.assertIsNone(restored.gate_request)
+        self.assertEqual([], self.mailbox.pending_requests())
+        self.assertEqual({}, restored.semantic_fix_strategies)
+
     def test_mailbox_rejects_identity_collision_and_dispatcher_policy_drift(self) -> None:
         self.driver.advance("GH-123", self.workspace)
         path = self.mailbox.pending_requests()[0]
@@ -229,11 +281,17 @@ class GateRuntimeTest(unittest.TestCase):
             )
         )
         current = SnapshotStore(self.snapshot_path).load()
-        self.assertTrue(
+        self.assertFalse(
             self.driver._record_semantic_fix_budget(
                 self.snapshot_path, current, first
             )
         )
+        duplicate = SnapshotStore(self.snapshot_path).load()
+        self.assertEqual("implement", duplicate.iteration_phase)
+        self.assertIsNone(duplicate.candidate_revision)
+        self.assertIsNone(duplicate.implementer_session_id)
+        duplicate.iteration_phase = "validate"
+        SnapshotStore(self.snapshot_path).save(duplicate)
         current = SnapshotStore(self.snapshot_path).load()
         self.assertTrue(
             self.driver._record_semantic_fix_budget(
