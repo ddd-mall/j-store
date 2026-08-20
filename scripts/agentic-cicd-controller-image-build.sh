@@ -239,6 +239,8 @@ docker buildx build \
 
 docker run --rm --entrypoint codex "$image" --version \
   | grep -Fx "codex-cli $codex_version"
+docker run --rm --entrypoint codex "$image" \
+  -c features.use_legacy_landlock=true sandbox -- /bin/true
 labels_json=$(docker image inspect "$image" --format '{{json .Config.Labels}}')
 python3 - "$labels_json" <<PY
 import json

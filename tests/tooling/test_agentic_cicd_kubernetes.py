@@ -480,9 +480,12 @@ class AgenticCicdKubernetesTest(unittest.TestCase):
             dockerfile,
         )
         self.assertIn(
-            "ca-certificates git bash python3",
+            "ca-certificates git bash python3 bubblewrap",
             dockerfile,
         )
+        self.assertIn("bwrap --version", dockerfile)
+        self.assertIn("features.use_legacy_landlock=true", build_script)
+        self.assertIn("sandbox -- /bin/true", build_script)
         self.assertNotIn("openssh-client", dockerfile)
         self.assertNotIn(" bash curl python3", dockerfile)
 

@@ -54,6 +54,7 @@
 
 - 使用专用 Linux VM 或容器主机，与生产网络、生产数据库和生产凭据隔离。
 - 安装 `git`、固定版本的 Symphony 运行时和稳定版`codex`；仓库不绑定单一Codex版本，启动前必须通过App Server v2兼容性smoke。
+- Linux控制器镜像必须安装发行版`bubblewrap`并验证版本。锁定的Codex 0.148.0在当前受限容器宿主上由host-owned认证裁剪器固定`features.use_legacy_landlock=true`，构建阶段以最终非root用户通过无模型Landlock sandbox smoke；该deprecated兼容开关不得由Issue或workspace覆盖，也不得替换成`danger-full-access`。只有默认bwrap路径在实际Kubernetes `RuntimeDefault`边界内通过等价smoke并完成受审候选后才能移除。
 - 创建仅供该服务使用的 workspace 和 log 根目录，禁止使用仓库根或用户主目录作为递归清理目标。
 - 将 `JSTORE_SYMPHONY_WORKSPACE_ROOT` 设置为显式绝对路径。
 - 将 `JSTORE_SYMPHONY_SOURCE` 设置为锁定提交的 Symphony 源码绝对路径。

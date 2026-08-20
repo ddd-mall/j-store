@@ -223,6 +223,9 @@ lines = [
     'wire_api = "responses"',
     "requires_openai_auth = true",
     "",
+    "[features]",
+    "use_legacy_landlock = true",
+    "",
 ]
 Path(sys.argv[2]).write_text("\n".join(lines), encoding="utf-8")
 PY
