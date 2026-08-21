@@ -91,7 +91,7 @@ routing_patch_relative=$(read_lock routing_patch)
 routing_patch_sha256=$(read_lock routing_patch_sha256)
 dependency_lock_relative=$(read_lock dependency_lock)
 dependency_lock_sha256=$(read_lock dependency_lock_sha256)
-workflow_sha256=$(sha256sum "$manifest_dir/base/WORKFLOW.md" | awk '{print $1}')
+workflow_sha256=$(sha256sum "$repo_root/deploy/host/agentic-cicd/WORKFLOW.md" | awk '{print $1}')
 verify_sha256() {
   local path=$1
   local expected=$2
@@ -239,6 +239,7 @@ docker buildx build \
 
 docker run --rm --entrypoint codex "$image" --version \
   | grep -Fx "codex-cli $codex_version"
+docker run --rm --entrypoint codex "$image" sandbox -- /bin/true
 labels_json=$(docker image inspect "$image" --format '{{json .Config.Labels}}')
 python3 - "$labels_json" <<PY
 import json

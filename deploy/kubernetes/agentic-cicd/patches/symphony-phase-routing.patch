@@ -266,7 +266,7 @@ new file mode 100644
 index 0000000..8b0b219
 --- /dev/null
 +++ b/elixir/lib/symphony_elixir/agentic_cicd.ex
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,111 @@
 +defmodule SymphonyElixir.AgenticCicd do
 +  @moduledoc """
 +  Narrow bridge from Symphony's scheduler to the trusted j-store host controller.
@@ -283,7 +283,9 @@ index 0000000..8b0b219
 +                   "turn_sandbox_policy",
 +                   "head_sha",
 +                   "candidate_revision",
-+                   "model_workspace"
++                   "model_workspace",
++                   "base_sync",
++                   "review_packet"
 +                 ])
 +  @phases ["implement", "validate", "review", "complete"]
 +  @roles ["observer", "implementer", "reviewer", "none"]
@@ -345,6 +347,8 @@ index 0000000..8b0b219
 +      valid_optional_candidate?(context["candidate_revision"]) and
 +      is_binary(context["model_workspace"]) and
 +      Path.type(context["model_workspace"]) == :absolute and
++      valid_optional_map?(context["base_sync"]) and
++      valid_optional_map?(context["review_packet"]) and
 +      valid_phase_role?(context)
 +  end
 +
@@ -376,6 +380,9 @@ index 0000000..8b0b219
 +
 +  defp valid_optional_candidate?(nil), do: true
 +  defp valid_optional_candidate?(value), do: valid_sha?(value, 64)
++
++  defp valid_optional_map?(nil), do: true
++  defp valid_optional_map?(value), do: is_map(value)
 +
 +  defp valid_sha?(value, length) when is_binary(value) do
 +    byte_size(value) == length and String.match?(value, ~r/\A[0-9a-f]+\z/)
@@ -1509,4 +1516,48 @@ index 2475853..d841bee 100644
 +
      assert :ok = Config.validate!()
    end
+
+diff --git a/elixir/lib/symphony_elixir/workflow.ex b/elixir/lib/symphony_elixir/workflow.ex
+index 9c25ced..3537800 100644
+--- a/elixir/lib/symphony_elixir/workflow.ex
++++ b/elixir/lib/symphony_elixir/workflow.ex
+@@ -83,7 +83,7 @@ defmodule SymphonyElixir.Workflow do
+   end
+ 
+   defp split_front_matter(content) do
+-    lines = String.split(content, ~r/\R/, trim: false)
++    lines = String.split(content, ~r/\R/u, trim: false)
+ 
+     case lines do
+       ["---" | tail] ->
+diff --git a/elixir/test/symphony_elixir/core_test.exs b/elixir/test/symphony_elixir/core_test.exs
+index 44b1224..5fd8ec8 100644
+--- a/elixir/test/symphony_elixir/core_test.exs
++++ b/elixir/test/symphony_elixir/core_test.exs
+@@ -1349,6 +1349,26 @@ defmodule SymphonyElixir.CoreTest do
+     assert prompt =~ "updated=2026-02-26T18:07:03Z"
+   end
+ 
++  test "workflow parsing preserves multibyte UTF-8 prompt text" do
++    workflow_prompt = "只允许修改当前隔离 workspace。"
++
++    write_workflow_file!(Workflow.workflow_file_path(), prompt: workflow_prompt)
++
++    issue = %Issue{
++      identifier: "GH-1",
++      title: "Render Unicode prompt",
++      description: "Keep the prompt valid UTF-8",
++      state: "open",
++      labels: []
++    }
++
++    prompt = PromptBuilder.build_prompt(issue)
++
++    assert String.valid?(prompt)
++    assert prompt == workflow_prompt
++    assert Jason.encode!(%{"prompt" => prompt})
++  end
++
+   test "prompt builder normalizes nested date-like values, maps, and structs in issue fields" do
+     write_workflow_file!(Workflow.workflow_file_path(), prompt: "Ticket {{ issue.identifier }}")
  

@@ -173,6 +173,19 @@ class ProtocolContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "infrastructure failure"):
             sample_gate_receipt("INFRASTRUCTURE_FAILURE", (ReviewFinding("gate:infra", "high", "evidence", "impact", "expected", "verify"),))
 
+    def test_gate_receipt_defaults_omitted_skipped_checks_to_empty(self) -> None:
+        payload = sample_gate_receipt().to_json()
+        del payload["skipped_checks"]
+
+        receipt = GateReceipt.from_json(payload)
+
+        self.assertEqual((), receipt.skipped_checks)
+        self.assertEqual([], receipt.to_json()["skipped_checks"])
+
+        payload["unexpected"] = []
+        with self.assertRaisesRegex(ValueError, "fields"):
+            GateReceipt.from_json(payload)
+
     def test_iteration_packet_rejects_noncanonical_identity_and_sha(self) -> None:
         payload = sample_packet().to_json()
         payload["issue_identifier"] = "../../outside"

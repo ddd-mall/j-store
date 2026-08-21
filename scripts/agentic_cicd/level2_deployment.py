@@ -263,8 +263,21 @@ def _render_manifest(
                                     "value": reviewer,
                                 },
                             ],
+                            "volumeMounts": [
+                                {
+                                    "name": "gate-policy",
+                                    "mountPath": "/etc/agentic-cicd",
+                                    "readOnly": True,
+                                }
+                            ],
                         }
-                    ]
+                    ],
+                    "volumes": [
+                        {
+                            "name": "gate-policy",
+                            "configMap": {"name": "gate-policy"},
+                        }
+                    ],
                 },
             }
         },
@@ -322,6 +335,8 @@ def _render_manifest(
         reviewer,
         "symphony-github-token",
         "symphony-codex-auth",
+        "gate-policy",
+        "/etc/agentic-cicd",
     ):
         if expected not in manifest:
             raise RuntimeError(f"rendered manifest is missing required binding: {expected}")
@@ -342,6 +357,10 @@ def prepare_level2_deployment_candidate(
         raise FileExistsError(
             f"deployment candidate output already exists: {output_directory}"
         )
+    raise RuntimeError(
+        "Kubernetes Symphony deployment candidates are retired; build the "
+        "host-native execution bundle with scripts/agentic-cicd-host-build.sh"
+    )
     validate_handoff_logins(
         github_app_login=github_app_login,
         reviewer=reviewer,

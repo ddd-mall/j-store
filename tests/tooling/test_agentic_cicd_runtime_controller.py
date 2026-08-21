@@ -445,6 +445,7 @@ class RuntimePhaseControllerTest(unittest.TestCase):
             json.dumps(
                 {
                     "issue_identifier": "GH-123",
+                    "repository": "ddd-mall/j-store",
                     "base_sha": self.head,
                     "branch": "codex/gh-123-task",
                 },
@@ -1015,6 +1016,19 @@ class RuntimePhaseControllerTest(unittest.TestCase):
         metadata = self.workspace / ".agentic-cicd" / "workspace.json"
         payload = json.loads(metadata.read_text(encoding="utf-8"))
         payload["base_sha"] = "f" * 40
+        metadata.write_text(json.dumps(payload), encoding="utf-8")
+
+        with self.assertRaisesRegex(RuntimeError, "metadata does not match"):
+            CandidateRevisionStore(self.root / "state", freeze_enabled=True).freeze(
+                "GH-123", self.workspace
+            )
+
+    def test_candidate_freeze_rejects_runtime_metadata_for_another_repository(self) -> None:
+        self.snapshot.iteration_phase = "validate"
+        SnapshotStore(self.snapshot_path).save(self.snapshot)
+        metadata = self.workspace / ".agentic-cicd" / "workspace.json"
+        payload = json.loads(metadata.read_text(encoding="utf-8"))
+        payload["repository"] = "ddd-mall/another-repository"
         metadata.write_text(json.dumps(payload), encoding="utf-8")
 
         with self.assertRaisesRegex(RuntimeError, "metadata does not match"):

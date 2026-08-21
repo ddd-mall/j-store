@@ -1,17 +1,1 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: symphony
-  namespace: agentic-cicd
-  labels:
-    app.kubernetes.io/name: symphony
-    app.kubernetes.io/part-of: j-store-agentic-cicd
-spec:
-  type: ClusterIP
-  selector:
-    app.kubernetes.io/name: symphony
-  ports:
-    - name: http
-      port: 4000
-      targetPort: http
-      protocol: TCP
+# RETIRED: the host-native dashboard binds only to 127.0.0.1.

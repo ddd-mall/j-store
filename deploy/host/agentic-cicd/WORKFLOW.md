@@ -12,14 +12,16 @@ tracker:
     - closed
 polling:
   interval_ms: 30000
+server:
+  host: 127.0.0.1
 workspace:
   root: $JSTORE_SYMPHONY_WORKSPACE_ROOT
 hooks:
   after_create: |
-    /usr/bin/python3 /opt/jstore-agentic-controller/controller.py bootstrap-workspace \
+    /usr/bin/python3 /opt/jstore-agentic-cicd/current/controller/controller.py bootstrap-workspace \
       --repository-url "$JSTORE_SYMPHONY_REPOSITORY_URL" --workspace .
   after_run: |
-    /usr/bin/python3 /opt/jstore-agentic-controller/controller.py complete-turn \
+    /usr/bin/python3 /opt/jstore-agentic-cicd/current/controller/controller.py complete-turn \
       --issue "$JSTORE_ISSUE_IDENTIFIER" --workspace . \
       --expected-phase "$JSTORE_INVOCATION_PHASE" \
       --expected-role "$JSTORE_INVOCATION_ROLE" \

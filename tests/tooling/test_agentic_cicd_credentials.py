@@ -334,6 +334,7 @@ class AgenticCicdCredentialToolTest(unittest.TestCase):
         reduced_config = self.codex_config_capture.read_text(encoding="utf-8")
         self.assertIn('model = "gpt-fixture"', reduced_config)
         self.assertIn('base_url = "https://fixture.example/v1"', reduced_config)
+        self.assertNotIn("use_legacy_landlock", reduced_config)
         for excluded in (
             "approval_policy",
             "model_providers.unused",

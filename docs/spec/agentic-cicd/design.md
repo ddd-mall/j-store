@@ -240,13 +240,13 @@ Ready 转换生成稳定幂等键：`handoff:<repo>:<pr-number>:<head-sha>`。Re
 
 ## 部署与恢复
 
-- 试点 Supervisor 优先部署到用户指定的开发 Kubernetes 集群；连接信息保留在仓库外，该集群作为专用 CI/CD 运行环境，不承载生产授权。
-- 使用独立 namespace、单副本 Deployment 和专用 ServiceAccount；Level 0 ServiceAccount 不授予集群级管理、生产 namespace、Secrets 写入或应用部署权限。
-- 集群运维入口只用于受控管理，不把 SSH 身份、私钥、kubeconfig 或长期 token 写入仓库、镜像、ConfigMap、Issue 或日志。
-- 同一仓库只允许一个活跃 Supervisor，通过 `replicas: 1`、部署锁和启动自检防止双活；扩容前必须重新设计协调协议并单独批准。
+- 试点 Supervisor/Codex执行面部署为指定开发主机上的单一host-native systemd服务；Artifact Broker、Gate Dispatcher和隔离Gate Job继续运行在开发Kubernetes集群。详细合同见[主机原生执行面变更](../changes/agentic-cicd-host-execution-plane/design.md)。
+- host服务使用专用非登录身份和systemd credentials，不持有kubeconfig或Kubernetes ServiceAccount token；集群内组件继续使用独立namespace和最小ServiceAccount。
+- 运维入口只用于受控管理，不把SSH身份、私钥、kubeconfig、个人Codex HOME或长期token写入仓库、bundle、ConfigMap、Issue或日志。
+- 同一仓库只允许一个活跃Supervisor；host启动门必须确认旧Kubernetes Deployment为0且无Running Pod，静态单元不自动enable/restart。扩容前必须重新设计协调协议并单独批准。
 - MVP 通过 Issue/Workpad、Git、PR 和 workspace 恢复；仅本机临时调度状态可以丢失。
 - 全局 kill switch 阻止新认领并终止安全停止点上的 Agent，不删除候选数据。
-- 回退优先将 Deployment 缩容为 0 或移除调度标签；保留 PVC、审计日志和任务事实，GitHub Actions 和人工开发保持独立运行。
+- 回退优先停止host service或移除调度标签；保留Local PV、审计日志和任务事实，GitHub Actions和人工开发保持独立运行。不得以关闭Codex sandbox的Pod作为默认回退。
 
 ## 验证策略
 
