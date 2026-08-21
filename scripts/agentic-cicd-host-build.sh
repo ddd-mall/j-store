@@ -66,7 +66,7 @@ done
   printf '%s\n' 'ERROR: repository, GitHub App login, and reviewer are required.' >&2
   exit 2
 }
-for command in codex erl escript git mix node python3 sha256sum tar; do
+for command in bwrap codex erl escript git mix node python3 sha256sum tar; do
   command -v "$command" >/dev/null || {
     printf 'ERROR: required command is missing: %s\n' "$command" >&2
     exit 2
@@ -102,15 +102,20 @@ routing_patch_relative=$(read_lock routing_patch)
 routing_patch_sha256=$(read_lock routing_patch_sha256)
 dependency_lock_relative=$(read_lock dependency_lock)
 dependency_lock_sha256=$(read_lock dependency_lock_sha256)
+test_fixture_relative=$(read_lock test_fixture)
+test_fixture_sha256=$(read_lock test_fixture_sha256)
 [[ "$patch_relative" == deploy/kubernetes/agentic-cicd/patches/symphony-phase-bridge.patch \
   && "$routing_patch_relative" == deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch \
-  && "$dependency_lock_relative" == deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock ]] || {
+  && "$dependency_lock_relative" == deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock \
+  && "$test_fixture_relative" == deploy/kubernetes/agentic-cicd/test-fixtures/controller.py ]] || {
   printf '%s\n' 'ERROR: Symphony lock references unexpected inputs.' >&2
   exit 2
 }
 verify_sha256 "$repo_root/$patch_relative" "$patch_sha256"
 verify_sha256 "$repo_root/$routing_patch_relative" "$routing_patch_sha256"
 verify_sha256 "$repo_root/$dependency_lock_relative" "$dependency_lock_sha256"
+verify_sha256 "$repo_root/$test_fixture_relative" "$test_fixture_sha256"
+test_fixture_dir=$(dirname "$repo_root/$test_fixture_relative")
 
 controller_revision=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || true)
 [[ "$controller_revision" =~ ^[0-9a-f]{40}$ \
@@ -148,6 +153,7 @@ cleanup() {
   rm -rf -- "$temporary_root"
 }
 trap cleanup EXIT
+mkdir -p "$temporary_root/test-tmp"
 symphony_build="$temporary_root/symphony"
 controller_source="$temporary_root/controller-source"
 bundle_root="$temporary_root/jstore-agentic-cicd"
@@ -200,7 +206,16 @@ install -m 0444 "$repo_root/$dependency_lock_relative" "$symphony_build/elixir/m
   cd "$symphony_build/elixir"
   mix deps.get
   mix compile --warnings-as-errors
-  mix test
+  bwrap --die-with-parent \
+    --ro-bind / / \
+    --dev-bind /dev /dev \
+    --bind "$temporary_root" "$temporary_root" \
+    --tmpfs /opt \
+    --dir /opt/jstore-agentic-controller \
+    --ro-bind "$test_fixture_dir" /opt/jstore-agentic-controller \
+    --setenv TMPDIR "$temporary_root/test-tmp" \
+    --chdir "$symphony_build/elixir" \
+    mix test
   MIX_ENV=prod mix deps.get --only prod
   MIX_ENV=prod mix escript.build
 )

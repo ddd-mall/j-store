@@ -190,8 +190,18 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
         self.assertIn("symphony-phase-bridge.patch", build)
         self.assertIn("symphony-phase-routing.patch", build)
         self.assertIn("symphony-mix.lock", build)
+        self.assertIn("test_fixture_relative=$(read_lock test_fixture)", build)
+        self.assertIn(
+            'verify_sha256 "$repo_root/$test_fixture_relative" "$test_fixture_sha256"',
+            build,
+        )
         self.assertIn("mix compile --warnings-as-errors", build)
         self.assertIn("mix test", build)
+        self.assertIn("bwrap --die-with-parent", build)
+        self.assertIn("--dev-bind /dev /dev", build)
+        self.assertIn(
+            '--ro-bind "$test_fixture_dir" /opt/jstore-agentic-controller', build
+        )
         self.assertIn("codex sandbox -- /bin/true", build)
         self.assertIn("manifest.sha256", build)
         self.assertIn("tar --sort=name", build)
