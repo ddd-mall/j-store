@@ -24,6 +24,14 @@ DISPOSABLE_CONTRACT = (
     / "state-contract.level2-disposable.example.json"
 )
 SYMPHONY_LOCK = REPO_ROOT / "config" / "agentic-cicd" / "symphony.lock.json"
+SYMPHONY_DEPENDENCY_LOCK = (
+    REPO_ROOT
+    / "deploy"
+    / "kubernetes"
+    / "agentic-cicd"
+    / "patches"
+    / "symphony-mix.lock"
+)
 WORKFLOW = REPO_ROOT / "WORKFLOW.md"
 ISSUE_FORM = REPO_ROOT / ".github" / "ISSUE_TEMPLATE" / "agent-goal.yml"
 RUNBOOK = REPO_ROOT / "docs" / "operations" / "agentic-cicd-runbook.md"
@@ -54,6 +62,20 @@ class AgenticCicdContractTest(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("PASS: agentic CI/CD contracts are consistent", result.stdout)
+
+    def test_symphony_bandit_lock_excludes_august_2026_advisories(self) -> None:
+        dependency_lock = SYMPHONY_DEPENDENCY_LOCK.read_text(encoding="utf-8")
+        match = re.search(
+            r'"bandit": \{:hex, :bandit, "(\d+)\.(\d+)\.(\d+)"',
+            dependency_lock,
+        )
+
+        self.assertIsNotNone(match)
+        self.assertGreaterEqual(
+            tuple(int(component) for component in match.groups()),
+            (1, 12, 5),
+            "Bandit must include fixes for CVE-2026-74836 and CVE-2026-75484",
+        )
 
     def test_state_contract_has_single_human_terminal_and_bounded_rework(self) -> None:
         contract = json.loads(STATE_CONTRACT.read_text(encoding="utf-8"))

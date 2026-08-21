@@ -205,6 +205,7 @@ install -m 0444 "$repo_root/$dependency_lock_relative" "$symphony_build/elixir/m
 (
   cd "$symphony_build/elixir"
   mix deps.get
+  mix hex.audit
   mix compile --warnings-as-errors
   bwrap --die-with-parent \
     --ro-bind / / \

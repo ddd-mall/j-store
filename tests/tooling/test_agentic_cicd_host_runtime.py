@@ -196,6 +196,7 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
             build,
         )
         self.assertIn("mix compile --warnings-as-errors", build)
+        self.assertIn("mix hex.audit", build)
         self.assertIn("mix test", build)
         self.assertIn("bwrap --die-with-parent", build)
         self.assertIn("--dev-bind /dev /dev", build)

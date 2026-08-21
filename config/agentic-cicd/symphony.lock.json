@@ -7,7 +7,7 @@
   "routing_patch": "deploy/kubernetes/agentic-cicd/patches/symphony-phase-routing.patch",
   "routing_patch_sha256": "1db362def073aa13812d98d3ddc45d7ffc9910b5dd70404bca86ab4a020f424c",
   "dependency_lock": "deploy/kubernetes/agentic-cicd/patches/symphony-mix.lock",
-  "dependency_lock_sha256": "9e22b8a3a5cb3ff49fb14899e224a0ac8dc08523e75b7835724071f00593890a",
+  "dependency_lock_sha256": "2317e4e9700c7623e6deb9bc86b6379ab5b5d034313850d6476b4d8e154a8bb3",
   "test_fixture": "deploy/kubernetes/agentic-cicd/test-fixtures/controller.py",
   "test_fixture_sha256": "848d8f75f02973a7941f723e9a95e8a218206e42eb8ecf7ec4e1177d8f997e1e",
   "source_url": "https://github.com/openai/symphony/tree/8001b52e3062495a16e520e4ceaf8f9de868c4d0",
