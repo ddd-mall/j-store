@@ -72,7 +72,7 @@ actual_otp_release=$(erl -noshell -eval 'io:format("~s", [erlang:system_info(otp
   exit 1
 }
 codex sandbox -- /bin/true
-codex login status >/dev/null
+codex login status >/dev/null 2>&1
 
 if [[ "$mode" == "--preflight-only" ]]; then
   printf 'HOST_PREFLIGHT_READY codex=%s sandbox=bubblewrap model_calls=0\n' \

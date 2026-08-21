@@ -150,7 +150,7 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
         self.assertIn('CREDENTIALS_DIRECTORY', wrapper)
         self.assertIn('JSTORE_SYMPHONY_GITHUB_TOKEN', wrapper)
         self.assertIn('codex sandbox -- /bin/true', wrapper)
-        self.assertIn('codex login status', wrapper)
+        self.assertIn('codex login status >/dev/null 2>&1', wrapper)
         self.assertIn('host: 127.0.0.1', (HOST_DEPLOYMENT / "WORKFLOW.md").read_text(encoding="utf-8"))
         self.assertNotIn('--host', wrapper)
         self.assertNotIn('set -x', wrapper)
