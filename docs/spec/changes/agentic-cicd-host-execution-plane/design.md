@@ -24,7 +24,7 @@ Symphony不持有kubeconfig，也不直接创建Job。现有host-owned controlle
 
 ## 制品与安装
 
-`scripts/agentic-cicd-host-build.sh`从两个洁净Git revision构建bundle。Symphony源码按锁文件顺序应用phase bridge、phase routing和依赖锁，必须完成compile/test/escript；Codex从当前已安装稳定版npm模块打包，并先执行默认sandbox smoke。Level 2 state contract和runtime binding由可信helper生成并写入bundle。
+`scripts/agentic-cicd-host-build.sh`从两个洁净Git revision构建bundle。Symphony源码按锁文件顺序应用phase bridge、phase routing和依赖锁，必须完成compile/test/escript；Codex从当前已安装稳定版npm主包及当前平台optional package构建自包含payload，并从该隔离payload执行版本与默认sandbox smoke。不得使用宿主全局Codex smoke替代最终payload验证。Level 2 state contract和runtime binding由可信helper生成并写入bundle。
 
 Symphony依赖锁在编译前必须通过`mix hex.audit`。Bandit最低版本为`1.12.5`，以排除`CVE-2026-74836`和`CVE-2026-75484`；治理合同拒绝回退到受影响版本。
 

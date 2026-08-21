@@ -1,5 +1,7 @@
 import subprocess
 import json
+import os
+import shutil
 import tempfile
 import time
 import unittest
@@ -184,6 +186,9 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
         build = (
             REPOSITORY_ROOT / "scripts" / "agentic-cicd-host-build.sh"
         ).read_text(encoding="utf-8")
+        packager = (
+            REPOSITORY_ROOT / "scripts" / "agentic-cicd-package-codex.sh"
+        ).read_text(encoding="utf-8")
         self.assertIn("symphony.lock.json", build)
         self.assertIn("git -C \"$symphony_source\" status --porcelain", build)
         self.assertIn("git -C \"$repo_root\" status --porcelain", build)
@@ -203,11 +208,130 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
         self.assertIn(
             '--ro-bind "$test_fixture_dir" /opt/jstore-agentic-controller', build
         )
-        self.assertIn("codex sandbox -- /bin/true", build)
+        self.assertIn("agentic-cicd-package-codex.sh", build)
+        self.assertNotIn("codex sandbox -- /bin/true", build)
+        self.assertIn("packageJson.optionalDependencies", packager)
+        self.assertIn("createRequire", packager)
+        self.assertIn('"$payload/bin/codex" --version', packager)
+        self.assertIn('"$payload/bin/codex" sandbox -- /bin/true', packager)
         self.assertIn("manifest.sha256", build)
         self.assertIn("tar --sort=name", build)
         for secret in ("auth.json", "config.toml", "OPENAI_API_KEY"):
             self.assertNotIn(f'cp "$HOME/.codex/{secret}"', build)
+
+    def test_codex_packager_builds_a_self_contained_isolated_payload(self) -> None:
+        node = shutil.which("node")
+        self.assertIsNotNone(node)
+        assert node is not None
+        version = "0.148.0"
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source" / "node_modules" / "@openai"
+            codex_module = source / "codex"
+            platform_module = source / "codex-linux-x64"
+            codex_bin = codex_module / "bin" / "codex.js"
+            platform_bin = (
+                platform_module
+                / "vendor"
+                / "x86_64-unknown-linux-musl"
+                / "bin"
+                / "codex"
+            )
+            codex_bin.parent.mkdir(parents=True)
+            platform_bin.parent.mkdir(parents=True)
+            (codex_module / "package.json").write_text(
+                json.dumps(
+                    {
+                        "name": "@openai/codex",
+                        "version": version,
+                        "type": "module",
+                        "optionalDependencies": {
+                            "@openai/codex-linux-x64": (
+                                f"npm:@openai/codex@{version}-linux-x64"
+                            )
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (platform_module / "package.json").write_text(
+                json.dumps(
+                    {"name": "@openai/codex", "version": f"{version}-linux-x64"}
+                ),
+                encoding="utf-8",
+            )
+            codex_bin.write_text(
+                "#!/usr/bin/env node\n"
+                'import { createRequire } from "node:module";\n'
+                'import { spawnSync } from "node:child_process";\n'
+                'import path from "node:path";\n'
+                "const require = createRequire(import.meta.url);\n"
+                "const packageJson = require.resolve(\n"
+                '  "@openai/codex-linux-x64/package.json"\n'
+                ");\n"
+                "const binary = path.join(\n"
+                "  path.dirname(packageJson),\n"
+                '  "vendor/x86_64-unknown-linux-musl/bin/codex"\n'
+                ");\n"
+                "const result = spawnSync(binary, process.argv.slice(2), { stdio: \"inherit\" });\n"
+                "process.exit(result.status ?? 1);\n",
+                encoding="utf-8",
+            )
+            codex_bin.chmod(0o755)
+            platform_bin.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                f"if [[ ${{1:-}} == --version ]]; then echo 'codex-cli {version}'; exit 0; fi\n"
+                "if [[ ${1:-} == sandbox && ${2:-} == -- && ${3:-} == /bin/true ]]; then exit 0; fi\n"
+                "exit 2\n",
+                encoding="utf-8",
+            )
+            platform_bin.chmod(0o755)
+            codex = root / "source" / "bin" / "codex"
+            codex.parent.mkdir()
+            codex.symlink_to(codex_bin)
+
+            payload = root / "payload"
+            subprocess.run(
+                [
+                    str(REPOSITORY_ROOT / "scripts" / "agentic-cicd-package-codex.sh"),
+                    "--codex-command",
+                    codex,
+                    "--node-command",
+                    node,
+                    "--payload",
+                    str(payload),
+                    "--expected-version",
+                    version,
+                ],
+                cwd=root,
+                check=True,
+            )
+
+            packaged_environment = os.environ.copy()
+            packaged_environment["PATH"] = f"{payload / 'bin'}:/usr/bin:/bin"
+            packaged_version = subprocess.run(
+                [str(payload / "bin" / "codex"), "--version"],
+                cwd=root,
+                env=packaged_environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            self.assertEqual(f"codex-cli {version}", packaged_version)
+            self.assertTrue(
+                any(
+                    path.name.startswith("codex-linux-")
+                    for path in (payload / "lib" / "node_modules" / "@openai").iterdir()
+                )
+            )
+            subprocess.run(
+                [str(payload / "bin" / "codex"), "sandbox", "--", "/bin/true"],
+                cwd=root,
+                env=packaged_environment,
+                check=True,
+            )
 
     def test_host_start_fails_closed_on_kubernetes_double_active_and_runs_no_model_preflight(self) -> None:
         start = (
