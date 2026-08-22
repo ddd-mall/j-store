@@ -135,7 +135,6 @@ codex_output=$(codex --version 2>/dev/null || true)
   exit 2
 }
 codex_version=${BASH_REMATCH[1]}
-codex sandbox -- /bin/true
 codex_entry=$(readlink -f "$(command -v codex)")
 codex_module=${codex_entry%/bin/codex.js}
 [[ -f "$codex_module/package.json" && -x "$(command -v node)" ]] || {
@@ -222,9 +221,11 @@ install -m 0444 "$repo_root/$dependency_lock_relative" "$symphony_build/elixir/m
 )
 
 install -m 0555 "$symphony_build/elixir/bin/symphony" "$payload/bin/symphony"
-install -m 0555 "$(command -v node)" "$payload/bin/node"
-cp -a "$codex_module" "$payload/lib/node_modules/@openai/codex"
-ln -s ../lib/node_modules/@openai/codex/bin/codex.js "$payload/bin/codex"
+"$repo_root/scripts/agentic-cicd-package-codex.sh" \
+  --codex-command "$(command -v codex)" \
+  --node-command "$(command -v node)" \
+  --payload "$payload" \
+  --expected-version "$codex_version"
 install -m 0555 "$controller_source/deploy/host/agentic-cicd/run-symphony.sh" \
   "$payload/bin/run-symphony"
 install -m 0444 "$controller_source/deploy/host/agentic-cicd/WORKFLOW.md" \

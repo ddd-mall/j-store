@@ -123,7 +123,7 @@ python3 scripts/agentic-cicd-controller.py github-e2e-preflight \
   --reviewer '<reviewer-login>'
 ```
 
-构建入口不接受任意合同路径，只使用固定Level 2 disposable profile；它生成并验证repository、HTTPS URL、capability level、合同和runtime binding摘要，运行Symphony测试与Codex默认sandbox smoke，再输出bundle、逐文件manifest和source record。此命令不写主机系统目录、不写集群、不读取token、不访问GitHub且不调用Responses API。旧`agentic-cicd-level2-deployment-prepare.py`和Kubernetes Supervisor部署入口已固定fail-closed，不能用于恢复Pod执行面。
+构建入口不接受任意合同路径，只使用固定Level 2 disposable profile；它生成并验证repository、HTTPS URL、capability level、合同和runtime binding摘要，运行Symphony测试，并把Codex npm主包与当前平台optional package一并复制到隔离payload后，从该payload执行版本与默认sandbox smoke，再输出bundle、逐文件manifest和source record。此命令不写主机系统目录、不写集群、不读取token、不访问GitHub且不调用Responses API。旧`agentic-cicd-level2-deployment-prepare.py`和Kubernetes Supervisor部署入口已固定fail-closed，不能用于恢复Pod执行面。
 
 运行时不会把render成功当作凭据可用证明。`phase-context`只有在任务phase为`complete`且合同开启push后才读取GitHub运行输入；在任何candidate promotion、Git命令、GitHub adapter构造或Snapshot写入前，它要求token及GitHub签发expiry同时存在且剩余至少65秒，并按能力要求合法的App bot login和人工reviewer。任一输入缺失、过期、非法或身份冲突都立即失败；Git push和每个HTTP请求仍会再次检查token lease。该fail-closed行为只防止漂移配置产生部分副作用，不构成token权限或真实E2E验收。
 
@@ -191,7 +191,7 @@ Agent Goal Issue Form 只能自动添加 `agent:candidate`。仓库所有者完�
 
 ### 构建不可变host bundle
 
-必须从已提交且洁净的j-store候选和锁定的洁净Symphony checkout构建。构建执行完整Symphony compile/test和Codex默认sandbox smoke，但不读取认证、不调用Responses API：
+必须从已提交且洁净的j-store候选和锁定的洁净Symphony checkout构建。构建执行完整Symphony compile/test，并从已经复制主包与当前平台optional package的最终Codex payload执行版本和默认sandbox smoke，但不读取认证、不调用Responses API：
 
 ```bash
 ./scripts/agentic-cicd-host-build.sh \
