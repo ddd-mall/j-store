@@ -23,8 +23,13 @@ import org.springframework.data.repository.query.Param
 
 interface SpuPOJpaRepository : JpaRepository<SpuPO, Long> {
 
-    @Query("select distinct s from SpuPO s join fetch s.skus sku where sku.id in :skuIds and s.status = :status")
-    fun findBySkuIdsAndStatus(@Param("skuIds") skuIds: List<Long>, @Param("status") status: CommodityStatus): List<SpuPO>
+    @Query(
+        "select distinct s from SpuPO s join fetch s.skus sku where sku.id in :skuIds and s.status = :status"
+    )
+    fun findBySkuIdsAndStatus(
+        @Param("skuIds") skuIds: List<Long>,
+        @Param("status") status: CommodityStatus,
+    ): List<SpuPO>
 
     /** 根据 source_spu_id 和 status 查询草稿副本 */
     fun findBySourceSpuIdAndStatus(sourceSpuId: Long, status: CommodityStatus): SpuPO?

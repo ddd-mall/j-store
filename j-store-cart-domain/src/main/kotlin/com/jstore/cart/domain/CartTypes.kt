@@ -19,20 +19,64 @@ package com.jstore.cart.domain
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.Id
 
-data class CartId(override val value: Long) : Id<Long>(value) { init { require(value > 0) } }
-data class CartLineId(override val value: Long) : Id<Long>(value) { init { require(value > 0) } }
-data class CartAssessmentId(override val value: Long) : Id<Long>(value) { init { require(value > 0) } }
-data class BuyerId(override val value: Long) : Id<Long>(value) { init { require(value > 0) } }
-data class SkuId(override val value: Long) : Id<Long>(value) { init { require(value > 0) } }
-data class OfferId(override val value: Long) : Id<Long>(value) { init { require(value > 0) } }
-data class MerchantId(override val value: Long) : Id<Long>(value) { init { require(value > 0) } }
-data class CartRequestReceiptId(override val value: String) : Id<String>(value) { init { require(value.isNotBlank()) } }
-
-data class SettlementScope(val market: String, val channelId: String, val currency: String) {
-    init { require(market.isNotBlank() && channelId.isNotBlank() && currency.length == 3) }
+data class CartId(override val value: Long) : Id<Long>(value) {
+    init {
+        require(value > 0)
+    }
 }
 
-enum class CartStatus { ACTIVE, EXPIRED }
+data class CartLineId(override val value: Long) : Id<Long>(value) {
+    init {
+        require(value > 0)
+    }
+}
+
+data class CartAssessmentId(override val value: Long) : Id<Long>(value) {
+    init {
+        require(value > 0)
+    }
+}
+
+data class BuyerId(override val value: Long) : Id<Long>(value) {
+    init {
+        require(value > 0)
+    }
+}
+
+data class SkuId(override val value: Long) : Id<Long>(value) {
+    init {
+        require(value > 0)
+    }
+}
+
+data class OfferId(override val value: Long) : Id<Long>(value) {
+    init {
+        require(value > 0)
+    }
+}
+
+data class MerchantId(override val value: Long) : Id<Long>(value) {
+    init {
+        require(value > 0)
+    }
+}
+
+data class CartRequestReceiptId(override val value: String) : Id<String>(value) {
+    init {
+        require(value.isNotBlank())
+    }
+}
+
+data class SettlementScope(val market: String, val channelId: String, val currency: String) {
+    init {
+        require(market.isNotBlank() && channelId.isNotBlank() && currency.length == 3)
+    }
+}
+
+enum class CartStatus {
+    ACTIVE,
+    EXPIRED,
+}
 
 object CartErrors {
     val INVALID_QUANTITY = BusinessError("购物车数量无效", "Cart.InvalidQuantity", 400)

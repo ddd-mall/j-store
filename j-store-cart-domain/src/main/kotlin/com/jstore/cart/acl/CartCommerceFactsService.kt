@@ -31,5 +31,6 @@ data class OfferIdentity(
 
 interface CartCommerceFactsService {
     fun findOffer(offerId: OfferId): OfferIdentity?
+
     fun collect(lines: List<CartLine>): List<CartLineCommerceFacts>
 }

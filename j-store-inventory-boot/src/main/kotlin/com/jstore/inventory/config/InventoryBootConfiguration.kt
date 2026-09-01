@@ -25,8 +25,8 @@ import com.jstore.inventory.domain.StockPositionGuard
 import com.jstore.inventory.domain.StockPositionRepository
 import com.jstore.inventory.domain.StockReservationRepository
 import com.jstore.inventory.service.ConfirmInventoryCommandHandler
-import com.jstore.inventory.service.InventoryService
 import com.jstore.inventory.service.InventoryAvailabilityQueryServiceImpl
+import com.jstore.inventory.service.InventoryService
 import com.jstore.inventory.service.PhysicalStockChangedHandler
 import com.jstore.inventory.service.ReleaseInventoryCommandHandler
 import com.jstore.inventory.service.ReserveInventoryCommandHandler

@@ -2,7 +2,9 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.spring)
 }
+
 repositories { mavenCentral() }
+
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(project(":j-store-cart-api"))
@@ -19,5 +21,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockito.kotlin)
 }
+
 tasks.test { useJUnitPlatform() }
+
 kotlin { jvmToolchain(25) }

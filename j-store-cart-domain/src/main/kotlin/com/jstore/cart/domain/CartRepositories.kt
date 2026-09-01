@@ -24,6 +24,7 @@ interface CartRepository : AggregateRepository<CartId, Cart> {
 
 interface CartAssessmentRepository : AggregateRepository<CartAssessmentId, CartAssessment> {
     fun findByCartAndVersion(cartId: CartId, version: Long): CartAssessment?
+
     fun findLatestByCart(cartId: CartId): CartAssessment?
 }
 
@@ -36,6 +37,7 @@ data class CartRequestReceipt(
     val cartVersion: Long,
 ) : com.jstore.common.framework.AggregateRoot<CartRequestReceiptId>
 
-interface CartRequestReceiptRepository : AggregateRepository<CartRequestReceiptId, CartRequestReceipt> {
+interface CartRequestReceiptRepository :
+    AggregateRepository<CartRequestReceiptId, CartRequestReceipt> {
     fun findByBuyerAndRequest(buyerId: BuyerId, requestId: String): CartRequestReceipt?
 }

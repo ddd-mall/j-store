@@ -206,8 +206,7 @@ class OfferSnapshotQueryServiceImpl(
     private val offers: SalesOfferRepository,
     private val stores: StoreRepository,
     private val now: () -> Instant = Instant::now,
-) :
-    OfferSnapshotQueryService {
+) : OfferSnapshotQueryService {
     override fun queryOffers(offerIds: List<Long>): List<OfferSnapshotInfo> {
         val instant = now()
         return offers.findAllByIds(offerIds.distinct().map(::SalesOfferId)).map {

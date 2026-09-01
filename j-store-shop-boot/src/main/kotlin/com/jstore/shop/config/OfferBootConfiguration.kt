@@ -47,8 +47,10 @@ class OfferBootConfiguration {
     ) = OfferAuthorizationService(storeGuard, guard, authorizations, publisher)
 
     @Bean
-    fun offerSnapshotQueryService(offers: SalesOfferRepository, stores: StoreRepository): OfferSnapshotQueryService =
-        OfferSnapshotQueryServiceImpl(offers, stores)
+    fun offerSnapshotQueryService(
+        offers: SalesOfferRepository,
+        stores: StoreRepository,
+    ): OfferSnapshotQueryService = OfferSnapshotQueryServiceImpl(offers, stores)
 
     @Bean
     fun authorizeSaleHandler(

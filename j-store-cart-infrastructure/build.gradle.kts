@@ -3,7 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.plugin.jpa)
     alias(libs.plugins.kotlin.plugin.spring)
 }
+
 repositories { mavenCentral() }
+
 dependencies {
     implementation(libs.kotlin.stdlib)
     api(project(":j-store-cart-domain"))
@@ -15,5 +17,7 @@ dependencies {
     testImplementation(libs.embedded.postgres)
     testRuntimeOnly(libs.postgresql)
 }
+
 tasks.test { useJUnitPlatform() }
+
 kotlin { jvmToolchain(25) }

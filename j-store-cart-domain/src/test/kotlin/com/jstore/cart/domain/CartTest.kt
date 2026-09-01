@@ -26,9 +26,15 @@ class CartTest {
     @Test
     fun `cart merges the same offer and allows multiple merchants in one scope`() {
         val cart = Cart.create(CartId(1), BuyerId(7), SettlementScope("CN", "ONLINE", "CNY"))
-        assertIs<Success<*>>(cart.add(CartLineId(11), SkuId(101), OfferId(201), MerchantId(301), 2, scope()))
-        assertIs<Success<*>>(cart.add(CartLineId(12), SkuId(101), OfferId(201), MerchantId(301), 3, scope()))
-        assertIs<Success<*>>(cart.add(CartLineId(13), SkuId(102), OfferId(202), MerchantId(302), 1, scope()))
+        assertIs<Success<*>>(
+            cart.add(CartLineId(11), SkuId(101), OfferId(201), MerchantId(301), 2, scope())
+        )
+        assertIs<Success<*>>(
+            cart.add(CartLineId(12), SkuId(101), OfferId(201), MerchantId(301), 3, scope())
+        )
+        assertIs<Success<*>>(
+            cart.add(CartLineId(13), SkuId(102), OfferId(202), MerchantId(302), 1, scope())
+        )
         assertEquals(2, cart.lines.size)
         assertEquals(5, cart.lines.first { it.offerId.value == 201L }.quantity)
         assertEquals(setOf(301L, 302L), cart.lines.map { it.merchantId.value }.toSet())
@@ -38,8 +44,18 @@ class CartTest {
     @Test
     fun `different settlement scope is rejected without changing cart`() {
         val cart = Cart.create(CartId(1), BuyerId(7), scope())
-        assertIs<Success<*>>(cart.add(CartLineId(11), SkuId(101), OfferId(201), MerchantId(301), 1, scope()))
-        val result = cart.add(CartLineId(12), SkuId(102), OfferId(202), MerchantId(302), 1, SettlementScope("US", "ONLINE", "USD"))
+        assertIs<Success<*>>(
+            cart.add(CartLineId(11), SkuId(101), OfferId(201), MerchantId(301), 1, scope())
+        )
+        val result =
+            cart.add(
+                CartLineId(12),
+                SkuId(102),
+                OfferId(202),
+                MerchantId(302),
+                1,
+                SettlementScope("US", "ONLINE", "USD"),
+            )
         assertIs<Failure<*>>(result)
         assertEquals(1, cart.lines.size)
         assertEquals(1, cart.contentVersion)

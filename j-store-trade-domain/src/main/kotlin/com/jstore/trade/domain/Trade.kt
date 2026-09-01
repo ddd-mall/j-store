@@ -307,7 +307,10 @@ enum class TradeStatus {
     CLOSED,
 }
 
-enum class CheckoutSourceType { DIRECT, CART }
+enum class CheckoutSourceType {
+    DIRECT,
+    CART,
+}
 
 data class CheckoutSourceSnapshot(
     val type: CheckoutSourceType,
@@ -317,11 +320,18 @@ data class CheckoutSourceSnapshot(
 ) {
     init {
         require(sourceDigest.isNotBlank())
-        require((type == CheckoutSourceType.DIRECT && sourceId == null && sourceVersion == null) || (type == CheckoutSourceType.CART && sourceId != null && sourceVersion != null))
+        require(
+            (type == CheckoutSourceType.DIRECT && sourceId == null && sourceVersion == null) ||
+                (type == CheckoutSourceType.CART && sourceId != null && sourceVersion != null)
+        )
     }
+
     companion object {
-        fun direct(digest: String) = CheckoutSourceSnapshot(CheckoutSourceType.DIRECT, null, null, digest)
-        fun cart(id: Long, version: Long, digest: String) = CheckoutSourceSnapshot(CheckoutSourceType.CART, id, version, digest)
+        fun direct(digest: String) =
+            CheckoutSourceSnapshot(CheckoutSourceType.DIRECT, null, null, digest)
+
+        fun cart(id: Long, version: Long, digest: String) =
+            CheckoutSourceSnapshot(CheckoutSourceType.CART, id, version, digest)
     }
 }
 

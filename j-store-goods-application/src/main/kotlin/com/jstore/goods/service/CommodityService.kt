@@ -20,11 +20,11 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.publishPendingEvents
 import com.jstore.common.utils.*
+import com.jstore.goods.api.CurrentGoodsSkuInfo
+import com.jstore.goods.api.CurrentGoodsSkuQueryService
 import com.jstore.goods.api.GoodsSkuSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotQueryService
-import com.jstore.goods.api.CurrentGoodsSkuInfo
-import com.jstore.goods.api.CurrentGoodsSkuQueryService
 import com.jstore.goods.domain.brand.Brand
 import com.jstore.goods.domain.brand.BrandErrors
 import com.jstore.goods.domain.brand.BrandId
@@ -56,9 +56,19 @@ class CommodityService(
 
     override fun querySkus(skuIds: List<Long>): List<CurrentGoodsSkuInfo> =
         spuRepository.findPublishedBySkuIds(skuIds.distinct().map(::SkuId)).flatMap { spu ->
-            spu.skus.filter { it.id.value in skuIds }.map { sku ->
-                CurrentGoodsSkuInfo(sku.id.value, spu.id.value, spu.merchantId.value, true, spu.version, spu.name, sku.skuName)
-            }
+            spu.skus
+                .filter { it.id.value in skuIds }
+                .map { sku ->
+                    CurrentGoodsSkuInfo(
+                        sku.id.value,
+                        spu.id.value,
+                        spu.merchantId.value,
+                        true,
+                        spu.version,
+                        spu.name,
+                        sku.skuName,
+                    )
+                }
         }
 
     /**

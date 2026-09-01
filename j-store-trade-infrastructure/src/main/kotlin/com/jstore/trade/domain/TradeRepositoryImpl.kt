@@ -172,7 +172,13 @@ class TradeRepositoryImpl(private val jpa: TradePOJpaRepository) : TradeReposito
             createdAt = po.createdAt,
             updatedAt = po.updatedAt,
             persistenceVersion = po.persistenceVersion,
-            sourceSnapshot = CheckoutSourceSnapshot(po.checkoutSourceType, po.checkoutSourceId, po.checkoutSourceVersion, po.checkoutSourceDigest),
+            sourceSnapshot =
+                CheckoutSourceSnapshot(
+                    po.checkoutSourceType,
+                    po.checkoutSourceId,
+                    po.checkoutSourceVersion,
+                    po.checkoutSourceDigest,
+                ),
         )
 
     private fun toPlan(po: TradeOrderPlanPO) =

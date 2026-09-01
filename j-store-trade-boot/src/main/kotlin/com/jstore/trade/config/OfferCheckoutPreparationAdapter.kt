@@ -47,10 +47,15 @@ class OfferCheckoutPreparationAdapter(
             val offersValid =
                 command.items.all { item ->
                     byId[item.offerId]?.let {
-                        it.skuId == item.skuId && it.offerVersion == item.offerVersion && it.active && it.storeActive && it.effectiveNow
+                        it.skuId == item.skuId &&
+                            it.offerVersion == item.offerVersion &&
+                            it.active &&
+                            it.storeActive &&
+                            it.effectiveNow
                     } == true
                 }
-            val settlementScopes = snapshots.map { Triple(it.market, it.channelId, it.currency) }.distinct()
+            val settlementScopes =
+                snapshots.map { Triple(it.market, it.channelId, it.currency) }.distinct()
             val goodsValid =
                 command.items.all { item ->
                     val offer = byId[item.offerId]
@@ -60,7 +65,8 @@ class OfferCheckoutPreparationAdapter(
                             snapshot.skuSnapshots.any { it.skuId == item.skuId }
                     } == true
                 }
-            if (!offersValid || !goodsValid || settlementScopes.size != 1) Failure(TradeErrors.CHECKOUT_OFFER_INVALID)
+            if (!offersValid || !goodsValid || settlementScopes.size != 1)
+                Failure(TradeErrors.CHECKOUT_OFFER_INVALID)
             else if (profile == null || profile.status != UserProfileStatus.ACTIVE) {
                 Failure(TradeErrors.CHECKOUT_BUYER_INVALID)
             } else

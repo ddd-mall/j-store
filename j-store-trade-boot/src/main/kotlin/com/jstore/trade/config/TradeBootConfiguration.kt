@@ -16,8 +16,8 @@
  */
 package com.jstore.trade.config
 
-import com.jstore.common.geo.GeoAddressService
 import com.jstore.cart.api.CartCheckoutSourceQueryService
+import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.contracts.commerce.*
 import com.jstore.goods.api.GoodsSnapshotQueryService
