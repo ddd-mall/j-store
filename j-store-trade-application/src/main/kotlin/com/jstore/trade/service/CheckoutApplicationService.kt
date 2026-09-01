@@ -50,8 +50,15 @@ data class CreateCheckoutCommand(
     val checkoutRequestId: String,
     val buyerId: Long,
     val recipient: CheckoutRecipient,
-    val items: List<CheckoutItem>,
+    val items: List<CheckoutItem> = emptyList(),
+    val cartId: Long? = null,
+    val expectedCartVersion: Long? = null,
+    val cartDigest: String? = null,
 )
+
+fun interface CheckoutSourceGateway {
+    fun resolve(command: CreateCheckoutCommand): Result<CreateCheckoutCommand, BusinessError>
+}
 
 data class CheckoutAccepted(val tradeId: Long, val orderIds: List<Long>)
 
@@ -123,18 +130,27 @@ class CheckoutApplicationService(
     private val ids: TradeIdentityGenerator,
     private val authorization: TradeAuthorizationGateway,
     private val payments: CheckoutPaymentGateway = CheckoutPaymentGateway { null },
+    private val source: CheckoutSourceGateway = CheckoutSourceGateway { command -> if (command.cartId == null) Success(command) else Failure(TradeErrors.CHECKOUT_OFFER_INVALID) },
 ) : CheckoutUseCase {
     override fun checkout(command: CreateCheckoutCommand): Result<CheckoutAccepted, BusinessError> {
-        if (!command.isValid()) return Failure(TradeErrors.CHECKOUT_REQUEST_INVALID)
-        val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId)
-        val digest = digest(command)
-        trades.findByCheckoutRequest(buyer, command.checkoutRequestId)?.let { existing ->
+        val requestedBuyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId)
+        if (command.cartId != null) {
+            trades.findByCheckoutRequest(requestedBuyer, command.checkoutRequestId)?.let { existing ->
+                return if (existing.matchesCartRetry(command)) Success(existing.accepted())
+                else Failure(TradeErrors.START_CONFLICT)
+            }
+        }
+        val resolved = when (val result = source.resolve(command)) { is Failure -> return result; is Success -> result.value }
+        if (!resolved.isValid()) return Failure(TradeErrors.CHECKOUT_REQUEST_INVALID)
+        val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, resolved.buyerId)
+        val digest = digest(resolved)
+        trades.findByCheckoutRequest(buyer, resolved.checkoutRequestId)?.let { existing ->
             return if (existing.matchesRequest(buyer, digest)) Success(existing.accepted())
             else Failure(TradeErrors.START_CONFLICT)
         }
 
         val prepared =
-            when (val result = preparation.prepare(command)) {
+            when (val result = preparation.prepare(resolved)) {
                 is Failure -> return result
                 is Success -> result.value
             }
@@ -158,12 +174,12 @@ class CheckoutApplicationService(
         val trade =
             Trade.start(
                 id = TradeId(ids.nextId()),
-                checkoutRequestId = command.checkoutRequestId,
+                checkoutRequestId = resolved.checkoutRequestId,
                 requestDigest = digest,
                 buyerParty = buyer,
                 buyerProfile = prepared.buyerProfile,
-                actingPrincipalId = command.buyerId,
-                recipient = command.recipient.toSnapshot(prepared.shippingAddress),
+                actingPrincipalId = resolved.buyerId,
+                recipient = resolved.recipient.toSnapshot(prepared.shippingAddress),
                 orderPlans = plans,
                 currency = prepared.currency,
                 commitmentPolicy = CommitmentPolicySnapshot(TradeMode.NORMAL),
@@ -173,6 +189,7 @@ class CheckoutApplicationService(
                         FulfillmentReleaseRule.FULL_PAYMENT,
                         listOf(PaymentInstallmentSnapshot("FULL", InstallmentPurpose.FULL, total)),
                     ),
+                sourceSnapshot = if (resolved.cartId == null) CheckoutSourceSnapshot.direct(digest) else CheckoutSourceSnapshot.cart(resolved.cartId, requireNotNull(resolved.expectedCartVersion), requireNotNull(resolved.cartDigest)),
             )
         trades.save(trade)
         trade.orderPlans.forEach { authorization.requestAuthorization(trade, it) }
@@ -211,10 +228,16 @@ class CheckoutApplicationService(
     fun recoverConcurrentCheckout(
         command: CreateCheckoutCommand
     ): Result<CheckoutAccepted, BusinessError>? {
-        if (!command.isValid()) return Failure(TradeErrors.CHECKOUT_REQUEST_INVALID)
-        val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId)
-        val existing = trades.findByCheckoutRequest(buyer, command.checkoutRequestId) ?: return null
-        return if (existing.matchesRequest(buyer, digest(command))) Success(existing.accepted())
+        if (command.cartId != null) {
+            val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId)
+            val existing = trades.findByCheckoutRequest(buyer, command.checkoutRequestId) ?: return null
+            return if (existing.matchesCartRetry(command)) Success(existing.accepted()) else Failure(TradeErrors.START_CONFLICT)
+        }
+        val resolved = when (val result = source.resolve(command)) { is Failure -> return result; is Success -> result.value }
+        if (!resolved.isValid()) return Failure(TradeErrors.CHECKOUT_REQUEST_INVALID)
+        val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, resolved.buyerId)
+        val existing = trades.findByCheckoutRequest(buyer, resolved.checkoutRequestId) ?: return null
+        return if (existing.matchesRequest(buyer, digest(resolved))) Success(existing.accepted())
         else Failure(TradeErrors.START_CONFLICT)
     }
 
@@ -265,6 +288,9 @@ class CheckoutApplicationService(
                 appendCanonical(value)
             }
             appendCanonical(command.items.size.toString())
+            appendCanonical(command.cartId?.toString())
+            appendCanonical(command.expectedCartVersion?.toString())
+            appendCanonical(command.cartDigest)
             command.items
                 .sortedBy { it.offerId }
                 .forEach {
@@ -319,4 +345,18 @@ class CheckoutApplicationService(
 
     private fun Trade.toView(payment: CheckoutPaymentView?) =
         CheckoutView(id.value, status.name, orderPlans.mapNotNull { it.orderId }, payment)
+
+    private fun Trade.matchesCartRetry(command: CreateCheckoutCommand): Boolean =
+        buyerParty == BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId) &&
+            sourceSnapshot.type == CheckoutSourceType.CART &&
+            sourceSnapshot.sourceId == command.cartId &&
+            sourceSnapshot.sourceVersion == command.expectedCartVersion &&
+            recipient.name == command.recipient.name &&
+            recipient.countryCode == command.recipient.countryCode &&
+            recipient.phone == command.recipient.phone &&
+            recipient.email == command.recipient.email &&
+            recipient.districtCode == command.recipient.districtCode &&
+            recipient.detailAddress == command.recipient.detailAddress &&
+            recipient.postalCode == command.recipient.postalCode &&
+            recipient.customsFields == command.recipient.customsFields
 }

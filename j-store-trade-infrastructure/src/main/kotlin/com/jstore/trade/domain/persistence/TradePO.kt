@@ -129,6 +129,13 @@ class TradePO(
     var checkoutRequestId: String = "",
     @Column(name = "request_digest", nullable = false, length = 80) var requestDigest: String = "",
     @Enumerated(EnumType.STRING)
+    @Column(name = "checkout_source_type", nullable = false, length = 16)
+    var checkoutSourceType: CheckoutSourceType = CheckoutSourceType.DIRECT,
+    @Column(name = "checkout_source_id") var checkoutSourceId: Long? = null,
+    @Column(name = "checkout_source_version") var checkoutSourceVersion: Long? = null,
+    @Column(name = "checkout_source_digest", nullable = false, length = 128)
+    var checkoutSourceDigest: String = "DIRECT",
+    @Enumerated(EnumType.STRING)
     @Column(name = "buyer_party_type", nullable = false, length = 32)
     var buyerPartyType: PartyType = PartyType.INDIVIDUAL,
     @Column(name = "buyer_party_id", nullable = false) var buyerPartyId: Long = 0,

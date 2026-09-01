@@ -6,6 +6,7 @@ plugins {
 repositories { mavenCentral() }
 
 dependencies {
+    implementation(project(":j-store-cart-api"))
     implementation(libs.spring.context)
     implementation(project(":j-store-trade-domain"))
     implementation(project(":j-store-trade-application"))

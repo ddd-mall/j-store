@@ -23,6 +23,8 @@ import com.jstore.common.utils.*
 import com.jstore.goods.api.GoodsSkuSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotInfo
 import com.jstore.goods.api.GoodsSnapshotQueryService
+import com.jstore.goods.api.CurrentGoodsSkuInfo
+import com.jstore.goods.api.CurrentGoodsSkuQueryService
 import com.jstore.goods.domain.brand.Brand
 import com.jstore.goods.domain.brand.BrandErrors
 import com.jstore.goods.domain.brand.BrandId
@@ -50,7 +52,14 @@ class CommodityService(
     private val goodsStyleFactory: GoodsStyleFactory,
     private val brandRepository: BrandRepository,
     private val productTypeRepository: ProductTypeRepository? = null,
-) : CommodityUseCase, GoodsSnapshotQueryService {
+) : CommodityUseCase, GoodsSnapshotQueryService, CurrentGoodsSkuQueryService {
+
+    override fun querySkus(skuIds: List<Long>): List<CurrentGoodsSkuInfo> =
+        spuRepository.findPublishedBySkuIds(skuIds.distinct().map(::SkuId)).flatMap { spu ->
+            spu.skus.filter { it.id.value in skuIds }.map { sku ->
+                CurrentGoodsSkuInfo(sku.id.value, spu.id.value, spu.merchantId.value, true, spu.version, spu.name, sku.skuName)
+            }
+        }
 
     /**
      * 创建/更新 SPU（已发布资料必须通过草稿副本修改）

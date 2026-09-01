@@ -33,7 +33,9 @@ class CheckoutController(private val checkouts: CheckoutUseCase) {
     data class CreateCheckoutRequest(
         val checkoutRequestId: String,
         val recipient: RecipientRequest,
-        val items: List<ItemRequest>,
+        val items: List<ItemRequest> = emptyList(),
+        val cartId: Long? = null,
+        val expectedCartVersion: Long? = null,
     )
 
     data class RecipientRequest(
@@ -87,6 +89,8 @@ class CheckoutController(private val checkouts: CheckoutUseCase) {
                     buyerId = userId.value,
                     recipient = request.recipient.toCommand(),
                     items = request.items.map { it.toCommand() },
+                    cartId = request.cartId,
+                    expectedCartVersion = request.expectedCartVersion,
                 )
             )
             .toResponse()
