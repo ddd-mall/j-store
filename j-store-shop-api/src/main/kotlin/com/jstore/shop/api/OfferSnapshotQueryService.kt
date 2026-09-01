@@ -33,6 +33,9 @@ data class OfferSnapshotInfo(
     val active: Boolean,
     val startsAt: Instant,
     val endsAt: Instant?,
+    val storeActive: Boolean = true,
+    val effectiveNow: Boolean = true,
+    val currency: String = "CNY",
 )
 
 fun interface OfferSnapshotQueryService {

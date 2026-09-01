@@ -49,6 +49,10 @@ class TradeRepositoryImpl(private val jpa: TradePOJpaRepository) : TradeReposito
             id = trade.id.value,
             checkoutRequestId = trade.checkoutRequestId,
             requestDigest = trade.requestDigest,
+            checkoutSourceType = trade.sourceSnapshot.type,
+            checkoutSourceId = trade.sourceSnapshot.sourceId,
+            checkoutSourceVersion = trade.sourceSnapshot.sourceVersion,
+            checkoutSourceDigest = trade.sourceSnapshot.sourceDigest,
             buyerPartyType = trade.buyerParty.partyType,
             buyerPartyId = trade.buyerParty.partyId,
             buyerDisplayName = trade.buyerProfile.displayName,
@@ -168,6 +172,13 @@ class TradeRepositoryImpl(private val jpa: TradePOJpaRepository) : TradeReposito
             createdAt = po.createdAt,
             updatedAt = po.updatedAt,
             persistenceVersion = po.persistenceVersion,
+            sourceSnapshot =
+                CheckoutSourceSnapshot(
+                    po.checkoutSourceType,
+                    po.checkoutSourceId,
+                    po.checkoutSourceVersion,
+                    po.checkoutSourceDigest,
+                ),
         )
 
     private fun toPlan(po: TradeOrderPlanPO) =

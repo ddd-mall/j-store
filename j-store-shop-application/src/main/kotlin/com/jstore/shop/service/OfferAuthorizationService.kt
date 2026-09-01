@@ -38,6 +38,7 @@ import com.jstore.shop.domain.offer.SalesOfferId
 import com.jstore.shop.domain.offer.SalesOfferRepository
 import com.jstore.shop.domain.offer.StoreGuard
 import com.jstore.shop.domain.offer.StoreId
+import com.jstore.shop.domain.offer.StoreRepository
 import com.jstore.shop.domain.offer.StoreStatus
 import com.jstore.shop.domain.offer.event.AuthorizedSaleLine
 import com.jstore.shop.domain.offer.event.SaleAuthorizationRejectedEvent
@@ -201,10 +202,15 @@ class ReleaseSaleAuthorizationCommandHandler(private val useCase: OfferAuthoriza
     }
 }
 
-class OfferSnapshotQueryServiceImpl(private val offers: SalesOfferRepository) :
-    OfferSnapshotQueryService {
-    override fun queryOffers(offerIds: List<Long>): List<OfferSnapshotInfo> =
-        offers.findAllByIds(offerIds.distinct().map(::SalesOfferId)).map {
+class OfferSnapshotQueryServiceImpl(
+    private val offers: SalesOfferRepository,
+    private val stores: StoreRepository,
+    private val now: () -> Instant = Instant::now,
+) : OfferSnapshotQueryService {
+    override fun queryOffers(offerIds: List<Long>): List<OfferSnapshotInfo> {
+        val instant = now()
+        return offers.findAllByIds(offerIds.distinct().map(::SalesOfferId)).map {
+            val store = stores.findById(it.storeId)
             OfferSnapshotInfo(
                 offerId = it.id.value,
                 storeId = it.storeId.value,
@@ -219,6 +225,10 @@ class OfferSnapshotQueryServiceImpl(private val offers: SalesOfferRepository) :
                 active = it.status.name == "ACTIVE",
                 startsAt = it.effectivePeriod.startsAt,
                 endsAt = it.effectivePeriod.endsAt,
+                storeActive = store?.status == StoreStatus.ACTIVE,
+                effectiveNow = it.effectivePeriod.contains(instant),
+                currency = "CNY",
             )
         }
+    }
 }

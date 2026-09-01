@@ -46,6 +46,9 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-shop-api`: Store/Offer 对外的销售要约快照查询契约。
 - `j-store-shop-domain/application/infrastructure/boot`: 店铺、商户成员和 `SalesOffer`；销售状态、成交价、渠道、有效期、限购与履约策略由此上下文权威管理，并签发持久化 `SaleAuthorization`。
 - `j-store-inventory-domain/application/infrastructure/boot`: ATP 库存镜像、安全库存、渠道隔离量与订单 `StockReservation`；只有预留成功才构成库存承诺。
+- `j-store-inventory-api`: Inventory 发布的批量 ATP 只读契约，供 Cart 等消费方读取非承诺性可用量观察。
+- `j-store-cart-api`: Cart 向 Trade 发布的 Checkout 来源准备契约，只返回当前版本、已选择且可结算的规范化行。
+- `j-store-cart-domain/application/infrastructure/boot`: 认证买家的多商户购买意图、Selection、版本化刷新事件、派生金额试算、JPA 持久化和 HTTP API；一个 Cart 固定同一市场、渠道和币种。
 - `j-store-trade-domain/application/infrastructure/boot`: Trade Process、`POST /api/checkouts` 用户入口、成交快照、销售授权与库存预留 Saga、失败补偿和取消释放。公开 Order 边界不再提供创建接口。
 - `j-store-warehouse-domain/application/infrastructure/boot`: WMS 实物库存权威及单调版本库存事件；Inventory 消费其事件维护销售库存镜像。
 - `j-store-payment-domain/application/infrastructure/boot`: 支付单与退款用例、JPA/Outbox 以及 Spring 事务装配。
@@ -60,7 +63,8 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 ## 当前实现重点
 
-- Trade / Checkout：认证买家从 `/api/checkouts` 提交直接购买意图；Trade 创建独立 `tradeId`，派生可信商户和履约分组，以 `tradeId + orderPlanId` 协调销售授权、ATP 预留、承诺后 Order 创建及唯一 SettlementPlan。
+- Cart：认证买家通过 `/api/carts/current` 加购具体 Offer、替换选择并刷新基础商品金额；下架、售罄和库存不足行保留但不计价。Cart 不锁价、不预留库存。
+- Trade / Checkout：认证买家从 `/api/checkouts` 提交直接购买或 Cart 来源；Trade 冻结来源摘要并创建独立 `tradeId`，按商户和履约节点拆分计划，以 `tradeId + orderPlanId` 协调销售授权、ATP 预留、承诺后 Order 创建及唯一 SettlementPlan。
 - 订单：订单行冻结 Catalog 与 Offer 快照，保留单订单生命周期、查询、取消及支付/履约/退款投影；不再暴露用户创建入口，也不再作为 Checkout Saga 的身份或协调者。
 - Catalog：SPU、稳定 SKU、结构化 Product Type、类目/品牌引用、本地化内容、商品款式、草稿/发布/归档和完整资料快照；商品价格不通过 Catalog API 进入交易决策。
 - Store/Offer：一个 SKU 可按店铺、渠道、市场分别定价和启停；授权时用数据库悲观锁校验店铺、Offer 版本、价格、有效期和限购，并签发有时效、可幂等、可释放的业务凭证。

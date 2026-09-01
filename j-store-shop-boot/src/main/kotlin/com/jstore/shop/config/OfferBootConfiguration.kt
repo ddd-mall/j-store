@@ -26,6 +26,7 @@ import com.jstore.shop.domain.offer.SaleAuthorizationRepository
 import com.jstore.shop.domain.offer.SalesOfferGuard
 import com.jstore.shop.domain.offer.SalesOfferRepository
 import com.jstore.shop.domain.offer.StoreGuard
+import com.jstore.shop.domain.offer.StoreRepository
 import com.jstore.shop.service.AuthorizeSaleCommandHandler
 import com.jstore.shop.service.OfferAuthorizationService
 import com.jstore.shop.service.OfferSnapshotQueryServiceImpl
@@ -46,8 +47,10 @@ class OfferBootConfiguration {
     ) = OfferAuthorizationService(storeGuard, guard, authorizations, publisher)
 
     @Bean
-    fun offerSnapshotQueryService(offers: SalesOfferRepository): OfferSnapshotQueryService =
-        OfferSnapshotQueryServiceImpl(offers)
+    fun offerSnapshotQueryService(
+        offers: SalesOfferRepository,
+        stores: StoreRepository,
+    ): OfferSnapshotQueryService = OfferSnapshotQueryServiceImpl(offers, stores)
 
     @Bean
     fun authorizeSaleHandler(

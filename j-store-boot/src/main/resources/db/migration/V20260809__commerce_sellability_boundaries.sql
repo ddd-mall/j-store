@@ -57,8 +57,7 @@ ALTER TABLE sku DROP COLUMN IF EXISTS price;
 
 CREATE TABLE IF NOT EXISTS sale_authorizations (
     id VARCHAR(128) PRIMARY KEY,
-    trade_id BIGINT NOT NULL,
-    order_plan_id BIGINT NOT NULL,
+    order_id BIGINT NOT NULL,
     offer_id BIGINT NOT NULL REFERENCES sales_offers(id),
     store_id BIGINT NOT NULL REFERENCES stores(id),
     merchant_id BIGINT NOT NULL,
@@ -72,7 +71,7 @@ CREATE TABLE IF NOT EXISTS sale_authorizations (
     expires_at TIMESTAMPTZ NOT NULL,
     status VARCHAR(32) NOT NULL,
     persistence_version BIGINT NOT NULL DEFAULT 0,
-    CONSTRAINT uk_sale_authorization_plan_offer UNIQUE(order_plan_id, offer_id),
+    CONSTRAINT uk_sale_authorization_order_offer UNIQUE(order_id, offer_id),
     CHECK (expires_at > authorized_at)
 );
 CREATE INDEX IF NOT EXISTS idx_sale_authorization_expiry
@@ -95,8 +94,7 @@ CREATE TABLE IF NOT EXISTS inventory_stock_positions (
 CREATE TABLE IF NOT EXISTS inventory_stock_reservations (
     id VARCHAR(256) PRIMARY KEY,
     business_key VARCHAR(256) NOT NULL UNIQUE,
-    trade_id BIGINT NOT NULL,
-    order_plan_id BIGINT NOT NULL,
+    order_id BIGINT NOT NULL,
     sale_authorization_id VARCHAR(128) NOT NULL,
     sku_id BIGINT NOT NULL,
     fulfillment_node_id VARCHAR(128) NOT NULL,
@@ -105,8 +103,8 @@ CREATE TABLE IF NOT EXISTS inventory_stock_reservations (
     status VARCHAR(32) NOT NULL,
     persistence_version BIGINT NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_inventory_reservation_plan
-    ON inventory_stock_reservations(order_plan_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_reservation_order
+    ON inventory_stock_reservations(order_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_reservation_expiry
     ON inventory_stock_reservations(status, expires_at);
 

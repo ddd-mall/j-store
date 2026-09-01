@@ -7,6 +7,7 @@ repositories { mavenCentral() }
 
 dependencies {
     implementation(libs.spring.context)
+    implementation(project(":j-store-inventory-api"))
     implementation(project(":j-store-inventory-domain"))
     implementation(project(":j-store-inventory-application"))
     implementation(project(":j-store-inventory-infrastructure"))

@@ -20,6 +20,7 @@ j-store 采用战略 DDD 与战术 DDD 结合的方式：
 | Store / Offer（shop） | `Merchant`、`Store`、`SalesOffer`、`SaleAuthorization` | 谁在什么店铺、渠道、市场、时间和价格下愿意销售 | 实物库存、ATP、订单交易状态 |
 | Inventory / ATP | `StockPosition`、`StockReservation` | 平台当前能够承诺多少库存、哪些数量已向订单预留 | 库位、盘点、真实出入库、商品资料 |
 | WMS（warehouse） | `PhysicalStock` | 实物库存及其来源版本 | 页面可售、销售授权、订单交易状态 |
+| Cart | `Cart`、`CartAssessment` | 买家的可变购买意图、数量、Selection、Cart 内容版本和派生试算 | 价格/库存权威、销售授权、库存预留、Order 创建 |
 | Trade / Checkout | `Trade`、`TradeOrderPlan`、`SettlementPlan` | Checkout 幂等、成交快照、拆单、销售/库存承诺、Order 创建与结算屏障 | 商品资料、Offer/库存内部状态、支付渠道与履约执行状态 |
 | Order | `Order`、`OrderItem`、`AfterSale` | 已确认订单记录、买家视角生命周期、履约与售后快照 | 销售授权、库存预留、优惠试算与支付资金状态 |
 | Payment | `TradePayment`、退款相关模型 | 按结算分期执行支付和退款的资金状态 | 交易结算条款、订单商品与履约事实 |
@@ -35,6 +36,9 @@ j-store 采用战略 DDD 与战术 DDD 结合的方式：
 flowchart LR
     Catalog["Catalog<br/>商品资料"] -->|"skuId / 资料快照"| Offer["Store / SalesOffer<br/>销售意愿与成交条件"]
     WMS["WMS<br/>实物库存"] -->|"版本化库存事实"| ATP["Inventory / ATP<br/>销售承诺能力"]
+    Cart["Cart<br/>购买意图与试算"] -->|"cartId/version/digest"| Trade
+    Cart -->|"只读商品/Offer/ATP 事实"| Offer
+    Cart -->|"ATP 观察"| ATP
     Trade["Trade / Checkout<br/>交易承诺 Saga"] -->|"承诺后内部创建"| Order["Order"]
     Trade -->|"请求销售授权"| Offer
     Offer -->|"SaleAuthorization"| Trade
@@ -52,6 +56,7 @@ flowchart LR
 - Catalog 是商品资料的上游。Offer 仅通过 `skuId` 引用 Catalog，不把 Catalog 聚合嵌入自身。
 - WMS 是实物库存上游；Inventory 保存带 `sourceVersion` 的镜像，并忽略重复或旧版本事件。
 - Trade 是下单承诺 Saga 的协调者，持久化授权、预留和补偿进度，但不拥有 Offer 或 ATP 的内部状态。
+- Cart 保存可反复修改的购买意图和派生 Assessment；Checkout 前同步重新采集事实，旧 Assessment 不构成成交输入。
 - Order 只由 Trade 在承诺形成后通过内部端口创建，不保存销售授权或库存预留标识。
 - Payment、Fulfillment、Accounting 通过已发生的交易事实继续各自状态机，不直接修改 Order 聚合。
 - 查询方向可通过上下文发布的 `-api` 契约和消费方 ACL 完成；写入协作使用版本化集成消息。
@@ -123,9 +128,15 @@ Inventory 只有成功创建 `StockReservation` 后才作出库存承诺。页�
 
 库存承诺以 `tradeId + orderPlanId` 关联；Trade 根据结算与履约放行策略确认消耗或释放 Reservation。退款成功不会直接增加库存，退货必须经过收货、验收或盘点，由 WMS 发布新的实物库存事实。
 
+## Cart：购买意图与派生试算
+
+Cart 是认证买家的可变购买意图聚合。一个活动 Cart 可以包含多个商户的 Offer，但首条加购会固定 `SettlementScope(market, channelId, currency)`；跨范围 Offer 不能加入。Cart Line 保存 SKU、Offer、商户、数量和 Selection，不保存权威价格或库存。
+
+Cart 内容或 Selection 变化会记录带内容版本的 `CartRefreshRequestedEvent`。`CartAssessment` 使用 Catalog 当前发布、Store/Offer 当前资格及 Inventory ATP 批量观察进行派生计算；下架、售罄和库存不足行保留在 Cart，但不计入金额。Assessment 是可过期查询投影，不锁价、不占库存；Trade 从 Cart Checkout 时必须同步重新评估当前版本。
+
 ## Trade / Checkout：成交决策与交易承诺 Saga
 
-Trade 是面向认证买家的统一下单边界，公开创建入口为 `POST /api/checkouts`；`POST /api/orders` 已删除。直接购买输入不接受买家或顶层商户身份，买家来自认证上下文，商户由 Offer 快照派生。Trade 保存下单时不可变的商品、Offer、价格、数量、商户和履约节点快照，并负责协调 `SaleAuthorization` 与 `StockReservation`。
+Trade 是面向认证买家的统一下单边界，公开创建入口为 `POST /api/checkouts`；`POST /api/orders` 已删除。输入可以是直接购买行或 `cartId + expectedCartVersion`，后者由 Trade 通过 `j-store-cart-api` 拉取新鲜 Eligible Line。Trade 冻结 Cart 来源 ID、版本和摘要，保存下单时不可变的商品、Offer、价格、数量、商户和履约节点快照，并负责协调 `SaleAuthorization` 与 `StockReservation`。
 
 当前实现已建立独立 `tradeId`、买家范围 Checkout 幂等、一个或多个 `TradeOrderPlan`，并以 `tradeId + orderPlanId` 协调销售授权、库存预留和 Order 创建。全部计划预留成功后，Trade 发布版本化 Order 创建命令并等待每个计划的成功或拒绝事实；全部 Order 形成且金额守恒后，Trade 才建立唯一 `SettlementPlan`，并通过消息命令要求 Payment 为首期 `PREPAID + FULL` 分期准备一个 `TradePayment`。Payment 以稳定渠道幂等键区分明确受理、明确拒绝和结果未知，Trade 按 `installmentId` 保存 Payment 引用与准备阶段，不保存渠道引用或支付动作。`orderId` 仅在 Order 形成后回写计划，不再是 Trade 身份或 Checkout 相关键。
 

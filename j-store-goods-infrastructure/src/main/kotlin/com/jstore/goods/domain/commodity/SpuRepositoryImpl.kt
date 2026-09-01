@@ -32,6 +32,16 @@ import org.springframework.transaction.annotation.Transactional
 @Repository
 class SpuRepositoryImpl(private val jpaRepository: SpuPOJpaRepository) : SpuRepository {
 
+    override fun findPublishedBySkuIds(skuIds: List<SkuId>): List<Spu> =
+        if (skuIds.isEmpty()) emptyList()
+        else
+            jpaRepository
+                .findBySkuIdsAndStatus(
+                    skuIds.map { it.value }.distinct(),
+                    CommodityStatus.PUBLISHED,
+                )
+                .map(Converter::toDomain)
+
     @Transactional(propagation = Propagation.MANDATORY)
     override fun save(entity: Spu): Spu {
         val po =

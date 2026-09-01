@@ -20,6 +20,20 @@ interface GoodsSnapshotQueryService {
     fun queryLatestSnapshots(spuIds: List<Long>): List<GoodsSnapshotInfo>
 }
 
+data class CurrentGoodsSkuInfo(
+    val skuId: Long,
+    val spuId: Long,
+    val merchantId: Long,
+    val published: Boolean,
+    val catalogSnapshotVersion: Long,
+    val goodsName: String,
+    val skuDescription: String,
+)
+
+fun interface CurrentGoodsSkuQueryService {
+    fun querySkus(skuIds: List<Long>): List<CurrentGoodsSkuInfo>
+}
+
 data class GoodsSnapshotInfo(
     val spuId: Long,
     val merchantId: Long,

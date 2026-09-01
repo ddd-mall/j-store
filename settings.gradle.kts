@@ -100,11 +100,23 @@ include("j-store-fulfillment-boot")
 
 include("j-store-inventory-domain")
 
+include("j-store-inventory-api")
+
 include("j-store-inventory-application")
 
 include("j-store-inventory-infrastructure")
 
 include("j-store-inventory-boot")
+
+include("j-store-cart-api")
+
+include("j-store-cart-domain")
+
+include("j-store-cart-application")
+
+include("j-store-cart-infrastructure")
+
+include("j-store-cart-boot")
 
 include("j-store-warehouse-domain")
 

@@ -16,6 +16,7 @@
  */
 package com.jstore.trade.config
 
+import com.jstore.cart.api.CartCheckoutSourceQueryService
 import com.jstore.common.geo.GeoAddressService
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.contracts.commerce.*
@@ -58,6 +59,7 @@ class TradeBootConfiguration {
         sequence: SnowFlakSequence,
         publisher: IntegrationMessagePublisher,
         payments: CheckoutPaymentGateway,
+        cartSources: CartCheckoutSourceQueryService,
         transactionManager: PlatformTransactionManager,
     ): CheckoutUseCase =
         TransactionalCheckoutUseCase(
@@ -67,6 +69,7 @@ class TradeBootConfiguration {
                 { sequence.nextId() },
                 TradeAuthorizationMessageGateway(publisher),
                 payments,
+                CartCheckoutSourceAdapter(cartSources),
             ),
             transactionManager,
         )

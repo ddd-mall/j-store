@@ -307,6 +307,34 @@ enum class TradeStatus {
     CLOSED,
 }
 
+enum class CheckoutSourceType {
+    DIRECT,
+    CART,
+}
+
+data class CheckoutSourceSnapshot(
+    val type: CheckoutSourceType,
+    val sourceId: Long?,
+    val sourceVersion: Long?,
+    val sourceDigest: String,
+) {
+    init {
+        require(sourceDigest.isNotBlank())
+        require(
+            (type == CheckoutSourceType.DIRECT && sourceId == null && sourceVersion == null) ||
+                (type == CheckoutSourceType.CART && sourceId != null && sourceVersion != null)
+        )
+    }
+
+    companion object {
+        fun direct(digest: String) =
+            CheckoutSourceSnapshot(CheckoutSourceType.DIRECT, null, null, digest)
+
+        fun cart(id: Long, version: Long, digest: String) =
+            CheckoutSourceSnapshot(CheckoutSourceType.CART, id, version, digest)
+    }
+}
+
 class Trade(
     override val id: TradeId,
     val checkoutRequestId: String,
@@ -327,6 +355,7 @@ class Trade(
     val createdAt: Instant = Instant.now(),
     updatedAt: Instant = createdAt,
     val persistenceVersion: Long = 0,
+    val sourceSnapshot: CheckoutSourceSnapshot = CheckoutSourceSnapshot.direct(requestDigest),
 ) : AggregateRoot<TradeId> {
     val orderPlans: List<TradeOrderPlan> = orderPlans.toList()
     var status: TradeStatus = status
@@ -687,6 +716,7 @@ class Trade(
             currency: String,
             commitmentPolicy: CommitmentPolicySnapshot,
             settlementTerms: SettlementTermsSnapshot,
+            sourceSnapshot: CheckoutSourceSnapshot = CheckoutSourceSnapshot.direct(requestDigest),
         ) =
             Trade(
                 id,
@@ -701,6 +731,7 @@ class Trade(
                 currency,
                 commitmentPolicy,
                 settlementTerms,
+                sourceSnapshot = sourceSnapshot,
             )
     }
 }
