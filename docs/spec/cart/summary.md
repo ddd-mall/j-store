@@ -19,7 +19,13 @@
 - Kubernetes `jstore/j-store` revision 13 运行 OCI digest `sha256:9785eb808242835f843a9882b1f4ef8afaf1f5a22586ceee50b86123517a382a`，Deployment 为 `1/1 Ready`，Pod 零重启。
 - Actuator 返回 `UP`，未认证访问 `/api/carts/current` 返回 HTTP 401。
 - 本次提交未包含工作区中已有的认证 SDK、旧 `.kiro` DDD 指南和 Gradle 审计文档改动。
+- GitHub PR #56 在提交 `9e417998` 上完整执行 `scripts/quality-gate.sh` 并通过；branch policy、Qodana、静态分析、许可证审计和 secret scan 同时通过。
+- CI 首轮发现的新增 Kotlin 文件 SPDX 头和 Spotless 格式问题已经修复；Linux `spotlessCheck` 与文件所有权治理测试通过。
 
 ## 剩余验证
 
-Windows 本机仍因 JDK loopback 问题无法启动 Gradle daemon，本次改在目标 Linux 主机完成确定性构建。尚未执行整个仓库的 `scripts/quality-gate.sh`，也未使用真实登录买家数据执行 Cart 加购到 Checkout 的在线端到端场景；合并前仍应补跑完整门禁和带认证的特性 smoke。
+Windows 本机仍因 JDK loopback 问题无法启动 Gradle daemon，本次改在 Linux 主机和 GitHub Actions 完成确定性验证。尚未使用真实登录买家数据执行 Cart 加购到 Checkout 的在线端到端场景。
+
+PR 的依赖漏洞门禁当前被既有 Alpine 3.24 基础镜像中的 `openssl/libcrypto3 3.5.7-r0` 阻塞；Gradle SBOM 无漏洞发现。基础镜像升级按仓库供应链规则应独立评估和提交，不能在 Cart PR 中顺带修改或绕过门禁。
+
+已部署 OCI 来自格式化和 SPDX 修复前的同语义候选，因此运行行为与本 PR 一致，但不与最终 Git 提交保持字节级同一；后续晋级应从最终获批提交重新形成不可变候选。
