@@ -23,11 +23,27 @@ Corretto AL2023 headless 与 Distroless Debian 13 候选也仍被 CI 同版本�
 - 新镜像包含 `openssl-libs 3.5.5-6.el10_2`，RPM 声明许可证为 Apache-2.0；
   `java-25-openjdk-headless 25.0.4.1.1-1.1.el10` 的 RPM 元数据声明 GPLv2 with exceptions
   等上游组合许可证。本次未加入新的应用依赖。
+- OSV Scanner 2.4.0 对最终应用镜像 Docker archive 扫描同样返回空 `results`；JSON 报告
+  SHA-256 为 `a712b53b10e7ff597bddeab9ba3b8c7f60d35aa09debddf8f3a529febc733e60`。
 
 ## 兼容与回滚
 
 - 基础镜像已验证 Java 25.0.4.1 可执行。
 - 以 UID/GID 10001 运行时身份写入 `/tmp` 已验证通过；Dockerfile 继续显式覆盖上游默认用户和入口点。
-- 最终应用镜像构建、扫描、Spring Boot 启动冒烟及完整质量门禁结果在 PR 验证后补充。
+- UBI 的默认工作目录与原 Alpine 镜像不同；启动冒烟据此发现相对 `COPY` 会令 `/app.jar`
+  不存在。Dockerfile 已改用绝对目标 `/app.jar`，并新增契约测试防止回归。
+- 最终镜像使用生产 profile 启动到 Spring Boot、Tomcat、JPA 和 Flyway，随后按预期在连接
+  故意不可达的测试 PostgreSQL 端口时停止；未出现 JVM、本地库、文件权限或入口点错误。
 - 若兼容性或集群验证失败，回滚 Dockerfile 到原 Corretto digest；该 digest 带已知漏洞，
   因此只作为恢复可用性的临时回滚点，安全门禁保持阻断，不能继续晋级生产。
+
+## 验证结果
+
+- `python3 -m unittest tests.tooling.test_immutable_multi_cluster_delivery tests.tooling.test_kubernetes_application_deployment`：21 项通过。
+- `./gradlew :j-store-boot:bootJar --no-daemon`：通过。
+- `docker build --pull --tag jstore-base-image-verify:1ad41897 j-store-boot`：通过，构建日志确认解析到上述完整版本和 digest。
+- `spotlessCheck verifyDependencyResolution licensee test verifyLicenseArtifacts`：279 个任务通过；
+  55 个运行时 classpath 的解析治理和 58 个发布 JAR 的许可证验证通过。
+- `./scripts/quality-gate.sh` 在步骤 2 被 4 个 Agentic CI/CD host runtime 绑定测试阻断；
+  同一 Linux 主机上的未修改 `develop` 提交 `ebb1f34a` 也以完全相同的 4 项失败，证明这不是
+  本次镜像变更引入。门禁其余步骤已按上述命令独立执行并通过，中央 required checks 仍须通过后才能合并。
