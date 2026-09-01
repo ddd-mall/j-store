@@ -135,7 +135,7 @@ search_quietly "Kotlin ${kotlin_version}，Java ${java_version}" docs/project-ov
   fail "docs/project-overview.md does not match Kotlin/Java build versions"
 search_quietly "Spring Boot ${spring_version}" docs/project-overview.md || \
   fail "docs/project-overview.md does not match the Spring Boot catalog version"
-search_quietly "amazoncorretto:${java_version}-" j-store-boot/Dockerfile || \
+search_quietly "openjdk-${java_version}-runtime:" j-store-boot/Dockerfile || \
   fail "j-store-boot Docker runtime does not match the Java toolchain"
 
 if search_quietly 'actions/dependency-review-action|gitleaks/gitleaks-action|github/codeql-action' \
