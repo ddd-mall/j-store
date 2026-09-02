@@ -73,7 +73,6 @@ class AfterSaleController(
         @field:Positive val orderItemId: Long,
         @field:Positive val quantity: Int,
         @field:Positive val amount: Long,
-        @field:NotBlank val currency: String = "CNY",
     )
 
     data class CreateRequest(
@@ -136,7 +135,6 @@ class AfterSaleController(
                             OrderItemId(it.orderItemId),
                             it.quantity,
                             Price.ofFen(it.amount),
-                            it.currency,
                         )
                     },
                     key,

@@ -16,6 +16,7 @@
  */
 package com.jstore.payment.domain.payment
 
+import com.jstore.common.currency.CurrencyCode
 import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.properties.Id
 import com.jstore.common.properties.Price
@@ -107,7 +108,7 @@ class TradePayment(
 
     init {
         require(tradeId > 0 && settlementPlanId > 0 && installmentId.isNotBlank())
-        require(currency.matches(Regex("[A-Z]{3}")) && this.allocations.isNotEmpty())
+        require(CurrencyCode.isValid(currency) && this.allocations.isNotEmpty())
         require(this.allocations.map { it.orderPlanId }.distinct().size == this.allocations.size)
         require(Price.sumOf(this.allocations.map { it.amount }) == payableAmount)
         require(providerReference == null || providerReference.isNotBlank())

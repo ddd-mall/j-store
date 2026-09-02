@@ -16,6 +16,7 @@
  */
 package com.jstore.payment.domain.payment
 
+import com.jstore.common.currency.CurrencyCode
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.EventRecordingAggregateRoot
 import com.jstore.common.properties.Price
@@ -49,7 +50,7 @@ class PaymentOrderImpl(
 
     init {
         require(orderId > 0 && merchantId > 0 && payableAmount > Price.ZERO)
-        require(currency.matches(Regex("[A-Z]{3}")))
+        require(CurrencyCode.isValid(currency))
     }
 
     override fun capture(

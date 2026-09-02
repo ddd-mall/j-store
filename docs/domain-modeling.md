@@ -97,6 +97,8 @@ purchaseLimit, fulfillmentPolicy, version
 
 状态为 `ACTIVE/SUSPENDED/ENDED`。同一个 SKU 可以在不同店铺、渠道或市场拥有不同 Offer、价格、限购和履约节点。
 
+当前部署模型按站点配置默认币种与允许币种集合。Offer 价格尚未在聚合内分别配置币种，Offer 查询使用当前站默认币种，Checkout、Trade、Order 与 Payment 冻结并校验该币种；核心领域只认识合法 ISO 4217 代码，不认识 CNY、JPY 或 USD 等具体站点选择。未来若一个站点需要并行销售多币种 Offer，必须把币种纳入 Offer 成交条件，而不是在领域中增加站点币种硬编码。
+
 下单时 Store 上下文在一个本地事务内按稳定顺序锁定 Store 和 Offer，校验：
 
 - 店铺和 Offer 均允许销售；

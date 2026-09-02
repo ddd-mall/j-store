@@ -29,7 +29,6 @@ data class AfterSaleItemRequestCMD(
     val orderItemId: OrderItemId,
     val quantity: Int,
     val amount: Price,
-    val currency: String,
 )
 
 data class AfterSaleCreateCMD(
@@ -47,7 +46,6 @@ data class AfterSaleCreateCMD(
             return Failure(AfterSaleErrors.ITEM_DUPLICATED)
         if (items.any { it.quantity <= 0 }) return Failure(AfterSaleErrors.QUANTITY_INVALID)
         if (items.any { it.amount <= Price.ZERO }) return Failure(AfterSaleErrors.AMOUNT_INVALID)
-        if (items.any { it.currency != "CNY" }) return Failure(AfterSaleErrors.CURRENCY_MISMATCH)
         return Success(copy(idempotencyKey = idempotencyKey.trim()))
     }
 }

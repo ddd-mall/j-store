@@ -21,6 +21,7 @@ import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.payment.domain.payment.event.PaymentCapturedEvent
 import com.jstore.payment.domain.payment.event.PaymentRefundSucceededEvent
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.time.Instant
@@ -41,6 +42,16 @@ class PaymentOrderTest :
             payment.pendingDomainEvents().single()::class shouldBe PaymentCapturedEvent::class
             (payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH) as Success)
                 .value shouldBe false
+        }
+
+        test("payment accepts real ISO currencies and rejects invented codes") {
+            listOf("CNY", "JPY", "USD").forEach { currency ->
+                PaymentOrderImpl(PaymentOrderId(1), 10, 20, Price.ofFen(1_000), currency)
+                    .currency shouldBe currency
+            }
+            shouldThrow<IllegalArgumentException> {
+                PaymentOrderImpl(PaymentOrderId(1), 10, 20, Price.ofFen(1_000), "ZZZ")
+            }
         }
 
         test("refund success is separate from refund request and updates payment status") {

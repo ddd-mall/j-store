@@ -368,6 +368,7 @@ class CheckoutApplicationServiceTest {
             },
             TradeBuyerProfileSnapshot("张三", "+8613800138000"),
             address(),
+            "CNY",
         )
 
     private fun address() =

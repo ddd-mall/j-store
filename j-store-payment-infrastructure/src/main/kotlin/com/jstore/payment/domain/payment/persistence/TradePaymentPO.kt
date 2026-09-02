@@ -45,7 +45,7 @@ class TradePaymentPO(
     @Column(name = "settlement_plan_id", nullable = false) var settlementPlanId: Long = 0,
     @Column(name = "installment_id", nullable = false, length = 128) var installmentId: String = "",
     @Column(name = "payable_amount_fen", nullable = false) var payableAmountFen: Long = 0,
-    @Column(nullable = false, length = 3) var currency: String = "CNY",
+    @Column(nullable = false, length = 3) var currency: String = "",
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
         name = "trade_payment_allocations",

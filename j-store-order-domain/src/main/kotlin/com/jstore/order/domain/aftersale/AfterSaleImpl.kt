@@ -83,6 +83,7 @@ class AfterSaleImpl(
         require(_items.isNotEmpty())
         require(_items.all { it.orderId == orderId })
         require(_items.map { it.orderItemId }.toSet().size == _items.size)
+        require(_items.map { it.currency }.distinct().size == 1)
         validateState()
     }
 

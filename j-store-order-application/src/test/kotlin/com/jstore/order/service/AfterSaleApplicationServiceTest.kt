@@ -95,15 +95,21 @@ class AfterSaleApplicationServiceTest {
                 trade = TradeStatus.ACTIVE,
                 payment = PaymentStatus.PAID,
                 itemStatuses = listOf(OrderItemStatus.NONE, OrderItemStatus.NONE),
+                currency = "JPY",
             )
         var captured: List<RefundCapacityCeiling>? = null
+        var capturedAfterSale: AfterSale? = null
         val repository =
             object : AfterSaleRepository {
                 override fun createWithAllocation(
                     afterSale: AfterSale,
                     ceilings: List<RefundCapacityCeiling>,
                     receipt: AfterSaleCommandReceipt,
-                ) = Success(afterSale).also { captured = ceilings }
+                ) =
+                    Success(afterSale).also {
+                        captured = ceilings
+                        capturedAfterSale = afterSale
+                    }
 
                 override fun findByOrderId(orderId: OrderId) = emptyList<AfterSale>()
 
@@ -147,6 +153,7 @@ class AfterSaleApplicationServiceTest {
 
         assertIs<Success<AfterSale>>(actual)
         assertEquals(listOf(OrderItemId(1)), assertNotNull(captured).map { it.orderItemId })
+        assertEquals("JPY", assertNotNull(capturedAfterSale).items.single().currency)
     }
 
     private fun command(applicant: Long = 1) =
@@ -154,7 +161,7 @@ class AfterSaleApplicationServiceTest {
             OrderId(1),
             ApplicantActorId(applicant),
             RefundReason(RefundCategory.OTHER, "reason"),
-            listOf(AfterSaleItemRequestCMD(OrderItemId(1), 1, Price.ofFen(100), "CNY")),
+            listOf(AfterSaleItemRequestCMD(OrderItemId(1), 1, Price.ofFen(100))),
             "key",
         )
 

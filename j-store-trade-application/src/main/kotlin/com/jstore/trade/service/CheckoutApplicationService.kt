@@ -99,7 +99,7 @@ data class PreparedCheckout(
     val items: List<PreparedCheckoutItem>,
     val buyerProfile: TradeBuyerProfileSnapshot,
     val shippingAddress: I18nGeoAddress,
-    val currency: String = "CNY",
+    val currency: String,
 )
 
 fun interface CheckoutPreparationGateway {

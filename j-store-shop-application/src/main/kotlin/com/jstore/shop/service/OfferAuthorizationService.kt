@@ -16,6 +16,7 @@
  */
 package com.jstore.shop.service
 
+import com.jstore.common.currency.CurrencyCode
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.framework.event.publishPendingEvents
@@ -205,8 +206,13 @@ class ReleaseSaleAuthorizationCommandHandler(private val useCase: OfferAuthoriza
 class OfferSnapshotQueryServiceImpl(
     private val offers: SalesOfferRepository,
     private val stores: StoreRepository,
+    private val defaultCurrency: String,
     private val now: () -> Instant = Instant::now,
 ) : OfferSnapshotQueryService {
+    init {
+        require(CurrencyCode.isValid(defaultCurrency))
+    }
+
     override fun queryOffers(offerIds: List<Long>): List<OfferSnapshotInfo> {
         val instant = now()
         return offers.findAllByIds(offerIds.distinct().map(::SalesOfferId)).map {
@@ -227,7 +233,7 @@ class OfferSnapshotQueryServiceImpl(
                 endsAt = it.effectivePeriod.endsAt,
                 storeActive = store?.status == StoreStatus.ACTIVE,
                 effectiveNow = it.effectivePeriod.contains(instant),
-                currency = "CNY",
+                currency = defaultCurrency,
             )
         }
     }

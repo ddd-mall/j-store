@@ -40,7 +40,7 @@ class PaymentOrderPO(
     @Column(name = "merchant_id", nullable = false) var merchantId: Long = 0,
     @Column(name = "payable_amount", nullable = false, precision = 19, scale = 0)
     var payableAmount: BigDecimal = BigDecimal.ZERO,
-    @Column(nullable = false, length = 3) var currency: String = "CNY",
+    @Column(nullable = false, length = 3) var currency: String = "",
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     var status: PaymentOrderStatus = PaymentOrderStatus.PENDING,

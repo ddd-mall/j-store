@@ -16,6 +16,7 @@
  */
 package com.jstore.cart.domain
 
+import com.jstore.common.currency.CurrencyCode
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.Id
 
@@ -69,7 +70,7 @@ data class CartRequestReceiptId(override val value: String) : Id<String>(value) 
 
 data class SettlementScope(val market: String, val channelId: String, val currency: String) {
     init {
-        require(market.isNotBlank() && channelId.isNotBlank() && currency.length == 3)
+        require(market.isNotBlank() && channelId.isNotBlank() && CurrencyCode.isValid(currency))
     }
 }
 

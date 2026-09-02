@@ -37,6 +37,7 @@ fun testOrder(
     sourceTradeId: Long? = null,
     sourceOrderPlanId: Long? = null,
     sourcePlanDigest: String? = null,
+    currency: String = "CNY",
 ): OrderImpl {
     val items = itemStatuses.mapIndexed { index, status ->
         OrderItemImpl(
@@ -77,7 +78,8 @@ fun testOrder(
         _paymentStatus = payment,
         _fulfillmentStatus = fulfillment,
         _commitmentStatus = commitment,
-        amountSnapshot = OrderAmountSnapshot.cny(Price.ofFen(items.size * 100)),
+        amountSnapshot =
+            OrderAmountSnapshot.singleCurrency(currency, Price.ofFen(items.size * 100)),
         _paidAmount =
             if (payment == PaymentStatus.UNPAID) Price.ZERO else Price.ofFen(items.size * 100),
         _paymentReference = if (payment == PaymentStatus.UNPAID) null else "payment-1",
@@ -94,6 +96,7 @@ fun testOrder(
 fun testOfferService(
     merchantId: Long = 7,
     price: Price = Price.ofFen(100),
+    currency: String = "CNY",
 ): OfferService = OfferService { ids ->
     ids.map {
         OfferInfo(
@@ -104,6 +107,7 @@ fun testOfferService(
             channelId = "ONLINE",
             market = "CN",
             price = price,
+            currency = currency,
             version = 1,
             fulfillmentNodeId = "DEFAULT",
             allowBackorder = false,

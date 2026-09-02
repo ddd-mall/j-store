@@ -18,7 +18,9 @@ package com.jstore.payment.controller
 
 import com.jstore.authentication.annotation.CurrentUserId
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.common.currency.SiteCurrencyPolicy
 import com.jstore.common.errors.BusinessError
+import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -46,11 +48,12 @@ import org.springframework.web.bind.annotation.RestController
 class PaymentController(
     private val service: PaymentUseCase,
     private val merchantAuthorization: MerchantAuthorizationService,
+    private val currencyPolicy: SiteCurrencyPolicy,
 ) {
     data class CaptureRequest(
         val providerTransactionId: String,
         val amount: Long,
-        val currency: String = "CNY",
+        val currency: String? = null,
     )
 
     data class RefundResultRequest(
@@ -92,13 +95,16 @@ class PaymentController(
     ): ResponseEntity<*> {
         val authorization = authorized(userId, orderId, MerchantPermission.PAYMENT_MANAGE)
         if (authorization is Failure) return authorization.response {}
+        val currency =
+            currencyPolicy.select(body.currency)
+                ?: return CommonBusinessError.INVALID_PARAM.msg("币种不属于当前站允许范围").errorResponse()
         return service
             .capture(
                 PaymentCaptureCommand(
                     orderId,
                     body.providerTransactionId,
                     Price.ofFen(body.amount),
-                    body.currency,
+                    currency,
                 )
             )
             .response { mapOf("changed" to it) }
@@ -194,4 +200,7 @@ class PaymentController(
                 ResponseEntity.status(it.httpCode).body(ErrorResponse(it.message, it.errorCode))
             },
         )
+
+    private fun BusinessError.errorResponse(): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(httpCode).body(ErrorResponse(message, errorCode))
 }

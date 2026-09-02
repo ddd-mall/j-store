@@ -31,6 +31,7 @@ object OrderErrors {
     val REFUND_ITEM_INVALID_STATE = BusinessError("退款行项状态不合法", "Order.Refund.ItemInvalidState", 400)
     val MERCHANT_INVALID = BusinessError("订单商户无效", "Order.Merchant.Invalid", 400)
     val MERCHANT_MISMATCH = BusinessError("商品不属于同一商户", "Order.Merchant.Mismatch", 409)
+    val CURRENCY_MISMATCH = BusinessError("订单商品币种不一致", "Order.Currency.Mismatch", 409)
     val PAYMENT_FACT_INVALID = BusinessError("支付事实无效", "Order.PaymentFact.Invalid", 409)
     val PAYMENT_REFERENCE_CONFLICT =
         BusinessError("订单已关联其他支付单", "Order.PaymentReference.Conflict", 409)

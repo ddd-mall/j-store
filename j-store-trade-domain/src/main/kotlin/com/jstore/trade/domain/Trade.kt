@@ -16,6 +16,7 @@
  */
 package com.jstore.trade.domain
 
+import com.jstore.common.currency.CurrencyCode
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.geo.I18nGeoAddress
@@ -383,7 +384,7 @@ class Trade(
                 this.orderPlans.map { it.id }.distinct().size == this.orderPlans.size
         )
         require(
-            currency.isNotBlank() &&
+            CurrencyCode.isValid(currency) &&
                 Price.sumOf(this.orderPlans.map { it.payableAmount }) == payableAmount
         )
         require(

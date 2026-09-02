@@ -111,7 +111,9 @@ class OrderFactoryImpl(
 
         // 3. 计算总金额
         val itemsSubtotal = Price.sumOf(orderItems.map { it.subtotal() })
-        val amountSnapshot = OrderAmountSnapshot.cny(itemsSubtotal)
+        val currencies = cmd.items.map { offerInfoMap.getValue(it.offerId).currency }.distinct()
+        if (currencies.size != 1) return Failure(OrderErrors.CURRENCY_MISMATCH)
+        val amountSnapshot = OrderAmountSnapshot.singleCurrency(currencies.single(), itemsSubtotal)
 
         // 4. 从 RecipientInfoCMD 构建 ShippingInfo
         val recipientInfoCmd = cmd.recipientInfo

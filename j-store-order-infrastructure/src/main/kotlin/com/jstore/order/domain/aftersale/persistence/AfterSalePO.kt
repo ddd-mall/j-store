@@ -57,7 +57,7 @@ class AfterSaleItemPO(
     @Column(name = "order_item_id") var orderItemId: Long = 0,
     @Column(name = "requested_quantity") var requestedQuantity: Int = 0,
     @Column(name = "requested_amount") var requestedAmount: BigDecimal = BigDecimal.ZERO,
-    var currency: String = "CNY",
+    var currency: String = "",
     @Column(name = "eligible_quantity") var eligibleQuantity: Int = 0,
     @Column(name = "eligible_amount") var eligibleAmount: BigDecimal = BigDecimal.ZERO,
     @Column(name = "sku_id") var skuId: Long = 0,
