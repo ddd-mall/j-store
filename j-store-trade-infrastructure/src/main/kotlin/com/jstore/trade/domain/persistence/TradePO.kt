@@ -158,7 +158,7 @@ class TradePO(
     @CollectionTable(name = "trade_customs_fields", joinColumns = [JoinColumn(name = "trade_id")])
     var customsFields: MutableList<TradeCustomsFieldPO> = mutableListOf(),
     @Column(name = "payable_amount_fen", nullable = false) var payableAmountFen: Long = 0,
-    @Column(nullable = false, length = 3) var currency: String = "",
+    @Column(nullable = false, length = 3) var currency: String,
     @Enumerated(EnumType.STRING)
     @Column(name = "trade_mode", nullable = false, length = 32)
     var tradeMode: TradeMode = TradeMode.NORMAL,

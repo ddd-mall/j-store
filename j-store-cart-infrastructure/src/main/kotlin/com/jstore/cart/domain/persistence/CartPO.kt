@@ -30,7 +30,7 @@ class CartPO(
     var status: CartStatus = CartStatus.ACTIVE,
     @Column(nullable = false, length = 32) var market: String = "",
     @Column(name = "channel_id", nullable = false, length = 64) var channelId: String = "",
-    @Column(nullable = false, length = 3) var currency: String = "",
+    @Column(nullable = false, length = 3) var currency: String,
     @Column(name = "content_version", nullable = false) var contentVersion: Long = 0,
     @Version var persistenceVersion: Long = 0,
     @OneToMany(
@@ -75,7 +75,7 @@ class CartAssessmentPO(
     @Column(nullable = false, length = 16)
     var status: AssessmentStatus = AssessmentStatus.EMPTY,
     @Column(name = "amount_fen", nullable = false) var amountFen: Long = 0,
-    @Column(nullable = false, length = 3) var currency: String = "",
+    @Column(nullable = false, length = 3) var currency: String,
     @Column(name = "evaluated_at", nullable = false) var evaluatedAt: Instant = Instant.EPOCH,
     @OneToMany(
         mappedBy = "assessment",
