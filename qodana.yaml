@@ -17,11 +17,10 @@ profile:
 #include:
 #  - name: <SomeEnabledInspectionId>
 
-#Disable inspections
-#exclude:
-#  - name: <SomeDisabledInspectionId>
-#    paths:
-#      - <path/where/not/run/inspection>
+# Disable optional syntax migrations that do not affect correctness, security, or maintainability.
+# Spring placeholders conventionally use escaped dollar literals, which are clearer in annotations.
+exclude:
+  - name: CanConvertToMultiDollarString
 
 projectJDK: "25"
 

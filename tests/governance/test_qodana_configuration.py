@@ -25,6 +25,14 @@ class QodanaConfigurationContractTest(unittest.TestCase):
             configuration,
         )
 
+    def test_qodana_excludes_optional_multi_dollar_migration_hint(self) -> None:
+        configuration = (REPO_ROOT / "qodana.yaml").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "exclude:\n  - name: CanConvertToMultiDollarString",
+            configuration,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
