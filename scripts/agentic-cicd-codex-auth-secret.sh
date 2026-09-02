@@ -33,6 +33,14 @@ Options:
 EOF
 }
 
+file_permissions() {
+  if stat -c '%a' "$1" >/dev/null 2>&1; then
+    stat -c '%a' "$1"
+  else
+    stat -f '%Lp' "$1"
+  fi
+}
+
 while (($#)); do
   case "$1" in
     --context)
@@ -132,7 +140,7 @@ if [[ -n "$auth_file" ]]; then
     printf '%s\n' 'ERROR: --auth-file must be a regular file, not a symlink.' >&2
     exit 2
   fi
-  permissions=$(stat -c '%a' -- "$auth_file")
+  permissions=$(file_permissions "$auth_file")
   if [[ "$permissions" != "400" && "$permissions" != "600" ]]; then
     printf '%s\n' 'ERROR: --auth-file permissions must be 0400 or 0600.' >&2
     exit 2
@@ -146,7 +154,7 @@ if [[ ! -f "$config_file" || -L "$config_file" ]]; then
   printf '%s\n' 'ERROR: --config-file must be a regular file, not a symlink.' >&2
   exit 2
 fi
-config_permissions=$(stat -c '%a' -- "$config_file")
+config_permissions=$(file_permissions "$config_file")
 if [[ "$config_permissions" != "400" && "$config_permissions" != "600" ]]; then
   printf '%s\n' 'ERROR: --config-file permissions must be 0400 or 0600.' >&2
   exit 2

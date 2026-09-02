@@ -14,24 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.order.acl
+package com.jstore.config
 
-import com.jstore.common.properties.Price
+import com.jstore.common.currency.SiteCurrencyPolicy
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 
-fun interface OfferService {
-    fun queryOffers(offerIds: List<Long>): List<OfferInfo>
+@Configuration
+class SiteCurrencyConfiguration {
+    @Bean
+    fun siteCurrencyPolicy(
+        @Value("\${jstore.site.default-currency}") defaultCurrency: String,
+        @Value("\${jstore.site.allowed-currencies}") allowedCurrencies: String,
+    ): SiteCurrencyPolicy =
+        SiteCurrencyPolicy(
+            defaultCurrency,
+            allowedCurrencies.split(',').mapTo(linkedSetOf()) { it.trim() },
+        )
 }
-
-data class OfferInfo(
-    val offerId: Long,
-    val storeId: Long,
-    val merchantId: Long,
-    val skuId: Long,
-    val channelId: String,
-    val market: String,
-    val price: Price,
-    val currency: String,
-    val version: Long,
-    val fulfillmentNodeId: String,
-    val allowBackorder: Boolean,
-)

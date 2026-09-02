@@ -110,6 +110,7 @@ boot/interface -> application -> domain -> common-core
 - `j-store-boot/src/main/resources/db/migration/` 保存当前 Flyway 基线及已有迁移事实，`db/init/` 保存初始化快照；内部开发期的后续结构迭代默认按上文策略维护当前基线/快照，而不是为可丢弃的开发数据累积兼容性迁移。
 - `docker-compose.postgres.yml` 提供本地 PostgreSQL 与 Redis 服务，连接信息见 [README.md](../README.md)。
 - `j-store-boot/src/main/resources/application-local.properties` 与 README 中的本地服务配置对应。
+- 站点币种由 `jstore.site.default-currency` 与 `jstore.site.allowed-currencies` 配置；可分别通过 `JSTORE_SITE_DEFAULT_CURRENCY`、`JSTORE_SITE_ALLOWED_CURRENCIES` 覆盖。核心交易与售后领域只校验合法 ISO 4217 代码和同一交易币种一致性。
 
 ## 测试现状
 

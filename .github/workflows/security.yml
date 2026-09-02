@@ -18,9 +18,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
 
@@ -32,19 +32,20 @@ jobs:
           -r requirements-security.txt
 
       - name: Scan source with Semgrep community rules
-        run: >-
-          semgrep scan
-          --config p/default
-          --error
-          --severity ERROR
-          --metrics off
-          --json
-          --output semgrep-results.json
-          .
+        env:
+          # p/default is mutable. A content change must fail closed until this reviewed digest is updated.
+          SEMGREP_DEFAULT_RULES_SHA256: de294873207703d5be3d16b6befb8c37e2d5b53163e6d096cef45180842d955d
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            https://semgrep.dev/c/p/default --output "$RUNNER_TEMP/semgrep-default.yml"
+          printf '%s  %s\n' "$SEMGREP_DEFAULT_RULES_SHA256" "$RUNNER_TEMP/semgrep-default.yml" | sha256sum --check --strict
+          semgrep scan --config "$RUNNER_TEMP/semgrep-default.yml" --error --severity ERROR \
+            --metrics off --json --output semgrep-results.json .
 
       - name: Upload Semgrep report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: semgrep-results-${{ github.run_id }}
           path: semgrep-results.json
@@ -60,14 +61,14 @@ jobs:
       OSV_SCANNER_VERSION: "2.4.0"
       OSV_SCANNER_LINUX_X64_SHA256: "15314940c10d26af9c6649f150b8a47c1262e8fc7e17b1d1029b0e479e8ed8a0"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "25"
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Generate production dependency SBOM
         run: ./gradlew :j-store-boot:cyclonedxDirectBom --no-daemon
@@ -92,7 +93,7 @@ jobs:
           --output-file osv-results.json
 
       - name: Set up attestation-capable Buildx builder
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Build attested OCI archive for container security scanning
         env:
@@ -130,7 +131,7 @@ jobs:
 
       - name: Upload dependency vulnerability report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: osv-results-${{ github.run_id }}
           path: |
@@ -147,21 +148,21 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "25"
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Audit direct and transitive dependency licenses
         run: ./gradlew licensee --no-daemon --console=plain
 
       - name: Upload dependency license reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dependency-license-reports-${{ github.run_id }}
           path: "**/build/reports/licensee/**"
@@ -176,7 +177,7 @@ jobs:
       GITLEAKS_VERSION: "8.30.1"
       GITLEAKS_LINUX_X64_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 

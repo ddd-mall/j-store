@@ -56,12 +56,12 @@ class AfterSalePORoundTripTest {
                             OrderItemId(6),
                             2,
                             Price.ofFen(120),
-                            "CNY",
+                            "JPY",
                             RefundEligibilitySnapshot(
                                 OrderItemId(6),
                                 3,
                                 Price.ofFen(200),
-                                "CNY",
+                                "JPY",
                                 goods,
                             ),
                         )

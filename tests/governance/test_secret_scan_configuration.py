@@ -65,6 +65,16 @@ class SecretScanConfigurationTest(unittest.TestCase):
 
         self.assertEqual(2, workflow.count("--gitleaks-ignore-path .gitleaksignore"))
 
+    def test_static_analysis_pins_the_semgrep_ruleset(self) -> None:
+        workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertNotIn("--config p/default", workflow)
+        self.assertIn(
+            "SEMGREP_DEFAULT_RULES_SHA256: de294873207703d5be3d16b6befb8c37e2d5b53163e6d096cef45180842d955d",
+            workflow,
+        )
+        self.assertIn('https://semgrep.dev/c/p/default', workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

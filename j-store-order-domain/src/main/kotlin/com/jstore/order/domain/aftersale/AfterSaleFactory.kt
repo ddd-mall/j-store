@@ -67,7 +67,7 @@ class AfterSaleFactoryImpl(private val sequence: SnowFlakSequence) : AfterSaleFa
                         eligible.orderItemId,
                         eligible.refundableQuantity,
                         eligible.refundableAmount,
-                        request.currency,
+                        eligibility.currency,
                         GoodsSnapshot(
                             eligible.skuId,
                             eligible.spuId,
@@ -81,7 +81,7 @@ class AfterSaleFactoryImpl(private val sequence: SnowFlakSequence) : AfterSaleFa
                     request.orderItemId,
                     request.quantity,
                     request.amount,
-                    request.currency,
+                    eligibility.currency,
                     snapshot,
                 )
             }

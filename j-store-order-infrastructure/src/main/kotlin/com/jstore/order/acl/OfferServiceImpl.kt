@@ -29,6 +29,7 @@ class OfferServiceImpl(private val queryService: OfferSnapshotQueryService) : Of
                 channelId = it.channelId,
                 market = it.market,
                 price = it.price,
+                currency = it.currency,
                 version = it.offerVersion,
                 fulfillmentNodeId = it.fulfillmentNodeId,
                 allowBackorder = it.allowBackorder,

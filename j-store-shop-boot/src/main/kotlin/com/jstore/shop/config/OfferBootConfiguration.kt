@@ -16,6 +16,7 @@
  */
 package com.jstore.shop.config
 
+import com.jstore.common.currency.SiteCurrencyPolicy
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.contracts.commerce.AuthorizeSaleCommand
 import com.jstore.contracts.commerce.ReleaseSaleAuthorizationCommand
@@ -50,7 +51,9 @@ class OfferBootConfiguration {
     fun offerSnapshotQueryService(
         offers: SalesOfferRepository,
         stores: StoreRepository,
-    ): OfferSnapshotQueryService = OfferSnapshotQueryServiceImpl(offers, stores)
+        currencyPolicy: SiteCurrencyPolicy,
+    ): OfferSnapshotQueryService =
+        OfferSnapshotQueryServiceImpl(offers, stores, currencyPolicy.defaultCurrency)
 
     @Bean
     fun authorizeSaleHandler(

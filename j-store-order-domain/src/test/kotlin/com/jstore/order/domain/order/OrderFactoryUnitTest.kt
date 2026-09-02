@@ -94,7 +94,7 @@ class OrderFactoryUnitTest :
                     snowFlakSequence,
                     stubGoodsService,
                     capturingGeoService,
-                    testOfferService(),
+                    testOfferService(currency = "JPY"),
                 )
 
             val cmd =
@@ -131,6 +131,7 @@ class OrderFactoryUnitTest :
             result.value.commitmentStatus shouldBe CommitmentStatus.CONFIRMED
             result.value.paymentStatus shouldBe PaymentStatus.UNPAID
             result.value.fulfillmentStatus shouldBe FulfillmentStatus.UNFULFILLED
+            result.value.amountSnapshot.currency shouldBe "JPY"
             capturedCountryCode shouldBe "CN"
         }
 

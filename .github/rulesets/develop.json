@@ -37,7 +37,8 @@
           {"context": "static-analysis"},
           {"context": "dependency-vulnerability-scan"},
           {"context": "dependency-license-audit"},
-          {"context": "secret-scan"}
+          {"context": "secret-scan"},
+          {"context": "qodana"}
         ],
         "strict_required_status_checks_policy": true
       }

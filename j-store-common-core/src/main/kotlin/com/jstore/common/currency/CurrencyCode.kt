@@ -14,24 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.order.acl
+package com.jstore.common.currency
 
-import com.jstore.common.properties.Price
+import java.util.Currency
 
-fun interface OfferService {
-    fun queryOffers(offerIds: List<Long>): List<OfferInfo>
+/** ISO 4217 alphabetic currency code validation shared by monetary domain snapshots. */
+object CurrencyCode {
+    fun isValid(value: String): Boolean =
+        value.length == 3 &&
+            value.all { it in 'A'..'Z' } &&
+            runCatching { Currency.getInstance(value) }.isSuccess
 }
-
-data class OfferInfo(
-    val offerId: Long,
-    val storeId: Long,
-    val merchantId: Long,
-    val skuId: Long,
-    val channelId: String,
-    val market: String,
-    val price: Price,
-    val currency: String,
-    val version: Long,
-    val fulfillmentNodeId: String,
-    val allowBackorder: Boolean,
-)

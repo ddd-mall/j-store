@@ -16,10 +16,12 @@
  */
 package com.jstore.payment.controller
 
+import com.jstore.common.currency.SiteCurrencyPolicy
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Success
 import com.jstore.payment.domain.payment.PaymentOrderId
 import com.jstore.payment.domain.payment.PaymentOrderImpl
+import com.jstore.payment.service.PaymentCaptureCommand
 import com.jstore.payment.service.PaymentUseCase
 import com.jstore.shop.domain.merchant.Merchant
 import com.jstore.shop.domain.merchant.MerchantId
@@ -30,10 +32,15 @@ import com.jstore.shop.domain.merchant.MerchantRepository
 import com.jstore.shop.domain.merchant.MerchantRole
 import com.jstore.shop.service.MerchantAuthorizationService
 import com.jstore.user.domain.useraccount.UserId
+import java.time.Instant
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.springframework.http.HttpStatus
 
 class PaymentControllerMerchantAuthorizationTest {
@@ -59,10 +66,78 @@ class PaymentControllerMerchantAuthorizationTest {
                 )
             }
         val controller =
-            PaymentController(service, MerchantAuthorizationService(merchants, memberships))
+            PaymentController(
+                service,
+                MerchantAuthorizationService(merchants, memberships),
+                SiteCurrencyPolicy("CNY", setOf("CNY")),
+            )
 
         assertEquals(HttpStatus.OK, controller.get(UserId(900), 9).statusCode)
         assertEquals(HttpStatus.NOT_FOUND, controller.get(UserId(70), 9).statusCode)
+    }
+
+    @Test
+    fun `capture uses site default and rejects currencies outside the site policy`() {
+        val service = mock(PaymentUseCase::class.java)
+        val order = PaymentOrderImpl(PaymentOrderId(1), 9, 70, Price.ofFen(100), "JPY")
+        `when`(service.getByOrderId(9)).thenReturn(Success(order))
+        `when`(
+                service.capture(
+                    eq(PaymentCaptureCommand(9, "txn-1", Price.ofFen(100), "JPY")),
+                    any<Instant>(),
+                )
+            )
+            .thenReturn(Success(true))
+
+        val merchants = FakeMerchantRepository().also { it.save(Merchant(MerchantId(70), "示例商户")) }
+        val memberships =
+            FakeMembershipRepository().also {
+                it.save(
+                    MerchantMembership(
+                        MerchantMembershipId(1),
+                        MerchantId(70),
+                        900,
+                        setOf(MerchantRole.FINANCE),
+                    )
+                )
+            }
+        val controller =
+            PaymentController(
+                service,
+                MerchantAuthorizationService(merchants, memberships),
+                SiteCurrencyPolicy("JPY", setOf("JPY", "USD")),
+            )
+
+        assertEquals(
+            HttpStatus.OK,
+            controller
+                .capture(
+                    UserId(900),
+                    9,
+                    PaymentController.CaptureRequest("txn-1", 100),
+                )
+                .statusCode,
+        )
+        assertEquals(
+            HttpStatus.BAD_REQUEST,
+            controller
+                .capture(
+                    UserId(900),
+                    9,
+                    PaymentController.CaptureRequest("txn-2", 100, "CNY"),
+                )
+                .statusCode,
+        )
+        verify(service)
+            .capture(
+                eq(PaymentCaptureCommand(9, "txn-1", Price.ofFen(100), "JPY")),
+                any<Instant>(),
+            )
+        verify(service, never())
+            .capture(
+                eq(PaymentCaptureCommand(9, "txn-2", Price.ofFen(100), "CNY")),
+                any<Instant>(),
+            )
     }
 
     private class FakeMerchantRepository : MerchantRepository {

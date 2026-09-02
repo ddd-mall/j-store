@@ -16,6 +16,7 @@
  */
 package com.jstore.order.domain.aftersale
 
+import com.jstore.common.currency.CurrencyCode
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.order.FulfillmentStatus
 import com.jstore.order.domain.order.OrderItemId
@@ -60,7 +61,7 @@ data class RefundEligibilitySnapshot(
     init {
         require(refundableQuantity > 0)
         require(refundableAmount > Price.ZERO)
-        require(currency == "CNY")
+        require(CurrencyCode.isValid(currency)) { "currency must be a valid ISO 4217 code" }
     }
 }
 

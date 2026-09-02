@@ -12,9 +12,9 @@
 
 `.github/workflows/branch-policy.yml` 在目标为 `master` 或 `develop` 的 PR 上执行 `scripts/check-branch-policy.py`。检查器验证目标分支、来源分支和 PR 标题。工作流优先从 PR 基准提交提取检查器，避免候选分支通过修改检查器绕过策略；仅在首次引入、基准分支尚无检查器时使用候选中的脚本，并只允许固定的 `codex/branch-management-bootstrap -> master` bootstrap PR。检查器一旦存在于基准分支，bootstrap 参数不会再传入，该例外自动失效。Ruleset 必须在首次落地后才启用该 required check。
 
-`quality.yml`、`security.yml` 与 Qodana 的 push 触发分支统一为 `master` 和 `develop`。Ruleset 模板要求分支策略、质量和安全检查成功，禁止删除和非快进推送，并要求通过 PR 和解决 review thread。
+`quality.yml`、`security.yml` 与 Qodana 的 push 触发分支统一为 `master` 和 `develop`。Ruleset 模板要求分支策略、质量、安全和 Qodana 检查成功，禁止删除和非快进推送，并要求通过 PR 和解决 review thread。`master` 仅允许 merge commit，以保留 release/hotfix 边界；`develop` 可使用 squash 或 merge commit。
 
-Qodana 使用与项目一致的 JDK 25。PR 模式只分析改动文件，并以零容忍阈值阻止任何适用的新问题；长期分支 push 仍执行全量扫描。启用门禁前先修复或以带理由的局部抑制处理现有告警，不通过提高全局阈值把技术债固化为可接受基线。
+Qodana 使用与项目一致的 JDK 25。PR 模式只分析改动文件，并以零容忍阈值阻止任何适用的新问题；长期分支 push 仍执行全量扫描。`CanConvertToMultiDollarString` 是不改变行为的 Kotlin 语法迁移提示，项目明确排除它，以保留 Spring 注解中惯用、直接的 `\${...}` 占位符写法；其它适用检查仍保持零容忍。启用门禁前先修复或以带理由的局部抑制处理现有告警，不通过提高全局阈值把技术债固化为可接受基线。
 
 ## 审查与合并
 

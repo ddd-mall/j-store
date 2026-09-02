@@ -60,6 +60,35 @@ class OfferAuthorizationServiceTest {
         assertEquals(0, authorizations.values.size)
     }
 
+    @Test
+    fun `offer snapshot uses the configured site currency`() {
+        val offer = activeOffer()
+        val offers =
+            object : SalesOfferRepository {
+                override fun findAllByIds(ids: List<SalesOfferId>) = listOf(offer)
+
+                override fun save(aggregate: SalesOffer) = aggregate
+
+                override fun findById(id: SalesOfferId) = offer.takeIf { it.id == id }
+            }
+        val stores =
+            object : StoreRepository {
+                override fun save(aggregate: Store) = aggregate
+
+                override fun findById(id: StoreId) =
+                    Store(StoreId(2), MerchantId(7), "旗舰店", StoreStatus.ACTIVE).takeIf {
+                        it.id == id
+                    }
+            }
+
+        val snapshot =
+            OfferSnapshotQueryServiceImpl(offers, stores, "JPY") { now }
+                .queryOffers(listOf(offer.id.value))
+                .single()
+
+        assertEquals("JPY", snapshot.currency)
+    }
+
     private fun service(
         offer: SalesOffer,
         authorizations: FakeAuthorizations,

@@ -156,7 +156,8 @@ class RecipientInfoPORoundTripPropertyTest :
                         _tradeStatus = TradeStatus.CREATED,
                         _paymentStatus = PaymentStatus.UNPAID,
                         _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
-                        amountSnapshot = OrderAmountSnapshot.cny(Price.ofFen(100)),
+                        amountSnapshot =
+                            OrderAmountSnapshot.singleCurrency("CNY", Price.ofFen(100)),
                         createTime = now,
                         _updateTime = now,
                     )
