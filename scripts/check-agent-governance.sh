@@ -177,7 +177,7 @@ fi
 for ruleset in .github/rulesets/master.json .github/rulesets/develop.json; do
   search_quietly 'required_status_checks' "$ruleset" || \
     fail "$ruleset is missing required status checks"
-  for context in branch-policy quality static-analysis dependency-vulnerability-scan dependency-license-audit secret-scan; do
+  for context in branch-policy quality static-analysis dependency-vulnerability-scan dependency-license-audit secret-scan qodana; do
     search_quietly "\"context\": \"$context\"" "$ruleset" || \
       fail "$ruleset is missing required check: $context"
   done

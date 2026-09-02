@@ -32,6 +32,14 @@ Options:
 EOF
 }
 
+file_permissions() {
+  if stat -c '%a' "$1" >/dev/null 2>&1; then
+    stat -c '%a' "$1"
+  else
+    stat -f '%Lp' "$1"
+  fi
+}
+
 while (($#)); do
   case "$1" in
     --context)
@@ -135,7 +143,7 @@ if [[ -n "$token_file" ]]; then
     printf '%s\n' 'ERROR: --token-file must be a regular file, not a symlink.' >&2
     exit 2
   fi
-  permissions=$(stat -c '%a' -- "$token_file")
+  permissions=$(file_permissions "$token_file")
   if [[ "$permissions" != "400" && "$permissions" != "600" ]]; then
     printf '%s\n' 'ERROR: --token-file permissions must be 0400 or 0600.' >&2
     exit 2

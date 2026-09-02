@@ -46,7 +46,7 @@ flowchart LR
 2. 先建立适用规格或 accepted delta，再按 TDD 实现并运行最小相关测试。
 3. 尽早创建 draft PR，目标固定为 `develop`。PR 标题使用 Conventional Commits，例如 `feat(order): reserve inventory`。
 4. 合并前补齐 PR 模板中的验收映射、测试命令、兼容性、恢复方式和残余风险；同步最新目标分支。
-5. 等待 `branch-policy`、`quality`、`static-analysis`、`dependency-vulnerability-scan`、`dependency-license-audit` 和 `secret-scan` 全部通过，并解决 review thread。
+5. 等待 `branch-policy`、`quality`、`static-analysis`、`dependency-vulnerability-scan`、`dependency-license-audit`、`secret-scan` 和 `qodana` 全部通过，并解决 review thread。
 6. 日常短分支使用 squash merge；合并后立即删除远端和本地分支。不得把失败检查改成非 required 来完成合并。
 
 公共契约、认证授权、隐私、多租户、金额、库存、订单状态、数据库不可逆迁移和生产行为变更即使目标是 `develop`，也必须取得独立人工评审；实现者不能批准自己的高风险变更。
@@ -77,7 +77,7 @@ flowchart LR
 ## 审查、合并与清理
 
 - 当前只有一位明确所有者时，ruleset 的审批数为 0，但合并仍必须由所有者人工执行。增加独立维护者后，将两个 ruleset 的审批数提升为 1，并要求最后推送者之外的批准。
-- 日常分支使用 squash merge；`release/*`、`hotfix/*`、`master -> develop` 使用 merge commit；禁用 rebase merge。
+- 日常分支进入 `develop` 可使用 squash 或 merge commit；`release/*`、`hotfix/*` 进入 `master` 仅使用 merge commit，`master -> develop` 同样使用 merge commit；禁用 rebase merge。
 - draft 或 14 天无更新的 PR 由维护者确认继续、拆分或关闭。合并/关闭后删除短分支；30 天无 PR 的远端短分支经所有者确认后清理。
 - 不启用 Dependabot 或其它定时依赖升级 PR。自动化只能报告新版本；依赖升级由人工明确发起，每个 PR 只处理一个依赖或一个不可拆分 BOM，说明兼容矩阵、迁移影响和回滚方式。major、RC、里程碑版本及高风险变更必须形成独立规格与兼容性评估。
 

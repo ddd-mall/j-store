@@ -20,6 +20,7 @@ class QodanaConfigurationContractTest(unittest.TestCase):
 
         self.assertIn('projectJDK: "25"', configuration)
         self.assertNotIn("\njdk:", configuration)
+        self.assertIn("jetbrains/qodana-jvm-community@sha256:", configuration)
         self.assertIn(
             "failureConditions:\n  severityThresholds:\n    any: 0",
             configuration,
@@ -32,6 +33,13 @@ class QodanaConfigurationContractTest(unittest.TestCase):
             "exclude:\n  - name: CanConvertToMultiDollarString",
             configuration,
         )
+
+    def test_qodana_is_a_protected_branch_required_check(self) -> None:
+        for branch in ("develop", "master"):
+            ruleset = (REPO_ROOT / f".github/rulesets/{branch}.json").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn('{"context": "qodana"}', ruleset)
 
 
 if __name__ == "__main__":

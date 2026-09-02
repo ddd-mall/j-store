@@ -85,6 +85,14 @@ class AgentGovernanceContractTest(unittest.TestCase):
 
         self.assertEqual(expected_names, set(governance_agents))
 
+    def test_quality_gate_uses_a_supported_python_version(self) -> None:
+        quality_gate = (REPO_ROOT / "scripts/quality-gate.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("uv run --python 3.13", quality_gate)
+        self.assertIn("Python 3.11 or newer is required", quality_gate)
+
 
 if __name__ == "__main__":
     unittest.main()

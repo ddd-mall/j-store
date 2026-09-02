@@ -82,6 +82,7 @@ class LicenseGovernanceContractTest(unittest.TestCase):
             "dependency-vulnerability-scan",
             "dependency-license-audit",
             "secret-scan",
+            "qodana",
         }
         for branch in ("master", "develop"):
             ruleset_path = REPO_ROOT / f".github/rulesets/{branch}.json"
@@ -125,6 +126,18 @@ class LicenseGovernanceContractTest(unittest.TestCase):
             "fetch-depth: 0",
             quality_workflow,
             "Quality Gate must fetch origin/master for the Spotless ratchet baseline",
+        )
+
+    def test_master_ruleset_preserves_release_merge_commits(self) -> None:
+        ruleset = json.loads(
+            (REPO_ROOT / ".github/rulesets/master.json").read_text(encoding="utf-8")
+        )
+        pull_request_rule = next(
+            rule for rule in ruleset["rules"] if rule["type"] == "pull_request"
+        )
+
+        self.assertEqual(
+            ["merge"], pull_request_rule["parameters"]["allowed_merge_methods"]
         )
 
 

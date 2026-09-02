@@ -224,20 +224,31 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
         self.assertIsNotNone(node)
         assert node is not None
         version = "0.148.0"
+        platform = subprocess.run(
+            [node, "-p", "`${process.platform}:${process.arch}`"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        platform_packages = {
+            "linux:x64": "@openai/codex-linux-x64",
+            "linux:arm64": "@openai/codex-linux-arm64",
+            "darwin:x64": "@openai/codex-darwin-x64",
+            "darwin:arm64": "@openai/codex-darwin-arm64",
+            "win32:x64": "@openai/codex-win32-x64",
+            "win32:arm64": "@openai/codex-win32-arm64",
+        }
+        platform_package = platform_packages[platform]
+        platform_directory_name = platform_package.removeprefix("@openai/")
+        vendor_binary = "vendor/test/bin/codex"
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / "source" / "node_modules" / "@openai"
             codex_module = source / "codex"
-            platform_module = source / "codex-linux-x64"
+            platform_module = source / platform_directory_name
             codex_bin = codex_module / "bin" / "codex.js"
-            platform_bin = (
-                platform_module
-                / "vendor"
-                / "x86_64-unknown-linux-musl"
-                / "bin"
-                / "codex"
-            )
+            platform_bin = platform_module / vendor_binary
             codex_bin.parent.mkdir(parents=True)
             platform_bin.parent.mkdir(parents=True)
             (codex_module / "package.json").write_text(
@@ -247,9 +258,7 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
                         "version": version,
                         "type": "module",
                         "optionalDependencies": {
-                            "@openai/codex-linux-x64": (
-                                f"npm:@openai/codex@{version}-linux-x64"
-                            )
+                            platform_package: f"npm:@openai/codex@{version}-{platform}"
                         },
                     }
                 ),
@@ -257,7 +266,7 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
             )
             (platform_module / "package.json").write_text(
                 json.dumps(
-                    {"name": "@openai/codex", "version": f"{version}-linux-x64"}
+                    {"name": platform_package, "version": f"{version}-{platform}"}
                 ),
                 encoding="utf-8",
             )
@@ -268,11 +277,11 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
                 'import path from "node:path";\n'
                 "const require = createRequire(import.meta.url);\n"
                 "const packageJson = require.resolve(\n"
-                '  "@openai/codex-linux-x64/package.json"\n'
+                f'  "{platform_package}/package.json"\n'
                 ");\n"
                 "const binary = path.join(\n"
                 "  path.dirname(packageJson),\n"
-                '  "vendor/x86_64-unknown-linux-musl/bin/codex"\n'
+                f'  "{vendor_binary}"\n'
                 ");\n"
                 "const result = spawnSync(binary, process.argv.slice(2), { stdio: \"inherit\" });\n"
                 "process.exit(result.status ?? 1);\n",
@@ -291,6 +300,11 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
             codex = root / "source" / "bin" / "codex"
             codex.parent.mkdir()
             codex.symlink_to(codex_bin)
+            portable_node = root / "source" / "bin" / "node"
+            portable_node.write_text(
+                "#!/usr/bin/env bash\n" f'exec "{node}" "$@"\n', encoding="utf-8"
+            )
+            portable_node.chmod(0o755)
 
             payload = root / "payload"
             subprocess.run(
@@ -299,7 +313,7 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
                     "--codex-command",
                     codex,
                     "--node-command",
-                    node,
+                    portable_node,
                     "--payload",
                     str(payload),
                     "--expected-version",
@@ -322,7 +336,7 @@ class AgenticCicdHostRuntimeTest(unittest.TestCase):
             self.assertEqual(f"codex-cli {version}", packaged_version)
             self.assertTrue(
                 any(
-                    path.name.startswith("codex-linux-")
+                    path.name == platform_directory_name
                     for path in (payload / "lib" / "node_modules" / "@openai").iterdir()
                 )
             )

@@ -20,13 +20,19 @@ printf '%s\n' '[1/6] Repository governance'
 printf '%s\n' '[2/6] Spec-dev and governance contract tests'
 if command -v uv >/dev/null 2>&1; then
   JSTORE_UV_CACHE_DIR="${JSTORE_UV_CACHE_DIR:-${TMPDIR:-/tmp}/j-store-uv-cache}"
-  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
+  uv_command=(uv run --python 3.13 --with-requirements requirements-quality.txt)
+  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" "${uv_command[@]}" \
     python -m unittest discover -s tests/skills/spec-dev -p 'test_*.py'
-  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
+  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" "${uv_command[@]}" \
     python -m unittest discover -s tests/governance -p 'test_*.py'
-  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
+  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" "${uv_command[@]}" \
     python -m unittest discover -s tests/tooling -p 'test_*.py'
 else
+  python_version="$($python_bin -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+  "$python_bin" -c 'import sys; raise SystemExit(sys.version_info < (3, 11))' || {
+    printf '%s\n' "FAIL: Python 3.11 or newer is required when uv is unavailable (found $python_version)." >&2
+    exit 1
+  }
   "$python_bin" -c 'import jsonschema' 2>/dev/null || {
     printf '%s\n' 'FAIL: install requirements-quality.txt or install uv to run specification tests.' >&2
     exit 1
@@ -38,7 +44,7 @@ fi
 
 printf '%s\n' '[3/6] Source ownership and formatting'
 if command -v uv >/dev/null 2>&1; then
-  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" uv run --with-requirements requirements-quality.txt \
+  UV_CACHE_DIR="$JSTORE_UV_CACHE_DIR" "${uv_command[@]}" \
     python "$tool_root/check-file-ownership.py"
 else
   "$python_bin" "$tool_root/check-file-ownership.py"

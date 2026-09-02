@@ -26,7 +26,8 @@
     "static-analysis",
     "dependency-vulnerability-scan",
     "dependency-license-audit",
-    "secret-scan"
+    "secret-scan",
+    "qodana"
   ],
   "limits": {
     "max_concurrent_agents": 1,

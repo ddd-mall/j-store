@@ -6,7 +6,7 @@
 
 1. 合并 `branch-policy.yml`、策略脚本和现有门禁的分支触发调整。
 2. 从管理员确认的集成基线创建远端 `develop`，禁止从未审查的临时分支直接提升。
-3. 分别在 `develop` 和 `master` PR 上确认六个 required check context 均出现。
+3. 分别在 `develop` 和 `master` PR 上确认七个 required check context 均出现。
 4. 应用 `develop.json`，再更新 `master.json`；核对无 bypass actor、禁止删除和强推。
 5. 使用故意违规的草稿 PR 验证 `feature/* -> master` 会失败，且正常 `feature/* -> develop` 会通过。
 
