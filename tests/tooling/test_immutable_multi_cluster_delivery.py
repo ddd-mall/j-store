@@ -495,7 +495,12 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
         buildx_setup_index = next(
             index
             for index, step in enumerate(steps)
-            if step.get("uses") == "docker/setup-buildx-action@v4"
+            if step.get("uses", "").startswith("docker/setup-buildx-action@")
+        )
+        buildx_reference = steps[buildx_setup_index]["uses"]
+        self.assertRegex(
+            buildx_reference,
+            r"^docker/setup-buildx-action@[0-9a-f]{40}$",
         )
         attested_build_index = next(
             index

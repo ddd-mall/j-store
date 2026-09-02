@@ -93,6 +93,17 @@ class AgentGovernanceContractTest(unittest.TestCase):
         self.assertIn("uv run --python 3.13", quality_gate)
         self.assertIn("Python 3.11 or newer is required", quality_gate)
 
+    def test_governance_search_fallback_translates_ripgrep_globs(self) -> None:
+        governance = (REPO_ROOT / "scripts" / "check-agent-governance.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('"--glob")', governance)
+        self.assertIn('grep_options+=("--include=$1")', governance)
+        self.assertIn('grep -ERq "${grep_options[@]}" -- "$pattern" "${grep_paths[@]}"', governance)
+        self.assertIn('grep -ERq -- "$pattern" "${grep_paths[@]}"', governance)
+        self.assertNotIn('grep -ERq -- "$pattern" "$@"', governance)
+
 
 if __name__ == "__main__":
     unittest.main()

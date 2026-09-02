@@ -23,7 +23,26 @@ search_quietly() {
   if command -v rg >/dev/null 2>&1; then
     rg -q "$pattern" "$@"
   else
-    grep -ERq -- "$pattern" "$@"
+    local -a grep_options=()
+    local -a grep_paths=()
+    while (($#)); do
+      case "$1" in
+        "--glob")
+          shift
+          (($#)) || return 2
+          grep_options+=("--include=$1")
+          ;;
+        *)
+          grep_paths+=("$1")
+          ;;
+      esac
+      shift
+    done
+    if ((${#grep_options[@]})); then
+      grep -ERq "${grep_options[@]}" -- "$pattern" "${grep_paths[@]}"
+    else
+      grep -ERq -- "$pattern" "${grep_paths[@]}"
+    fi
   fi
 }
 
