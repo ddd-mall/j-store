@@ -70,7 +70,20 @@ class OrderTradeLifecycleTranslatorsTest {
                     "payment-1",
                     Price.ofFen(1000),
                     "CNY",
-                    listOf(OrderItemSnapshot(201, 101, 1, 1, Price.ofFen(1000))),
+                    listOf(
+                        OrderItemSnapshot(
+                            spuId = 201,
+                            skuId = 101,
+                            quantity = 1,
+                            catalogSnapshotVersion = 1,
+                            unitPrice = Price.ofFen(1000),
+                            offerId = 101,
+                            storeId = 1,
+                            offerVersion = 1,
+                            fulfillmentNodeId = "DEFAULT",
+                            channelId = "ONLINE",
+                        )
+                    ),
                     Instant.EPOCH,
                     "paid-event",
                 )

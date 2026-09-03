@@ -19,6 +19,7 @@ package com.jstore.user.controller
 import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.annotation.SkipLogin
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Success
@@ -109,7 +110,7 @@ class UserAccountControllerContractTest {
         ) =
             AuthenticatedPrincipal(
                 "issuer-a",
-                UserId(webRequest.getHeader("X-Test-User")!!.toLong()),
+                AuthenticatedAccountId(webRequest.getHeader("X-Test-User")!!.toLong()),
             )
     }
 }

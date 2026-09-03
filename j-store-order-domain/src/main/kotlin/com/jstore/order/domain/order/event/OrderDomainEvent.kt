@@ -43,11 +43,11 @@ data class OrderItemSnapshot(
     val quantity: Int,
     val catalogSnapshotVersion: Long,
     val unitPrice: Price,
-    val offerId: Long = skuId,
-    val storeId: Long = 1,
-    val offerVersion: Long = 1,
-    val fulfillmentNodeId: String = "DEFAULT",
-    val channelId: String = "ONLINE",
+    val offerId: Long,
+    val storeId: Long,
+    val offerVersion: Long,
+    val fulfillmentNodeId: String,
+    val channelId: String,
 )
 
 @DomainEventType(name = "order.created", version = 4)

@@ -16,7 +16,6 @@
  */
 package com.jstore.cart.domain
 
-import com.jstore.common.framework.AggregateRoot
 import com.jstore.common.properties.Price
 import java.time.Instant
 
@@ -72,7 +71,7 @@ class CartAssessment(
     val currency: String,
     val evaluatedAt: Instant,
     val lines: List<CartAssessmentLine>,
-) : AggregateRoot<CartAssessmentId>
+) : com.jstore.common.framework.Entity<CartAssessmentId>
 
 object CartAssessmentCalculator {
     fun evaluate(

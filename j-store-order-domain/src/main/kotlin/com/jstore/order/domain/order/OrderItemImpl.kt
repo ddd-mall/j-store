@@ -23,20 +23,25 @@ class OrderItemImpl(
     override val id: OrderItemId,
     override val skuId: Long,
     override val spuId: Long,
-    override val offerId: Long = skuId,
-    override val storeId: Long = 1,
-    override val offerVersion: Long = 1,
-    override val fulfillmentNodeId: String = "DEFAULT",
-    override val channelId: String = "ONLINE",
+    override val offerId: Long,
+    override val storeId: Long,
+    override val offerVersion: Long,
+    override val fulfillmentNodeId: String,
+    override val channelId: String,
     override val goodsName: String,
     override val skuDescription: String,
     override val quantity: Int,
     override val unitPrice: Price,
     override val snapshotVersion: Long = 0,
-    override var status: OrderItemStatus = OrderItemStatus.NONE,
+    status: OrderItemStatus = OrderItemStatus.NONE,
     private var _refundedQuantity: Int = 0,
     private var _refundedAmount: Price = Price.ZERO,
 ) : OrderItem {
+    private var _status: OrderItemStatus = status
+
+    override val status: OrderItemStatus
+        get() = _status
+
     override val purchasedAmount
         get() = subtotal()
 
@@ -68,19 +73,19 @@ class OrderItemImpl(
     override fun subtotal(): Price = unitPrice * quantity
 
     fun markCanceled() {
-        status = OrderItemStatus.CANCELED
+        _status = OrderItemStatus.CANCELED
     }
 
     internal fun markWaitingShipment() {
-        status = OrderItemStatus.WAIT_SHIPPING
+        _status = OrderItemStatus.WAIT_SHIPPING
     }
 
     internal fun markShipping() {
-        status = OrderItemStatus.SHIPPING
+        _status = OrderItemStatus.SHIPPING
     }
 
     internal fun markDelivered() {
-        status = OrderItemStatus.SHIPPING_FINISHED
+        _status = OrderItemStatus.SHIPPING_FINISHED
     }
 
     internal fun registerRefund(quantity: Int, amount: Price) {

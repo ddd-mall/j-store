@@ -14,25 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.payment.config
+package com.jstore.payment.service
 
+import com.jstore.payment.api.ReadyCheckoutPayment
+import com.jstore.payment.api.ReadyCheckoutPaymentQuery
 import com.jstore.payment.domain.payment.TradePaymentId
 import com.jstore.payment.domain.payment.TradePaymentRepository
 import com.jstore.payment.domain.payment.TradePaymentStatus
-import com.jstore.trade.service.CheckoutPaymentGateway
-import com.jstore.trade.service.CheckoutPaymentView
 import java.time.Instant
 
-class CheckoutPaymentAdapter(
+class ReadyCheckoutPaymentQueryService(
     private val payments: TradePaymentRepository,
     private val now: () -> Instant = Instant::now,
-) : CheckoutPaymentGateway {
-    override fun findReadyPayment(paymentId: Long): CheckoutPaymentView? {
+) : ReadyCheckoutPaymentQuery {
+    override fun find(paymentId: Long): ReadyCheckoutPayment? {
         val payment = payments.findById(TradePaymentId(paymentId)) ?: return null
         if (payment.status != TradePaymentStatus.READY) return null
         val expiresAt = requireNotNull(payment.expiresAt)
         if (expiresAt <= now()) return null
-        return CheckoutPaymentView(
+        return ReadyCheckoutPayment(
             payment.id.value,
             payment.status.name,
             payment.payableAmount.fen,

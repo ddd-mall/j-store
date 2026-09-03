@@ -24,6 +24,7 @@ import com.jstore.goods.api.GoodsSnapshotQueryService
 import com.jstore.messaging.IntegrationMessage
 import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.messaging.IntegrationMessagePublisher
+import com.jstore.payment.api.ReadyCheckoutPaymentQuery
 import com.jstore.shop.api.OfferSnapshotQueryService
 import com.jstore.trade.domain.TradeRepository
 import com.jstore.trade.service.*
@@ -35,6 +36,10 @@ import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
 class TradeBootConfiguration {
+    @Bean
+    fun checkoutPaymentGateway(payments: ReadyCheckoutPaymentQuery): CheckoutPaymentGateway =
+        CheckoutPaymentAdapter(payments)
+
     @Bean
     fun tradeOrderCreationGateway(
         publisher: IntegrationMessagePublisher

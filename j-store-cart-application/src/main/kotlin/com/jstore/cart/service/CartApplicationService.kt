@@ -32,8 +32,8 @@ import java.time.Clock
 
 class CartApplicationService(
     private val carts: CartRepository,
-    private val assessments: CartAssessmentRepository,
-    private val receipts: CartRequestReceiptRepository,
+    private val assessments: CartAssessmentStore,
+    private val receipts: CartRequestReceiptStore,
     private val commerce: CartCommerceFactsService,
     private val ids: CartIdentityGenerator,
     private val publisher: DomainEventPublisher,

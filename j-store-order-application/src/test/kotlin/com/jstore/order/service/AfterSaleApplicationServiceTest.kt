@@ -33,9 +33,12 @@ import org.mockito.Mockito.*
 class AfterSaleApplicationServiceTest {
     private val factory = mock(AfterSaleFactory::class.java)
     private val afterSales = mock(AfterSaleRepository::class.java)
+    private val capacities = mock(RefundCapacityRepository::class.java)
+    private val receipts = mock(AfterSaleCommandReceiptStore::class.java)
     private val orders = mock(OrderRepository::class.java)
     private val publisher = mock(DomainEventPublisher::class.java)
-    private val service = AfterSaleApplicationService(factory, afterSales, orders, publisher)
+    private val service =
+        AfterSaleApplicationService(factory, afterSales, capacities, receipts, orders, publisher)
 
     @Test
     fun `create rejects a non-owner before resolving merchant or saving`() {
@@ -57,6 +60,8 @@ class AfterSaleApplicationServiceTest {
             AfterSaleApplicationService(
                 AfterSaleFactoryImpl(sequence),
                 afterSales,
+                capacities,
+                receipts,
                 orders,
                 publisher,
             )
@@ -79,8 +84,7 @@ class AfterSaleApplicationServiceTest {
                 AfterSaleStatus.REQUESTED,
                 java.time.LocalDateTime.MIN,
             )
-        `when`(afterSales.findReceipt(1, AfterSaleCommandType.CREATE, "issuer-a:key"))
-            .thenReturn(receipt)
+        `when`(receipts.find(1, AfterSaleCommandType.CREATE, "issuer-a:key")).thenReturn(receipt)
         `when`(afterSales.findById(AfterSaleId(8))).thenReturn(aggregate)
 
         val result = service.create("issuer-a", command())
@@ -102,30 +106,41 @@ class AfterSaleApplicationServiceTest {
         var capturedAfterSale: AfterSale? = null
         val repository =
             object : AfterSaleRepository {
-                override fun createWithAllocation(
-                    afterSale: AfterSale,
-                    ceilings: List<RefundCapacityCeiling>,
-                    receipt: AfterSaleCommandReceipt,
-                ) =
-                    Success(afterSale).also {
-                        captured = ceilings
-                        capturedAfterSale = afterSale
-                    }
-
                 override fun findByOrderId(orderId: OrderId) = emptyList<AfterSale>()
 
-                override fun saveDecision(
-                    afterSale: AfterSale,
-                    allocationAction: AllocationAction,
-                    receipt: AfterSaleCommandReceipt,
-                ) = Success(afterSale)
-
-                override fun findReceipt(actorId: Long, type: AfterSaleCommandType, key: String) =
-                    null
-
-                override fun save(entity: AfterSale) = entity
+                override fun save(aggregate: AfterSale) = aggregate.also { capturedAfterSale = it }
 
                 override fun findById(id: AfterSaleId): AfterSale? = null
+
+                override fun findByIdForUpdate(id: AfterSaleId): AfterSale? = null
+            }
+        val capacityRepository =
+            object : RefundCapacityRepository {
+                private val values = mutableMapOf<OrderItemId, RefundCapacity>()
+
+                override fun initializeIfAbsent(capacities: List<RefundCapacity>) {
+                    captured = capacities.map {
+                        RefundCapacityCeiling(
+                            it.orderId,
+                            it.id,
+                            it.quantityCeiling,
+                            it.amountCeiling,
+                        )
+                    }
+                    capacities.forEach { values.putIfAbsent(it.id, it) }
+                }
+
+                override fun lockAll(ids: Collection<OrderItemId>) = ids.mapNotNull(values::get)
+
+                override fun save(aggregate: RefundCapacity) = aggregate
+
+                override fun findById(id: OrderItemId) = values[id]
+            }
+        val receiptStore =
+            object : AfterSaleCommandReceiptStore {
+                override fun find(actorId: Long, type: AfterSaleCommandType, key: String) = null
+
+                override fun claim(receipt: AfterSaleCommandReceipt) = true
             }
         val orderRepository =
             object : OrderRepository {
@@ -149,6 +164,8 @@ class AfterSaleApplicationServiceTest {
             AfterSaleApplicationService(
                     AfterSaleFactoryImpl(com.jstore.common.persistent.SnowFlakSequence(1, 1)),
                     repository,
+                    capacityRepository,
+                    receiptStore,
                     orderRepository,
                     publisher,
                 )

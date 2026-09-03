@@ -16,11 +16,14 @@
  */
 package com.jstore.user.domain.useraccount
 
+import com.jstore.authentication.principal.AuthenticatedAccountId
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import java.util.concurrent.TimeUnit
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.data.redis.core.script.DefaultRedisScript
 
-class RedisTokenStore(private val redisTemplate: StringRedisTemplate) : TokenStore {
+class RedisTokenStore(private val redisTemplate: StringRedisTemplate) :
+    TokenStore, AuthenticatedSessionStore {
     override fun currentSessionEpoch(userId: UserId): Long =
         redisTemplate.opsForValue().get(epochKey(userId))?.toLongOrNull() ?: 0L
 
@@ -87,6 +90,12 @@ class RedisTokenStore(private val redisTemplate: StringRedisTemplate) : TokenSto
             sessionEpoch.toString(),
             "$sessionEpoch:",
         ) == 1L
+
+    override fun isSessionActive(
+        accountId: AuthenticatedAccountId,
+        sessionId: String,
+        sessionEpoch: Long,
+    ): Boolean = isSessionActive(UserId(accountId.value), sessionId, sessionEpoch)
 
     private fun epochKey(userId: UserId) = "$SESSION_EPOCH_KEY_PREFIX${userId.value}"
 

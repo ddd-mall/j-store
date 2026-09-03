@@ -18,6 +18,7 @@ package com.jstore.order.domain.order.command
 
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Failure
+import com.jstore.order.domain.order.OrderCommandValidator
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -85,7 +86,7 @@ class OrderCreateCMDValidationPropertyTest :
         ) {
             checkAll(100, failingRecipientInfoArb) { failingRecipientInfo ->
                 // First, confirm RecipientInfoCMD.validate() fails
-                val recipientResult = failingRecipientInfo.validate()
+                val recipientResult = OrderCommandValidator.validate(failingRecipientInfo)
                 recipientResult.shouldBeInstanceOf<Failure<*>>()
                 val expectedError = (recipientResult as Failure).error
 
@@ -103,11 +104,13 @@ class OrderCreateCMDValidationPropertyTest :
                                     skuId = 1,
                                     quantity = 1,
                                     snapshotVersion = 1L,
+                                    offerId = 2,
+                                    offerVersion = 1,
                                 )
                             ),
                     )
 
-                val orderResult = orderCmd.validate()
+                val orderResult = OrderCommandValidator.validate(orderCmd)
 
                 orderResult.shouldBeInstanceOf<Failure<*>>()
                 (orderResult as Failure).error.errorCode shouldBe expectedError.errorCode

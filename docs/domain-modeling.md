@@ -22,7 +22,7 @@ j-store 采用战略 DDD 与战术 DDD 结合的方式：
 | WMS（warehouse） | `PhysicalStock` | 实物库存及其来源版本 | 页面可售、销售授权、订单交易状态 |
 | Cart | `Cart`、`CartAssessment` | 买家的可变购买意图、数量、Selection、Cart 内容版本和派生试算 | 价格/库存权威、销售授权、库存预留、Order 创建 |
 | Trade / Checkout | `Trade`、`TradeOrderPlan`、`SettlementPlan` | Checkout 幂等、成交快照、拆单、销售/库存承诺、Order 创建与结算屏障 | 商品资料、Offer/库存内部状态、支付渠道与履约执行状态 |
-| Order | `Order`、`OrderItem`、`AfterSale` | 已确认订单记录、买家视角生命周期、履约与售后快照 | 销售授权、库存预留、优惠试算与支付资金状态 |
+| Order | `Order`、`OrderItem`、`AfterSale`、`RefundCapacity` | 已确认订单记录、买家视角生命周期、履约与售后退款额度 | 销售授权、库存预留、优惠试算与支付资金状态 |
 | Payment | `TradePayment`、退款相关模型 | 按结算分期执行支付和退款的资金状态 | 交易结算条款、订单商品与履约事实 |
 | Fulfillment | `FulfillmentOrder` | 发货、运输、签收等履约状态 | 交易定价、支付记账、实物库存盘点 |
 | Accounting | 账户、期间、凭证、结算模型 | 会计分录和结算事实 | 订单或支付聚合内部状态 |
@@ -59,13 +59,13 @@ flowchart LR
 - Cart 保存可反复修改的购买意图和派生 Assessment；Checkout 前同步重新采集事实，旧 Assessment 不构成成交输入。
 - Order 只由 Trade 在承诺形成后通过内部端口创建，不保存销售授权或库存预留标识。
 - Payment、Fulfillment、Accounting 通过已发生的交易事实继续各自状态机，不直接修改 Order 聚合。
-- 查询方向可通过上下文发布的 `-api` 契约和消费方 ACL 完成；写入协作使用版本化集成消息。
+- 查询方向可通过上下文发布的 `-api` 契约和消费方 ACL 完成；当前 Accounting 通过 `order-api` 查询记账快照，Trade 通过 `payment-api` 查询可展示的 READY 支付动作，Payment、Fulfillment 与 Order 通过 `shop-api` 查询商户能力。写入协作使用版本化集成消息。
 
 ## Catalog：商品资料模型
 
 Catalog 回答“商品是什么”。`Spu` 管理商品名称、描述、SKU 结构以及对 Product Type、Brand 和 Category 的稳定引用；`GoodsStyle` 管理展示素材，`SpuSnapshot` 冻结一次发布产生的完整可追溯资料版本。
 
-`ProductType` 是独立聚合，定义 SPU 级与 SKU 级属性的 code、类型、必填、枚举范围和变体轴。`Brand` 是 Catalog 内的商户级聚合，维护多语言名称与启停状态；SPU 保存和发布时必须验证品牌存在、启用且属于同一商户，历史快照同时冻结品牌 ID 和名称。Category 负责分类树，Product Type 负责资料结构，二者不能互相替代。属性值目前以字符串传输和持久化，但发布前必须按 Product Type 解析为文本、数字、布尔或枚举语义并校验。
+`ProductType` 是独立聚合，定义 SPU 级与 SKU 级属性的 code、类型、必填、枚举范围和变体轴。`Brand` 是 Catalog 内的商户级聚合，维护多语言名称与启停状态；SPU 保存和发布时必须验证品牌存在、启用且属于同一商户，历史快照同时冻结品牌 ID 和名称。当前切片中的 Category 只是稳定分类引用实体，尚无独立 Repository，也不代表完整分类树管理已经成为聚合；Product Type 负责资料结构，二者不能互相替代。属性值目前以字符串传输和持久化，但发布前必须按 Product Type 解析为文本、数字、布尔或枚举语义并校验。
 
 已发布 SPU 通过 Copy-on-Write 草稿修改。草稿 SPU 由 `sourceSpuId` 指向发布源；草稿 SKU 使用独立 ID，并由 `sourceSkuId` 指向稳定已发布 SKU。发布草稿时，已有 SKU 恢复稳定源 ID，新建 SKU 保留其新 ID，从而避免两个 SPU 聚合共享同一持久化 SKU 主键，也避免破坏 Offer、Inventory 和历史订单对稳定 SKU ID 的引用。
 
@@ -193,6 +193,7 @@ Order 不再保存 `SaleAuthorization`，也不判断应否请求或释放库存
 - 聚合根封装状态转换和不变量，外部不能直接修改内部状态。
 - 一个聚合通过类型化 ID 引用另一个聚合，不持有跨聚合对象引用。
 - Repository 接口只操作聚合，位于 domain；JPA PO 与实现位于 infrastructure。
+- 非聚合根的历史快照、派生试算、幂等回执和稳定引用使用语义明确的专用 Store，不伪装成通用 Aggregate Repository。
 - 业务版本（例如 Offer 版本、WMS 来源版本）与 JPA 持久化版本含义不同，必须分别建模和完整往返映射。
 
 ### 本地事务

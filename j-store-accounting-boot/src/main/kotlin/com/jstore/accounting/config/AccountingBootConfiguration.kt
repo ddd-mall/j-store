@@ -22,8 +22,7 @@ import com.jstore.accounting.domain.journal.*
 import com.jstore.accounting.service.*
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.utils.*
-import com.jstore.order.domain.order.*
-import java.time.ZoneOffset
+import com.jstore.order.api.OrderAccountingQuery
 import org.springframework.context.annotation.*
 import org.springframework.transaction.PlatformTransactionManager
 
@@ -57,20 +56,20 @@ class AccountingBootConfiguration {
     ): SettlementUseCase = TransactionalSettlementUseCase(service, transactionManager)
 
     @Bean
-    fun accountingOrderService(orders: OrderRepository) =
+    fun accountingOrderService(orders: OrderAccountingQuery) =
         object : AccountingOrderService {
             override fun getOrderAccountingInfo(orderId: String) =
-                orders.findById(OrderId(orderId.toLong()))?.let {
+                orders.find(orderId.toLong())?.let {
                     Success(
                         OrderAccountingInfo(
                             orderId,
-                            it.merchantId.value.toString(),
-                            it.paidAmount,
+                            it.merchantId.toString(),
+                            com.jstore.common.properties.Price.ofFen(it.paidAmount),
                             com.jstore.common.properties.Price.ZERO,
-                            it.updateTime.toInstant(ZoneOffset.UTC),
+                            it.updatedAt,
                         )
                     )
-                } ?: Failure(OrderErrors.ORDER_NOT_FOUND)
+                } ?: Failure(AccountingErrors.SOURCE_DOCUMENT_NOT_FOUND)
 
             override fun getRefundableOriginalSource(orderId: String) =
                 Success(SourceDocument(SourceDocumentType.ORDER, orderId, "PaymentCapturedEvent"))

@@ -16,7 +16,6 @@
  */
 package com.jstore.shop.domain.merchant
 
-import com.jstore.shop.domain.merchant.persistence.MerchantMembershipPOJpaRepository
 import com.jstore.shop.domain.merchant.persistence.MerchantPO
 import com.jstore.shop.domain.merchant.persistence.MerchantPOJpaRepository
 import org.springframework.stereotype.Repository
@@ -24,25 +23,11 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 @Repository
-class MerchantRepositoryImpl(
-    private val jpaRepository: MerchantPOJpaRepository,
-    private val membershipJpaRepository: MerchantMembershipPOJpaRepository,
-) : MerchantRepository {
+class MerchantRepositoryImpl(private val jpaRepository: MerchantPOJpaRepository) :
+    MerchantRepository {
     @Transactional(propagation = Propagation.MANDATORY)
-    override fun createWithOwner(
-        merchant: Merchant,
-        ownerMembership: MerchantMembership,
-    ): Merchant {
-        val saved = jpaRepository.save(Converter.toPO(merchant))
-        membershipJpaRepository.save(
-            MerchantMembershipRepositoryImpl.Converter.toPO(ownerMembership)
-        )
-        return Converter.toDomain(saved)
-    }
-
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(entity: Merchant): Merchant =
-        Converter.toDomain(jpaRepository.save(Converter.toPO(entity)))
+    override fun save(aggregate: Merchant): Merchant =
+        Converter.toDomain(jpaRepository.save(Converter.toPO(aggregate)))
 
     @Transactional(readOnly = true)
     override fun findById(id: MerchantId): Merchant? =

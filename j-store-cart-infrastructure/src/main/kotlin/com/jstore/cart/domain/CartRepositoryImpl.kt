@@ -87,8 +87,8 @@ class CartRepositoryImpl(private val jpa: CartPOJpaRepository) : CartRepository 
 }
 
 @Repository
-class CartAssessmentRepositoryImpl(private val jpa: CartAssessmentPOJpaRepository) :
-    CartAssessmentRepository {
+class CartAssessmentStoreImpl(private val jpa: CartAssessmentPOJpaRepository) :
+    CartAssessmentStore {
     @Transactional(propagation = Propagation.MANDATORY)
     override fun save(aggregate: CartAssessment): CartAssessment =
         toDomain(jpa.save(toPO(aggregate)))
@@ -156,8 +156,8 @@ class CartAssessmentRepositoryImpl(private val jpa: CartAssessmentPOJpaRepositor
 }
 
 @Repository
-class CartRequestReceiptRepositoryImpl(private val jpa: CartRequestReceiptPOJpaRepository) :
-    CartRequestReceiptRepository {
+class CartRequestReceiptStoreImpl(private val jpa: CartRequestReceiptPOJpaRepository) :
+    CartRequestReceiptStore {
     @Transactional(propagation = Propagation.MANDATORY)
     override fun save(aggregate: CartRequestReceipt): CartRequestReceipt =
         toDomain(

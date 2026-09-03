@@ -16,7 +16,7 @@
  */
 package com.jstore.goods.domain.category
 
-import com.jstore.common.framework.AggregateRoot
+import com.jstore.common.framework.Entity
 import com.jstore.common.properties.Id
 import com.jstore.goods.domain.content.LocalizedText
 
@@ -30,7 +30,7 @@ data class Category(
     override val id: CategoryId,
     val name: LocalizedText,
     val parentId: CategoryId? = null,
-) : AggregateRoot<CategoryId> {
+) : Entity<CategoryId> {
     init {
         require(parentId != id) { "category cannot be its own parent" }
     }

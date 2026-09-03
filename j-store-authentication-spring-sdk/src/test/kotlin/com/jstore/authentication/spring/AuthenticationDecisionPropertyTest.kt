@@ -20,7 +20,7 @@ import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.annotation.SkipLogin
 import com.jstore.authentication.config.AuthenticationConfigurer
 import com.jstore.authentication.principal.AccessTokenVerifier
-import com.jstore.user.domain.useraccount.TokenStore
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -110,7 +110,7 @@ class AuthenticationDecisionPropertyTest :
                 val interceptor =
                     AuthenticationInterceptor(
                         accessTokenVerifier = mock(AccessTokenVerifier::class.java),
-                        tokenStore = mock(TokenStore::class.java),
+                        tokenStore = mock(AuthenticatedSessionStore::class.java),
                         configurers = listOf(configurer),
                     )
 

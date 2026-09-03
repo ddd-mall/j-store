@@ -18,7 +18,7 @@ package com.jstore.authentication.spring
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.principal.AccessTokenVerifier
-import com.jstore.user.domain.useraccount.TokenStore
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
@@ -36,7 +36,7 @@ class AuthenticationAutoConfigurationTest {
     fun `auto-configuration activates when an AccessTokenVerifier is present`() {
         contextRunner
             .withBean(AccessTokenVerifier::class.java, { mock() })
-            .withBean(TokenStore::class.java, { mock() })
+            .withBean(AuthenticatedSessionStore::class.java, { mock() })
             .withBean(ObjectMapper::class.java, { ObjectMapper() })
             .run { context ->
                 assertThat(context).hasSingleBean(AuthenticationInterceptor::class.java)
@@ -46,7 +46,7 @@ class AuthenticationAutoConfigurationTest {
 
     @Test
     fun `auto-configuration does not activate when AccessTokenVerifier is missing`() {
-        contextRunner.withBean(TokenStore::class.java, { mock() }).run { context ->
+        contextRunner.withBean(AuthenticatedSessionStore::class.java, { mock() }).run { context ->
             assertThat(context).doesNotHaveBean(AuthenticationInterceptor::class.java)
             assertThat(context).doesNotHaveBean(CurrentPrincipalArgumentResolver::class.java)
         }

@@ -17,18 +17,14 @@
 package com.jstore.order.controller
 
 import com.jstore.authentication.annotation.CurrentPrincipal
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.aftersale.*
-import com.jstore.order.domain.aftersale.command.AfterSaleApproveCMD
 import com.jstore.order.domain.order.OrderId
-import com.jstore.order.service.AfterSaleOrderAccess
+import com.jstore.order.service.AfterSaleAccessUseCase
 import com.jstore.order.service.AfterSaleUseCase
-import com.jstore.shop.domain.merchant.MerchantId
-import com.jstore.shop.domain.merchant.MerchantPermission
-import com.jstore.shop.service.MerchantAuthorizationService
-import com.jstore.user.domain.useraccount.UserId
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
@@ -44,20 +40,18 @@ import org.springframework.web.method.support.ModelAndViewContainer
 
 class AfterSaleControllerContractTest {
     private lateinit var service: AfterSaleUseCase
-    private lateinit var authorization: MerchantAuthorizationService
+    private lateinit var access: AfterSaleAccessUseCase
     private lateinit var mvc: MockMvc
 
     @BeforeEach
     fun setUp() {
         service = mock(AfterSaleUseCase::class.java)
-        authorization = mock(MerchantAuthorizationService::class.java)
-        `when`(service.findById(AfterSaleId(9))).thenReturn(Failure(AfterSaleErrors.NOT_FOUND))
-        `when`(service.listByOrderForAccess(OrderId(8)))
-            .thenReturn(
-                Success(AfterSaleOrderAccess("issuer-a", 41, MerchantActorId(70), emptyList()))
-            )
+        access = mock(AfterSaleAccessUseCase::class.java)
+        `when`(access.get("issuer-a", 41, AfterSaleId(9)))
+            .thenReturn(Failure(AfterSaleErrors.NOT_FOUND))
+        `when`(access.list("issuer-a", 41, OrderId(8))).thenReturn(Success(emptyList()))
         mvc =
-            MockMvcBuilders.standaloneSetup(AfterSaleController(service, authorization))
+            MockMvcBuilders.standaloneSetup(AfterSaleController(service, access))
                 .setCustomArgumentResolvers(CurrentUserResolver())
                 .build()
     }
@@ -67,7 +61,7 @@ class AfterSaleControllerContractTest {
         mvc.perform(get("/api/after-sales/9").header("X-Test-User", "41"))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.errorCode").value(AfterSaleErrors.NOT_FOUND.errorCode))
-        verify(service).findById(AfterSaleId(9))
+        verify(access).get("issuer-a", 41, AfterSaleId(9))
         mvc.perform(get("/api/after-sales").param("orderId", "8").header("X-Test-User", "41"))
             .andExpect(status().isOk)
             .andExpect(content().json("[]"))
@@ -117,19 +111,8 @@ class AfterSaleControllerContractTest {
     }
 
     @Test
-    fun `merchant staff approval authorizes membership and uses merchant actor id`() {
-        val afterSale = mock(AfterSale::class.java)
-        `when`(afterSale.merchantId).thenReturn(MerchantActorId(70))
-        `when`(service.findById(AfterSaleId(9))).thenReturn(Success(afterSale))
-        `when`(
-                authorization.hasPermission(
-                    900,
-                    MerchantId(70),
-                    MerchantPermission.AFTER_SALE_MANAGE,
-                )
-            )
-            .thenReturn(true)
-        `when`(service.approve(AfterSaleApproveCMD(AfterSaleId(9), MerchantActorId(70), "key")))
+    fun `merchant staff approval delegates identity-aware application use case`() {
+        `when`(access.approve(900, AfterSaleId(9), "key"))
             .thenReturn(Failure(AfterSaleErrors.ILLEGAL_STATE))
 
         mvc.perform(
@@ -139,7 +122,7 @@ class AfterSaleControllerContractTest {
             )
             .andExpect(status().isConflict)
 
-        verify(service).approve(AfterSaleApproveCMD(AfterSaleId(9), MerchantActorId(70), "key"))
+        verify(access).approve(900, AfterSaleId(9), "key")
     }
 
     private class CurrentUserResolver : HandlerMethodArgumentResolver {
@@ -154,7 +137,7 @@ class AfterSaleControllerContractTest {
         ) =
             AuthenticatedPrincipal(
                 "issuer-a",
-                UserId(webRequest.getHeader("X-Test-User")!!.toLong()),
+                AuthenticatedAccountId(webRequest.getHeader("X-Test-User")!!.toLong()),
             )
     }
 }

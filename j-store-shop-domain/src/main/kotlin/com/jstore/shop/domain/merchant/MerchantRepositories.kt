@@ -18,9 +18,7 @@ package com.jstore.shop.domain.merchant
 
 import com.jstore.common.framework.AggregateRepository
 
-interface MerchantRepository : AggregateRepository<MerchantId, Merchant> {
-    fun createWithOwner(merchant: Merchant, ownerMembership: MerchantMembership): Merchant
-}
+interface MerchantRepository : AggregateRepository<MerchantId, Merchant>
 
 interface MerchantMembershipRepository :
     AggregateRepository<MerchantMembershipId, MerchantMembership> {

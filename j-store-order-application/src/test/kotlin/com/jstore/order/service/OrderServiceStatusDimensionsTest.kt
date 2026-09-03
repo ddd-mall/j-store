@@ -157,6 +157,8 @@ private fun validCreateCommand() =
                     skuId = 1L,
                     quantity = 1,
                     snapshotVersion = 1L,
+                    offerId = 2L,
+                    offerVersion = 1L,
                 )
             ),
     )

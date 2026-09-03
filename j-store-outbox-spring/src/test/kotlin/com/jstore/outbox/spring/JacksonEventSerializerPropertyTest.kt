@@ -67,7 +67,18 @@ class JacksonEventSerializerPropertyTest :
                 Arb.long(1L..100_000L),
                 Arb.int(1..999),
             ) { skuId, qty ->
-                OrderItemSnapshot(1, skuId, qty, 1, Price.ofFen(100))
+                OrderItemSnapshot(
+                    spuId = 1,
+                    skuId = skuId,
+                    quantity = qty,
+                    catalogSnapshotVersion = 1,
+                    unitPrice = Price.ofFen(100),
+                    offerId = skuId,
+                    storeId = 1,
+                    offerVersion = 1,
+                    fulfillmentNodeId = "DEFAULT",
+                    channelId = "ONLINE",
+                )
             }
         val arbItemList = Arb.list(arbItemSnapshot, 1..5)
 

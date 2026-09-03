@@ -198,6 +198,8 @@ class OrderFactoryShippingInfoPropertyTest :
                                     skuId = 1,
                                     quantity = 1,
                                     snapshotVersion = 1L,
+                                    offerId = 1L,
+                                    offerVersion = 1L,
                                 )
                             ),
                     )

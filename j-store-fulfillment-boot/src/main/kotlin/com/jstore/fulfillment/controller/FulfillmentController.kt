@@ -20,15 +20,10 @@ import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.errors.BusinessError
-import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.fold
-import com.jstore.fulfillment.domain.FulfillmentErrors
 import com.jstore.fulfillment.domain.FulfillmentOrder
-import com.jstore.fulfillment.service.FulfillmentUseCase
-import com.jstore.shop.domain.merchant.MerchantId
-import com.jstore.shop.domain.merchant.MerchantPermission
-import com.jstore.shop.service.MerchantAuthorizationService
+import com.jstore.fulfillment.service.MerchantFulfillmentUseCase
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -40,10 +35,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/fulfillments")
 @RequireLogin
-class FulfillmentController(
-    private val service: FulfillmentUseCase,
-    private val merchantAuthorization: MerchantAuthorizationService,
-) {
+class FulfillmentController(private val service: MerchantFulfillmentUseCase) {
     data class DispatchRequest(val carrierCode: String, val trackingNumber: String)
 
     data class ErrorResponse(val message: String, val errorCode: String)
@@ -62,7 +54,7 @@ class FulfillmentController(
         @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable orderId: Long,
     ): ResponseEntity<*> =
-        authorized(principal, orderId, MerchantPermission.FULFILLMENT_READ).response {
+        service.get(principal.accountId.value, orderId).response {
             it.toResponse()
         }
 
@@ -70,7 +62,8 @@ class FulfillmentController(
     fun prepare(
         @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable orderId: Long,
-    ): ResponseEntity<*> = authorizeThen(principal, orderId) { service.prepare(orderId) }
+    ): ResponseEntity<*> =
+        service.prepare(principal.accountId.value, orderId).response { mapOf("changed" to it) }
 
     @PostMapping("/orders/{orderId}/dispatch")
     fun dispatch(
@@ -78,47 +71,21 @@ class FulfillmentController(
         @PathVariable orderId: Long,
         @RequestBody body: DispatchRequest,
     ): ResponseEntity<*> =
-        authorizeThen(principal, orderId) {
-            service.dispatch(orderId, body.carrierCode, body.trackingNumber)
-        }
+        service
+            .dispatch(
+                principal.accountId.value,
+                orderId,
+                body.carrierCode,
+                body.trackingNumber,
+            )
+            .response { mapOf("changed" to it) }
 
     @PostMapping("/orders/{orderId}/deliver")
     fun deliver(
         @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable orderId: Long,
-    ): ResponseEntity<*> = authorizeThen(principal, orderId) { service.deliver(orderId) }
-
-    private fun authorizeThen(
-        principal: AuthenticatedPrincipal,
-        orderId: Long,
-        operation: () -> Result<Boolean, BusinessError>,
-    ): ResponseEntity<*> {
-        val authorization = authorized(principal, orderId, MerchantPermission.FULFILLMENT_MANAGE)
-        if (authorization is Failure) return authorization.response {}
-        return operation().response { mapOf("changed" to it) }
-    }
-
-    private fun authorized(
-        principal: AuthenticatedPrincipal,
-        orderId: Long,
-        permission: MerchantPermission,
-    ): Result<FulfillmentOrder, BusinessError> {
-        val result = service.getByOrderId(orderId)
-        return result.fold(
-            onSuccess = {
-                if (
-                    merchantAuthorization.hasPermission(
-                        principal.accountId.value,
-                        MerchantId(it.merchantId),
-                        permission,
-                    )
-                )
-                    result
-                else Failure(FulfillmentErrors.NOT_FOUND)
-            },
-            onFailure = { result },
-        )
-    }
+    ): ResponseEntity<*> =
+        service.deliver(principal.accountId.value, orderId).response { mapOf("changed" to it) }
 
     private fun FulfillmentOrder.toResponse() =
         Response(

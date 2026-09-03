@@ -16,9 +16,9 @@
  */
 package com.jstore.authentication.context
 
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.authentication.principal.AuthenticatedSession
-import com.jstore.user.domain.useraccount.UserId
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -28,13 +28,13 @@ class AuthenticatedPrincipalContractTest :
             val siteA =
                 AuthenticatedPrincipal(
                     "https://accounts.site-a.example",
-                    UserId(42),
+                    AuthenticatedAccountId(42),
                     AuthenticatedSession("session-a", 1),
                 )
             val siteB =
                 AuthenticatedPrincipal(
                     "https://accounts.site-b.example",
-                    UserId(42),
+                    AuthenticatedAccountId(42),
                     AuthenticatedSession("session-b", 1),
                 )
 
@@ -46,7 +46,7 @@ class AuthenticatedPrincipalContractTest :
             val principal =
                 AuthenticatedPrincipal(
                     "https://accounts.site-a.example",
-                    UserId(7),
+                    AuthenticatedAccountId(7),
                     AuthenticatedSession("session-7", 3),
                 )
 

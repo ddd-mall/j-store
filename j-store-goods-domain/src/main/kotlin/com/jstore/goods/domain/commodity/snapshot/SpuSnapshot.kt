@@ -28,7 +28,7 @@ import java.time.LocalDateTime
 /** SPU 快照 ID */
 class SpuSnapshotId(override val value: Long) : Id<Long>(value)
 
-/** SPU 快照 — 不可变值对象，记录某一时刻的商品资料。成交价格由 SalesOffer/订单快照追溯。 */
+/** SPU 快照 — 不可变历史实体，记录某一时刻的商品资料。成交价格由 SalesOffer/订单快照追溯。 */
 data class SpuSnapshot(
     override val id: SpuSnapshotId,
     /** 商品所属商户 */

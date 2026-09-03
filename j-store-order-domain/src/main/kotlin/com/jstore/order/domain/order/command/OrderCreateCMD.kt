@@ -16,13 +16,7 @@
  */
 package com.jstore.order.domain.order.command
 
-import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.PhoneNumber
-import com.jstore.common.utils.Failure
-import com.jstore.common.utils.Result
-import com.jstore.common.utils.Success
-import com.jstore.common.utils.onFailure
-import com.jstore.order.domain.order.OrderErrors
 import java.io.Serializable
 
 /** 创建订单命令 */
@@ -37,20 +31,14 @@ data class OrderCreateCMD(
         val skuId: Long,
         val quantity: Int,
         val snapshotVersion: Long,
-        val offerId: Long = skuId,
-        val offerVersion: Long = snapshotVersion,
+        val offerId: Long,
+        val offerVersion: Long,
     )
 
     data class ContractInfoCMD(
         val phoneNumber: PhoneNumber? = null,
         val emailAddress: String? = null,
-    ) {
-        fun validate(): Result<ContractInfoCMD, BusinessError> {
-            if (null == phoneNumber && null == emailAddress)
-                return Failure(OrderErrors.CONTRACT_INFO_INVALID.msg("收货人联系方式不能全为空"))
-            return Success(this)
-        }
-    }
+    )
 
     data class RecipientInfoCMD(
         val consigneeName: String,
@@ -60,26 +48,5 @@ data class OrderCreateCMD(
         val shippingDetailAddress: String,
         val postalCode: String? = null,
         val customsFields: Map<String, String> = emptyMap(),
-    ) {
-        fun validate(): Result<RecipientInfoCMD, BusinessError> {
-            if (consigneeName.isBlank()) return Failure(OrderErrors.CONSIGNEE_NAME_BLANK)
-            if (countryCode.isBlank()) return Failure(OrderErrors.COUNTRY_CODE_BLANK)
-            if (shippingDistrictCode.isBlank()) return Failure(OrderErrors.DISTRICT_CODE_BLANK)
-            consigneeContractInfo.validate().onFailure {
-                return Failure(it)
-            }
-            return Success(this)
-        }
-    }
-
-    fun validate(): Result<OrderCreateCMD, BusinessError> {
-        if (items.isEmpty()) return Failure(OrderErrors.ITEMS_EMPTY)
-        if (buyerUid <= 0) return Failure(OrderErrors.BUYER_INVALID)
-        if (merchantId <= 0) return Failure(OrderErrors.MERCHANT_INVALID)
-        recipientInfo.validate().onFailure {
-            return Failure(it)
-        }
-
-        return Success(this)
-    }
+    )
 }

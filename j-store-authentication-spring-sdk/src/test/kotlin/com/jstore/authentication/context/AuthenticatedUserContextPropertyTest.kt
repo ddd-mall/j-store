@@ -16,8 +16,8 @@
  */
 package com.jstore.authentication.context
 
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
-import com.jstore.user.domain.useraccount.UserId
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -39,7 +39,7 @@ class AuthenticatedUserContextPropertyTest :
         test(
             "set → getCurrentUserId → getCurrentUserIdOrNull → clear → getCurrentUserIdOrNull round-trip"
         ) {
-            val userIdArb = Arb.long(min = 1L).map { UserId(it) }
+            val userIdArb = Arb.long(min = 1L).map { AuthenticatedAccountId(it) }
 
             checkAll(PropTestConfig(iterations = 100), userIdArb) { userId ->
                 try {
@@ -58,7 +58,7 @@ class AuthenticatedUserContextPropertyTest :
         // Feature: authentication-sdk, Property 5: AuthenticatedUserContext 线程隔离
         // **Validates: Requirements 5.2**
         test("thread isolation — each thread sees only its own UserId") {
-            val userIdPairArb = Arb.long(min = 1L).map { UserId(it) }
+            val userIdPairArb = Arb.long(min = 1L).map { AuthenticatedAccountId(it) }
 
             checkAll(PropTestConfig(iterations = 100), userIdPairArb, userIdPairArb) {
                 userIdA,

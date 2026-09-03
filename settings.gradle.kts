@@ -34,6 +34,8 @@ include("j-store-trade-boot")
 
 include("j-store-order-domain")
 
+include("j-store-order-api")
+
 include("j-store-order-application")
 
 include("j-store-order-infrastructure")
@@ -83,6 +85,8 @@ include("j-store-accounting-infrastructure")
 include("j-store-accounting-boot")
 
 include("j-store-payment-domain")
+
+include("j-store-payment-api")
 
 include("j-store-payment-application")
 

@@ -29,44 +29,60 @@ import java.time.LocalDateTime
 class UserAccountImpl(
     override val id: UserId,
     override val phoneNumber: PhoneNumber,
-    override var nickname: Nickname,
-    override var passwordHash: Password,
-    override var status: UserAccountStatus,
+    nickname: Nickname,
+    passwordHash: Password,
+    status: UserAccountStatus,
     override val createTime: LocalDateTime = LocalDateTime.now(),
-    override var updateTime: LocalDateTime = LocalDateTime.now(),
+    updateTime: LocalDateTime = LocalDateTime.now(),
 ) : EventRecordingAggregateRoot<UserId>(), UserAccount {
+    private var _nickname = nickname
+    private var _passwordHash = passwordHash
+    private var _status = status
+    private var _updateTime = updateTime
+
+    override val nickname: Nickname
+        get() = _nickname
+
+    override val passwordHash: Password
+        get() = _passwordHash
+
+    override val status: UserAccountStatus
+        get() = _status
+
+    override val updateTime: LocalDateTime
+        get() = _updateTime
 
     internal fun recordRegistered() {
         raise(UserAccountRegisteredEvent(userId = id, phoneNumber = phoneNumber))
     }
 
     override fun changeNickname(newNickname: Nickname): Result<Unit, BusinessError> {
-        nickname = newNickname
-        updateTime = LocalDateTime.now()
+        _nickname = newNickname
+        _updateTime = LocalDateTime.now()
         return Success(Unit)
     }
 
     override fun changePassword(newPasswordHash: Password): Result<Unit, BusinessError> {
-        passwordHash = newPasswordHash
-        updateTime = LocalDateTime.now()
+        _passwordHash = newPasswordHash
+        _updateTime = LocalDateTime.now()
         return Success(Unit)
     }
 
     override fun disable(): Result<Unit, BusinessError> {
-        if (status != UserAccountStatus.ACTIVE) {
+        if (_status != UserAccountStatus.ACTIVE) {
             return Failure(UserAccountErrors.ILLEGAL_STATE)
         }
-        status = UserAccountStatus.DISABLED
-        updateTime = LocalDateTime.now()
+        _status = UserAccountStatus.DISABLED
+        _updateTime = LocalDateTime.now()
         return Success(Unit)
     }
 
     override fun enable(): Result<Unit, BusinessError> {
-        if (status != UserAccountStatus.DISABLED) {
+        if (_status != UserAccountStatus.DISABLED) {
             return Failure(UserAccountErrors.ILLEGAL_STATE)
         }
-        status = UserAccountStatus.ACTIVE
-        updateTime = LocalDateTime.now()
+        _status = UserAccountStatus.ACTIVE
+        _updateTime = LocalDateTime.now()
         return Success(Unit)
     }
 }

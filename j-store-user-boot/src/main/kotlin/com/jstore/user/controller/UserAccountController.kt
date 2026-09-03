@@ -151,7 +151,7 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
 
     @GetMapping("/me")
     fun findMe(@CurrentPrincipal principal: AuthenticatedPrincipal): ResponseEntity<*> {
-        return userAccountService.findById(principal.accountId).toResponse { account ->
+        return userAccountService.findById(principal.userId()).toResponse { account ->
             UserResponse(
                 id = account.id.value,
                 phoneNumber = account.phoneNumber.value,
@@ -170,7 +170,7 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
     ): ResponseEntity<*> {
         return userAccountService
             .changeNickname(
-                userId = principal.accountId,
+                userId = principal.userId(),
                 newNickname = Nickname(request.nickname),
             )
             .toResponse {}
@@ -183,7 +183,7 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
     ): ResponseEntity<*> {
         return userAccountService
             .changePassword(
-                userId = principal.accountId,
+                userId = principal.userId(),
                 oldPassword = request.oldPassword,
                 newPassword = request.newPassword,
             )
@@ -196,10 +196,12 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
         @RequestHeader("Authorization") authorization: String,
     ): ResponseEntity<*> =
         userAccountService
-            .logout(principal.accountId, authorization.removePrefix("Bearer "))
+            .logout(principal.userId(), authorization.removePrefix("Bearer "))
             .toResponse {}
 
     // ---- Helper ----
+
+    private fun AuthenticatedPrincipal.userId() = UserId(accountId.value)
 
     private fun <T> Result<T, BusinessError>.toResponse(mapper: (T) -> Any): ResponseEntity<*> {
         return fold(

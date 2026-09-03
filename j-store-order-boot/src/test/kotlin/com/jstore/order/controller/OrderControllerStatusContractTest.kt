@@ -17,6 +17,7 @@
 package com.jstore.order.controller
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.properties.Price
 import com.jstore.common.query.SortedPage
@@ -34,7 +35,6 @@ import com.jstore.order.domain.order.PaymentStatus
 import com.jstore.order.domain.order.TradeStatus
 import com.jstore.order.domain.order.UserInfo
 import com.jstore.order.service.OrderUseCase
-import com.jstore.user.domain.useraccount.UserId
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -93,7 +93,7 @@ class OrderControllerStatusContractTest {
         `when`(order.updateTime).thenReturn(now)
         `when`(service.getOrderById("issuer-a", 2, OrderId(1))).thenReturn(Success(order))
 
-        val principal = AuthenticatedPrincipal("issuer-a", UserId(2))
+        val principal = AuthenticatedPrincipal("issuer-a", AuthenticatedAccountId(2))
         val body = OrderController(service).getOrder(principal, 1).body
         val json =
             jacksonObjectMapper()

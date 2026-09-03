@@ -17,7 +17,9 @@
 package com.jstore.order.config
 
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.order.domain.aftersale.AfterSaleCommandReceiptStore
 import com.jstore.order.domain.aftersale.AfterSaleRepository
+import com.jstore.order.domain.aftersale.RefundCapacityRepository
 import com.jstore.order.domain.order.OrderRepository
 import kotlin.test.assertNotNull
 import org.junit.jupiter.api.Test
@@ -35,6 +37,8 @@ class AfterSaleBootWiringTest {
             configuration.afterSaleApplicationService(
                 factory,
                 repository,
+                mock(RefundCapacityRepository::class.java),
+                mock(AfterSaleCommandReceiptStore::class.java),
                 orders,
                 mock(DomainEventPublisher::class.java),
             )

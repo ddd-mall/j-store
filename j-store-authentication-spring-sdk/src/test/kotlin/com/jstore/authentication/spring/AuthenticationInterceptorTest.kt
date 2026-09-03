@@ -20,10 +20,10 @@ import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.config.AuthenticationConfigurer
 import com.jstore.authentication.error.AuthenticationErrors
 import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.authentication.principal.AuthenticatedSession
-import com.jstore.user.domain.useraccount.TokenStore
-import com.jstore.user.domain.useraccount.UserId
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -43,7 +43,7 @@ class AuthenticationInterceptorTest :
             "unexpected exception during token validation returns HTTP 500 with Auth.InternalError"
         ) {
             val tokenVerifier = mock<AccessTokenVerifier>()
-            val tokenStore = mock<TokenStore>()
+            val tokenStore = mock<AuthenticatedSessionStore>()
             val interceptor =
                 AuthenticationInterceptor(
                     accessTokenVerifier = tokenVerifier,
@@ -88,7 +88,7 @@ class AuthenticationInterceptorTest :
             "when both annotation and path config require auth, token validation executes only once"
         ) {
             val tokenVerifier = mock<AccessTokenVerifier>()
-            val tokenStore = mock<TokenStore>()
+            val tokenStore = mock<AuthenticatedSessionStore>()
 
             // Configure a path pattern that also matches the request
             val configurer =
@@ -117,11 +117,12 @@ class AuthenticationInterceptorTest :
             val principal =
                 AuthenticatedPrincipal(
                     "issuer-a",
-                    UserId(42L),
+                    AuthenticatedAccountId(42L),
                     AuthenticatedSession("session-1", 2L),
                 )
             whenever(tokenVerifier.verifyAccessToken("validtoken")).thenReturn(principal)
-            whenever(tokenStore.isSessionActive(UserId(42L), "session-1", 2L)).thenReturn(true)
+            whenever(tokenStore.isSessionActive(AuthenticatedAccountId(42L), "session-1", 2L))
+                .thenReturn(true)
 
             val response = mock<HttpServletResponse>()
 
