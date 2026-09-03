@@ -61,6 +61,8 @@ class IntegrationMessageDeliveryChannelsTest {
                 deliveryProfile = "CHECKOUT_CRITICAL",
                 acceptBefore = acceptBefore,
                 partitionKey = "42",
+                merchantScopeId = "merchant-7",
+                deploymentScopeId = "site-jp",
                 orderingKey = "orders.events:42",
                 sequenceNo = 19,
             )
@@ -72,6 +74,8 @@ class IntegrationMessageDeliveryChannelsTest {
         assertEquals("order.events", delivered?.logicalDestination)
         assertEquals("CHECKOUT_CRITICAL", delivered?.deliveryProfile)
         assertEquals(acceptBefore, delivered?.acceptBefore)
+        assertEquals("merchant-7", delivered?.merchantScopeId)
+        assertEquals("site-jp", delivered?.deploymentScopeId)
     }
 
     @Test

@@ -488,7 +488,8 @@ open class OutboxEntryRepositoryImpl(
                 partitionKey = entry.partitionKey,
                 correlationId = entry.correlationId,
                 causationId = entry.causationId,
-                tenantId = entry.tenantId,
+                merchantScopeId = entry.merchantScopeId,
+                deploymentScopeId = entry.deploymentScopeId,
                 orderingKey = entry.orderingKey,
                 sequenceNo = entry.sequenceNo,
             )
@@ -525,7 +526,8 @@ open class OutboxEntryRepositoryImpl(
                 partitionKey = po.partitionKey,
                 correlationId = po.correlationId,
                 causationId = po.causationId,
-                tenantId = po.tenantId,
+                merchantScopeId = po.merchantScopeId,
+                deploymentScopeId = po.deploymentScopeId,
                 orderingKey = po.orderingKey,
                 sequenceNo = po.sequenceNo,
             )

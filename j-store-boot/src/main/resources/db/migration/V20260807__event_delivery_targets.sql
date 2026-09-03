@@ -5,7 +5,8 @@ ALTER TABLE outbox_entry
     ADD COLUMN IF NOT EXISTS partition_key VARCHAR(256),
     ADD COLUMN IF NOT EXISTS correlation_id VARCHAR(128),
     ADD COLUMN IF NOT EXISTS causation_id VARCHAR(128),
-    ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(128);
+    ADD COLUMN IF NOT EXISTS merchant_scope_id VARCHAR(128),
+    ADD COLUMN IF NOT EXISTS deployment_scope_id VARCHAR(128);
 
 UPDATE outbox_entry
 SET message_kind = COALESCE(message_kind, 'DOMAIN_EVENT'),

@@ -173,7 +173,8 @@ PAYMENT_READY / PAYING
 | `partitionKey` | Checkout 编排按 `orderPlanId` 保证计划内局部有序；订单生成后的支付分配、履约和售后按适用的 `tradeId` 或 `orderId` 分区 |
 | `correlationId` | Checkout 主链统一使用稳定 `tradeId`；不得再用尚未生成的 `orderId` 充当 Trade 身份 |
 | `causationId` | 触发当前消息的上游 message/event ID |
-| `tenantId` | 商户隔离需要时使用 `merchantId`；消费端不得只信任该字段完成授权 |
+| `merchantScopeId` | 商户隔离需要时使用 `merchantId`；不承载 Site 语义，消费端不得只信任该字段完成授权 |
+| `deploymentScopeId` | 独立的部署/站点路由扩展；当前可空或由部署配置提供，不参与业务授权 |
 | `occurredAt` | 事实发生或命令生成时间，不能代替业务截止时间 |
 | `acceptBefore` | 命令最晚受理时间；迟到时产生明确失败事实，不静默执行 |
 | `expiresAt` | 授权、Reservation、收银台会话等业务承诺失效时间 |
@@ -271,7 +272,7 @@ data class DeliveryPolicy(
 - message name/version 与类注册一致性测试。
 - 稳定 ID 的版本、业务键和时间输入属性测试。
 - 每个 Command 恰好一个 Handler 的装配测试。
-- destination、partitionKey、correlationId、causationId、tenantId 和 Deadline 校验测试。
+- destination、partitionKey、correlationId、causationId、merchantScopeId、deploymentScopeId 和 Deadline 校验测试。
 - V1 payload 的必填字段和拒绝非法载荷测试。
 - 更新集成契约文档和 `docs/domain-modeling.md` 的漂移评估。
 

@@ -259,7 +259,8 @@ private data class TestReserveInventoryCommand(
     override val partitionKey: String = orderId.toString()
     override val correlationId: String = "checkout-42"
     override val causationId: String = "order-created-42"
-    override val tenantId: String = "merchant-7"
+    override val merchantScopeId: String = "merchant-7"
+    override val deploymentScopeId: String = "site-jp"
     override val destination: String = "inventory.commands"
 
     fun withMessageId(messageId: String) = copy(id = messageId)

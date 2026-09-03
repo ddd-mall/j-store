@@ -117,6 +117,10 @@ class OutboxIntegrationMessagePublisherTest :
                 listOf(message.partitionKey)
             captor.allValues.map { it.correlationId }.distinct() shouldBe
                 listOf(message.correlationId)
+            captor.allValues.map { it.merchantScopeId }.distinct() shouldBe
+                listOf(message.merchantScopeId)
+            captor.allValues.map { it.deploymentScopeId }.distinct() shouldBe
+                listOf(message.deploymentScopeId)
             captor.allValues.map { it.orderingKey }.distinct() shouldBe listOf(orderingKey)
             captor.allValues.map { it.sequenceNo }.shouldContainExactly(11, 7)
         }
@@ -139,7 +143,8 @@ class OutboxIntegrationMessagePublisherTest :
 
             listOf(
                     message.copy(causationId = " "),
-                    message.copy(tenantId = " "),
+                    message.copy(merchantScopeId = " "),
+                    message.copy(deploymentScopeId = " "),
                 )
                 .forEach { invalidMessage ->
                     shouldThrow<IllegalArgumentException> { publisher.publish(invalidMessage) }
@@ -154,7 +159,8 @@ data class TestReserveInventoryCommand(
     val orderId: Long,
     override val occurredAt: Instant,
     override val causationId: String = "order-created-42",
-    override val tenantId: String = "merchant-7",
+    override val merchantScopeId: String = "merchant-7",
+    override val deploymentScopeId: String = "site-jp",
     override val acceptBefore: Instant = occurredAt.plusSeconds(10),
 ) : IntegrationCommand {
     override val messageId: String = "message-1"

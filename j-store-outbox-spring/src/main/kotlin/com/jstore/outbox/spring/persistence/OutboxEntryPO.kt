@@ -69,7 +69,8 @@ class OutboxEntryPO(
     @Column(name = "partition_key", nullable = false, length = 256) var partitionKey: String = "",
     @Column(name = "correlation_id", nullable = false, length = 128) var correlationId: String = "",
     @Column(name = "causation_id", length = 128) var causationId: String? = null,
-    @Column(name = "tenant_id", length = 128) var tenantId: String? = null,
+    @Column(name = "merchant_scope_id", length = 128) var merchantScopeId: String? = null,
+    @Column(name = "deployment_scope_id", length = 128) var deploymentScopeId: String? = null,
     @Column(name = "ordering_key", nullable = false, length = 64) var orderingKey: String = "",
     @Column(name = "sequence_no", nullable = false) var sequenceNo: Long = 1,
 )

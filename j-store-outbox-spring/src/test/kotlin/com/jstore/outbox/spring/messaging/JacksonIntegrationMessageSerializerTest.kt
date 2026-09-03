@@ -34,6 +34,8 @@ import com.jstore.contracts.commerce.ReserveInventoryCommand
 import com.jstore.outbox.InMemoryIntegrationMessageTypeRegistry
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import java.time.Instant
 
 class JacksonIntegrationMessageSerializerTest :
@@ -143,9 +145,15 @@ class JacksonIntegrationMessageSerializerTest :
                     Instant.parse("2026-08-05T00:10:00Z"),
                 )
 
+            val payload = serializer.serialize(command)
+            payload shouldContain "\"merchantScopeId\":\"7\""
+            payload shouldNotContain "\"tenantId\""
+            command.metadata.merchantScopeId shouldBe "7"
+            command.metadata.deploymentScopeId shouldBe null
+
             val restored =
                 serializer.deserialize(
-                    serializer.serialize(command),
+                    payload,
                     command.messageName,
                     command.messageVersion,
                 )

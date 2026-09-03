@@ -41,6 +41,34 @@ class IntegrationMessageTest {
     }
 
     @Test
+    fun `merchant and deployment scopes are independent optional metadata`() {
+        val metadata =
+            IntegrationMessageMetadata(
+                messageId = "message-1",
+                messageName = "inventory.reserve.requested",
+                messageVersion = 1,
+                occurredAt = occurredAt,
+                partitionKey = "order-42",
+                correlationId = "checkout-42",
+                merchantScopeId = "merchant-7",
+                deploymentScopeId = "site-jp",
+            )
+
+        assertEquals("merchant-7", metadata.merchantScopeId)
+        assertEquals("site-jp", metadata.deploymentScopeId)
+    }
+
+    @Test
+    fun `blank merchant or deployment scope is rejected`() {
+        assertFailsWith<IllegalArgumentException> {
+            validMetadata(merchantScopeId = " ")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            validMetadata(deploymentScopeId = " ")
+        }
+    }
+
+    @Test
     fun `source aware message id is stable across retries and unique across sources`() {
         val first =
             stableIntegrationMessageId(
@@ -87,4 +115,19 @@ class IntegrationMessageTest {
             ),
         )
     }
+
+    private fun validMetadata(
+        merchantScopeId: String? = null,
+        deploymentScopeId: String? = null,
+    ) =
+        IntegrationMessageMetadata(
+            messageId = "message-1",
+            messageName = "inventory.reserve.requested",
+            messageVersion = 1,
+            occurredAt = occurredAt,
+            partitionKey = "order-42",
+            correlationId = "checkout-42",
+            merchantScopeId = merchantScopeId,
+            deploymentScopeId = deploymentScopeId,
+        )
 }

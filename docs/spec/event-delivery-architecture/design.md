@@ -36,7 +36,10 @@ OutboxPublisher -> OutboxDeliveryRouter -> exactly one OutboxDeliveryChannel
 - `partitionKey`：目标系统的有序分区依据。
 - `correlationId`：同一业务流程关联 ID。
 - `causationId`：触发当前消息的上游消息 ID，可空。
-- `tenantId`：租户或商户隔离标识，可空。
+- `merchantScopeId`：可选的商户隔离范围；当前只表示 `merchantId`，不表示 Site 或部署租户。
+- `deploymentScopeId`：可选的部署/站点路由扩展；与商户范围独立，当前可以为空。
+
+上述范围字段只用于路由、隔离和观测，消费者不得仅依赖 metadata 完成业务授权。
 
 外部 DTO 只使用 JSON 稳定的标量、集合和专用 contract data class。
 

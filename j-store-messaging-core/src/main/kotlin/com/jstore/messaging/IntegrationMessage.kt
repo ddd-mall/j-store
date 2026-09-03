@@ -31,7 +31,12 @@ interface IntegrationMessage {
     val causationId: String?
         get() = null
 
-    val tenantId: String?
+    /** Optional merchant isolation scope. It is not a site or deployment identity. */
+    val merchantScopeId: String?
+        get() = null
+
+    /** Optional deployment/site routing extension, independent from merchant authorization. */
+    val deploymentScopeId: String?
         get() = null
 
     val destination: String
@@ -46,7 +51,8 @@ interface IntegrationMessage {
                 partitionKey = partitionKey,
                 correlationId = correlationId,
                 causationId = causationId,
-                tenantId = tenantId,
+                merchantScopeId = merchantScopeId,
+                deploymentScopeId = deploymentScopeId,
                 acceptBefore = (this as? IntegrationCommand)?.acceptBefore,
             )
 }
@@ -76,7 +82,8 @@ data class IntegrationMessageMetadata(
     val partitionKey: String,
     val correlationId: String,
     val causationId: String? = null,
-    val tenantId: String? = null,
+    val merchantScopeId: String? = null,
+    val deploymentScopeId: String? = null,
     val acceptBefore: Instant? = null,
 ) {
     init {
@@ -88,7 +95,12 @@ data class IntegrationMessageMetadata(
         require(causationId == null || causationId.isNotBlank()) {
             "causationId must be null or non-blank"
         }
-        require(tenantId == null || tenantId.isNotBlank()) { "tenantId must be null or non-blank" }
+        require(merchantScopeId == null || merchantScopeId.isNotBlank()) {
+            "merchantScopeId must be null or non-blank"
+        }
+        require(deploymentScopeId == null || deploymentScopeId.isNotBlank()) {
+            "deploymentScopeId must be null or non-blank"
+        }
         require(acceptBefore == null || !acceptBefore.isBefore(occurredAt)) {
             "acceptBefore must not precede occurredAt"
         }
