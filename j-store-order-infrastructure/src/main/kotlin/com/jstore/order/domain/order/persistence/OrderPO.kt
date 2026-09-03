@@ -48,6 +48,8 @@ class OrderPO(
     @Column(name = "source_order_plan_id", unique = true) var sourceOrderPlanId: Long? = null,
     @Column(name = "source_plan_digest", length = 80) var sourcePlanDigest: String? = null,
     @Column(name = "merchant_id", nullable = false) var merchantId: Long = 0,
+    @Column(name = "buyer_authentication_domain", nullable = false, length = 255)
+    var buyerAuthenticationDomain: String = "",
     @Column(name = "buyer_uid", nullable = false) var buyerUid: Long = 0,
     @Column(name = "buyer_phone", length = 20) var buyerPhone: String? = null,
     @Column(name = "buyer_name", length = 64) var buyerName: String? = null,

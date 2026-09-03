@@ -16,6 +16,7 @@
  */
 package com.jstore.fulfillment.controller
 
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.utils.Success
 import com.jstore.fulfillment.domain.FulfillmentItem
 import com.jstore.fulfillment.domain.FulfillmentOrderId
@@ -67,8 +68,8 @@ class FulfillmentControllerMerchantAuthorizationTest {
         val controller =
             FulfillmentController(service, MerchantAuthorizationService(merchants, memberships))
 
-        assertEquals(HttpStatus.OK, controller.get(UserId(900), 9).statusCode)
-        assertEquals(HttpStatus.NOT_FOUND, controller.get(UserId(70), 9).statusCode)
+        assertEquals(HttpStatus.OK, controller.get(principal(900), 9).statusCode)
+        assertEquals(HttpStatus.NOT_FOUND, controller.get(principal(70), 9).statusCode)
     }
 
     private class FakeMerchantRepository(private val memberships: MerchantMembershipRepository) :
@@ -101,3 +102,5 @@ class FulfillmentControllerMerchantAuthorizationTest {
         override fun findByUser(userId: Long) = values.values.filter { it.userId == userId }
     }
 }
+
+private fun principal(accountId: Long) = AuthenticatedPrincipal("issuer-a", UserId(accountId))

@@ -16,10 +16,10 @@
  */
 package com.jstore.outbox.operations
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.outbox.spring.OutboxDeadLetterOperations
-import com.jstore.user.domain.useraccount.UserId
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -38,11 +38,11 @@ class OutboxOperationsController(
 ) {
     @GetMapping
     fun findDeadLetters(
-        @CurrentUserId operatorId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
     ): ResponseEntity<*> {
-        forbidden(operatorId)?.let {
+        forbidden(principal)?.let {
             return it
         }
         if (page < 1 || size !in 1..200) {
@@ -61,23 +61,25 @@ class OutboxOperationsController(
 
     @PostMapping("/requeue")
     fun requeue(
-        @CurrentUserId operatorId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @Valid @RequestBody request: RequeueDeadLettersRequest,
     ): ResponseEntity<*> {
-        forbidden(operatorId)?.let {
+        forbidden(principal)?.let {
             return it
         }
         val result =
             deadLetterService.requeue(
                 ids = request.ids,
-                operatorId = operatorId.value.toString(),
+                operatorId = "${principal.authenticationDomain}:${principal.accountId.value}",
                 reason = request.reason,
             )
         return ResponseEntity.ok(RequeueDeadLettersResponse.from(result))
     }
 
-    private fun forbidden(operatorId: UserId): ResponseEntity<OutboxOperationsErrorResponse>? {
-        if (properties.isAdministrator(operatorId.value)) return null
+    private fun forbidden(
+        principal: AuthenticatedPrincipal
+    ): ResponseEntity<OutboxOperationsErrorResponse>? {
+        if (properties.isAdministrator(principal.accountId.value)) return null
         return ResponseEntity.status(403)
             .body(
                 OutboxOperationsErrorResponse(

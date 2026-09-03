@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.jstore.contracts.commerce.ContractAddressComponent
+import com.jstore.contracts.commerce.ContractAuthenticatedAccount
 import com.jstore.contracts.commerce.ContractAuthorizedSaleItem
 import com.jstore.contracts.commerce.ContractPaymentAllocation
 import com.jstore.contracts.commerce.ContractRecipient
@@ -193,7 +194,7 @@ class JacksonIntegrationMessageSerializerTest :
             val registry = InMemoryIntegrationMessageTypeRegistry()
             registry.register(
                 "order.create-from-trade",
-                1,
+                2,
                 CreateOrderFromTradeIntegrationCommand::class.java,
             )
             val serializer =
@@ -210,7 +211,7 @@ class JacksonIntegrationMessageSerializerTest :
                     orderPlanId = 4201,
                     planDigest = "sha256:plan-4201",
                     merchantId = 7,
-                    buyerId = 8,
+                    buyer = ContractAuthenticatedAccount("issuer-a", 8),
                     buyerName = "buyer",
                     buyerPhone = "13800000000",
                     recipient =

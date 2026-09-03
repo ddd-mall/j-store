@@ -41,10 +41,24 @@ class OrderBuyerAuthorizationTest {
     private val anotherBuyersOrder = testOrder()
 
     @Test
+    fun `same numeric buyer id from another authentication domain cannot read order`() {
+        whenever(repository.findById(anotherBuyersOrder.id)).thenReturn(anotherBuyersOrder)
+
+        val result =
+            service.getOrderById(
+                "issuer-b",
+                anotherBuyersOrder.buyerInfo.uid,
+                anotherBuyersOrder.id,
+            )
+
+        assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
+    }
+
+    @Test
     fun `buyer cannot read another buyers order`() {
         whenever(repository.findById(anotherBuyersOrder.id)).thenReturn(anotherBuyersOrder)
 
-        val result = service.getOrderById(42, anotherBuyersOrder.id)
+        val result = service.getOrderById("issuer-a", 42, anotherBuyersOrder.id)
 
         assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
     }
@@ -59,7 +73,7 @@ class OrderBuyerAuthorizationTest {
                 "not mine",
             )
 
-        val result = service.cancelOrder(42, command)
+        val result = service.cancelOrder("issuer-a", 42, command)
 
         assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
         verify(repository, never()).save(anotherBuyersOrder)

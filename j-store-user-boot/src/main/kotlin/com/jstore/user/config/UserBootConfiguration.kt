@@ -50,7 +50,7 @@ class UserBootConfiguration {
         @Value($$"${jwt.issuer}") issuer: String,
         @Value($$"${jwt.audience}") audience: String,
         @Value($$"${jwt.key-id}") keyId: String,
-    ): TokenProvider {
+    ): JwtTokenProvider {
         return JwtTokenProvider(accessSecret, refreshSecret, issuer, audience, keyId)
     }
 

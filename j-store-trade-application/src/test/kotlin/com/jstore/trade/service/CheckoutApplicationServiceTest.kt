@@ -33,6 +33,24 @@ import kotlin.test.assertNull
 
 class CheckoutApplicationServiceTest {
     @Test
+    fun `same numeric account id from another authentication domain cannot read checkout`() {
+        val repository = FakeTradeRepository()
+        val ids = ArrayDeque(listOf(9101L, 9102L, 9001L))
+        val service =
+            CheckoutApplicationService(
+                { Success(prepared(it)) },
+                repository,
+                { ids.removeFirst() },
+                { _, _ -> },
+            )
+        service.checkout(checkoutCommand())
+
+        val result = service.find("issuer-b", 42, 9001)
+
+        assertEquals(Failure(TradeErrors.NOT_FOUND), result)
+    }
+
+    @Test
     fun `checkout does not query or expose payment before payment is ready`() {
         val repository = FakeTradeRepository()
         val ids = ArrayDeque(listOf(9101L, 9102L, 9001L))
@@ -46,7 +64,7 @@ class CheckoutApplicationServiceTest {
             )
         service.checkout(checkoutCommand())
 
-        val view = assertIs<Success<CheckoutView>>(service.find(42, 9001)).value
+        val view = assertIs<Success<CheckoutView>>(service.find("issuer-a", 42, 9001)).value
 
         assertNull(view.payment)
     }
@@ -95,7 +113,7 @@ class CheckoutApplicationServiceTest {
             "CNY",
         )
 
-        val view = assertIs<Success<CheckoutView>>(service.find(42, 9001)).value
+        val view = assertIs<Success<CheckoutView>>(service.find("issuer-a", 42, 9001)).value
 
         assertEquals(8001, view.payment?.paymentId)
         assertEquals("opaque-payment-action", view.payment?.payAction)
@@ -136,7 +154,7 @@ class CheckoutApplicationServiceTest {
             "CNY",
         )
 
-        val view = assertIs<Success<CheckoutView>>(service.find(42, 9001)).value
+        val view = assertIs<Success<CheckoutView>>(service.find("issuer-a", 42, 9001)).value
 
         assertEquals(TradeStatus.PAYMENT_READY.name, view.status)
         assertNull(view.payment)
@@ -163,7 +181,7 @@ class CheckoutApplicationServiceTest {
         assertEquals(listOf(9101L, 9102L), requested)
         val trade = repository.findById(TradeId(9001))!!
         assertEquals(PartyType.INDIVIDUAL, trade.buyerParty.partyType)
-        assertEquals(42, trade.actingPrincipalId)
+        assertEquals(AuthenticatedAccountSnapshot("issuer-a", 42), trade.actingPrincipal)
         assertEquals(setOf(7L, 8L), trade.orderPlans.map { it.merchantId }.toSet())
         assertEquals(SettlementMode.PREPAID, trade.settlementTerms.mode)
     }
@@ -387,6 +405,7 @@ class CheckoutApplicationServiceTest {
     private fun checkoutCommand() =
         CreateCheckoutCommand(
             "checkout-20260815-1",
+            "issuer-a",
             42,
             CheckoutRecipient("张三", "CN", "+8613800138000", null, "110105", "示例路 1 号"),
             listOf(
@@ -404,11 +423,11 @@ private class FakeTradeRepository : TradeRepository {
     override fun findById(id: TradeId): Trade? = values[id]
 
     override fun findByCheckoutRequest(
-        buyerParty: BuyerPartySnapshot,
+        actingPrincipal: AuthenticatedAccountSnapshot,
         checkoutRequestId: String,
     ): Trade? =
         values.values.firstOrNull {
-            it.buyerParty == buyerParty && it.checkoutRequestId == checkoutRequestId
+            it.actingPrincipal == actingPrincipal && it.checkoutRequestId == checkoutRequestId
         }
 
     override fun findByOrderPlanId(orderPlanId: TradeOrderPlanId): Trade? =

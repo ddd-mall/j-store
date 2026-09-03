@@ -16,18 +16,19 @@
  */
 package com.jstore.authentication.context
 
-import com.jstore.user.domain.useraccount.UserId
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 
-object AuthenticatedUserContext {
-    private val holder: ThreadLocal<UserId> = ThreadLocal()
+object AuthenticatedPrincipalContext {
+    private val holder: ThreadLocal<AuthenticatedPrincipal> = ThreadLocal()
 
-    fun set(userId: UserId) {
-        holder.set(userId)
+    fun set(principal: AuthenticatedPrincipal) {
+        holder.set(principal)
     }
 
-    fun getCurrentUserId(): UserId = holder.get() ?: throw AuthenticationException("当前上下文中无已认证用户")
+    fun getCurrent(): AuthenticatedPrincipal =
+        holder.get() ?: throw AuthenticationException("当前上下文中无已认证主体")
 
-    fun getCurrentUserIdOrNull(): UserId? = holder.get()
+    fun getCurrentOrNull(): AuthenticatedPrincipal? = holder.get()
 
     fun clear() {
         holder.remove()

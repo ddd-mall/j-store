@@ -42,7 +42,7 @@ class AfterSaleApplicationServiceTest {
         val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.PAID)
         `when`(orders.findById(OrderId(1))).thenReturn(order)
 
-        val result = service.create(command(applicant = 99))
+        val result = service.create("issuer-a", command(applicant = 99))
 
         assertEquals(AfterSaleErrors.APPLICANT_FORBIDDEN, assertIs<Failure<*>>(result).error)
         verifyNoInteractions(factory)
@@ -61,7 +61,7 @@ class AfterSaleApplicationServiceTest {
                 publisher,
             )
 
-        val result = concreteService.create(command())
+        val result = concreteService.create("issuer-a", command())
 
         assertEquals(AfterSaleErrors.ORDER_NOT_ELIGIBLE, assertIs<Failure<*>>(result).error)
     }
@@ -73,16 +73,17 @@ class AfterSaleApplicationServiceTest {
             AfterSaleCommandReceipt(
                 1,
                 AfterSaleCommandType.CREATE,
-                "key",
+                "issuer-a:key",
                 commandHash(command()),
                 AfterSaleId(8),
                 AfterSaleStatus.REQUESTED,
                 java.time.LocalDateTime.MIN,
             )
-        `when`(afterSales.findReceipt(1, AfterSaleCommandType.CREATE, "key")).thenReturn(receipt)
+        `when`(afterSales.findReceipt(1, AfterSaleCommandType.CREATE, "issuer-a:key"))
+            .thenReturn(receipt)
         `when`(afterSales.findById(AfterSaleId(8))).thenReturn(aggregate)
 
-        val result = service.create(command())
+        val result = service.create("issuer-a", command())
 
         assertEquals(aggregate, assertIs<Success<AfterSale>>(result).value)
         verifyNoInteractions(orders, factory)
@@ -134,9 +135,11 @@ class AfterSaleApplicationServiceTest {
 
                 override fun save(entity: Order) = entity
 
-                override fun findByBuyerUserId(uid: Long) = emptyList<Order>()
+                override fun findByBuyerUserId(authenticationDomain: String, uid: Long) =
+                    emptyList<Order>()
 
                 override fun pageListByUserId(
+                    authenticationDomain: String,
                     uid: Long,
                     currentPage: Int,
                     pageSize: Int,
@@ -149,7 +152,7 @@ class AfterSaleApplicationServiceTest {
                     orderRepository,
                     publisher,
                 )
-                .create(command())
+                .create("issuer-a", command())
 
         assertIs<Success<AfterSale>>(actual)
         assertEquals(listOf(OrderItemId(1)), assertNotNull(captured).map { it.orderItemId })

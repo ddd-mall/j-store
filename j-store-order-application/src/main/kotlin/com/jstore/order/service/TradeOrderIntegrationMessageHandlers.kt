@@ -39,7 +39,7 @@ class CreateOrderFromTradeIntegrationCommandHandler(
     private val publisher: IntegrationMessagePublisher,
     private val now: () -> Instant = Instant::now,
 ) : IntegrationMessageHandler<CreateOrderFromTradeIntegrationCommand> {
-    override fun handlerId() = "order.create-from-trade.v1"
+    override fun handlerId() = "order.create-from-trade.v2"
 
     override fun handle(message: CreateOrderFromTradeIntegrationCommand) {
         when (val result = orders.createOrder(message.toApplicationCommand())) {
@@ -72,7 +72,8 @@ class CreateOrderFromTradeIntegrationCommandHandler(
             orderPlanId,
             planDigest,
             merchantId,
-            buyerId,
+            buyer.authenticationDomain,
+            buyer.accountId,
             buyerName,
             buyerPhone,
             recipient.name,

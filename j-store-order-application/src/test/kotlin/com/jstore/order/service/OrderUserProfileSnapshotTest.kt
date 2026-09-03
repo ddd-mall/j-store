@@ -42,7 +42,7 @@ class OrderUserProfileSnapshotTest {
     @Test
     fun `create order passes authoritative buyer profile snapshot to the factory`() {
         val command = validCreateCommand()
-        val buyer = UserInfo(42, PhoneNumber("+8613800138000"), "buyer")
+        val buyer = UserInfo("issuer-a", 42, PhoneNumber("+8613800138000"), "buyer")
         whenever(users.findUserInfo(42)).thenReturn(buyer)
         whenever(factory.create(command, buyer)).thenReturn(Failure(OrderErrors.ITEMS_EMPTY))
 

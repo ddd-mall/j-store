@@ -16,8 +16,9 @@
  */
 package com.jstore.payment.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.currency.SiteCurrencyPolicy
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.errors.CommonBusinessError
@@ -33,7 +34,6 @@ import com.jstore.payment.service.PaymentUseCase
 import com.jstore.shop.domain.merchant.MerchantId
 import com.jstore.shop.domain.merchant.MerchantPermission
 import com.jstore.shop.service.MerchantAuthorizationService
-import com.jstore.user.domain.useraccount.UserId
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -83,17 +83,20 @@ class PaymentController(
     )
 
     @GetMapping("/orders/{orderId}")
-    fun get(@CurrentUserId userId: UserId, @PathVariable orderId: Long): ResponseEntity<*> =
-        authorized(userId, orderId, MerchantPermission.PAYMENT_READ).response { it.toResponse() }
+    fun get(
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
+        @PathVariable orderId: Long,
+    ): ResponseEntity<*> =
+        authorized(principal, orderId, MerchantPermission.PAYMENT_READ).response { it.toResponse() }
 
     /** 预上线阶段的渠道回调模拟入口；接真实支付渠道时应替换为签名验签适配器。 */
     @PostMapping("/orders/{orderId}/capture")
     fun capture(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable orderId: Long,
         @RequestBody body: CaptureRequest,
     ): ResponseEntity<*> {
-        val authorization = authorized(userId, orderId, MerchantPermission.PAYMENT_MANAGE)
+        val authorization = authorized(principal, orderId, MerchantPermission.PAYMENT_MANAGE)
         if (authorization is Failure) return authorization.response {}
         val currency =
             currencyPolicy.select(body.currency)
@@ -113,12 +116,12 @@ class PaymentController(
     /** 预上线阶段的退款渠道结果模拟入口。 */
     @PostMapping("/refunds/{refundId}/result")
     fun refundResult(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable refundId: Long,
         @RequestBody body: RefundResultRequest,
     ): ResponseEntity<*> {
         val id = PaymentRefundId(refundId)
-        val authorization = authorizedRefund(userId, id, MerchantPermission.PAYMENT_MANAGE)
+        val authorization = authorizedRefund(principal, id, MerchantPermission.PAYMENT_MANAGE)
         if (authorization is Failure) return authorization.response {}
         val result =
             if (!body.providerRefundId.isNullOrBlank()) {
@@ -130,7 +133,7 @@ class PaymentController(
     }
 
     private fun authorized(
-        userId: UserId,
+        principal: AuthenticatedPrincipal,
         orderId: Long,
         permission: MerchantPermission,
     ): Result<PaymentOrder, BusinessError> {
@@ -139,7 +142,7 @@ class PaymentController(
             onSuccess = {
                 if (
                     merchantAuthorization.hasPermission(
-                        userId.value,
+                        principal.accountId.value,
                         MerchantId(it.merchantId),
                         permission,
                     )
@@ -152,7 +155,7 @@ class PaymentController(
     }
 
     private fun authorizedRefund(
-        userId: UserId,
+        principal: AuthenticatedPrincipal,
         refundId: PaymentRefundId,
         permission: MerchantPermission,
     ): Result<PaymentOrder, BusinessError> {
@@ -161,7 +164,7 @@ class PaymentController(
             onSuccess = {
                 if (
                     merchantAuthorization.hasPermission(
-                        userId.value,
+                        principal.accountId.value,
                         MerchantId(it.merchantId),
                         permission,
                     )

@@ -119,7 +119,12 @@ class TradeOrderPlanPO(
         [
             UniqueConstraint(
                 name = "uk_trade_buyer_checkout_request",
-                columnNames = ["buyer_party_type", "buyer_party_id", "checkout_request_id"],
+                columnNames =
+                    [
+                        "acting_principal_authentication_domain",
+                        "acting_principal_id",
+                        "checkout_request_id",
+                    ],
             )
         ],
 )
@@ -143,6 +148,8 @@ class TradePO(
     var buyerDisplayName: String = "",
     @Column(name = "buyer_phone", length = 32) var buyerPhone: String? = null,
     @Column(name = "acting_principal_id", nullable = false) var actingPrincipalId: Long = 0,
+    @Column(name = "acting_principal_authentication_domain", nullable = false, length = 255)
+    var actingPrincipalAuthenticationDomain: String = "",
     @Column(name = "recipient_name", nullable = false, length = 256) var recipientName: String = "",
     @Column(name = "country_code", nullable = false, length = 8) var countryCode: String = "",
     @Column(name = "recipient_phone", length = 64) var recipientPhone: String? = null,

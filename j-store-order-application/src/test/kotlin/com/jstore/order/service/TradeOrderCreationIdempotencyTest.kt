@@ -139,6 +139,7 @@ class TradeOrderCreationIdempotencyTest {
             orderPlanId = 9101,
             planDigest = "v1:plan",
             merchantId = 7,
+            buyerAuthenticationDomain = "issuer-a",
             buyerId = 42,
             buyerName = "张三",
             buyerPhone = "+8613800138000",
@@ -195,12 +196,18 @@ private class InMemoryTradeOrderRepository : OrderRepository {
 
     override fun findById(id: OrderId): Order? = values[id]
 
-    override fun findByBuyerUserId(uid: Long): List<Order> =
-        values.values.filter { it.buyerInfo.uid == uid }
+    override fun findByBuyerUserId(authenticationDomain: String, uid: Long): List<Order> =
+        values.values.filter {
+            it.buyerInfo.authenticationDomain == authenticationDomain && it.buyerInfo.uid == uid
+        }
 
     override fun findBySourceOrderPlanId(orderPlanId: Long): Order? =
         values.values.singleOrNull { it.sourceOrderPlanId == orderPlanId }
 
-    override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> =
-        SortedPage(currentPage, 0, emptyList())
+    override fun pageListByUserId(
+        authenticationDomain: String,
+        uid: Long,
+        currentPage: Int,
+        pageSize: Int,
+    ): Page<Order> = SortedPage(currentPage, 0, emptyList())
 }

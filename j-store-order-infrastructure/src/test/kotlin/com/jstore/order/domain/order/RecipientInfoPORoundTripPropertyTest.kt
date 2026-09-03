@@ -138,7 +138,13 @@ class RecipientInfoPORoundTripPropertyTest :
                     OrderImpl(
                         id = OrderId(1L),
                         merchantId = MerchantId(1L),
-                        buyerInfo = UserInfo(uid = 1L, phoneNumber = null, userName = "test"),
+                        buyerInfo =
+                            UserInfo(
+                                authenticationDomain = "issuer-a",
+                                uid = 1L,
+                                phoneNumber = null,
+                                userName = "test",
+                            ),
                         _items =
                             mutableListOf(
                                 OrderItemImpl(

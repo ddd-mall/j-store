@@ -21,11 +21,15 @@ import com.jstore.order.domain.order.UserInfo
 import com.jstore.user.api.UserProfileQueryService
 import com.jstore.user.api.UserProfileStatus
 
-class UserServiceImpl(private val profiles: UserProfileQueryService) : UserService {
+class UserServiceImpl(
+    private val profiles: UserProfileQueryService,
+    private val authenticationDomain: String,
+) : UserService {
     override fun findUserInfo(userId: Long): UserInfo? {
-        val profile = profiles.findById(userId) ?: return null
+        val profile = profiles.findInCurrentAuthenticationDomain(userId) ?: return null
         if (profile.status != UserProfileStatus.ACTIVE) return null
         return UserInfo(
+            authenticationDomain = authenticationDomain,
             uid = profile.userId,
             phoneNumber = PhoneNumber(profile.phoneNumber),
             userName = profile.nickname,

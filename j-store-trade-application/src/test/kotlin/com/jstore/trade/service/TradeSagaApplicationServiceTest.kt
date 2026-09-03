@@ -662,7 +662,7 @@ class TradeSagaApplicationServiceTest {
             "v1:digest",
             BuyerPartySnapshot(PartyType.INDIVIDUAL, 42),
             TradeBuyerProfileSnapshot("张三", "+8613800138000"),
-            42,
+            AuthenticatedAccountSnapshot("issuer-a", 42),
             TradeRecipientSnapshot(
                 "张三",
                 "CN",
@@ -731,10 +731,10 @@ private class SagaTradeRepository(var trade: Trade) : TradeRepository {
     override fun findById(id: TradeId): Trade? = trade.takeIf { it.id == id }
 
     override fun findByCheckoutRequest(
-        buyerParty: BuyerPartySnapshot,
+        actingPrincipal: AuthenticatedAccountSnapshot,
         checkoutRequestId: String,
     ): Trade? = trade.takeIf {
-        it.buyerParty == buyerParty && it.checkoutRequestId == checkoutRequestId
+        it.actingPrincipal == actingPrincipal && it.checkoutRequestId == checkoutRequestId
     }
 
     override fun findByOrderPlanId(orderPlanId: TradeOrderPlanId): Trade? = trade.takeIf {

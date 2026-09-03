@@ -16,6 +16,9 @@
  */
 package com.jstore.user.domain.useraccount
 
+import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedPrincipal
+import com.jstore.authentication.principal.AuthenticatedSession
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import java.time.Instant
@@ -32,7 +35,7 @@ class JwtTokenProvider(
     private val issuer: String,
     private val audience: String,
     private val keyId: String,
-) : TokenProvider {
+) : TokenProvider, AccessTokenVerifier {
 
     init {
         require(accessSecret != refreshSecret) {
@@ -116,6 +119,15 @@ class JwtTokenProvider(
 
     override fun parseAccessToken(token: String): AuthTokenClaims? =
         parseToken(token, TOKEN_TYPE_ACCESS, accessKey)
+
+    override fun verifyAccessToken(token: String): AuthenticatedPrincipal? =
+        parseAccessToken(token)?.let { claims ->
+            AuthenticatedPrincipal(
+                authenticationDomain = issuer,
+                accountId = claims.userId,
+                session = AuthenticatedSession(claims.sessionId, claims.sessionEpoch),
+            )
+        }
 
     override fun parseRefreshToken(token: String): AuthTokenClaims? =
         parseToken(token, TOKEN_TYPE_REFRESH, refreshKey)

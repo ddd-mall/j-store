@@ -125,6 +125,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_goods_style_spu_id ON goods_style(spu_id);
 -- ============================================================
 CREATE TABLE IF NOT EXISTS orders (
     id                BIGSERIAL      PRIMARY KEY,
+    buyer_authentication_domain VARCHAR(255) NOT NULL,
     buyer_uid         BIGINT         NOT NULL,
     buyer_phone       VARCHAR(20),
     buyer_name        VARCHAR(64),
@@ -137,7 +138,8 @@ CREATE TABLE IF NOT EXISTS orders (
     update_time       TIMESTAMP      NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_orders_buyer_uid ON orders(buyer_uid);
+CREATE INDEX IF NOT EXISTS idx_orders_buyer_account
+    ON orders(buyer_authentication_domain, buyer_uid);
 CREATE INDEX IF NOT EXISTS idx_orders_status_create_time ON orders(status, create_time);
 CREATE INDEX IF NOT EXISTS idx_orders_recipient_info ON orders USING gin (recipient_info);
 

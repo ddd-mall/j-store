@@ -16,8 +16,9 @@
  */
 package com.jstore.shop.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.fold
@@ -27,7 +28,6 @@ import com.jstore.shop.domain.merchant.MerchantMembership
 import com.jstore.shop.domain.merchant.MerchantRole
 import com.jstore.shop.service.MerchantAccountView
 import com.jstore.shop.service.MerchantUseCase
-import com.jstore.user.domain.useraccount.UserId
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
@@ -78,47 +78,57 @@ class MerchantController(private val service: MerchantUseCase) {
 
     @PostMapping
     fun create(
-        @CurrentUserId currentUserId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @Valid @RequestBody request: CreateMerchantRequest,
     ): ResponseEntity<*> =
-        service.create(currentUserId.value, request.name).response(HttpStatus.CREATED) {
+        service.create(principal.accountId.value, request.name).response(HttpStatus.CREATED) {
             it.response()
         }
 
     @GetMapping
     fun listMine(
-        @CurrentUserId currentUserId: UserId
+        @CurrentPrincipal principal: AuthenticatedPrincipal
     ): ResponseEntity<List<MerchantAccountResponse>> =
-        ResponseEntity.ok(service.listForUser(currentUserId.value).map { it.response() })
+        ResponseEntity.ok(service.listForUser(principal.accountId.value).map { it.response() })
 
     @PostMapping("/{merchantId}/members")
     fun addMember(
-        @CurrentUserId currentUserId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable merchantId: Long,
         @Valid @RequestBody request: AddMemberRequest,
     ): ResponseEntity<*> =
         service
-            .addMember(currentUserId.value, MerchantId(merchantId), request.userId, request.roles)
+            .addMember(
+                principal.accountId.value,
+                MerchantId(merchantId),
+                request.userId,
+                request.roles,
+            )
             .response(HttpStatus.CREATED) { it.response() }
 
     @PutMapping("/{merchantId}/members/{userId}/roles")
     fun changeRoles(
-        @CurrentUserId currentUserId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable merchantId: Long,
         @PathVariable userId: Long,
         @Valid @RequestBody request: ChangeRolesRequest,
     ): ResponseEntity<*> =
         service
-            .changeMemberRoles(currentUserId.value, MerchantId(merchantId), userId, request.roles)
+            .changeMemberRoles(
+                principal.accountId.value,
+                MerchantId(merchantId),
+                userId,
+                request.roles,
+            )
             .response { it.response() }
 
     @DeleteMapping("/{merchantId}/members/{userId}")
     fun disableMember(
-        @CurrentUserId currentUserId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable merchantId: Long,
         @PathVariable userId: Long,
     ): ResponseEntity<*> =
-        service.disableMember(currentUserId.value, MerchantId(merchantId), userId).response {
+        service.disableMember(principal.accountId.value, MerchantId(merchantId), userId).response {
             mapOf("disabled" to true)
         }
 

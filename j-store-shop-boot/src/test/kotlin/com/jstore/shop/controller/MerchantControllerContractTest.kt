@@ -16,7 +16,8 @@
  */
 package com.jstore.shop.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.shop.domain.merchant.Merchant
 import com.jstore.shop.domain.merchant.MerchantId
 import com.jstore.shop.domain.merchant.MerchantMembership
@@ -79,15 +80,19 @@ class MerchantControllerContractTest {
 
     private class CurrentUserResolver : HandlerMethodArgumentResolver {
         override fun supportsParameter(parameter: MethodParameter) =
-            parameter.hasParameterAnnotation(CurrentUserId::class.java) &&
-                parameter.parameterType == UserId::class.java
+            parameter.hasParameterAnnotation(CurrentPrincipal::class.java) &&
+                parameter.parameterType == AuthenticatedPrincipal::class.java
 
         override fun resolveArgument(
             parameter: MethodParameter,
             mavContainer: ModelAndViewContainer?,
             webRequest: NativeWebRequest,
             binderFactory: org.springframework.web.bind.support.WebDataBinderFactory?,
-        ) = UserId(webRequest.getHeader("X-Test-User")!!.toLong())
+        ) =
+            AuthenticatedPrincipal(
+                "issuer-a",
+                UserId(webRequest.getHeader("X-Test-User")!!.toLong()),
+            )
     }
 
     private class FakeMerchantRepository(private val memberships: MerchantMembershipRepository) :

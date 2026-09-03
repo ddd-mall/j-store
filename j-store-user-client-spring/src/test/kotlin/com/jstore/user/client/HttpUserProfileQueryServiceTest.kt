@@ -55,7 +55,7 @@ class HttpUserProfileQueryServiceTest {
                 )
             )
 
-        val profile = service.findById(42)!!
+        val profile = service.findInCurrentAuthenticationDomain(42)!!
 
         assertEquals("buyer", profile.nickname)
         assertEquals("+8613800138000", profile.phoneNumber)
@@ -69,7 +69,7 @@ class HttpUserProfileQueryServiceTest {
             .expect(requestTo("http://user-service/internal/api/users/404/profile"))
             .andRespond(withStatus(org.springframework.http.HttpStatus.NOT_FOUND))
 
-        assertNull(service.findById(404))
+        assertNull(service.findInCurrentAuthenticationDomain(404))
         server.verify()
     }
 
@@ -79,7 +79,9 @@ class HttpUserProfileQueryServiceTest {
             .expect(requestTo("http://user-service/internal/api/users/42/profile"))
             .andRespond(withStatus(org.springframework.http.HttpStatus.UNAUTHORIZED))
 
-        assertFailsWith<UserProfileDependencyException> { service.findById(42) }
+        assertFailsWith<UserProfileDependencyException> {
+            service.findInCurrentAuthenticationDomain(42)
+        }
         server.verify()
     }
 
@@ -89,7 +91,9 @@ class HttpUserProfileQueryServiceTest {
             .expect(requestTo("http://user-service/internal/api/users/42/profile"))
             .andRespond(withStatus(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE))
 
-        assertFailsWith<UserProfileDependencyException> { service.findById(42) }
+        assertFailsWith<UserProfileDependencyException> {
+            service.findInCurrentAuthenticationDomain(42)
+        }
         server.verify()
     }
 
@@ -99,7 +103,9 @@ class HttpUserProfileQueryServiceTest {
             .expect(requestTo("http://user-service/internal/api/users/42/profile"))
             .andRespond(withSuccess())
 
-        assertFailsWith<UserProfileDependencyException> { service.findById(42) }
+        assertFailsWith<UserProfileDependencyException> {
+            service.findInCurrentAuthenticationDomain(42)
+        }
         server.verify()
     }
 
@@ -114,7 +120,9 @@ class HttpUserProfileQueryServiceTest {
                 )
             )
 
-        assertFailsWith<UserProfileDependencyException> { service.findById(42) }
+        assertFailsWith<UserProfileDependencyException> {
+            service.findInCurrentAuthenticationDomain(42)
+        }
         server.verify()
     }
 
@@ -129,7 +137,9 @@ class HttpUserProfileQueryServiceTest {
                 )
             )
 
-        assertFailsWith<UserProfileDependencyException> { service.findById(42) }
+        assertFailsWith<UserProfileDependencyException> {
+            service.findInCurrentAuthenticationDomain(42)
+        }
         server.verify()
     }
 
@@ -144,7 +154,9 @@ class HttpUserProfileQueryServiceTest {
                 )
             )
 
-        assertFailsWith<UserProfileDependencyException> { service.findById(42) }
+        assertFailsWith<UserProfileDependencyException> {
+            service.findInCurrentAuthenticationDomain(42)
+        }
         server.verify()
     }
 }

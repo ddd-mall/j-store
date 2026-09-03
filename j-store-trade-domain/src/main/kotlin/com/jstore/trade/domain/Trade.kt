@@ -56,6 +56,16 @@ data class BuyerPartySnapshot(val partyType: PartyType, val partyId: Long) {
     }
 }
 
+data class AuthenticatedAccountSnapshot(
+    val authenticationDomain: String,
+    val accountId: Long,
+) {
+    init {
+        require(authenticationDomain.isNotBlank()) { "Authentication domain must not be blank" }
+        require(accountId > 0) { "Account ID must be positive" }
+    }
+}
+
 data class TradeBuyerProfileSnapshot(
     val displayName: String,
     val phone: String?,
@@ -342,7 +352,7 @@ class Trade(
     val requestDigest: String,
     val buyerParty: BuyerPartySnapshot,
     val buyerProfile: TradeBuyerProfileSnapshot,
-    val actingPrincipalId: Long,
+    val actingPrincipal: AuthenticatedAccountSnapshot,
     val recipient: TradeRecipientSnapshot,
     orderPlans: List<TradeOrderPlan>,
     val payableAmount: Price,
@@ -376,9 +386,7 @@ class Trade(
         private set
 
     init {
-        require(
-            checkoutRequestId.isNotBlank() && requestDigest.isNotBlank() && actingPrincipalId > 0
-        )
+        require(checkoutRequestId.isNotBlank() && requestDigest.isNotBlank())
         require(
             this.orderPlans.isNotEmpty() &&
                 this.orderPlans.map { it.id }.distinct().size == this.orderPlans.size
@@ -711,7 +719,7 @@ class Trade(
             requestDigest: String,
             buyerParty: BuyerPartySnapshot,
             buyerProfile: TradeBuyerProfileSnapshot,
-            actingPrincipalId: Long,
+            actingPrincipal: AuthenticatedAccountSnapshot,
             recipient: TradeRecipientSnapshot,
             orderPlans: List<TradeOrderPlan>,
             currency: String,
@@ -725,7 +733,7 @@ class Trade(
                 requestDigest,
                 buyerParty,
                 buyerProfile,
-                actingPrincipalId,
+                actingPrincipal,
                 recipient,
                 orderPlans,
                 Price.sumOf(orderPlans.map { it.payableAmount }),

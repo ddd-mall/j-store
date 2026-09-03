@@ -26,7 +26,7 @@ j-store 采用战略 DDD 与战术 DDD 结合的方式：
 | Payment | `TradePayment`、退款相关模型 | 按结算分期执行支付和退款的资金状态 | 交易结算条款、订单商品与履约事实 |
 | Fulfillment | `FulfillmentOrder` | 发货、运输、签收等履约状态 | 交易定价、支付记账、实物库存盘点 |
 | Accounting | 账户、期间、凭证、结算模型 | 会计分录和结算事实 | 订单或支付聚合内部状态 |
-| User / Authentication | 用户账户、身份令牌、用户资料查询契约 | 用户身份、昵称、已验证手机号、账号状态、登录状态和认证事实 | 商户销售政策与交易状态 |
+| User / Authentication | 用户账户、身份令牌、用户资料查询契约 | 当前认证域内的用户身份、昵称、已验证手机号、账号状态、登录状态和认证事实 | 跨认证域全局身份、商户销售政策与交易状态 |
 
 “权威”表示只有该上下文可以定义和修改该事实的业务语义。其它上下文可以通过 ACL 查询它，或保存发生交易时的不可变快照，但不得反向成为第二权威。
 
@@ -140,7 +140,7 @@ Cart 内容或 Selection 变化会记录带内容版本的 `CartRefreshRequested
 
 Trade 是面向认证买家的统一下单边界，公开创建入口为 `POST /api/checkouts`；`POST /api/orders` 已删除。输入可以是直接购买行或 `cartId + expectedCartVersion`，后者由 Trade 通过 `j-store-cart-api` 拉取新鲜 Eligible Line。Trade 冻结 Cart 来源 ID、版本和摘要，保存下单时不可变的商品、Offer、价格、数量、商户和履约节点快照，并负责协调 `SaleAuthorization` 与 `StockReservation`。
 
-当前实现已建立独立 `tradeId`、买家范围 Checkout 幂等、一个或多个 `TradeOrderPlan`，并以 `tradeId + orderPlanId` 协调销售授权、库存预留和 Order 创建。全部计划预留成功后，Trade 发布版本化 Order 创建命令并等待每个计划的成功或拒绝事实；全部 Order 形成且金额守恒后，Trade 才建立唯一 `SettlementPlan`，并通过消息命令要求 Payment 为首期 `PREPAID + FULL` 分期准备一个 `TradePayment`。Payment 以稳定渠道幂等键区分明确受理、明确拒绝和结果未知，Trade 按 `installmentId` 保存 Payment 引用与准备阶段，不保存渠道引用或支付动作。`orderId` 仅在 Order 形成后回写计划，不再是 Trade 身份或 Checkout 相关键。
+当前实现已建立独立 `tradeId`、认证域与买家 ID 联合范围的 Checkout 幂等、一个或多个 `TradeOrderPlan`，并以 `tradeId + orderPlanId` 协调销售授权、库存预留和 Order 创建。Trade 冻结发起者的认证域与域内账号 ID；裸买家 ID 不作为跨边界身份。全部计划预留成功后，Trade 发布版本化 Order 创建命令并等待每个计划的成功或拒绝事实；全部 Order 形成且金额守恒后，Trade 才建立唯一 `SettlementPlan`，并通过消息命令要求 Payment 为首期 `PREPAID + FULL` 分期准备一个 `TradePayment`。Payment 以稳定渠道幂等键区分明确受理、明确拒绝和结果未知，Trade 按 `installmentId` 保存 Payment 引用与准备阶段，不保存渠道引用或支付动作。`orderId` 仅在 Order 形成后回写计划，不再是 Trade 身份或 Checkout 相关键。
 
 Trade 主链状态协议为：
 
@@ -172,9 +172,9 @@ Order 保存的是平台已经向买家作出的交易承诺，不回查当前�
 - 成交单价、数量和履约节点；
 - 下单时的商品名称、规格等展示快照。
 
-订单根同时冻结创建时从 User 上下文读取的买家 ID、昵称和已验证手机号。客户端只能提供认证令牌，不能提交或覆盖买家资料；收货人姓名和联系方式是本次履约指令，不等同于账号资料。模块化单体通过进程内 `UserProfileQueryService` 读取，微服务消费方通过同一发布契约的 HTTP 适配器读取。Payment、Fulfillment 和 Accounting 解释历史交易时继续消费订单或集成消息中的快照，不回查可变用户资料。
+订单根同时冻结创建时的买家认证域、域内账号 ID、昵称和已验证手机号。客户端只能提供认证令牌，不能提交或覆盖买家资料；收货人姓名和联系方式是本次履约指令，不等同于账号资料。模块化单体通过进程内 `UserProfileQueryService` 在当前认证域内读取，微服务消费方通过同一发布契约的 HTTP 适配器读取。Payment、Fulfillment 和 Accounting 解释历史交易时继续消费订单或集成消息中的快照，不回查可变用户资料。
 
-买家订单详情与主动取消必须同时校验认证用户 ID 和订单快照中的买家 ID；越权访问按订单不存在处理。账号昵称和已验证手机号不进入公开订单响应，只在聚合持久化及受控交易协作中使用。
+买家订单详情、列表、售后与主动取消必须同时校验认证域、域内账号 ID 和订单快照中的买家身份；越权访问按订单不存在处理。账号昵称和已验证手机号不进入公开订单响应，只在聚合持久化及受控交易协作中使用。
 
 Order 仅投影交易承诺的最终结果：
 

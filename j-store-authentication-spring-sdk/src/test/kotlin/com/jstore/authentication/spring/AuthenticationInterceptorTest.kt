@@ -19,8 +19,9 @@ package com.jstore.authentication.spring
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.config.AuthenticationConfigurer
 import com.jstore.authentication.error.AuthenticationErrors
-import com.jstore.user.domain.useraccount.AuthTokenClaims
-import com.jstore.user.domain.useraccount.TokenProvider
+import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedPrincipal
+import com.jstore.authentication.principal.AuthenticatedSession
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
 import io.kotest.core.spec.style.FunSpec
@@ -41,11 +42,11 @@ class AuthenticationInterceptorTest :
         test(
             "unexpected exception during token validation returns HTTP 500 with Auth.InternalError"
         ) {
-            val tokenProvider = mock<TokenProvider>()
+            val tokenVerifier = mock<AccessTokenVerifier>()
             val tokenStore = mock<TokenStore>()
             val interceptor =
                 AuthenticationInterceptor(
-                    tokenProvider = tokenProvider,
+                    accessTokenVerifier = tokenVerifier,
                     tokenStore = tokenStore,
                     configurers = emptyList(),
                 )
@@ -58,7 +59,7 @@ class AuthenticationInterceptorTest :
             whenever(request.requestURI).thenReturn("/api/test")
 
             // parseAccessToken throws an unexpected RuntimeException
-            whenever(tokenProvider.parseAccessToken("sometoken"))
+            whenever(tokenVerifier.verifyAccessToken("sometoken"))
                 .thenThrow(RuntimeException("unexpected DB connection failure"))
 
             val stringWriter = StringWriter()
@@ -86,7 +87,7 @@ class AuthenticationInterceptorTest :
         test(
             "when both annotation and path config require auth, token validation executes only once"
         ) {
-            val tokenProvider = mock<TokenProvider>()
+            val tokenVerifier = mock<AccessTokenVerifier>()
             val tokenStore = mock<TokenStore>()
 
             // Configure a path pattern that also matches the request
@@ -99,7 +100,7 @@ class AuthenticationInterceptorTest :
 
             val interceptor =
                 AuthenticationInterceptor(
-                    tokenProvider = tokenProvider,
+                    accessTokenVerifier = tokenVerifier,
                     tokenStore = tokenStore,
                     configurers = listOf(configurer),
                 )
@@ -113,8 +114,13 @@ class AuthenticationInterceptorTest :
             whenever(request.requestURI).thenReturn("/api/orders")
 
             // Mock valid token flow
-            val claims = AuthTokenClaims(UserId(42L), "session-1", 2L, "jti-123")
-            whenever(tokenProvider.parseAccessToken("validtoken")).thenReturn(claims)
+            val principal =
+                AuthenticatedPrincipal(
+                    "issuer-a",
+                    UserId(42L),
+                    AuthenticatedSession("session-1", 2L),
+                )
+            whenever(tokenVerifier.verifyAccessToken("validtoken")).thenReturn(principal)
             whenever(tokenStore.isSessionActive(UserId(42L), "session-1", 2L)).thenReturn(true)
 
             val response = mock<HttpServletResponse>()
@@ -124,6 +130,6 @@ class AuthenticationInterceptorTest :
             result shouldBe true
 
             // parseAccessToken should be called exactly once — not twice for annotation + path
-            verify(tokenProvider, times(1)).parseAccessToken("validtoken")
+            verify(tokenVerifier, times(1)).verifyAccessToken("validtoken")
         }
     })

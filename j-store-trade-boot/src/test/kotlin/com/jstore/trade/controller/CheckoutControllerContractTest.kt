@@ -16,6 +16,7 @@
  */
 package com.jstore.trade.controller
 
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.utils.Success
 import com.jstore.trade.service.CheckoutAccepted
 import com.jstore.trade.service.CheckoutUseCase
@@ -28,7 +29,7 @@ import kotlin.test.assertFalse
 class CheckoutControllerContractTest {
     @Test
     fun `ready checkout response includes the payment action`() {
-        val response = CheckoutController(CapturingCheckoutUseCase()).find(UserId(42), 9001)
+        val response = CheckoutController(CapturingCheckoutUseCase()).find(principal(42), 9001)
         val body = response.body as CheckoutController.CheckoutResponse
 
         assertEquals(200, response.statusCode.value())
@@ -55,7 +56,7 @@ class CheckoutControllerContractTest {
                 items = listOf(CheckoutController.ItemRequest(11, 2, 21, 22, 1, 3)),
             )
 
-        val response = controller.create(UserId(42), request)
+        val response = controller.create(principal(42), request)
         val body = response.body as CheckoutController.CheckoutResponse
 
         assertEquals(202, response.statusCode.value())
@@ -72,7 +73,7 @@ private class CapturingCheckoutUseCase : CheckoutUseCase {
     override fun checkout(command: CreateCheckoutCommand) =
         Success(CheckoutAccepted(9001, listOf(9001))).also { this.command = command }
 
-    override fun find(buyerId: Long, tradeId: Long) =
+    override fun find(buyerAuthenticationDomain: String, buyerId: Long, tradeId: Long) =
         Success(
             com.jstore.trade.service.CheckoutView(
                 tradeId,
@@ -89,3 +90,5 @@ private class CapturingCheckoutUseCase : CheckoutUseCase {
             )
         )
 }
+
+private fun principal(accountId: Long) = AuthenticatedPrincipal("issuer-a", UserId(accountId))

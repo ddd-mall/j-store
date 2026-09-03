@@ -17,13 +17,14 @@
 package com.jstore.outbox.operations
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.authentication.spring.AuthenticationInterceptor
 import com.jstore.outbox.spring.DeadLetterRequeueResult
 import com.jstore.outbox.spring.OutboxDeadLetterOperations
 import com.jstore.outbox.spring.OutboxDeadLetterPage
-import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
 import org.junit.jupiter.api.Test
@@ -52,7 +53,7 @@ class OutboxOperationsControllerTest {
                 .setCustomArgumentResolvers(CurrentUserResolver())
                 .addInterceptors(
                     AuthenticationInterceptor(
-                        mock<TokenProvider>(),
+                        mock<AccessTokenVerifier>(),
                         mock<TokenStore>(),
                         emptyList(),
                         ObjectMapper(),
@@ -101,7 +102,7 @@ class OutboxOperationsControllerTest {
             .andExpect(jsonPath("$.requeuedCount").value(1))
 
         check(service.lastRequeue?.ids == listOf("entry-1"))
-        check(service.lastRequeue?.operatorId == "7")
+        check(service.lastRequeue?.operatorId == "issuer-a:7")
         check(service.lastRequeue?.reason == "dependency recovered")
 
         mvc.perform(
@@ -120,14 +121,18 @@ class OutboxOperationsControllerTest {
 
     private class CurrentUserResolver : HandlerMethodArgumentResolver {
         override fun supportsParameter(parameter: MethodParameter) =
-            parameter.hasParameterAnnotation(CurrentUserId::class.java)
+            parameter.hasParameterAnnotation(CurrentPrincipal::class.java)
 
         override fun resolveArgument(
             parameter: MethodParameter,
             mavContainer: ModelAndViewContainer?,
             webRequest: NativeWebRequest,
             binderFactory: org.springframework.web.bind.support.WebDataBinderFactory?,
-        ) = UserId(webRequest.getHeader("X-Test-User")!!.toLong())
+        ) =
+            AuthenticatedPrincipal(
+                "issuer-a",
+                UserId(webRequest.getHeader("X-Test-User")!!.toLong()),
+            )
     }
 
     private class FakeOperations : OutboxDeadLetterOperations {

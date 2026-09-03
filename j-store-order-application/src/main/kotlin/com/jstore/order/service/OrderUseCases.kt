@@ -39,9 +39,18 @@ import java.time.Instant
  * Stable inbound port for order use cases. Framework transaction concerns belong to boot adapters.
  */
 interface OrderUseCase {
-    fun getOrderById(buyerId: Long, orderId: OrderId): Result<Order, BusinessError>
+    fun getOrderById(
+        buyerAuthenticationDomain: String,
+        buyerId: Long,
+        orderId: OrderId,
+    ): Result<Order, BusinessError>
 
-    fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order>
+    fun pageListByUserId(
+        buyerAuthenticationDomain: String,
+        uid: Long,
+        currentPage: Int,
+        pageSize: Int,
+    ): Page<Order>
 
     fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError>
 
@@ -80,7 +89,11 @@ interface OrderUseCase {
 
     fun completeOrder(orderId: OrderId): Result<Unit, BusinessError>
 
-    fun cancelOrder(buyerId: Long, cmd: OrderCancelCMD): Result<Unit, BusinessError>
+    fun cancelOrder(
+        buyerAuthenticationDomain: String,
+        buyerId: Long,
+        cmd: OrderCancelCMD,
+    ): Result<Unit, BusinessError>
 }
 
 /** Trusted, non-HTTP creation/cancellation port used only by the Trade checkout boundary. */
@@ -110,6 +123,7 @@ data class CreateOrderFromTradeCommand(
     val orderPlanId: Long,
     val planDigest: String,
     val merchantId: Long,
+    val buyerAuthenticationDomain: String,
     val buyerId: Long,
     val buyerName: String,
     val buyerPhone: String?,
@@ -130,13 +144,19 @@ interface AfterSaleUseCase {
 
     fun listByOrderForAccess(orderId: OrderId): Result<AfterSaleOrderAccess, BusinessError>
 
-    fun create(cmd: AfterSaleCreateCMD): Result<AfterSale, BusinessError>
+    fun create(
+        buyerAuthenticationDomain: String,
+        cmd: AfterSaleCreateCMD,
+    ): Result<AfterSale, BusinessError>
 
     fun approve(cmd: AfterSaleApproveCMD): Result<AfterSale, BusinessError>
 
     fun reject(cmd: AfterSaleRejectCMD): Result<AfterSale, BusinessError>
 
-    fun cancel(cmd: AfterSaleCancelCMD): Result<AfterSale, BusinessError>
+    fun cancel(
+        buyerAuthenticationDomain: String,
+        cmd: AfterSaleCancelCMD,
+    ): Result<AfterSale, BusinessError>
 
     fun receiveReturn(cmd: AfterSaleReceiveReturnCMD): Result<AfterSale, BusinessError>
 

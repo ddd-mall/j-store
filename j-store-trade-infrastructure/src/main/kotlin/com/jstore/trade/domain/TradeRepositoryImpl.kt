@@ -31,12 +31,12 @@ class TradeRepositoryImpl(private val jpa: TradePOJpaRepository) : TradeReposito
         jpa.findById(id.value).orElse(null)?.let(::toDomain)
 
     override fun findByCheckoutRequest(
-        buyerParty: BuyerPartySnapshot,
+        actingPrincipal: AuthenticatedAccountSnapshot,
         checkoutRequestId: String,
     ): Trade? =
-        jpa.findByBuyerPartyTypeAndBuyerPartyIdAndCheckoutRequestId(
-                buyerParty.partyType,
-                buyerParty.partyId,
+        jpa.findByActingPrincipalAuthenticationDomainAndActingPrincipalIdAndCheckoutRequestId(
+                actingPrincipal.authenticationDomain,
+                actingPrincipal.accountId,
                 checkoutRequestId,
             )
             ?.let(::toDomain)
@@ -57,7 +57,8 @@ class TradeRepositoryImpl(private val jpa: TradePOJpaRepository) : TradeReposito
             buyerPartyId = trade.buyerParty.partyId,
             buyerDisplayName = trade.buyerProfile.displayName,
             buyerPhone = trade.buyerProfile.phone,
-            actingPrincipalId = trade.actingPrincipalId,
+            actingPrincipalId = trade.actingPrincipal.accountId,
+            actingPrincipalAuthenticationDomain = trade.actingPrincipal.authenticationDomain,
             recipientName = trade.recipient.name,
             countryCode = trade.recipient.countryCode,
             recipientPhone = trade.recipient.phone,
@@ -136,7 +137,11 @@ class TradeRepositoryImpl(private val jpa: TradePOJpaRepository) : TradeReposito
             requestDigest = po.requestDigest,
             buyerParty = BuyerPartySnapshot(po.buyerPartyType, po.buyerPartyId),
             buyerProfile = TradeBuyerProfileSnapshot(po.buyerDisplayName, po.buyerPhone),
-            actingPrincipalId = po.actingPrincipalId,
+            actingPrincipal =
+                AuthenticatedAccountSnapshot(
+                    po.actingPrincipalAuthenticationDomain,
+                    po.actingPrincipalId,
+                ),
             recipient =
                 TradeRecipientSnapshot(
                     po.recipientName,

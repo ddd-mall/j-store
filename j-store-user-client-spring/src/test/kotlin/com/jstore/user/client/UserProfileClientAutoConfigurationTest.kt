@@ -87,7 +87,9 @@ class UserProfileClientAutoConfigurationTest {
             )
             .run { context ->
                 assertThatThrownBy {
-                        context.getBean(UserProfileQueryService::class.java).findById(42)
+                        context
+                            .getBean(UserProfileQueryService::class.java)
+                            .findInCurrentAuthenticationDomain(42)
                     }
                     .isInstanceOf(UserProfileDependencyException::class.java)
                 assertThat(intercepted).isTrue()

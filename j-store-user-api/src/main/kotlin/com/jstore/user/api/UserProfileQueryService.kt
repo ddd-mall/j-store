@@ -39,5 +39,6 @@ data class UserProfileInfo(
 }
 
 fun interface UserProfileQueryService {
-    fun findById(userId: Long): UserProfileInfo?
+    /** Resolves an account only inside the deployment's current authentication domain. */
+    fun findInCurrentAuthenticationDomain(accountId: Long): UserProfileInfo?
 }

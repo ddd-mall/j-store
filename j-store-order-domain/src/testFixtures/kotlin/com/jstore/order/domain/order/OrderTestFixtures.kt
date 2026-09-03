@@ -54,7 +54,7 @@ fun testOrder(
     return OrderImpl(
         id = OrderId(1),
         merchantId = MerchantId(7),
-        buyerInfo = UserInfo(1, null, null),
+        buyerInfo = UserInfo("issuer-a", 1, null, null),
         _items = items.toMutableList(),
         recipientInfo =
             RecipientInfo(

@@ -5,7 +5,7 @@
 采用“一套身份、多个业务身份”的模型：
 
 ```text
-UserAccount (全局登录身份)
+UserAccount (当前认证域内的登录身份)
     │ userId
     ├── 买家行为
     └── MerchantMembership ── Merchant
@@ -13,7 +13,7 @@ UserAccount (全局登录身份)
             └── permissions      └── status
 ```
 
-`MerchantId` 与 `UserId` 是不同概念，不共享编号语义，也不得依赖数值相等授权。
+`MerchantId` 与 `UserId` 是不同概念，不共享编号语义，也不得依赖数值相等授权。`UserId` 只在签发它的认证域内稳定；需要跨边界传递身份时必须同时携带认证域。
 
 ## 模块边界
 
@@ -22,7 +22,7 @@ UserAccount (全局登录身份)
 - `j-store-shop-infrastructure`：JPA PO、Spring Data Repository 和领域仓储实现。
 - `j-store-shop-boot`：Bean 装配、商户管理 API 和用例事务边界。
 - `j-store-boot`：组合 shop boot 并继续持有整站 Flyway 迁移。
-- `j-store-user-domain`：继续负责全局登录身份，不依赖 shop 上下文。
+- `j-store-user-domain`：负责当前认证域内的登录身份，不依赖 shop 上下文。
 
 ## 权限模型
 

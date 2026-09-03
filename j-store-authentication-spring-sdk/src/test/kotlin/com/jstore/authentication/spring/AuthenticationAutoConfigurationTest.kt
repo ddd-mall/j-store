@@ -17,7 +17,7 @@
 package com.jstore.authentication.spring
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.jstore.user.domain.useraccount.TokenProvider
+import com.jstore.authentication.principal.AccessTokenVerifier
 import com.jstore.user.domain.useraccount.TokenStore
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -33,38 +33,41 @@ class AuthenticationAutoConfigurationTest {
             .withConfiguration(AutoConfigurations.of(AuthenticationAutoConfiguration::class.java))
 
     @Test
-    fun `auto-configuration activates when both TokenProvider and TokenStore beans are present`() {
+    fun `auto-configuration activates when an AccessTokenVerifier is present`() {
         contextRunner
-            .withBean(TokenProvider::class.java, { mock() })
+            .withBean(AccessTokenVerifier::class.java, { mock() })
             .withBean(TokenStore::class.java, { mock() })
             .withBean(ObjectMapper::class.java, { ObjectMapper() })
             .run { context ->
                 assertThat(context).hasSingleBean(AuthenticationInterceptor::class.java)
-                assertThat(context).hasSingleBean(CurrentUserIdArgumentResolver::class.java)
+                assertThat(context).hasSingleBean(CurrentPrincipalArgumentResolver::class.java)
             }
     }
 
     @Test
-    fun `auto-configuration does not activate when TokenProvider is missing`() {
+    fun `auto-configuration does not activate when AccessTokenVerifier is missing`() {
         contextRunner.withBean(TokenStore::class.java, { mock() }).run { context ->
             assertThat(context).doesNotHaveBean(AuthenticationInterceptor::class.java)
-            assertThat(context).doesNotHaveBean(CurrentUserIdArgumentResolver::class.java)
+            assertThat(context).doesNotHaveBean(CurrentPrincipalArgumentResolver::class.java)
         }
     }
 
     @Test
-    fun `auto-configuration does not activate when TokenStore is missing`() {
-        contextRunner.withBean(TokenProvider::class.java, { mock() }).run { context ->
-            assertThat(context).doesNotHaveBean(AuthenticationInterceptor::class.java)
-            assertThat(context).doesNotHaveBean(CurrentUserIdArgumentResolver::class.java)
-        }
+    fun `auto-configuration supports stateless token verifier without TokenStore`() {
+        contextRunner
+            .withBean(AccessTokenVerifier::class.java, { mock() })
+            .withBean(ObjectMapper::class.java, { ObjectMapper() })
+            .run { context ->
+                assertThat(context).hasSingleBean(AuthenticationInterceptor::class.java)
+                assertThat(context).hasSingleBean(CurrentPrincipalArgumentResolver::class.java)
+            }
     }
 
     @Test
     fun `auto-configuration does not activate when both beans are missing`() {
         contextRunner.run { context ->
             assertThat(context).doesNotHaveBean(AuthenticationInterceptor::class.java)
-            assertThat(context).doesNotHaveBean(CurrentUserIdArgumentResolver::class.java)
+            assertThat(context).doesNotHaveBean(CurrentPrincipalArgumentResolver::class.java)
         }
     }
 }
