@@ -84,32 +84,40 @@ object CartAssessmentCalculator {
         val assessed =
             cart.lines.map { line ->
                 val fact = factsByLine[line.id]
+
                 val status =
                     when {
                         !line.selected -> LineAssessmentStatus.UNSELECTED
+
                         fact == null || !fact.catalogAvailable ->
                             LineAssessmentStatus.CATALOG_UNAVAILABLE
+
                         !fact.offerAvailable ||
                             fact.unitPrice == null ||
                             fact.market != cart.settlementScope.market ||
                             fact.channelId != cart.settlementScope.channelId ||
                             fact.currency != cart.settlementScope.currency ->
                             LineAssessmentStatus.OFFER_UNAVAILABLE
+
                         fact.availableToPromise == null || fact.availableToPromise == 0 ->
                             LineAssessmentStatus.OUT_OF_STOCK
+
                         fact.availableToPromise < line.quantity ->
                             LineAssessmentStatus.INSUFFICIENT_STOCK
+
                         else -> LineAssessmentStatus.ELIGIBLE
                     }
                 CartAssessmentLine(
-                    line.id,
-                    status,
-                    fact?.unitPrice,
-                    fact?.offerVersion,
-                    fact?.catalogVersion,
-                    fact?.availableToPromise,
-                    if (status == LineAssessmentStatus.ELIGIBLE) fact!!.unitPrice!! * line.quantity
-                    else Price.ZERO,
+                    cartLineId = line.id,
+                    status = status,
+                    observedUnitPrice = fact?.unitPrice,
+                    observedOfferVersion = fact?.offerVersion,
+                    observedCatalogVersion = fact?.catalogVersion,
+                    observedAtp = fact?.availableToPromise,
+                    amount =
+                        if (status == LineAssessmentStatus.ELIGIBLE)
+                            fact!!.unitPrice!! * line.quantity
+                        else Price.ZERO,
                 )
             }
         val amount = Price.sumOf(assessed.map { it.amount })
@@ -120,19 +128,21 @@ object CartAssessmentCalculator {
             when {
                 assessed.none { it.status == LineAssessmentStatus.ELIGIBLE } ->
                     AssessmentStatus.EMPTY
+
                 selected.all { it.status == LineAssessmentStatus.ELIGIBLE } ->
                     AssessmentStatus.COMPLETE
+
                 else -> AssessmentStatus.PARTIAL
             }
         return CartAssessment(
-            id,
-            cart.id,
-            cart.contentVersion,
-            status,
-            amount,
-            cart.settlementScope.currency,
-            now,
-            assessed,
+            id = id,
+            cartId = cart.id,
+            sourceCartVersion = cart.contentVersion,
+            status = status,
+            estimatedAmount = amount,
+            currency = cart.settlementScope.currency,
+            evaluatedAt = now,
+            lines = assessed,
         )
     }
 }

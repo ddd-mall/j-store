@@ -251,8 +251,8 @@ tasks.register("verifyLicenseArtifacts") {
     }
 }
 
-val prePushTargetFile = providers.gradleProperty("spotlessFilesFile").orNull
-val prePushTargets = prePushTargetFile?.let { path ->
+val spotlessTargetFile = providers.gradleProperty("spotlessFilesFile").orNull
+val spotlessTargets = spotlessTargetFile?.let { path ->
     val targetList = rootProject.file(path)
     require(targetList.isFile) { "Spotless target list does not exist: $targetList" }
     targetList.readLines().filter(String::isNotBlank).map(rootProject::file).filter(File::isFile)
@@ -279,12 +279,12 @@ val kotlinGradleFiles =
     )
 
 spotless {
-    if (prePushTargets == null) {
+    if (spotlessTargets == null) {
         ratchetFrom("origin/master")
     }
 
     java {
-        target(prePushTargets?.filter { it.extension == "java" } ?: javaSourceTrees)
+        target(spotlessTargets?.filter { it.extension == "java" } ?: javaSourceTrees)
         licenseHeaderFile(rootProject.file("config/spotless/license-header.txt"))
         googleJavaFormat(libs.versions.google.java.format.get()).aosp()
         trimTrailingWhitespace()
@@ -292,7 +292,7 @@ spotless {
     }
 
     kotlin {
-        target(prePushTargets?.filter { it.extension == "kt" } ?: kotlinSourceTrees)
+        target(spotlessTargets?.filter { it.extension == "kt" } ?: kotlinSourceTrees)
         licenseHeaderFile(rootProject.file("config/spotless/license-header.txt"))
         ktfmt(libs.versions.ktfmt.get()).kotlinlangStyle()
         trimTrailingWhitespace()
@@ -307,12 +307,28 @@ spotless {
     }
 
     kotlinGradle {
-        target(prePushTargets?.filter { it.name.endsWith(".gradle.kts") } ?: kotlinGradleFiles)
+        target(spotlessTargets?.filter { it.name.endsWith(".gradle.kts") } ?: kotlinGradleFiles)
         ktfmt(libs.versions.ktfmt.get()).kotlinlangStyle()
         trimTrailingWhitespace()
         endWithNewline()
     }
 }
+
+val gitHooksDirectory =
+    providers
+        .exec {
+            workingDir(rootDir)
+            commandLine(
+                "git",
+                "rev-parse",
+                "--path-format=absolute",
+                "--git-path",
+                "hooks",
+            )
+        }
+        .standardOutput
+        .asText
+        .map { output -> file(output.trim()) }
 
 val installSpotlessGitHooks by
     tasks.registering(Copy::class) {
@@ -321,11 +337,11 @@ val installSpotlessGitHooks by
         from(layout.projectDirectory.dir("scripts/git-hooks")) {
             include("pre-commit", "pre-push")
         }
-        into(layout.projectDirectory.dir(".git/hooks"))
+        into(gitHooksDirectory)
         outputs.upToDateWhen { false }
         doLast {
             listOf("pre-commit", "pre-push").forEach { hook ->
-                layout.projectDirectory.file(".git/hooks/$hook").asFile.setExecutable(true)
+                gitHooksDirectory.get().resolve(hook).setExecutable(true)
             }
         }
     }

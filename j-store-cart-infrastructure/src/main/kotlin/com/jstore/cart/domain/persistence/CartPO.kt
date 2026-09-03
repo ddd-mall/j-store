@@ -16,7 +16,9 @@
  */
 package com.jstore.cart.domain.persistence
 
-import com.jstore.cart.domain.*
+import com.jstore.cart.domain.AssessmentStatus
+import com.jstore.cart.domain.CartStatus
+import com.jstore.cart.domain.LineAssessmentStatus
 import jakarta.persistence.*
 import java.time.Instant
 

@@ -35,28 +35,28 @@ class CartRepositoryImpl(private val jpa: CartPOJpaRepository) : CartRepository 
     private fun toPO(cart: Cart): CartPO {
         val po =
             CartPO(
-                cart.id.value,
-                cart.buyerId.value,
-                cart.status,
-                cart.settlementScope.market,
-                cart.settlementScope.channelId,
-                cart.settlementScope.currency,
-                cart.contentVersion,
-                cart.persistenceVersion,
+                id = cart.id.value,
+                buyerId = cart.buyerId.value,
+                status = cart.status,
+                market = cart.settlementScope.market,
+                channelId = cart.settlementScope.channelId,
+                currency = cart.settlementScope.currency,
+                contentVersion = cart.contentVersion,
+                persistenceVersion = cart.persistenceVersion,
             )
         po.lines =
             cart.lines
                 .map {
                     CartLinePO(
-                        it.id.value,
-                        po,
-                        it.skuId.value,
-                        it.offerId.value,
-                        it.merchantId.value,
-                        it.quantity,
-                        it.selected,
-                        it.addedAt,
-                        it.modifiedAt,
+                        id = it.id.value,
+                        cart = po,
+                        skuId = it.skuId.value,
+                        offerId = it.offerId.value,
+                        merchantId = it.merchantId.value,
+                        quantity = it.quantity,
+                        selected = it.selected,
+                        addedAt = it.addedAt,
+                        modifiedAt = it.modifiedAt,
                     )
                 }
                 .toMutableList()
@@ -65,24 +65,25 @@ class CartRepositoryImpl(private val jpa: CartPOJpaRepository) : CartRepository 
 
     private fun toDomain(po: CartPO) =
         Cart(
-            CartId(po.id),
-            BuyerId(po.buyerId),
-            SettlementScope(po.market, po.channelId, po.currency),
-            po.status,
-            po.lines.map {
-                CartLine(
-                    CartLineId(it.id),
-                    SkuId(it.skuId),
-                    OfferId(it.offerId),
-                    MerchantId(it.merchantId),
-                    it.quantity,
-                    it.selected,
-                    it.addedAt,
-                    it.modifiedAt,
-                )
-            },
-            po.contentVersion,
-            po.persistenceVersion,
+            id = CartId(po.id),
+            buyerId = BuyerId(po.buyerId),
+            settlementScope = SettlementScope(po.market, po.channelId, po.currency),
+            status = po.status,
+            lines =
+                po.lines.map {
+                    CartLine(
+                        id = CartLineId(it.id),
+                        skuId = SkuId(it.skuId),
+                        offerId = OfferId(it.offerId),
+                        merchantId = MerchantId(it.merchantId),
+                        quantity = it.quantity,
+                        selected = it.selected,
+                        addedAt = it.addedAt,
+                        modifiedAt = it.modifiedAt,
+                    )
+                },
+            contentVersion = po.contentVersion,
+            persistenceVersion = po.persistenceVersion,
         )
 }
 
@@ -90,8 +91,8 @@ class CartRepositoryImpl(private val jpa: CartPOJpaRepository) : CartRepository 
 class CartAssessmentStoreImpl(private val jpa: CartAssessmentPOJpaRepository) :
     CartAssessmentStore {
     @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(aggregate: CartAssessment): CartAssessment =
-        toDomain(jpa.save(toPO(aggregate)))
+    override fun save(assessment: CartAssessment): CartAssessment =
+        toDomain(jpa.save(toPO(assessment)))
 
     override fun findById(id: CartAssessmentId): CartAssessment? =
         jpa.findById(id.value).orElse(null)?.let(::toDomain)
@@ -105,27 +106,27 @@ class CartAssessmentStoreImpl(private val jpa: CartAssessmentPOJpaRepository) :
     private fun toPO(a: CartAssessment): CartAssessmentPO {
         val po =
             CartAssessmentPO(
-                a.id.value,
-                a.cartId.value,
-                a.sourceCartVersion,
-                a.status,
-                a.estimatedAmount.fen,
-                a.currency,
-                a.evaluatedAt,
+                id = a.id.value,
+                cartId = a.cartId.value,
+                sourceCartVersion = a.sourceCartVersion,
+                status = a.status,
+                amountFen = a.estimatedAmount.fen,
+                currency = a.currency,
+                evaluatedAt = a.evaluatedAt,
             )
         po.lines =
             a.lines
                 .map {
                     CartAssessmentLinePO(
-                        0,
-                        po,
-                        it.cartLineId.value,
-                        it.status,
-                        it.observedUnitPrice?.fen,
-                        it.observedOfferVersion,
-                        it.observedCatalogVersion,
-                        it.observedAtp,
-                        it.amount.fen,
+                        id = 0,
+                        assessment = po,
+                        cartLineId = it.cartLineId.value,
+                        status = it.status,
+                        unitPriceFen = it.observedUnitPrice?.fen,
+                        offerVersion = it.observedOfferVersion,
+                        catalogVersion = it.observedCatalogVersion,
+                        observedAtp = it.observedAtp,
+                        amountFen = it.amount.fen,
                     )
                 }
                 .toMutableList()
@@ -134,24 +135,25 @@ class CartAssessmentStoreImpl(private val jpa: CartAssessmentPOJpaRepository) :
 
     private fun toDomain(po: CartAssessmentPO) =
         CartAssessment(
-            CartAssessmentId(po.id),
-            CartId(po.cartId),
-            po.sourceCartVersion,
-            po.status,
-            Price.ofFen(po.amountFen),
-            po.currency,
-            po.evaluatedAt,
-            po.lines.map {
-                CartAssessmentLine(
-                    CartLineId(it.cartLineId),
-                    it.status,
-                    it.unitPriceFen?.let(Price::ofFen),
-                    it.offerVersion,
-                    it.catalogVersion,
-                    it.observedAtp,
-                    Price.ofFen(it.amountFen),
-                )
-            },
+            id = CartAssessmentId(po.id),
+            cartId = CartId(po.cartId),
+            sourceCartVersion = po.sourceCartVersion,
+            status = po.status,
+            estimatedAmount = Price.ofFen(po.amountFen),
+            currency = po.currency,
+            evaluatedAt = po.evaluatedAt,
+            lines =
+                po.lines.map {
+                    CartAssessmentLine(
+                        cartLineId = CartLineId(it.cartLineId),
+                        status = it.status,
+                        observedUnitPrice = it.unitPriceFen?.let(Price::ofFen),
+                        observedOfferVersion = it.offerVersion,
+                        observedCatalogVersion = it.catalogVersion,
+                        observedAtp = it.observedAtp,
+                        amount = Price.ofFen(it.amountFen),
+                    )
+                },
         )
 }
 
@@ -159,18 +161,19 @@ class CartAssessmentStoreImpl(private val jpa: CartAssessmentPOJpaRepository) :
 class CartRequestReceiptStoreImpl(private val jpa: CartRequestReceiptPOJpaRepository) :
     CartRequestReceiptStore {
     @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(aggregate: CartRequestReceipt): CartRequestReceipt =
+    override fun save(receipt: CartRequestReceipt): CartRequestReceipt =
         toDomain(
-            jpa.save(
-                CartRequestReceiptPO(
-                    aggregate.id.value,
-                    aggregate.buyerId.value,
-                    aggregate.requestId,
-                    aggregate.requestDigest,
-                    aggregate.cartId.value,
-                    aggregate.cartVersion,
+            po =
+                jpa.save(
+                    CartRequestReceiptPO(
+                        id = receipt.id.value,
+                        buyerId = receipt.buyerId.value,
+                        requestId = receipt.requestId,
+                        requestDigest = receipt.requestDigest,
+                        cartId = receipt.cartId.value,
+                        cartVersion = receipt.cartVersion,
+                    )
                 )
-            )
         )
 
     override fun findById(id: CartRequestReceiptId) =
@@ -181,11 +184,11 @@ class CartRequestReceiptStoreImpl(private val jpa: CartRequestReceiptPOJpaReposi
 
     private fun toDomain(po: CartRequestReceiptPO) =
         CartRequestReceipt(
-            CartRequestReceiptId(po.id),
-            BuyerId(po.buyerId),
-            po.requestId,
-            po.requestDigest,
-            CartId(po.cartId),
-            po.cartVersion,
+            id = CartRequestReceiptId(po.id),
+            buyerId = BuyerId(po.buyerId),
+            requestId = po.requestId,
+            requestDigest = po.requestDigest,
+            cartId = CartId(po.cartId),
+            cartVersion = po.cartVersion,
         )
 }
