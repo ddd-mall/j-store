@@ -69,11 +69,12 @@ class SecretScanConfigurationTest(unittest.TestCase):
         workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertNotIn("--config p/default", workflow)
-        self.assertIn(
-            "SEMGREP_DEFAULT_RULES_SHA256: d526987e830828f8962e2146969de0877b58efc786c312141c4d84673287e9b5",
-            workflow,
-        )
-        self.assertIn('https://semgrep.dev/c/p/default', workflow)
+        self.assertNotIn("https://semgrep.dev/c/p/default", workflow)
+        self.assertIn("repository: semgrep/semgrep-rules", workflow)
+        self.assertIn("ref: 40b8c63f75dc7c22c8a77482d73bfb864b146f7e", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("--config \"$rule_bundle\"", workflow)
+        self.assertIn("! -path '*/audit/*'", workflow)
 
 
 if __name__ == "__main__":

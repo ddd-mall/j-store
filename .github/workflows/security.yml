@@ -20,6 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Checkout pinned Semgrep community rules
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: semgrep/semgrep-rules
+          ref: 40b8c63f75dc7c22c8a77482d73bfb864b146f7e
+          path: .semgrep-rules
+          persist-credentials: false
+
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
@@ -31,16 +39,25 @@ jobs:
           --index-url https://pypi.org/simple
           -r requirements-security.txt
 
-      - name: Scan source with Semgrep community rules
-        env:
-          # p/default is mutable. A content change must fail closed until this reviewed digest is updated.
-          SEMGREP_DEFAULT_RULES_SHA256: d526987e830828f8962e2146969de0877b58efc786c312141c4d84673287e9b5
+      - name: Scan source with pinned Semgrep community rules
         run: |
           set -euo pipefail
-          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
-            https://semgrep.dev/c/p/default --output "$RUNNER_TEMP/semgrep-default.yml"
-          printf '%s  %s\n' "$SEMGREP_DEFAULT_RULES_SHA256" "$RUNNER_TEMP/semgrep-default.yml" | sha256sum --check --strict
-          semgrep scan --config "$RUNNER_TEMP/semgrep-default.yml" --error --severity ERROR \
+          rule_bundle="$RUNNER_TEMP/semgrep-rules"
+          mkdir -p "$rule_bundle"
+          (
+            cd "$GITHUB_WORKSPACE/.semgrep-rules"
+            find java kotlin generic yaml json dockerfile bash python javascript typescript \
+              -type f \( -name '*.yml' -o -name '*.yaml' \) \
+              ! -path '*/audit/*' \
+              ! -path '*/best-practice/*' \
+              ! -path '*/correctness/*' \
+              ! -path '*/maintainability/*' \
+              ! -path '*/performance/*' \
+              ! -path '*/compatibility/*' \
+              -exec cp --parents '{}' "$rule_bundle" ';'
+          )
+          test "$(find "$rule_bundle" -type f | wc -l)" -gt 0
+          semgrep scan --config "$rule_bundle" --error --severity ERROR \
             --metrics off --json --output semgrep-results.json .
 
       - name: Upload Semgrep report
