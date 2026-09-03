@@ -15,5 +15,8 @@ dependencies {
     constraints {
         api(libs.postgresql)
         api(libs.commons.lang3)
+        api(libs.tomcat.embed.core)
+        api(libs.tomcat.embed.el)
+        api(libs.tomcat.embed.websocket)
     }
 }

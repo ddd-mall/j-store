@@ -98,11 +98,18 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertEqual("2.21.5", versions["jackson"])
         self.assertEqual("4.1.136.Final", versions["netty"])
         self.assertEqual("2.25.5", versions["log4j"])
+        self.assertEqual("10.1.59", versions["tomcat"])
         self.assertEqual("42.7.12", versions["postgresql"])
         self.assertEqual("3.19.0", versions["commons-lang3"])
         self.assertEqual("jackson", libraries["jackson-bom"]["version"]["ref"])
         self.assertEqual("netty", libraries["netty-bom"]["version"]["ref"])
         self.assertEqual("log4j", libraries["log4j-bom"]["version"]["ref"])
+        for alias in (
+            "tomcat-embed-core",
+            "tomcat-embed-el",
+            "tomcat-embed-websocket",
+        ):
+            self.assertEqual("tomcat", libraries[alias]["version"]["ref"])
         self.assertEqual("postgresql", libraries["postgresql"]["version"]["ref"])
         self.assertEqual(
             "commons-lang3", libraries["commons-lang3"]["version"]["ref"]
@@ -110,6 +117,13 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertNotIn("spring-security", versions)
         self.assertNotIn("version", libraries["spring-security-crypto"])
         self.assertNotIn("spirng-boot-boot", libraries)
+
+        platform = (
+            REPO_ROOT / PLATFORM_MODULE / "build.gradle.kts"
+        ).read_text(encoding="utf-8")
+        self.assertIn("api(libs.tomcat.embed.core)", platform)
+        self.assertIn("api(libs.tomcat.embed.el)", platform)
+        self.assertIn("api(libs.tomcat.embed.websocket)", platform)
 
     def test_dependency_management_rules_are_part_of_project_steering(self) -> None:
         guideline_path = (
@@ -144,6 +158,8 @@ class DependencyManagementContractTest(unittest.TestCase):
         )
 
         self.assertIn('tasks.register("verifyDependencyResolution")', root_build)
+        self.assertIn("approvedTomcatVersion", root_build)
+        self.assertIn("Unexpected Tomcat runtime versions", root_build)
         self.assertIn("verifyDependencyResolution", quality_gate)
 
 

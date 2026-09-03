@@ -70,7 +70,7 @@ class SecretScanConfigurationTest(unittest.TestCase):
 
         self.assertNotIn("--config p/default", workflow)
         self.assertIn(
-            "SEMGREP_DEFAULT_RULES_SHA256: de294873207703d5be3d16b6befb8c37e2d5b53163e6d096cef45180842d955d",
+            "SEMGREP_DEFAULT_RULES_SHA256: d526987e830828f8962e2146969de0877b58efc786c312141c4d84673287e9b5",
             workflow,
         )
         self.assertIn('https://semgrep.dev/c/p/default', workflow)
