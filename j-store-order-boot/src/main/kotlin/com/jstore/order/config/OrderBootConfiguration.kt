@@ -73,8 +73,11 @@ class OrderBootConfiguration {
         OfferServiceImpl(offerSnapshotQueryService)
 
     @Bean
-    fun orderUserService(userProfileQueryService: UserProfileQueryService): UserService =
-        UserServiceImpl(userProfileQueryService)
+    fun orderUserService(
+        userProfileQueryService: UserProfileQueryService,
+        @org.springframework.beans.factory.annotation.Value($$"${jwt.issuer}")
+        authenticationDomain: String,
+    ): UserService = UserServiceImpl(userProfileQueryService, authenticationDomain)
 
     @Bean
     fun orderFactory(

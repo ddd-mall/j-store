@@ -49,12 +49,21 @@ class TransactionalOrderUseCase(
     private val write = TransactionTemplate(transactionManager)
     private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun getOrderById(buyerId: Long, orderId: OrderId) = read {
-        delegate.getOrderById(buyerId, orderId)
+    override fun getOrderById(
+        buyerAuthenticationDomain: String,
+        buyerId: Long,
+        orderId: OrderId,
+    ) = read {
+        delegate.getOrderById(buyerAuthenticationDomain, buyerId, orderId)
     }
 
-    override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> = read {
-        delegate.pageListByUserId(uid, currentPage, pageSize)
+    override fun pageListByUserId(
+        buyerAuthenticationDomain: String,
+        uid: Long,
+        currentPage: Int,
+        pageSize: Int,
+    ): Page<Order> = read {
+        delegate.pageListByUserId(buyerAuthenticationDomain, uid, currentPage, pageSize)
     }
 
     override fun confirmTradeCommitment(orderId: OrderId) = write {
@@ -97,8 +106,12 @@ class TransactionalOrderUseCase(
 
     override fun completeOrder(orderId: OrderId) = write { delegate.completeOrder(orderId) }
 
-    override fun cancelOrder(buyerId: Long, cmd: OrderCancelCMD) = write {
-        delegate.cancelOrder(buyerId, cmd)
+    override fun cancelOrder(
+        buyerAuthenticationDomain: String,
+        buyerId: Long,
+        cmd: OrderCancelCMD,
+    ) = write {
+        delegate.cancelOrder(buyerAuthenticationDomain, buyerId, cmd)
     }
 
     private fun <T> read(block: () -> T): T = requireNotNull(read.execute { block() })
@@ -135,13 +148,17 @@ class TransactionalAfterSaleUseCase(
         orderId: OrderId
     ): Result<AfterSaleOrderAccess, BusinessError> = read { delegate.listByOrderForAccess(orderId) }
 
-    override fun create(cmd: AfterSaleCreateCMD) = write { delegate.create(cmd) }
+    override fun create(buyerAuthenticationDomain: String, cmd: AfterSaleCreateCMD) = write {
+        delegate.create(buyerAuthenticationDomain, cmd)
+    }
 
     override fun approve(cmd: AfterSaleApproveCMD) = write { delegate.approve(cmd) }
 
     override fun reject(cmd: AfterSaleRejectCMD) = write { delegate.reject(cmd) }
 
-    override fun cancel(cmd: AfterSaleCancelCMD) = write { delegate.cancel(cmd) }
+    override fun cancel(buyerAuthenticationDomain: String, cmd: AfterSaleCancelCMD) = write {
+        delegate.cancel(buyerAuthenticationDomain, cmd)
+    }
 
     override fun receiveReturn(cmd: AfterSaleReceiveReturnCMD) = write {
         delegate.receiveReturn(cmd)

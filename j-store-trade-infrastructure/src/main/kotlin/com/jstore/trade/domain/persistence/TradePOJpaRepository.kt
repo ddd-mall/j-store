@@ -16,13 +16,12 @@
  */
 package com.jstore.trade.domain.persistence
 
-import com.jstore.trade.domain.PartyType
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface TradePOJpaRepository : JpaRepository<TradePO, Long> {
-    fun findByBuyerPartyTypeAndBuyerPartyIdAndCheckoutRequestId(
-        buyerPartyType: PartyType,
-        buyerPartyId: Long,
+    fun findByActingPrincipalAuthenticationDomainAndActingPrincipalIdAndCheckoutRequestId(
+        actingPrincipalAuthenticationDomain: String,
+        actingPrincipalId: Long,
         checkoutRequestId: String,
     ): TradePO?
 

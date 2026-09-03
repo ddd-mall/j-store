@@ -38,7 +38,7 @@ class MerchantBootConfiguration {
     @Bean
     fun merchantUserAccountLookup(userProfiles: UserProfileQueryService) =
         UserAccountLookup { userId ->
-            userProfiles.findById(userId) != null
+            userProfiles.findInCurrentAuthenticationDomain(userId) != null
         }
 
     @Bean

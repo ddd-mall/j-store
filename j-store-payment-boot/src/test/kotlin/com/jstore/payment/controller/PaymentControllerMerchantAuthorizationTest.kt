@@ -16,6 +16,7 @@
  */
 package com.jstore.payment.controller
 
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.currency.SiteCurrencyPolicy
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Success
@@ -72,8 +73,8 @@ class PaymentControllerMerchantAuthorizationTest {
                 SiteCurrencyPolicy("CNY", setOf("CNY")),
             )
 
-        assertEquals(HttpStatus.OK, controller.get(UserId(900), 9).statusCode)
-        assertEquals(HttpStatus.NOT_FOUND, controller.get(UserId(70), 9).statusCode)
+        assertEquals(HttpStatus.OK, controller.get(principal(900), 9).statusCode)
+        assertEquals(HttpStatus.NOT_FOUND, controller.get(principal(70), 9).statusCode)
     }
 
     @Test
@@ -112,7 +113,7 @@ class PaymentControllerMerchantAuthorizationTest {
             HttpStatus.OK,
             controller
                 .capture(
-                    UserId(900),
+                    principal(900),
                     9,
                     PaymentController.CaptureRequest("txn-1", 100),
                 )
@@ -122,7 +123,7 @@ class PaymentControllerMerchantAuthorizationTest {
             HttpStatus.BAD_REQUEST,
             controller
                 .capture(
-                    UserId(900),
+                    principal(900),
                     9,
                     PaymentController.CaptureRequest("txn-2", 100, "CNY"),
                 )
@@ -164,3 +165,5 @@ class PaymentControllerMerchantAuthorizationTest {
         override fun findByUser(userId: Long) = values.values.filter { it.userId == userId }
     }
 }
+
+private fun principal(accountId: Long) = AuthenticatedPrincipal("issuer-a", UserId(accountId))

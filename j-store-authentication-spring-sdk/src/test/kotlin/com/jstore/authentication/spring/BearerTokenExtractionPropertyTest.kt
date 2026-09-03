@@ -18,8 +18,9 @@ package com.jstore.authentication.spring
 
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.error.AuthenticationErrors
-import com.jstore.user.domain.useraccount.AuthTokenClaims
-import com.jstore.user.domain.useraccount.TokenProvider
+import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedPrincipal
+import com.jstore.authentication.principal.AuthenticatedSession
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
 import io.kotest.common.ExperimentalKotest
@@ -51,11 +52,11 @@ class BearerTokenExtractionPropertyTest :
                 Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
             ) { token ->
                 // --- Build mocks ---
-                val tokenProvider = mock<TokenProvider>()
+                val tokenVerifier = mock<AccessTokenVerifier>()
                 val tokenStore = mock<TokenStore>()
                 val interceptor =
                     AuthenticationInterceptor(
-                        tokenProvider = tokenProvider,
+                        accessTokenVerifier = tokenVerifier,
                         tokenStore = tokenStore,
                         configurers = emptyList(),
                     )
@@ -71,8 +72,13 @@ class BearerTokenExtractionPropertyTest :
 
                 // parseAccessToken returns a UserId → token was successfully extracted
                 val userId = UserId(1L)
-                val claims = AuthTokenClaims(userId, "session-1", 0L, "jti")
-                whenever(tokenProvider.parseAccessToken(token)).thenReturn(claims)
+                val principal =
+                    AuthenticatedPrincipal(
+                        "issuer-a",
+                        userId,
+                        AuthenticatedSession("session-1", 0L),
+                    )
+                whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(principal)
                 whenever(tokenStore.isSessionActive(userId, "session-1", 0L)).thenReturn(true)
 
                 val response = mock<HttpServletResponse>()
@@ -84,7 +90,7 @@ class BearerTokenExtractionPropertyTest :
                 // preHandle returns true → token was extracted and parsed successfully
                 result shouldBe true
                 // Verify parseAccessToken was called with the exact extracted token
-                verify(tokenProvider).parseAccessToken(token)
+                verify(tokenVerifier).verifyAccessToken(token)
             }
         }
 
@@ -97,11 +103,11 @@ class BearerTokenExtractionPropertyTest :
                 Arb.element(invalidHeaders),
             ) { headerValue ->
                 // --- Build mocks ---
-                val tokenProvider = mock<TokenProvider>()
+                val tokenVerifier = mock<AccessTokenVerifier>()
                 val tokenStore = mock<TokenStore>()
                 val interceptor =
                     AuthenticationInterceptor(
-                        tokenProvider = tokenProvider,
+                        accessTokenVerifier = tokenVerifier,
                         tokenStore = tokenStore,
                         configurers = emptyList(),
                     )
@@ -126,7 +132,7 @@ class BearerTokenExtractionPropertyTest :
                 verify(response).status = AuthenticationErrors.TOKEN_MISSING.httpCode
                 verify(response).contentType = "application/json"
                 // parseAccessToken should never be called when token is missing
-                verify(tokenProvider, never()).parseAccessToken(any())
+                verify(tokenVerifier, never()).verifyAccessToken(any())
 
                 val body = stringWriter.toString()
                 body.contains("Auth.Token.Missing") shouldBe true

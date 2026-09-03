@@ -47,6 +47,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 
 data class AfterSaleOrderAccess(
+    val buyerAuthenticationDomain: String,
     val buyerId: Long,
     val merchantId: MerchantActorId,
     val afterSales: List<AfterSale>,
@@ -67,6 +68,7 @@ class AfterSaleApplicationService(
         val order = orderRepository.findById(orderId) ?: return Failure(AfterSaleErrors.NOT_FOUND)
         return Success(
             AfterSaleOrderAccess(
+                buyerAuthenticationDomain = order.buyerInfo.authenticationDomain,
                 buyerId = order.buyerInfo.uid,
                 merchantId = MerchantActorId(order.merchantId.value),
                 afterSales = afterSaleRepository.findByOrderId(orderId),
@@ -74,16 +76,20 @@ class AfterSaleApplicationService(
         )
     }
 
-    override fun create(cmd: AfterSaleCreateCMD): Result<AfterSale, BusinessError> {
+    override fun create(
+        buyerAuthenticationDomain: String,
+        cmd: AfterSaleCreateCMD,
+    ): Result<AfterSale, BusinessError> {
         val valid =
             when (val result = cmd.validate()) {
                 is Success -> result.value
                 is Failure -> return result
             }
+        val scopedIdempotencyKey = "$buyerAuthenticationDomain:${valid.idempotencyKey}"
         receipt(
                 valid.applicantId.value,
                 AfterSaleCommandType.CREATE,
-                valid.idempotencyKey,
+                scopedIdempotencyKey,
                 hash(valid.toString()),
             )
             ?.let {
@@ -92,7 +98,10 @@ class AfterSaleApplicationService(
         val order =
             orderRepository.findById(valid.orderId)
                 ?: return Failure(AfterSaleErrors.ORDER_NOT_FOUND)
-        if (order.buyerInfo.uid != valid.applicantId.value)
+        if (
+            order.buyerInfo.authenticationDomain != buyerAuthenticationDomain ||
+                order.buyerInfo.uid != valid.applicantId.value
+        )
             return Failure(AfterSaleErrors.APPLICANT_FORBIDDEN)
         val merchant = MerchantActorId(order.merchantId.value)
         val afterSale =
@@ -117,7 +126,7 @@ class AfterSaleApplicationService(
                 AfterSaleCommandReceipt(
                     valid.applicantId.value,
                     AfterSaleCommandType.CREATE,
-                    valid.idempotencyKey,
+                    scopedIdempotencyKey,
                     hash(valid.toString()),
                     afterSale.id,
                     afterSale.status,
@@ -152,17 +161,32 @@ class AfterSaleApplicationService(
             it.reject(cmd.merchantId, cmd.rejectionReason, Instant.now())
         }
 
-    override fun cancel(cmd: AfterSaleCancelCMD): Result<AfterSale, BusinessError> =
-        decide(
+    override fun cancel(
+        buyerAuthenticationDomain: String,
+        cmd: AfterSaleCancelCMD,
+    ): Result<AfterSale, BusinessError> {
+        val afterSale =
+            afterSaleRepository.findById(cmd.afterSaleId)
+                ?: return Failure(AfterSaleErrors.NOT_FOUND)
+        val order =
+            orderRepository.findById(afterSale.orderId) ?: return Failure(AfterSaleErrors.NOT_FOUND)
+        if (
+            order.buyerInfo.authenticationDomain != buyerAuthenticationDomain ||
+                order.buyerInfo.uid != cmd.applicantId.value
+        ) {
+            return Failure(AfterSaleErrors.NOT_FOUND)
+        }
+        return decide(
             cmd.applicantId.value,
             AfterSaleCommandType.CANCEL,
-            cmd.idempotencyKey,
+            "$buyerAuthenticationDomain:${cmd.idempotencyKey}",
             cmd.afterSaleId,
             "",
             AllocationAction.RELEASE,
         ) {
             it.cancel(cmd.applicantId, Instant.now())
         }
+    }
 
     override fun receiveReturn(cmd: AfterSaleReceiveReturnCMD): Result<AfterSale, BusinessError> =
         mutate(cmd.afterSaleId) {

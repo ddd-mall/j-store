@@ -202,7 +202,11 @@ class OrderFactoryShippingInfoPropertyTest :
                             ),
                     )
 
-                val result = factory.create(cmd, UserInfo(1L, PhoneNumber("+8613800138000"), "买家"))
+                val result =
+                    factory.create(
+                        cmd,
+                        UserInfo("issuer-a", 1L, PhoneNumber("+8613800138000"), "买家"),
+                    )
 
                 result.shouldBeInstanceOf<Success<Order>>()
                 val order = result.value

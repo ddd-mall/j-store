@@ -76,6 +76,6 @@ class TransactionalCheckoutUseCase(
             read.execute { delegate.recoverConcurrentCheckout(command) } ?: throw failure
         }
 
-    override fun find(buyerId: Long, tradeId: Long) =
-        requireNotNull(read.execute { delegate.find(buyerId, tradeId) })
+    override fun find(buyerAuthenticationDomain: String, buyerId: Long, tradeId: Long) =
+        requireNotNull(read.execute { delegate.find(buyerAuthenticationDomain, buyerId, tradeId) })
 }

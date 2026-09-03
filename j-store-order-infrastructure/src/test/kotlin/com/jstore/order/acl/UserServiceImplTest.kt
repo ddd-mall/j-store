@@ -27,11 +27,11 @@ import org.mockito.kotlin.whenever
 
 class UserServiceImplTest {
     private val profiles = mock<UserProfileQueryService>()
-    private val service = UserServiceImpl(profiles)
+    private val service = UserServiceImpl(profiles, "issuer-a")
 
     @Test
     fun `active profile is translated into order local user info`() {
-        whenever(profiles.findById(42))
+        whenever(profiles.findInCurrentAuthenticationDomain(42))
             .thenReturn(UserProfileInfo(42, "buyer", "+8613800138000", UserProfileStatus.ACTIVE))
 
         val info = service.findUserInfo(42)!!
@@ -43,7 +43,7 @@ class UserServiceImplTest {
 
     @Test
     fun `disabled profile is not an eligible order buyer`() {
-        whenever(profiles.findById(42))
+        whenever(profiles.findInCurrentAuthenticationDomain(42))
             .thenReturn(UserProfileInfo(42, "buyer", "+8613800138000", UserProfileStatus.DISABLED))
 
         assertNull(service.findUserInfo(42))

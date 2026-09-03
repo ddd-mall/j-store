@@ -17,6 +17,7 @@
 package com.jstore.order.controller
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.properties.Price
 import com.jstore.common.query.SortedPage
 import com.jstore.common.utils.Success
@@ -62,7 +63,7 @@ class OrderControllerStatusContractTest {
         val now = LocalDateTime.of(2026, 1, 1, 0, 0)
         `when`(order.id).thenReturn(OrderId(1))
         `when`(order.merchantId).thenReturn(MerchantId(7))
-        `when`(order.buyerInfo).thenReturn(UserInfo(2, null, null))
+        `when`(order.buyerInfo).thenReturn(UserInfo("issuer-a", 2, null, null))
         `when`(order.tradeStatus).thenReturn(TradeStatus.ACTIVE)
         `when`(order.paymentStatus).thenReturn(PaymentStatus.PARTIALLY_REFUNDED)
         `when`(order.fulfillmentStatus).thenReturn(FulfillmentStatus.DELIVERED)
@@ -90,9 +91,10 @@ class OrderControllerStatusContractTest {
         `when`(order.items).thenReturn(listOf(item))
         `when`(order.createTime).thenReturn(now)
         `when`(order.updateTime).thenReturn(now)
-        `when`(service.getOrderById(2, OrderId(1))).thenReturn(Success(order))
+        `when`(service.getOrderById("issuer-a", 2, OrderId(1))).thenReturn(Success(order))
 
-        val body = OrderController(service).getOrder(UserId(2), 1).body
+        val principal = AuthenticatedPrincipal("issuer-a", UserId(2))
+        val body = OrderController(service).getOrder(principal, 1).body
         val json =
             jacksonObjectMapper()
                 .findAndRegisterModules()
@@ -109,12 +111,13 @@ class OrderControllerStatusContractTest {
         assertFalse(json.has("buyerName"))
         assertEquals("CANCELED", json["items"][0]["status"].asText())
 
-        `when`(service.pageListByUserId(2, 1, 10)).thenReturn(SortedPage(1, 1, listOf(order)))
+        `when`(service.pageListByUserId("issuer-a", 2, 1, 10))
+            .thenReturn(SortedPage(1, 1, listOf(order)))
         val pageJson =
             jacksonObjectMapper()
                 .findAndRegisterModules()
                 .valueToTree<com.fasterxml.jackson.databind.JsonNode>(
-                    OrderController(service).listMyOrders(UserId(2), 1, 10).body
+                    OrderController(service).listMyOrders(principal, 1, 10).body
                 )
         assertTrue(pageJson["records"][0].has("tradeStatus"))
         assertFalse(pageJson["records"][0].has("status"))

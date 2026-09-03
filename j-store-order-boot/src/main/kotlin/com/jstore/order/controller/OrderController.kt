@@ -16,15 +16,15 @@
  */
 package com.jstore.order.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.fold
 import com.jstore.order.domain.order.*
 import com.jstore.order.domain.order.command.*
 import com.jstore.order.service.OrderUseCase
-import com.jstore.user.domain.useraccount.UserId
 import java.time.LocalDateTime
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -97,21 +97,33 @@ class OrderController(private val orderService: OrderUseCase) {
 
     @GetMapping("/{orderId}")
     fun getOrder(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable orderId: Long,
     ): ResponseEntity<*> {
-        return orderService.getOrderById(userId.value, OrderId(orderId)).toResponse {
-            it.toOrderResponse()
-        }
+        return orderService
+            .getOrderById(
+                principal.authenticationDomain,
+                principal.accountId.value,
+                OrderId(orderId),
+            )
+            .toResponse {
+                it.toOrderResponse()
+            }
     }
 
     @GetMapping
     fun listMyOrders(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
     ): ResponseEntity<*> {
-        val result = orderService.pageListByUserId(userId.value, page, size)
+        val result =
+            orderService.pageListByUserId(
+                principal.authenticationDomain,
+                principal.accountId.value,
+                page,
+                size,
+            )
         return ResponseEntity.ok(
             PageResponse(
                 current = result.currentPage,
@@ -123,7 +135,7 @@ class OrderController(private val orderService: OrderUseCase) {
 
     @PostMapping("/{orderId}/cancel")
     fun cancelOrder(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable orderId: Long,
         @RequestBody request: CancelOrderRequest,
     ): ResponseEntity<*> {
@@ -133,7 +145,9 @@ class OrderController(private val orderService: OrderUseCase) {
                 category = request.category,
                 description = request.description,
             )
-        return orderService.cancelOrder(userId.value, cmd).toResponse {}
+        return orderService
+            .cancelOrder(principal.authenticationDomain, principal.accountId.value, cmd)
+            .toResponse {}
     }
 
     // ---- Helpers ----

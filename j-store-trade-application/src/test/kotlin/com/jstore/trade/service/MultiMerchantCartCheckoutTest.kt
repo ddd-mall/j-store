@@ -36,6 +36,7 @@ class MultiMerchantCartCheckoutTest {
         val command =
             CreateCheckoutCommand(
                 "cart-checkout",
+                "issuer-a",
                 42,
                 CheckoutRecipient("张三", "CN", "13800000000", null, "110105", "示例路"),
                 cartId = 9,
@@ -128,9 +129,12 @@ private class MultiMerchantTradeRepository : TradeRepository {
 
     override fun findById(id: TradeId) = values[id]
 
-    override fun findByCheckoutRequest(buyerParty: BuyerPartySnapshot, checkoutRequestId: String) =
+    override fun findByCheckoutRequest(
+        actingPrincipal: AuthenticatedAccountSnapshot,
+        checkoutRequestId: String,
+    ) =
         values.values.firstOrNull {
-            it.buyerParty == buyerParty && it.checkoutRequestId == checkoutRequestId
+            it.actingPrincipal == actingPrincipal && it.checkoutRequestId == checkoutRequestId
         }
 
     override fun findByOrderPlanId(orderPlanId: TradeOrderPlanId) =

@@ -16,8 +16,9 @@
  */
 package com.jstore.order.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
@@ -45,7 +46,6 @@ import com.jstore.order.service.AfterSaleUseCase
 import com.jstore.shop.domain.merchant.MerchantId as ShopMerchantId
 import com.jstore.shop.domain.merchant.MerchantPermission
 import com.jstore.shop.service.MerchantAuthorizationService
-import com.jstore.user.domain.useraccount.UserId
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
@@ -120,15 +120,16 @@ class AfterSaleController(
 
     @PostMapping
     fun create(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @RequestHeader("Idempotency-Key") @NotBlank key: String,
         @Valid @RequestBody body: CreateRequest,
     ) =
         service
             .create(
+                principal.authenticationDomain,
                 AfterSaleCreateCMD(
                     OrderId(body.orderId),
-                    ApplicantActorId(userId.value),
+                    ApplicantActorId(principal.accountId.value),
                     RefundReason(body.category, body.description),
                     body.items.map {
                         AfterSaleItemRequestCMD(
@@ -138,24 +139,26 @@ class AfterSaleController(
                         )
                     },
                     key,
-                )
+                ),
             )
             .response()
 
     @GetMapping("/{id}")
-    fun get(@CurrentUserId userId: UserId, @PathVariable id: Long): ResponseEntity<*> =
-        authorizeRead(userId, service.findById(AfterSaleId(id))).response()
+    fun get(
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
+        @PathVariable id: Long,
+    ): ResponseEntity<*> = authorizeRead(principal, service.findById(AfterSaleId(id))).response()
 
     @GetMapping
     fun list(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @RequestParam orderId: Long,
     ): ResponseEntity<*> =
         service
             .listByOrderForAccess(OrderId(orderId))
             .fold(
                 onSuccess = { access ->
-                    if (canRead(userId, access)) ResponseEntity.ok(access.afterSales.map(::map))
+                    if (canRead(principal, access)) ResponseEntity.ok(access.afterSales.map(::map))
                     else notFoundResponse()
                 },
                 onFailure = { it.errorResponse() },
@@ -163,22 +166,22 @@ class AfterSaleController(
 
     @PostMapping("/{id}/approve")
     fun approve(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable id: Long,
         @RequestHeader("Idempotency-Key") key: String,
     ) =
-        merchantOperation(userId, AfterSaleId(id)) {
+        merchantOperation(principal, AfterSaleId(id)) {
             service.approve(AfterSaleApproveCMD(AfterSaleId(id), it.merchantId, key))
         }
 
     @PostMapping("/{id}/reject")
     fun reject(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable id: Long,
         @RequestHeader("Idempotency-Key") key: String,
         @Valid @RequestBody body: RejectRequest,
     ) =
-        merchantOperation(userId, AfterSaleId(id)) {
+        merchantOperation(principal, AfterSaleId(id)) {
             service.reject(
                 AfterSaleRejectCMD(AfterSaleId(id), it.merchantId, body.rejectionReason, key)
             )
@@ -186,28 +189,41 @@ class AfterSaleController(
 
     @PostMapping("/{id}/cancel")
     fun cancel(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable id: Long,
         @RequestHeader("Idempotency-Key") key: String,
     ) =
         service
-            .cancel(AfterSaleCancelCMD(AfterSaleId(id), ApplicantActorId(userId.value), key))
+            .cancel(
+                principal.authenticationDomain,
+                AfterSaleCancelCMD(
+                    AfterSaleId(id),
+                    ApplicantActorId(principal.accountId.value),
+                    key,
+                ),
+            )
             .response()
 
     @PostMapping("/{id}/receive-return")
-    fun receiveReturn(@CurrentUserId userId: UserId, @PathVariable id: Long) =
-        merchantOperation(userId, AfterSaleId(id)) {
+    fun receiveReturn(
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
+        @PathVariable id: Long,
+    ) =
+        merchantOperation(principal, AfterSaleId(id)) {
             service.receiveReturn(AfterSaleReceiveReturnCMD(AfterSaleId(id), it.merchantId))
         }
 
     @PostMapping("/{id}/retry-refund")
-    fun retryRefund(@CurrentUserId userId: UserId, @PathVariable id: Long) =
-        merchantOperation(userId, AfterSaleId(id)) {
+    fun retryRefund(
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
+        @PathVariable id: Long,
+    ) =
+        merchantOperation(principal, AfterSaleId(id)) {
             service.retryRefund(AfterSaleRetryRefundCMD(AfterSaleId(id), it.merchantId))
         }
 
     private fun merchantOperation(
-        userId: UserId,
+        principal: AuthenticatedPrincipal,
         afterSaleId: AfterSaleId,
         operation: (AfterSale) -> Result<AfterSale, BusinessError>,
     ): ResponseEntity<*> =
@@ -217,7 +233,7 @@ class AfterSaleController(
                 onSuccess = { afterSale ->
                     if (
                         merchantAuthorization.hasPermission(
-                            userId.value,
+                            principal.accountId.value,
                             ShopMerchantId(afterSale.merchantId.value),
                             MerchantPermission.AFTER_SALE_MANAGE,
                         )
@@ -231,29 +247,27 @@ class AfterSaleController(
             )
 
     private fun authorizeRead(
-        userId: UserId,
+        principal: AuthenticatedPrincipal,
         result: Result<AfterSale, BusinessError>,
     ): Result<AfterSale, BusinessError> =
         result.fold(
-            onSuccess = {
-                if (
-                    it.applicantId.value == userId.value ||
-                        merchantAuthorization.hasPermission(
-                            userId.value,
-                            ShopMerchantId(it.merchantId.value),
-                            MerchantPermission.AFTER_SALE_READ,
-                        )
-                )
+            onSuccess = { afterSale ->
+                val access = service.listByOrderForAccess(afterSale.orderId)
+                if (access is com.jstore.common.utils.Success && canRead(principal, access.value)) {
                     result
-                else Failure(AfterSaleErrors.NOT_FOUND)
+                } else Failure(AfterSaleErrors.NOT_FOUND)
             },
             onFailure = { result },
         )
 
-    private fun canRead(userId: UserId, access: AfterSaleOrderAccess): Boolean =
-        access.buyerId == userId.value ||
+    private fun canRead(
+        principal: AuthenticatedPrincipal,
+        access: AfterSaleOrderAccess,
+    ): Boolean =
+        (access.buyerAuthenticationDomain == principal.authenticationDomain &&
+            access.buyerId == principal.accountId.value) ||
             merchantAuthorization.hasPermission(
-                userId.value,
+                principal.accountId.value,
                 ShopMerchantId(access.merchantId.value),
                 MerchantPermission.AFTER_SALE_READ,
             )

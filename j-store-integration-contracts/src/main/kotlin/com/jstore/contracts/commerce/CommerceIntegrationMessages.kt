@@ -124,13 +124,23 @@ data class ContractTradeOrderItem(
     val catalogSnapshotVersion: Long,
 )
 
-@IntegrationMessageType("order.create-from-trade", 1)
+data class ContractAuthenticatedAccount(
+    val authenticationDomain: String,
+    val accountId: Long,
+) {
+    init {
+        require(authenticationDomain.isNotBlank()) { "authenticationDomain must not be blank" }
+        require(accountId > 0) { "accountId must be positive" }
+    }
+}
+
+@IntegrationMessageType("order.create-from-trade", 2)
 data class CreateOrderFromTradeIntegrationCommand(
     val tradeId: Long,
     val orderPlanId: Long,
     val planDigest: String,
     val merchantId: Long,
-    val buyerId: Long,
+    val buyer: ContractAuthenticatedAccount,
     val buyerName: String,
     val buyerPhone: String?,
     val recipient: ContractRecipient,
@@ -142,9 +152,9 @@ data class CreateOrderFromTradeIntegrationCommand(
     val occurredAtValue: Instant,
 ) :
     CommerceIntegrationCommand(
-        id("order.create-from-trade", 1, orderPlanId, planDigest),
+        id("order.create-from-trade", 2, orderPlanId, planDigest),
         "order.create-from-trade",
-        1,
+        2,
         occurredAtValue,
         orderPlanId.toString(),
         tradeId.toString(),

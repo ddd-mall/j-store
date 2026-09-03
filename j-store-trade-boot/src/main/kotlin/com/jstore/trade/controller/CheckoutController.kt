@@ -16,13 +16,13 @@
  */
 package com.jstore.trade.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.fold
 import com.jstore.trade.service.*
-import com.jstore.user.domain.useraccount.UserId
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
@@ -79,14 +79,15 @@ class CheckoutController(private val checkouts: CheckoutUseCase) {
 
     @PostMapping
     fun create(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @RequestBody request: CreateCheckoutRequest,
     ): ResponseEntity<*> =
         checkouts
             .checkout(
                 CreateCheckoutCommand(
                     checkoutRequestId = request.checkoutRequestId,
-                    buyerId = userId.value,
+                    buyerAuthenticationDomain = principal.authenticationDomain,
+                    buyerId = principal.accountId.value,
                     recipient = request.recipient.toCommand(),
                     items = request.items.map { it.toCommand() },
                     cartId = request.cartId,
@@ -97,11 +98,11 @@ class CheckoutController(private val checkouts: CheckoutUseCase) {
 
     @GetMapping("/{tradeId}")
     fun find(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable tradeId: Long,
     ): ResponseEntity<*> =
         checkouts
-            .find(userId.value, tradeId)
+            .find(principal.authenticationDomain, principal.accountId.value, tradeId)
             .fold(
                 onSuccess = {
                     ResponseEntity.ok(

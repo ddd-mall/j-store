@@ -18,8 +18,9 @@ package com.jstore.authentication.spring
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.config.AuthenticationConfigurer
-import com.jstore.user.domain.useraccount.TokenProvider
+import com.jstore.authentication.principal.AccessTokenVerifier
 import com.jstore.user.domain.useraccount.TokenStore
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -31,30 +32,35 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@ConditionalOnBean(TokenProvider::class, TokenStore::class)
+@ConditionalOnBean(AccessTokenVerifier::class)
 class AuthenticationAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
     fun authenticationInterceptor(
-        tokenProvider: TokenProvider,
-        tokenStore: TokenStore,
+        accessTokenVerifier: AccessTokenVerifier,
+        tokenStore: ObjectProvider<TokenStore>,
         configurers: List<AuthenticationConfigurer>,
         objectMapper: ObjectMapper,
     ): AuthenticationInterceptor {
-        return AuthenticationInterceptor(tokenProvider, tokenStore, configurers, objectMapper)
+        return AuthenticationInterceptor(
+            accessTokenVerifier,
+            tokenStore.ifAvailable,
+            configurers,
+            objectMapper,
+        )
     }
 
     @Bean
     @ConditionalOnMissingBean
-    fun currentUserIdArgumentResolver(): CurrentUserIdArgumentResolver {
-        return CurrentUserIdArgumentResolver()
+    fun currentPrincipalArgumentResolver(): CurrentPrincipalArgumentResolver {
+        return CurrentPrincipalArgumentResolver()
     }
 
     @Bean
     fun authenticationWebMvcConfigurer(
         interceptor: AuthenticationInterceptor,
-        resolver: CurrentUserIdArgumentResolver,
+        resolver: CurrentPrincipalArgumentResolver,
     ): WebMvcConfigurer {
         return object : WebMvcConfigurer {
             override fun addInterceptors(registry: InterceptorRegistry) {

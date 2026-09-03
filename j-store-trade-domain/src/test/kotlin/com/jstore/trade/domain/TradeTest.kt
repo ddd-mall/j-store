@@ -86,7 +86,7 @@ class TradeTest {
 
         assertEquals(PartyType.ORGANIZATION, trade.buyerParty.partyType)
         assertEquals(88, trade.buyerParty.partyId)
-        assertEquals(42, trade.actingPrincipalId)
+        assertEquals(AuthenticatedAccountSnapshot("issuer-a", 42), trade.actingPrincipal)
     }
 
     @Test
@@ -413,7 +413,7 @@ class TradeTest {
             requestDigest = "v1:abc",
             buyerParty = BuyerPartySnapshot(PartyType.ORGANIZATION, 88),
             buyerProfile = TradeBuyerProfileSnapshot("示例企业", "+8613800138000"),
-            actingPrincipalId = 42,
+            actingPrincipal = AuthenticatedAccountSnapshot("issuer-a", 42),
             recipient =
                 TradeRecipientSnapshot(
                     "李四",

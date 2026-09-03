@@ -16,6 +16,7 @@
  */
 package com.jstore.authentication.context
 
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.user.domain.useraccount.UserId
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.spec.style.FunSpec
@@ -42,13 +43,14 @@ class AuthenticatedUserContextPropertyTest :
 
             checkAll(PropTestConfig(iterations = 100), userIdArb) { userId ->
                 try {
-                    AuthenticatedUserContext.set(userId)
-                    AuthenticatedUserContext.getCurrentUserId() shouldBe userId
-                    AuthenticatedUserContext.getCurrentUserIdOrNull() shouldBe userId
-                    AuthenticatedUserContext.clear()
-                    AuthenticatedUserContext.getCurrentUserIdOrNull().shouldBeNull()
+                    val principal = AuthenticatedPrincipal("issuer-a", userId)
+                    AuthenticatedPrincipalContext.set(principal)
+                    AuthenticatedPrincipalContext.getCurrent() shouldBe principal
+                    AuthenticatedPrincipalContext.getCurrentOrNull() shouldBe principal
+                    AuthenticatedPrincipalContext.clear()
+                    AuthenticatedPrincipalContext.getCurrentOrNull().shouldBeNull()
                 } finally {
-                    AuthenticatedUserContext.clear()
+                    AuthenticatedPrincipalContext.clear()
                 }
             }
         }
@@ -65,28 +67,30 @@ class AuthenticatedUserContextPropertyTest :
 
                 val futureA = CompletableFuture.supplyAsync {
                     try {
-                        AuthenticatedUserContext.set(userIdA)
+                        val principal = AuthenticatedPrincipal("issuer-a", userIdA)
+                        AuthenticatedPrincipalContext.set(principal)
                         barrier.countDown()
                         barrier.await()
-                        AuthenticatedUserContext.getCurrentUserId()
+                        AuthenticatedPrincipalContext.getCurrent()
                     } finally {
-                        AuthenticatedUserContext.clear()
+                        AuthenticatedPrincipalContext.clear()
                     }
                 }
 
                 val futureB = CompletableFuture.supplyAsync {
                     try {
-                        AuthenticatedUserContext.set(userIdB)
+                        val principal = AuthenticatedPrincipal("issuer-b", userIdB)
+                        AuthenticatedPrincipalContext.set(principal)
                         barrier.countDown()
                         barrier.await()
-                        AuthenticatedUserContext.getCurrentUserId()
+                        AuthenticatedPrincipalContext.getCurrent()
                     } finally {
-                        AuthenticatedUserContext.clear()
+                        AuthenticatedPrincipalContext.clear()
                     }
                 }
 
-                futureA.get() shouldBe userIdA
-                futureB.get() shouldBe userIdB
+                futureA.get() shouldBe AuthenticatedPrincipal("issuer-a", userIdA)
+                futureB.get() shouldBe AuthenticatedPrincipal("issuer-b", userIdB)
             }
         }
     })

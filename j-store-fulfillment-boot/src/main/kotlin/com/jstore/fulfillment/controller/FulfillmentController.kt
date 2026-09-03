@@ -16,8 +16,9 @@
  */
 package com.jstore.fulfillment.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -28,7 +29,6 @@ import com.jstore.fulfillment.service.FulfillmentUseCase
 import com.jstore.shop.domain.merchant.MerchantId
 import com.jstore.shop.domain.merchant.MerchantPermission
 import com.jstore.shop.service.MerchantAuthorizationService
-import com.jstore.user.domain.useraccount.UserId
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -58,41 +58,48 @@ class FulfillmentController(
     )
 
     @GetMapping("/orders/{orderId}")
-    fun get(@CurrentUserId userId: UserId, @PathVariable orderId: Long): ResponseEntity<*> =
-        authorized(userId, orderId, MerchantPermission.FULFILLMENT_READ).response {
+    fun get(
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
+        @PathVariable orderId: Long,
+    ): ResponseEntity<*> =
+        authorized(principal, orderId, MerchantPermission.FULFILLMENT_READ).response {
             it.toResponse()
         }
 
     @PostMapping("/orders/{orderId}/prepare")
-    fun prepare(@CurrentUserId userId: UserId, @PathVariable orderId: Long): ResponseEntity<*> =
-        authorizeThen(userId, orderId) { service.prepare(orderId) }
+    fun prepare(
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
+        @PathVariable orderId: Long,
+    ): ResponseEntity<*> = authorizeThen(principal, orderId) { service.prepare(orderId) }
 
     @PostMapping("/orders/{orderId}/dispatch")
     fun dispatch(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable orderId: Long,
         @RequestBody body: DispatchRequest,
     ): ResponseEntity<*> =
-        authorizeThen(userId, orderId) {
+        authorizeThen(principal, orderId) {
             service.dispatch(orderId, body.carrierCode, body.trackingNumber)
         }
 
     @PostMapping("/orders/{orderId}/deliver")
-    fun deliver(@CurrentUserId userId: UserId, @PathVariable orderId: Long): ResponseEntity<*> =
-        authorizeThen(userId, orderId) { service.deliver(orderId) }
+    fun deliver(
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
+        @PathVariable orderId: Long,
+    ): ResponseEntity<*> = authorizeThen(principal, orderId) { service.deliver(orderId) }
 
     private fun authorizeThen(
-        userId: UserId,
+        principal: AuthenticatedPrincipal,
         orderId: Long,
         operation: () -> Result<Boolean, BusinessError>,
     ): ResponseEntity<*> {
-        val authorization = authorized(userId, orderId, MerchantPermission.FULFILLMENT_MANAGE)
+        val authorization = authorized(principal, orderId, MerchantPermission.FULFILLMENT_MANAGE)
         if (authorization is Failure) return authorization.response {}
         return operation().response { mapOf("changed" to it) }
     }
 
     private fun authorized(
-        userId: UserId,
+        principal: AuthenticatedPrincipal,
         orderId: Long,
         permission: MerchantPermission,
     ): Result<FulfillmentOrder, BusinessError> {
@@ -101,7 +108,7 @@ class FulfillmentController(
             onSuccess = {
                 if (
                     merchantAuthorization.hasPermission(
-                        userId.value,
+                        principal.accountId.value,
                         MerchantId(it.merchantId),
                         permission,
                     )

@@ -31,9 +31,9 @@ class MerchantUserAccountLookupConfigurationTest {
 
     @Test
     fun `merchant account lookup uses the published user profile contract`() {
-        whenever(profiles.findById(42))
+        whenever(profiles.findInCurrentAuthenticationDomain(42))
             .thenReturn(UserProfileInfo(42, "member", "+8613800138000", UserProfileStatus.ACTIVE))
-        whenever(profiles.findById(404)).thenReturn(null)
+        whenever(profiles.findInCurrentAuthenticationDomain(404)).thenReturn(null)
 
         assertTrue(lookup.exists(42))
         assertFalse(lookup.exists(404))

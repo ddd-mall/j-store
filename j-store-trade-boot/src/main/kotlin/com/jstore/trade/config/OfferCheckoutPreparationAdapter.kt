@@ -43,7 +43,7 @@ class OfferCheckoutPreparationAdapter(
                 goods.queryLatestSnapshots(command.items.map { it.spuId }.distinct()).associateBy {
                     it.spuId
                 }
-            val profile = users.findById(command.buyerId)
+            val profile = users.findInCurrentAuthenticationDomain(command.buyerId)
             val offersValid =
                 command.items.all { item ->
                     byId[item.offerId]?.let {

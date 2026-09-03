@@ -52,7 +52,8 @@ class OrderServiceStatusDimensionsTest :
             val publisher = mock(DomainEventPublisher::class.java)
             val users = mock(UserService::class.java)
             val command = validCreateCommand()
-            val buyer = UserInfo(command.buyerUid, PhoneNumber("+8613800138000"), "buyer")
+            val buyer =
+                UserInfo("issuer-a", command.buyerUid, PhoneNumber("+8613800138000"), "buyer")
             val error = OrderErrors.CORRESPONDING_GOODS_NOT_FOUND
             `when`(users.findUserInfo(command.buyerUid)).thenReturn(buyer)
             `when`(factory.create(command, buyer)).thenReturn(Failure(error))

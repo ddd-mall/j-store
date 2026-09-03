@@ -26,19 +26,19 @@ class UserProfileDependencyException(message: String, cause: Throwable? = null) 
     RuntimeException(message, cause)
 
 class HttpUserProfileQueryService(private val restClient: RestClient) : UserProfileQueryService {
-    override fun findById(userId: Long): UserProfileInfo? {
-        if (userId <= 0) return null
+    override fun findInCurrentAuthenticationDomain(accountId: Long): UserProfileInfo? {
+        if (accountId <= 0) return null
         return try {
             val profile =
                 restClient
                     .get()
-                    .uri("/internal/api/users/{userId}/profile", userId)
+                    .uri("/internal/api/users/{userId}/profile", accountId)
                     .retrieve()
                     .body(UserProfileInfo::class.java)
                     ?: throw UserProfileDependencyException(
                         "User profile service returned an empty body"
                     )
-            if (profile.userId != userId) {
+            if (profile.userId != accountId) {
                 throw UserProfileDependencyException(
                     "User profile service returned a mismatched user id"
                 )

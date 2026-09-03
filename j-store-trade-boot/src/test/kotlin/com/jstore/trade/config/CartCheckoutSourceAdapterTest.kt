@@ -45,6 +45,7 @@ class CartCheckoutSourceAdapterTest {
         val command =
             CreateCheckoutCommand(
                 "request",
+                "issuer-a",
                 42,
                 CheckoutRecipient("张三", "CN", "13800000000", null, "110105", "示例路"),
                 cartId = 9,

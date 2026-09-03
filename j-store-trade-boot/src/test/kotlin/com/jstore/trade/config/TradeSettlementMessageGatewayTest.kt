@@ -113,7 +113,7 @@ class TradeSettlementMessageGatewayTest {
             "digest",
             BuyerPartySnapshot(PartyType.INDIVIDUAL, 42),
             TradeBuyerProfileSnapshot("买家", null),
-            42,
+            AuthenticatedAccountSnapshot("issuer-a", 42),
             TradeRecipientSnapshot(
                 "收货人",
                 "CN",

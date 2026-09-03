@@ -40,7 +40,11 @@ class TradeOrderMessageGateway(private val publisher: IntegrationMessagePublishe
                 orderPlanId = plan.id.value,
                 planDigest = trade.planDigest(plan),
                 merchantId = plan.merchantId,
-                buyerId = trade.buyerParty.partyId,
+                buyer =
+                    ContractAuthenticatedAccount(
+                        trade.actingPrincipal.authenticationDomain,
+                        trade.actingPrincipal.accountId,
+                    ),
                 buyerName = trade.buyerProfile.displayName,
                 buyerPhone = trade.buyerProfile.phone,
                 recipient =

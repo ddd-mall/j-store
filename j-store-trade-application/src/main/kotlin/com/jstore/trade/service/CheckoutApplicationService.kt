@@ -48,6 +48,7 @@ data class CheckoutRecipient(
 
 data class CreateCheckoutCommand(
     val checkoutRequestId: String,
+    val buyerAuthenticationDomain: String,
     val buyerId: Long,
     val recipient: CheckoutRecipient,
     val items: List<CheckoutItem> = emptyList(),
@@ -121,7 +122,11 @@ fun interface CheckoutPaymentGateway {
 interface CheckoutUseCase {
     fun checkout(command: CreateCheckoutCommand): Result<CheckoutAccepted, BusinessError>
 
-    fun find(buyerId: Long, tradeId: Long): Result<CheckoutView, BusinessError>
+    fun find(
+        buyerAuthenticationDomain: String,
+        buyerId: Long,
+        tradeId: Long,
+    ): Result<CheckoutView, BusinessError>
 }
 
 class CheckoutApplicationService(
@@ -136,10 +141,10 @@ class CheckoutApplicationService(
     },
 ) : CheckoutUseCase {
     override fun checkout(command: CreateCheckoutCommand): Result<CheckoutAccepted, BusinessError> {
-        val requestedBuyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId)
+        val requestedPrincipal = command.authenticatedAccount()
         if (command.cartId != null) {
-            trades.findByCheckoutRequest(requestedBuyer, command.checkoutRequestId)?.let { existing
-                ->
+            trades.findByCheckoutRequest(requestedPrincipal, command.checkoutRequestId)?.let {
+                existing ->
                 return if (existing.matchesCartRetry(command)) Success(existing.accepted())
                 else Failure(TradeErrors.START_CONFLICT)
             }
@@ -152,7 +157,8 @@ class CheckoutApplicationService(
         if (!resolved.isValid()) return Failure(TradeErrors.CHECKOUT_REQUEST_INVALID)
         val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, resolved.buyerId)
         val digest = digest(resolved)
-        trades.findByCheckoutRequest(buyer, resolved.checkoutRequestId)?.let { existing ->
+        val actingPrincipal = resolved.authenticatedAccount()
+        trades.findByCheckoutRequest(actingPrincipal, resolved.checkoutRequestId)?.let { existing ->
             return if (existing.matchesRequest(buyer, digest)) Success(existing.accepted())
             else Failure(TradeErrors.START_CONFLICT)
         }
@@ -186,7 +192,7 @@ class CheckoutApplicationService(
                 requestDigest = digest,
                 buyerParty = buyer,
                 buyerProfile = prepared.buyerProfile,
-                actingPrincipalId = resolved.buyerId,
+                actingPrincipal = actingPrincipal,
                 recipient = resolved.recipient.toSnapshot(prepared.shippingAddress),
                 orderPlans = plans,
                 currency = prepared.currency,
@@ -211,9 +217,16 @@ class CheckoutApplicationService(
         return Success(trade.accepted())
     }
 
-    override fun find(buyerId: Long, tradeId: Long): Result<CheckoutView, BusinessError> {
+    override fun find(
+        buyerAuthenticationDomain: String,
+        buyerId: Long,
+        tradeId: Long,
+    ): Result<CheckoutView, BusinessError> {
         val trade = trades.findById(TradeId(tradeId)) ?: return Failure(TradeErrors.NOT_FOUND)
-        if (trade.buyerParty != BuyerPartySnapshot(PartyType.INDIVIDUAL, buyerId)) {
+        if (
+            trade.actingPrincipal !=
+                AuthenticatedAccountSnapshot(buyerAuthenticationDomain, buyerId)
+        ) {
             return Failure(TradeErrors.NOT_FOUND)
         }
         val payment =
@@ -244,9 +257,9 @@ class CheckoutApplicationService(
         command: CreateCheckoutCommand
     ): Result<CheckoutAccepted, BusinessError>? {
         if (command.cartId != null) {
-            val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId)
+            val principal = command.authenticatedAccount()
             val existing =
-                trades.findByCheckoutRequest(buyer, command.checkoutRequestId) ?: return null
+                trades.findByCheckoutRequest(principal, command.checkoutRequestId) ?: return null
             return if (existing.matchesCartRetry(command)) Success(existing.accepted())
             else Failure(TradeErrors.START_CONFLICT)
         }
@@ -256,9 +269,10 @@ class CheckoutApplicationService(
                 is Success -> result.value
             }
         if (!resolved.isValid()) return Failure(TradeErrors.CHECKOUT_REQUEST_INVALID)
-        val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, resolved.buyerId)
+        val principal = resolved.authenticatedAccount()
         val existing =
-            trades.findByCheckoutRequest(buyer, resolved.checkoutRequestId) ?: return null
+            trades.findByCheckoutRequest(principal, resolved.checkoutRequestId) ?: return null
+        val buyer = BuyerPartySnapshot(PartyType.INDIVIDUAL, resolved.buyerId)
         return if (existing.matchesRequest(buyer, digest(resolved))) Success(existing.accepted())
         else Failure(TradeErrors.START_CONFLICT)
     }
@@ -267,6 +281,7 @@ class CheckoutApplicationService(
         checkoutRequestId.isNotBlank() &&
             checkoutRequestId.length <= 128 &&
             buyerId > 0 &&
+            buyerAuthenticationDomain.isNotBlank() &&
             recipient.name.isNotBlank() &&
             recipient.name.length <= 256 &&
             recipient.countryCode.isNotBlank() &&
@@ -296,6 +311,7 @@ class CheckoutApplicationService(
     private fun digest(command: CreateCheckoutCommand): String {
         val canonical = buildString {
             appendCanonical("v2")
+            appendCanonical(command.buyerAuthenticationDomain)
             appendCanonical(command.buyerId.toString())
             appendCanonical(command.recipient.name)
             appendCanonical(command.recipient.countryCode)
@@ -369,7 +385,7 @@ class CheckoutApplicationService(
         CheckoutView(id.value, status.name, orderPlans.mapNotNull { it.orderId }, payment)
 
     private fun Trade.matchesCartRetry(command: CreateCheckoutCommand): Boolean =
-        buyerParty == BuyerPartySnapshot(PartyType.INDIVIDUAL, command.buyerId) &&
+        actingPrincipal == command.authenticatedAccount() &&
             sourceSnapshot.type == CheckoutSourceType.CART &&
             sourceSnapshot.sourceId == command.cartId &&
             sourceSnapshot.sourceVersion == command.expectedCartVersion &&
@@ -381,4 +397,7 @@ class CheckoutApplicationService(
             recipient.detailAddress == command.recipient.detailAddress &&
             recipient.postalCode == command.recipient.postalCode &&
             recipient.customsFields == command.recipient.customsFields
+
+    private fun CreateCheckoutCommand.authenticatedAccount() =
+        AuthenticatedAccountSnapshot(buyerAuthenticationDomain, buyerId)
 }

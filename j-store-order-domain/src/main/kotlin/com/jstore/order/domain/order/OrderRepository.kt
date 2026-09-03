@@ -37,10 +37,15 @@ interface OrderRepository : AggregateRepository<OrderId, Order> {
     override fun findById(id: OrderId): Order?
 
     /** 根据买家ID查询订单列表 */
-    fun findByBuyerUserId(uid: Long): List<Order>
+    fun findByBuyerUserId(authenticationDomain: String, uid: Long): List<Order>
 
     fun findBySourceOrderPlanId(orderPlanId: Long): Order? = null
 
     /** 分页查询用户订单 */
-    fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order>
+    fun pageListByUserId(
+        authenticationDomain: String,
+        uid: Long,
+        currentPage: Int,
+        pageSize: Int,
+    ): Page<Order>
 }

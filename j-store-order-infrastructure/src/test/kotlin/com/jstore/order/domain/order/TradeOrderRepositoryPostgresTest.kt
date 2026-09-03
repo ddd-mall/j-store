@@ -75,6 +75,7 @@ class TradeOrderRepositoryPostgresTest {
                         orderPlanId = orderPlanId,
                         planDigest = digest,
                         merchantId = 7,
+                        buyerAuthenticationDomain = "issuer-a",
                         buyerId = 42,
                         buyerName = "张三",
                         buyerPhone = "+8613800138000",

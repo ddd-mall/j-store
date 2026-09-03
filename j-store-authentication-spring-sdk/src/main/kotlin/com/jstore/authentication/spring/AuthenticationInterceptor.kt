@@ -20,10 +20,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.annotation.SkipLogin
 import com.jstore.authentication.config.AuthenticationConfigurer
-import com.jstore.authentication.context.AuthenticatedUserContext
+import com.jstore.authentication.context.AuthenticatedPrincipalContext
 import com.jstore.authentication.error.AuthenticationErrors
+import com.jstore.authentication.principal.AccessTokenVerifier
 import com.jstore.common.errors.BusinessError
-import com.jstore.user.domain.useraccount.TokenProvider
 import com.jstore.user.domain.useraccount.TokenStore
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -32,8 +32,8 @@ import org.springframework.web.method.HandlerMethod
 import org.springframework.web.servlet.HandlerInterceptor
 
 class AuthenticationInterceptor(
-    private val tokenProvider: TokenProvider,
-    private val tokenStore: TokenStore,
+    private val accessTokenVerifier: AccessTokenVerifier,
+    private val tokenStore: TokenStore?,
     private val configurers: List<AuthenticationConfigurer>,
     private val objectMapper: ObjectMapper = ObjectMapper(),
 ) : HandlerInterceptor {
@@ -64,24 +64,27 @@ class AuthenticationInterceptor(
                 return false
             }
 
-            val claims = tokenProvider.parseAccessToken(token)
-            if (claims == null) {
+            val principal = accessTokenVerifier.verifyAccessToken(token)
+            if (principal == null) {
                 writeErrorResponse(response, AuthenticationErrors.TOKEN_INVALID)
                 return false
             }
 
+            val session = principal.session
             if (
-                !tokenStore.isSessionActive(
-                    claims.userId,
-                    claims.sessionId,
-                    claims.sessionEpoch,
-                )
+                session != null &&
+                    (tokenStore == null ||
+                        !tokenStore.isSessionActive(
+                            principal.accountId,
+                            session.sessionId,
+                            session.sessionEpoch,
+                        ))
             ) {
                 writeErrorResponse(response, AuthenticationErrors.TOKEN_REVOKED)
                 return false
             }
 
-            AuthenticatedUserContext.set(claims.userId)
+            AuthenticatedPrincipalContext.set(principal)
             return true
         } catch (_: Exception) {
             writeErrorResponse(response, AuthenticationErrors.INTERNAL_ERROR)
@@ -95,7 +98,7 @@ class AuthenticationInterceptor(
         handler: Any,
         ex: Exception?,
     ) {
-        AuthenticatedUserContext.clear()
+        AuthenticatedPrincipalContext.clear()
     }
 
     internal fun requiresAuthentication(

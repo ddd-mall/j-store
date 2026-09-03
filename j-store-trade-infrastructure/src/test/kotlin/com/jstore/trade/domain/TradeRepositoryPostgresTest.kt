@@ -90,7 +90,7 @@ class TradeRepositoryPostgresTest {
             "v1:digest",
             BuyerPartySnapshot(PartyType.INDIVIDUAL, 42),
             TradeBuyerProfileSnapshot("张三", "+8613800138000"),
-            42,
+            AuthenticatedAccountSnapshot("issuer-a", 42),
             TradeRecipientSnapshot(
                 "张三",
                 "CN",

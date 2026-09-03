@@ -54,17 +54,29 @@ class OrderRepositoryImpl(
         return jpaRepository.findById(id.value).orElse(null)?.let { Converter.toDomain(it) }
     }
 
-    override fun findByBuyerUserId(uid: Long): List<Order> {
-        return jpaRepository.findByBuyerUid(uid).map { Converter.toDomain(it) }
+    override fun findByBuyerUserId(authenticationDomain: String, uid: Long): List<Order> {
+        return jpaRepository
+            .findByBuyerAuthenticationDomainAndBuyerUid(authenticationDomain, uid)
+            .map { Converter.toDomain(it) }
     }
 
     override fun findBySourceOrderPlanId(orderPlanId: Long): Order? =
         jpaRepository.findBySourceOrderPlanId(orderPlanId)?.let(Converter::toDomain)
 
-    override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> {
+    override fun pageListByUserId(
+        authenticationDomain: String,
+        uid: Long,
+        currentPage: Int,
+        pageSize: Int,
+    ): Page<Order> {
         val pageable =
             PageRequest.of(currentPage - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime"))
-        val page = jpaRepository.findByBuyerUid(uid, pageable)
+        val page =
+            jpaRepository.findByBuyerAuthenticationDomainAndBuyerUid(
+                authenticationDomain,
+                uid,
+                pageable,
+            )
         return SortedPage(
             currentPage = currentPage,
             totalElements = page.totalElements.toInt(),
@@ -94,6 +106,7 @@ class OrderRepositoryImpl(
                 sourceOrderPlanId = order.sourceOrderPlanId,
                 sourcePlanDigest = order.sourcePlanDigest,
                 merchantId = order.merchantId.value,
+                buyerAuthenticationDomain = order.buyerInfo.authenticationDomain,
                 buyerUid = order.buyerInfo.uid,
                 buyerPhone = order.buyerInfo.phoneNumber?.value,
                 buyerName = order.buyerInfo.userName,
@@ -183,6 +196,7 @@ class OrderRepositoryImpl(
                 merchantId = MerchantId(po.merchantId),
                 buyerInfo =
                     UserInfo(
+                        authenticationDomain = po.buyerAuthenticationDomain,
                         uid = po.buyerUid,
                         phoneNumber = po.buyerPhone?.let { PhoneNumber(it) },
                         userName = po.buyerName,

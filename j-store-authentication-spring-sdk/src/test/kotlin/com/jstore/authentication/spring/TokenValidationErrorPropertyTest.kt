@@ -18,8 +18,9 @@ package com.jstore.authentication.spring
 
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.error.AuthenticationErrors
-import com.jstore.user.domain.useraccount.AuthTokenClaims
-import com.jstore.user.domain.useraccount.TokenProvider
+import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedPrincipal
+import com.jstore.authentication.principal.AuthenticatedSession
 import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
 import io.kotest.common.ExperimentalKotest
@@ -50,11 +51,11 @@ class TokenValidationErrorPropertyTest :
                 PropTestConfig(iterations = 100),
                 Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
             ) { token ->
-                val tokenProvider = mock<TokenProvider>()
+                val tokenVerifier = mock<AccessTokenVerifier>()
                 val tokenStore = mock<TokenStore>()
                 val interceptor =
                     AuthenticationInterceptor(
-                        tokenProvider = tokenProvider,
+                        accessTokenVerifier = tokenVerifier,
                         tokenStore = tokenStore,
                         configurers = emptyList(),
                     )
@@ -68,7 +69,7 @@ class TokenValidationErrorPropertyTest :
                 whenever(request.requestURI).thenReturn("/api/test")
 
                 // parseAccessToken returns null → token invalid
-                whenever(tokenProvider.parseAccessToken(token)).thenReturn(null)
+                whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(null)
 
                 val stringWriter = StringWriter()
                 val response = mock<HttpServletResponse>()
@@ -95,11 +96,11 @@ class TokenValidationErrorPropertyTest :
                 Arb.long(min = 1L, max = 100_000L),
                 Arb.string(minSize = 1, maxSize = 30).filter { !it.contains('\u0000') },
             ) { token, userIdValue, jti ->
-                val tokenProvider = mock<TokenProvider>()
+                val tokenVerifier = mock<AccessTokenVerifier>()
                 val tokenStore = mock<TokenStore>()
                 val interceptor =
                     AuthenticationInterceptor(
-                        tokenProvider = tokenProvider,
+                        accessTokenVerifier = tokenVerifier,
                         tokenStore = tokenStore,
                         configurers = emptyList(),
                     )
@@ -113,8 +114,13 @@ class TokenValidationErrorPropertyTest :
                 whenever(request.requestURI).thenReturn("/api/test")
 
                 val userId = UserId(userIdValue)
-                val claims = AuthTokenClaims(userId, "session-1", 4L, jti)
-                whenever(tokenProvider.parseAccessToken(token)).thenReturn(claims)
+                val principal =
+                    AuthenticatedPrincipal(
+                        "issuer-a",
+                        userId,
+                        AuthenticatedSession("session-1", 4L),
+                    )
+                whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(principal)
                 whenever(tokenStore.isSessionActive(userId, "session-1", 4L)).thenReturn(false)
 
                 val stringWriter = StringWriter()
@@ -140,11 +146,11 @@ class TokenValidationErrorPropertyTest :
                 PropTestConfig(iterations = 100),
                 Arb.string(minSize = 1, maxSize = 50),
             ) { requestPath ->
-                val tokenProvider = mock<TokenProvider>()
+                val tokenVerifier = mock<AccessTokenVerifier>()
                 val tokenStore = mock<TokenStore>()
                 val interceptor =
                     AuthenticationInterceptor(
-                        tokenProvider = tokenProvider,
+                        accessTokenVerifier = tokenVerifier,
                         tokenStore = tokenStore,
                         configurers = emptyList(),
                     )

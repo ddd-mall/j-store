@@ -29,9 +29,16 @@ interface OrderPOJpaRepository : JpaRepository<OrderPO, Long> {
     @Query("select o from OrderPO o where o.id = :id")
     fun findByIdForUpdate(@Param("id") id: Long): OrderPO?
 
-    fun findByBuyerUid(buyerUid: Long): List<OrderPO>
+    fun findByBuyerAuthenticationDomainAndBuyerUid(
+        buyerAuthenticationDomain: String,
+        buyerUid: Long,
+    ): List<OrderPO>
 
-    fun findByBuyerUid(buyerUid: Long, pageable: Pageable): Page<OrderPO>
+    fun findByBuyerAuthenticationDomainAndBuyerUid(
+        buyerAuthenticationDomain: String,
+        buyerUid: Long,
+        pageable: Pageable,
+    ): Page<OrderPO>
 
     fun findBySourceOrderPlanId(sourceOrderPlanId: Long): OrderPO?
 }

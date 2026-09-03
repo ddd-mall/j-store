@@ -44,6 +44,7 @@ data class TrustedOrderDraft(
     val orderPlanId: Long,
     val planDigest: String,
     val merchantId: Long,
+    val buyerAuthenticationDomain: String,
     val buyerId: Long,
     val buyerName: String,
     val buyerPhone: String?,
@@ -72,6 +73,7 @@ class TrustedOrderFactoryImpl(private val sequence: SnowFlakSequence) : TrustedO
                 draft.orderPlanId <= 0 ||
                 draft.planDigest.isBlank() ||
                 draft.merchantId <= 0 ||
+                draft.buyerAuthenticationDomain.isBlank() ||
                 draft.buyerId <= 0 ||
                 draft.buyerName.isBlank() ||
                 draft.items.isEmpty() ||
@@ -106,6 +108,7 @@ class TrustedOrderFactoryImpl(private val sequence: SnowFlakSequence) : TrustedO
                 merchantId = MerchantId(draft.merchantId),
                 buyerInfo =
                     UserInfo(
+                        draft.buyerAuthenticationDomain,
                         draft.buyerId,
                         draft.buyerPhone?.let(::PhoneNumber),
                         draft.buyerName,

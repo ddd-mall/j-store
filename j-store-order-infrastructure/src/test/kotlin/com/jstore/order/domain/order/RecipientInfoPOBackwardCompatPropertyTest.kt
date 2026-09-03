@@ -98,6 +98,7 @@ class RecipientInfoPOBackwardCompatPropertyTest :
                     OrderPO(
                         id = 1L,
                         merchantId = 1L,
+                        buyerAuthenticationDomain = "issuer-a",
                         buyerUid = 1L,
                         recipientInfo = historicalPO,
                         currency = "CNY",
@@ -142,6 +143,7 @@ class RecipientInfoPOBackwardCompatPropertyTest :
                     OrderPO(
                         id = 1L,
                         merchantId = 1L,
+                        buyerAuthenticationDomain = "issuer-a",
                         buyerUid = 1L,
                         recipientInfo = historicalPO,
                         currency = "CNY",

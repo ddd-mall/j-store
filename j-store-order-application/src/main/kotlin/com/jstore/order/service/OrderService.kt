@@ -38,6 +38,7 @@ import com.jstore.order.domain.order.SuccessfulRefundItem
 import com.jstore.order.domain.order.TrustedOrderDraft
 import com.jstore.order.domain.order.TrustedOrderFactory
 import com.jstore.order.domain.order.TrustedOrderItemDraft
+import com.jstore.order.domain.order.UserInfo
 import com.jstore.order.domain.order.command.OrderCancelCMD
 import com.jstore.order.domain.order.command.OrderCreateCMD
 import java.time.Instant
@@ -52,15 +53,31 @@ class OrderService(
 ) : OrderUseCase, InternalOrderCreationUseCase {
 
     /** 根据ID查询订单 */
-    override fun getOrderById(buyerId: Long, orderId: OrderId): Result<Order, BusinessError> {
+    override fun getOrderById(
+        buyerAuthenticationDomain: String,
+        buyerId: Long,
+        orderId: OrderId,
+    ): Result<Order, BusinessError> {
         val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        if (order.buyerInfo.uid != buyerId) return Failure(OrderErrors.ORDER_NOT_FOUND)
+        if (!order.buyerInfo.matches(buyerAuthenticationDomain, buyerId)) {
+            return Failure(OrderErrors.ORDER_NOT_FOUND)
+        }
         return Success(order)
     }
 
     /** 分页查询买家订单 */
-    override fun pageListByUserId(uid: Long, currentPage: Int, pageSize: Int): Page<Order> {
-        return orderRepository.pageListByUserId(uid, currentPage, pageSize)
+    override fun pageListByUserId(
+        buyerAuthenticationDomain: String,
+        uid: Long,
+        currentPage: Int,
+        pageSize: Int,
+    ): Page<Order> {
+        return orderRepository.pageListByUserId(
+            buyerAuthenticationDomain,
+            uid,
+            currentPage,
+            pageSize,
+        )
     }
 
     /** 旧的领域测试/内部构造入口；公开 HTTP 创建已删除。 */
@@ -118,6 +135,7 @@ class OrderService(
             orderPlanId,
             planDigest,
             merchantId,
+            buyerAuthenticationDomain,
             buyerId,
             buyerName,
             buyerPhone,
@@ -264,13 +282,19 @@ class OrderService(
     }
 
     /** 买家主动取消订单 */
-    override fun cancelOrder(buyerId: Long, cmd: OrderCancelCMD): Result<Unit, BusinessError> {
+    override fun cancelOrder(
+        buyerAuthenticationDomain: String,
+        buyerId: Long,
+        cmd: OrderCancelCMD,
+    ): Result<Unit, BusinessError> {
         cmd.validate().onFailure {
             return Failure(it)
         }
         val order =
             orderRepository.findById(cmd.orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        if (order.buyerInfo.uid != buyerId) return Failure(OrderErrors.ORDER_NOT_FOUND)
+        if (!order.buyerInfo.matches(buyerAuthenticationDomain, buyerId)) {
+            return Failure(OrderErrors.ORDER_NOT_FOUND)
+        }
         order.cancel(cmd.toReason()).onFailure {
             return Failure(it)
         }
@@ -278,4 +302,7 @@ class OrderService(
         order.publishPendingEvents(domainEventPublisher)
         return Success(Unit)
     }
+
+    private fun UserInfo.matches(authenticationDomain: String, accountId: Long) =
+        this.authenticationDomain == authenticationDomain && uid == accountId
 }

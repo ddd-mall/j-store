@@ -16,9 +16,10 @@
  */
 package com.jstore.user.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.annotation.SkipLogin
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Result
@@ -149,8 +150,8 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
     }
 
     @GetMapping("/me")
-    fun findMe(@CurrentUserId userId: UserId): ResponseEntity<*> {
-        return userAccountService.findById(userId).toResponse { account ->
+    fun findMe(@CurrentPrincipal principal: AuthenticatedPrincipal): ResponseEntity<*> {
+        return userAccountService.findById(principal.accountId).toResponse { account ->
             UserResponse(
                 id = account.id.value,
                 phoneNumber = account.phoneNumber.value,
@@ -164,12 +165,12 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
 
     @PutMapping("/me/nickname")
     fun changeNickname(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @RequestBody request: ChangeNicknameRequest,
     ): ResponseEntity<*> {
         return userAccountService
             .changeNickname(
-                userId = userId,
+                userId = principal.accountId,
                 newNickname = Nickname(request.nickname),
             )
             .toResponse {}
@@ -177,12 +178,12 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
 
     @PutMapping("/me/password")
     fun changePassword(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @RequestBody request: ChangePasswordRequest,
     ): ResponseEntity<*> {
         return userAccountService
             .changePassword(
-                userId = userId,
+                userId = principal.accountId,
                 oldPassword = request.oldPassword,
                 newPassword = request.newPassword,
             )
@@ -191,10 +192,12 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
 
     @PostMapping("/me/logout")
     fun logout(
-        @CurrentUserId userId: UserId,
+        @CurrentPrincipal principal: AuthenticatedPrincipal,
         @RequestHeader("Authorization") authorization: String,
     ): ResponseEntity<*> =
-        userAccountService.logout(userId, authorization.removePrefix("Bearer ")).toResponse {}
+        userAccountService
+            .logout(principal.accountId, authorization.removePrefix("Bearer "))
+            .toResponse {}
 
     // ---- Helper ----
 

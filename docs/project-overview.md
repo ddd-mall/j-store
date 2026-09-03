@@ -56,7 +56,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-user-domain/application/infrastructure/boot`: 用户账户领域、注册登录用例、JPA/JWT/Redis 适配以及 Spring Web/事务装配。
 - `j-store-user-api`: User 上下文发布的稳定用户资料查询契约，只包含用户 ID、昵称、已验证手机号和账号状态等标量快照。
 - `j-store-user-client-spring`: 用户资料远程 HTTP 客户端与条件自动配置；单体使用进程内实现，微服务消费方通过 `jstore.user-query.mode=remote` 切换。
-- `j-store-authentication-spring-sdk`: 基于 Spring MVC 的认证拦截器、当前用户参数解析、登录注解与自动配置，依赖 `j-store-user-domain`。
+- `j-store-authentication-spring-sdk`: 基于 Spring MVC 的认证拦截器、`AuthenticatedPrincipal` 参数解析、登录注解与自动配置；通过 `AccessTokenVerifier` 端口接入 JWT、OIDC 等令牌实现。
 - `j-store-accounting-domain/application/infrastructure/boot`: 会计账户、期间、凭证、结算领域与用例、JPA/Outbox 以及 Spring 事务装配。
 - `j-store-boot`: 当前主启动模块，组合各上下文 boot、公共 Spring 基础设施和认证 SDK，并承载数据库迁移与跨上下文事件翻译器。
 - `j-store-admin-boot`: 管理端启动模块骨架，目前只有基础 Kotlin/JVM 配置和 `Main.kt`。
@@ -71,7 +71,7 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - Inventory/ATP：按 `onHand - reserved - safetyStock - isolatedQuantity` 计算可承诺量；授权过期或 ATP 不足时拒绝预留。
 - WMS：维护实物在库数量和来源版本；订单不直接锁 WMS 数据库，旧库存事件不会覆盖新镜像。
 - 用户：用户注册、登录、强制下线、昵称和密码值对象、JWT 与 Redis token 基础设施，以及供业务上下文读取标量资料的本地/远程双部署查询能力。
-- 订单用户快照：创建订单只接受认证上下文的用户 ID，通过 Order 本地 ACL 查询 ACTIVE 用户并冻结昵称和手机号；收货人联系方式保持独立语义。
+- 订单用户快照：创建订单只接受认证上下文的认证域与域内账号 ID，通过 Order 本地 ACL 在当前认证域查询 ACTIVE 用户并冻结昵称和手机号；收货人联系方式保持独立语义。
 - 店铺：商户、商户成员、角色权限、成员管理用例和其它上下文复用的商户授权服务。
 - 支付与履约：按 `settlementPlanId + installmentId` 幂等准备 TradePayment；先独立提交稳定 `PREPARING/paymentId`，再调用渠道并以独立事务记录 `READY/REJECTED/UNCERTAIN`，Trade 按分期保存 Payment 引用。库存承诺必须覆盖支付动作窗口和安全余量。Checkout 只读返回 READY 且未过期的受控支付动作，动作过期时仍可查询 Trade 且 `payment` 为空。支付准备在途时取消先进入 `PREPARATION_CANCELLING` 并等待该次渠道结果，受理后再以渠道引用进入 `CANCELLING`；只有与当前支付事实匹配的渠道撤销确认才能驱动 Trade 补偿，结果未知时按稳定幂等键重试。当前准备与撤销渠道适配器仅在非生产 Profile 用于内部开发，生产环境缺少真实渠道时启动失败；定时主动查单、捕获、关闭后退款和策略化履约放行仍是后续切片。
 - 会计：账户、会计期间、分录、结算单等领域模型、JPA 仓储实现与事务装配。

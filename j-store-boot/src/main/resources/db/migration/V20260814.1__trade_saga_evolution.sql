@@ -22,6 +22,7 @@ CREATE TABLE trades (
     buyer_party_id BIGINT NOT NULL,
     buyer_display_name VARCHAR(128) NOT NULL,
     buyer_phone VARCHAR(32),
+    acting_principal_authentication_domain VARCHAR(255) NOT NULL,
     acting_principal_id BIGINT NOT NULL,
     recipient_name VARCHAR(256) NOT NULL,
     country_code VARCHAR(8) NOT NULL,
@@ -42,8 +43,12 @@ CREATE TABLE trades (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     persistence_version BIGINT NOT NULL DEFAULT 0,
-    CONSTRAINT uk_trade_buyer_checkout_request
-        UNIQUE (buyer_party_type, buyer_party_id, checkout_request_id)
+    CONSTRAINT uk_trade_actor_checkout_request
+        UNIQUE (
+            acting_principal_authentication_domain,
+            acting_principal_id,
+            checkout_request_id
+        )
 );
 
 CREATE INDEX idx_trades_buyer_status

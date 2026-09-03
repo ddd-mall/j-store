@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
     api(project(":j-store-user-domain"))
+    implementation(project(":j-store-authentication-spring-sdk"))
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.data.jpa)
     implementation(libs.spring.data.commons)

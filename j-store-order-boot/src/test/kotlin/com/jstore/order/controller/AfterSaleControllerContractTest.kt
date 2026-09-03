@@ -16,7 +16,8 @@
  */
 package com.jstore.order.controller
 
-import com.jstore.authentication.annotation.CurrentUserId
+import com.jstore.authentication.annotation.CurrentPrincipal
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.aftersale.*
@@ -52,7 +53,9 @@ class AfterSaleControllerContractTest {
         authorization = mock(MerchantAuthorizationService::class.java)
         `when`(service.findById(AfterSaleId(9))).thenReturn(Failure(AfterSaleErrors.NOT_FOUND))
         `when`(service.listByOrderForAccess(OrderId(8)))
-            .thenReturn(Success(AfterSaleOrderAccess(41, MerchantActorId(70), emptyList())))
+            .thenReturn(
+                Success(AfterSaleOrderAccess("issuer-a", 41, MerchantActorId(70), emptyList()))
+            )
         mvc =
             MockMvcBuilders.standaloneSetup(AfterSaleController(service, authorization))
                 .setCustomArgumentResolvers(CurrentUserResolver())
@@ -141,13 +144,17 @@ class AfterSaleControllerContractTest {
 
     private class CurrentUserResolver : HandlerMethodArgumentResolver {
         override fun supportsParameter(parameter: MethodParameter) =
-            parameter.hasParameterAnnotation(CurrentUserId::class.java)
+            parameter.hasParameterAnnotation(CurrentPrincipal::class.java)
 
         override fun resolveArgument(
             parameter: MethodParameter,
             mavContainer: ModelAndViewContainer?,
             webRequest: NativeWebRequest,
             binderFactory: org.springframework.web.bind.support.WebDataBinderFactory?,
-        ) = UserId(webRequest.getHeader("X-Test-User")!!.toLong())
+        ) =
+            AuthenticatedPrincipal(
+                "issuer-a",
+                UserId(webRequest.getHeader("X-Test-User")!!.toLong()),
+            )
     }
 }

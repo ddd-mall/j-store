@@ -16,31 +16,26 @@
  */
 package com.jstore.authentication.spring
 
-import com.jstore.authentication.annotation.CurrentUserId
-import com.jstore.authentication.context.AuthenticatedUserContext
-import com.jstore.user.domain.useraccount.UserId
+import com.jstore.authentication.annotation.CurrentPrincipal
+import com.jstore.authentication.context.AuthenticatedPrincipalContext
+import com.jstore.authentication.principal.AuthenticatedPrincipal
 import org.springframework.core.MethodParameter
 import org.springframework.web.bind.support.WebDataBinderFactory
 import org.springframework.web.context.request.NativeWebRequest
 import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.method.support.ModelAndViewContainer
 
-class CurrentUserIdArgumentResolver : HandlerMethodArgumentResolver {
-
-    override fun supportsParameter(parameter: MethodParameter): Boolean {
-        return parameter.hasParameterAnnotation(CurrentUserId::class.java) &&
-            parameter.parameterType == UserId::class.java
-    }
+class CurrentPrincipalArgumentResolver : HandlerMethodArgumentResolver {
+    override fun supportsParameter(parameter: MethodParameter): Boolean =
+        parameter.hasParameterAnnotation(CurrentPrincipal::class.java) &&
+            parameter.parameterType == AuthenticatedPrincipal::class.java
 
     override fun resolveArgument(
         parameter: MethodParameter,
         mavContainer: ModelAndViewContainer?,
         webRequest: NativeWebRequest,
         binderFactory: WebDataBinderFactory?,
-    ): UserId? {
-        if (parameter.isOptional) {
-            return AuthenticatedUserContext.getCurrentUserIdOrNull()
-        }
-        return AuthenticatedUserContext.getCurrentUserId()
-    }
+    ): AuthenticatedPrincipal? =
+        if (parameter.isOptional) AuthenticatedPrincipalContext.getCurrentOrNull()
+        else AuthenticatedPrincipalContext.getCurrent()
 }

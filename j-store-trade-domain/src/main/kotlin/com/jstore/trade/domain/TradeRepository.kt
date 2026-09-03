@@ -19,7 +19,10 @@ package com.jstore.trade.domain
 import com.jstore.common.framework.AggregateRepository
 
 interface TradeRepository : AggregateRepository<TradeId, Trade> {
-    fun findByCheckoutRequest(buyerParty: BuyerPartySnapshot, checkoutRequestId: String): Trade?
+    fun findByCheckoutRequest(
+        actingPrincipal: AuthenticatedAccountSnapshot,
+        checkoutRequestId: String,
+    ): Trade?
 
     fun findByOrderPlanId(orderPlanId: TradeOrderPlanId): Trade?
 }

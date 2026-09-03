@@ -54,6 +54,7 @@ class TransactionalCheckoutUseCaseTest {
     private fun command() =
         CreateCheckoutCommand(
             "checkout-1",
+            "issuer-a",
             8,
             CheckoutRecipient(
                 "buyer",
