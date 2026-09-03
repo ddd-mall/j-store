@@ -61,20 +61,32 @@ class CartBootConfiguration {
         )
 
     @Bean
-    fun cartRefreshRequestedHandler(service: CartApplicationService, carts: CartRepository) =
-        CartRefreshRequestedHandler(service, carts)
+    fun cartRefreshRequestedHandler(
+        service: CartApplicationService,
+        carts: CartRepository,
+    ) = CartRefreshRequestedHandler(service, carts)
 
     @Bean
     @Primary
-    fun cartUseCase(service: CartApplicationService, tx: PlatformTransactionManager): CartUseCase =
-        TransactionalCartUseCase(service, tx)
+    fun cartUseCase(
+        service: CartApplicationService,
+        tx: PlatformTransactionManager,
+    ): CartUseCase =
+        TransactionalCartUseCase(
+            service,
+            tx,
+        )
 
     @Bean
     @Primary
     fun cartCheckoutSourceQueryService(
         service: CartApplicationService,
         tx: PlatformTransactionManager,
-    ): CartCheckoutSourceQueryService = TransactionalCartCheckoutSourceQueryService(service, tx)
+    ): CartCheckoutSourceQueryService =
+        TransactionalCartCheckoutSourceQueryService(
+            service,
+            tx,
+        )
 }
 
 class TransactionalCartUseCase(

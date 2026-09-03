@@ -9,6 +9,45 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 HOOK_SCRIPT = REPOSITORY_ROOT / "scripts" / "git-hooks" / "pre-push"
 PRE_COMMIT_HOOK_SCRIPT = REPOSITORY_ROOT / "scripts" / "git-hooks" / "pre-commit"
+BUILD_SCRIPT = REPOSITORY_ROOT / "build.gradle.kts"
+FORMATTING_GUIDELINES = (
+    REPOSITORY_ROOT / "docs" / "steering" / "code-formatting-guidelines.md"
+)
+WINDOWS_GRADLE_WRAPPER = REPOSITORY_ROOT / "scripts" / "gradlew-windows.ps1"
+
+
+class SpotlessConfigurationContractTest(unittest.TestCase):
+    def test_git_hook_installer_uses_git_resolved_hooks_directory(self) -> None:
+        build_script = BUILD_SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn('"--path-format=absolute"', build_script)
+        self.assertIn('"--git-path"', build_script)
+        self.assertIn("into(gitHooksDirectory)", build_script)
+
+    def test_repository_publishes_formatting_guidelines(self) -> None:
+        guidelines = FORMATTING_GUIDELINES.read_text(encoding="utf-8")
+
+        self.assertIn("Spotless", guidelines)
+        self.assertIn("installSpotlessGitHooks", guidelines)
+        self.assertIn("spotlessCheck", guidelines)
+
+    def test_windows_wrapper_scopes_short_java_temp_directory(self) -> None:
+        wrapper = WINDOWS_GRADLE_WRAPPER.read_text(encoding="utf-8")
+
+        self.assertIn("JSTORE_JAVA_TMPDIR", wrapper)
+        self.assertIn('Join-Path $repositoryRoot "gradlew.bat"', wrapper)
+        self.assertIn("$gradleArguments = @($args)", wrapper)
+        self.assertIn("[System.IO.Path]::IsPathRooted", wrapper)
+        self.assertIn("finally {", wrapper)
+        self.assertIn("exit $gradleExitCode", wrapper)
+
+    def test_git_hooks_use_windows_wrapper_on_git_for_windows(self) -> None:
+        for hook_path in (PRE_COMMIT_HOOK_SCRIPT, HOOK_SCRIPT):
+            hook = hook_path.read_text(encoding="utf-8")
+
+            self.assertIn("MINGW*|MSYS*|CYGWIN*", hook)
+            self.assertIn("scripts/gradlew-windows.ps1", hook)
+            self.assertIn("powershell.exe", hook)
 
 
 class SpotlessPrePushHookTest(unittest.TestCase):

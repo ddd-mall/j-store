@@ -64,17 +64,30 @@ if [ "${SPOTLESS_PRE_PUSH_DRY_RUN:-0}" = "1" ]; then
 fi
 
 cd "$repository_root"
-if [ -n "${SPOTLESS_PRE_PUSH_GRADLE:-}" ]; then
-    gradle_executor=$SPOTLESS_PRE_PUSH_GRADLE
-elif [ -x ./gradlew ]; then
-    gradle_executor=./gradlew
-else
-    gradle_executor=./gradlew.bat
-fi
+run_gradle() {
+    if [ -n "${SPOTLESS_PRE_PUSH_GRADLE:-}" ]; then
+        "$SPOTLESS_PRE_PUSH_GRADLE" "$@"
+        return
+    fi
 
-if ! "$gradle_executor" spotlessCheck "-PspotlessFilesFile=$target_file"; then
+    case "$(uname -s 2>/dev/null || true)" in
+        MINGW*|MSYS*|CYGWIN*)
+            windows_wrapper="$repository_root/scripts/gradlew-windows.ps1"
+            if command -v cygpath >/dev/null 2>&1; then
+                windows_wrapper=$(cygpath -w "$windows_wrapper")
+            fi
+            powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
+                -File "$windows_wrapper" "$@"
+            ;;
+        *)
+            ./gradlew "$@"
+            ;;
+    esac
+}
+
+if ! run_gradle spotlessCheck "-PspotlessFilesFile=$target_file"; then
     echo >&2 "Spotless found problems in pushed files; running a targeted spotlessApply."
-    "$gradle_executor" spotlessApply "-PspotlessFilesFile=$target_file"
+    run_gradle spotlessApply "-PspotlessFilesFile=$target_file"
     echo >&2 "Commit the formatting changes and push again."
     exit 1
 fi

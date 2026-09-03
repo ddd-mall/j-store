@@ -11,12 +11,21 @@ j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring
 
 ## 代码格式化
 
-Java、Kotlin 和 Gradle Kotlin DSL 代码统一由 Spotless 格式化：Java 使用 Google Java Format（AOSP 风格），Kotlin 使用 ktfmt（Kotlin 风格）。
+Java、Kotlin 和 Gradle Kotlin DSL 代码只由 Spotless 格式化，其中 Kotlin 和 Gradle Kotlin DSL 使用 ktfmt（Kotlin 风格）。仓库不采用额外的人工或 AI 格式化规则。执行方式见 [`docs/steering/code-formatting-guidelines.md`](docs/steering/code-formatting-guidelines.md)。
 
 ```bash
 ./gradlew spotlessApply
 ./gradlew spotlessCheck
 ```
+
+Windows PowerShell 中如遇到 JDK NIO `Unable to establish loopback connection`，使用仓库包装脚本为 Gradle 子进程配置短临时目录：
+
+```powershell
+.\scripts\gradlew-windows.ps1 spotlessApply
+.\scripts\gradlew-windows.ps1 spotlessCheck
+```
+
+脚本默认使用 `C:\jstore-jvm-tmp`，只在执行期间修改子进程的 `TEMP/TMP` 并在结束后恢复。如需使用其它磁盘，可在当前 PowerShell 会话中设置绝对路径，例如 `$env:JSTORE_JAVA_TMPDIR = "D:\jtmp"`。
 
 如需启用仓库提供的 Spotless Git hooks，可执行：
 
@@ -26,7 +35,7 @@ Java、Kotlin 和 Gradle Kotlin DSL 代码统一由 Spotless 格式化：Java �
 
 `pre-commit` hook 只格式化已暂存的 Kotlin、Java 与 Gradle Kotlin 文件，并将格式化结果重新暂存到当前 commit。如果目标文件同时包含未暂存修改，hook 会终止提交，避免意外提交这些修改。
 
-`pre-push` hook 保留为后备检查，只检查本次待推送提交中新增或修改的目标文件；纯文档或其他非源码操作会跳过 Spotless。完整仓库检查仍可通过 `./gradlew spotlessCheck` 执行。
+`pre-push` hook 保留为后备检查，只检查本次待推送提交中新增或修改的目标文件；纯文档或其他非源码操作会跳过 Spotless。安装任务会使用 Git 实际的 hooks 目录，可用于主工作区、linked worktree 和自定义 `core.hooksPath`。完整仓库检查仍可通过 `./gradlew spotlessCheck` 执行。
 
 Spotless 同时检查所有 Java、Kotlin 源码的 Apache-2.0 许可证声明。新增源码缺少声明时，运行
 `spotlessApply` 会根据 [`config/spotless/license-header.txt`](config/spotless/license-header.txt) 自动补充。

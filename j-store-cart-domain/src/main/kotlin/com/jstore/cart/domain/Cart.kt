@@ -86,20 +86,25 @@ class Cart(
             if (index >= 0) {
                 val existing = mutableLines[index]
                 if (existing.quantity + quantity > 999) return Failure(CartErrors.INVALID_QUANTITY)
-                existing.copy(quantity = existing.quantity + quantity, modifiedAt = now).also {
-                    mutableLines[index] = it
-                }
+                existing
+                    .copy(
+                        quantity = existing.quantity + quantity,
+                        modifiedAt = now,
+                    )
+                    .also {
+                        mutableLines[index] = it
+                    }
             } else {
                 if (mutableLines.size >= 100) return Failure(CartErrors.LINE_LIMIT)
                 CartLine(
-                        lineId,
-                        skuId,
-                        offerId,
-                        merchantId,
-                        quantity,
-                        true,
-                        now,
-                        now,
+                        id = lineId,
+                        skuId = skuId,
+                        offerId = offerId,
+                        merchantId = merchantId,
+                        quantity = quantity,
+                        selected = true,
+                        addedAt = now,
+                        modifiedAt = now,
                     )
                     .also(mutableLines::add)
             }

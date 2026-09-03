@@ -19,9 +19,12 @@ package com.jstore.cart.controller
 import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.principal.AuthenticatedPrincipal
-import com.jstore.cart.service.*
+import com.jstore.cart.service.AddCartItemCommand
+import com.jstore.cart.service.CartUseCase
+import com.jstore.cart.service.ReplaceCartSelectionCommand
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Failure
+import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -47,49 +50,62 @@ class CartController(private val carts: CartUseCase) {
     data class RefreshRequest(val requestId: String, val expectedCartVersion: Long)
 
     @PostMapping("/items")
-    fun add(@CurrentPrincipal user: AuthenticatedPrincipal, @RequestBody request: AddItemRequest) =
+    fun add(
+        @CurrentPrincipal user: AuthenticatedPrincipal,
+        @RequestBody request: AddItemRequest,
+    ) =
         respond(
-            carts.add(
-                AddCartItemCommand(
-                    user.accountId.value,
-                    request.requestId,
-                    request.skuId,
-                    request.offerId,
-                    request.quantity,
-                    request.expectedCartVersion,
+            result =
+                carts.add(
+                    command =
+                        AddCartItemCommand(
+                            buyerId = user.accountId.value,
+                            requestId = request.requestId,
+                            skuId = request.skuId,
+                            offerId = request.offerId,
+                            quantity = request.quantity,
+                            expectedCartVersion = request.expectedCartVersion,
+                        )
                 )
-            )
         )
 
     @PutMapping("/selection")
     fun selection(
         @CurrentPrincipal user: AuthenticatedPrincipal,
         @RequestBody request: SelectionRequest,
-    ) =
+    ): ResponseEntity<*> =
         respond(
-            carts.replaceSelection(
-                ReplaceCartSelectionCommand(
-                    user.accountId.value,
-                    request.requestId,
-                    request.expectedCartVersion,
-                    request.cartLineIds,
+            result =
+                carts.replaceSelection(
+                    command =
+                        ReplaceCartSelectionCommand(
+                            buyerId = user.accountId.value,
+                            requestId = request.requestId,
+                            expectedCartVersion = request.expectedCartVersion,
+                            cartLineIds = request.cartLineIds,
+                        )
                 )
-            )
         )
 
     @PostMapping("/refresh")
     fun refresh(
         @CurrentPrincipal user: AuthenticatedPrincipal,
         @RequestBody request: RefreshRequest,
-    ) = respond(carts.refresh(user.accountId.value, request.requestId, request.expectedCartVersion))
+    ): ResponseEntity<*> =
+        respond(
+            result =
+                carts.refresh(
+                    buyerId = user.accountId.value,
+                    requestId = request.requestId,
+                    expectedVersion = request.expectedCartVersion,
+                )
+        )
 
     @GetMapping
     fun current(@CurrentPrincipal user: AuthenticatedPrincipal) =
-        respond(carts.current(user.accountId.value))
+        respond(result = carts.current(buyerId = user.accountId.value))
 
-    private fun <T> respond(
-        result: com.jstore.common.utils.Result<T, BusinessError>
-    ): ResponseEntity<*> =
+    private fun <T> respond(result: Result<T, BusinessError>): ResponseEntity<*> =
         when (result) {
             is Success -> ResponseEntity.ok(result.value)
             is Failure ->
