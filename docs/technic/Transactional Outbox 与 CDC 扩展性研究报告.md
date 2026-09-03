@@ -253,7 +253,7 @@ Event Sourcing 以领域事件日志作为聚合事实来源，业务状态由�
 业务聚合和它产生的 Outbox 以同一个 shard key 共置：
 
 ```text
-hash(orderId / tenantId / merchantId)
+hash(orderId / merchantScopeId / deploymentScopeId)
     -> business database shard
     -> local outbox table
     -> shard-local CDC connector
@@ -381,7 +381,8 @@ immutable_targets
 payload
 correlation_id
 causation_id
-tenant_id
+merchant_scope_id
+deployment_scope_id
 occurred_at
 created_at
 ```

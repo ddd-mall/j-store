@@ -59,7 +59,10 @@ data class OutboxEntry(
     val partitionKey: String = aggregateId,
     val correlationId: String = eventId,
     val causationId: String? = null,
-    val tenantId: String? = null,
+    /** Optional merchant isolation scope; never a deployment or site identity. */
+    val merchantScopeId: String? = null,
+    /** Optional deployment/site routing extension, independent from merchant scope. */
+    val deploymentScopeId: String? = null,
     /** Stable stream identity within one transport. */
     val orderingKey: String,
     /** Strictly increasing position within (transportId, orderingKey). */
@@ -82,6 +85,12 @@ data class OutboxEntry(
         require(transportId.isNotBlank()) { "Outbox transport ID must not be blank" }
         require(partitionKey.isNotBlank()) { "Outbox partition key must not be blank" }
         require(correlationId.isNotBlank()) { "Outbox correlation ID must not be blank" }
+        require(merchantScopeId == null || merchantScopeId.isNotBlank()) {
+            "Outbox merchant scope ID must be null or non-blank"
+        }
+        require(deploymentScopeId == null || deploymentScopeId.isNotBlank()) {
+            "Outbox deployment scope ID must be null or non-blank"
+        }
         require(orderingKey.isNotBlank()) { "Outbox ordering key must not be blank" }
         require(sequenceNo > 0) { "Outbox sequence number must be positive" }
         require(retryCount >= 0) { "Outbox retry count must not be negative" }

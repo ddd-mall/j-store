@@ -206,6 +206,9 @@ Order 不再保存 `SaleAuthorization`，也不判断应否请求或释放库存
 
 - `j-store-integration-contracts` 是跨上下文发布语言，只承载版本化标量契约，不共享领域对象。
 - 消息必须具有稳定的 message ID、correlation/causation 信息、分区键和版本。
+- 消息 metadata 使用可空 `merchantScopeId` 表达商户隔离范围，当前值只能解释为
+  `merchantId`；独立的可空 `deploymentScopeId` 为未来部署/站点路由保留。两者不得合并为
+  `tenantId`，也不得仅凭 metadata 完成业务授权。
 - 消费者以稳定业务键实现幂等；重复消息不得重复签发授权、重复预留或重复记账。
 - 不使用跨库事务、分布式对象引用或进程内事件假装跨服务一致性。
 

@@ -110,7 +110,8 @@ open class OutboxIntegrationMessagePublisher(
                     partitionKey = metadata.partitionKey,
                     correlationId = metadata.correlationId,
                     causationId = metadata.causationId,
-                    tenantId = metadata.tenantId,
+                    merchantScopeId = metadata.merchantScopeId,
+                    deploymentScopeId = metadata.deploymentScopeId,
                     orderingKey = orderingKey,
                     sequenceNo =
                         streamSequenceAllocator.nextSequence(publication.transportId, orderingKey),

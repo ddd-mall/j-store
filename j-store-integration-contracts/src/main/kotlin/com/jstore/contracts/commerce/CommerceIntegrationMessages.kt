@@ -30,7 +30,7 @@ abstract class CommerceIntegrationCommand(
     final override val partitionKey: String,
     final override val correlationId: String,
     final override val causationId: String?,
-    final override val tenantId: String?,
+    final override val merchantScopeId: String?,
     final override val destination: String,
 ) : IntegrationCommand {
     override val acceptBefore: Instant?
@@ -45,7 +45,7 @@ abstract class CommerceIntegrationEvent(
     final override val partitionKey: String,
     final override val correlationId: String,
     final override val causationId: String?,
-    final override val tenantId: String?,
+    final override val merchantScopeId: String?,
     final override val destination: String,
 ) : IntegrationEvent
 
@@ -460,7 +460,7 @@ data class ReserveInventoryCommand(
         partitionKey = orderPlanId.toString(),
         correlationId = tradeId.toString(),
         causationId = sourceMessageId,
-        tenantId = merchantId.toString(),
+        merchantScopeId = merchantId.toString(),
         destination = "inventory.commands",
     )
 

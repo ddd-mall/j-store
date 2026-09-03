@@ -128,7 +128,8 @@ class OutboxEntryRepositoryImplPostgresTest {
                     partitionKey = "order-42",
                     correlationId = "checkout-42",
                     causationId = "order-created-42",
-                    tenantId = "merchant-7",
+                    merchantScopeId = "merchant-7",
+                    deploymentScopeId = "site-jp",
                     orderingKey = "inventory.commands:order-42",
                     sequenceNo = 17,
                 )
@@ -147,7 +148,8 @@ class OutboxEntryRepositoryImplPostgresTest {
         assertEquals("order-42", saved.partitionKey)
         assertEquals("checkout-42", saved.correlationId)
         assertEquals("order-created-42", saved.causationId)
-        assertEquals("merchant-7", saved.tenantId)
+        assertEquals("merchant-7", saved.merchantScopeId)
+        assertEquals("site-jp", saved.deploymentScopeId)
         assertEquals("inventory.commands:order-42", saved.orderingKey)
         assertEquals(17, saved.sequenceNo)
     }
