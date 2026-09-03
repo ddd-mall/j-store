@@ -63,8 +63,9 @@ class Cart(
     val persistenceVersion: Long = 0,
 ) : EventRecordingAggregateRoot<CartId>() {
     private val mutableLines = lines.toMutableList()
-    var contentVersion: Long = contentVersion
-        private set
+    private var mutableContentVersion: Long = contentVersion
+    val contentVersion: Long
+        get() = mutableContentVersion
 
     val lines: List<CartLine>
         get() = mutableLines.toList()
@@ -124,7 +125,7 @@ class Cart(
     }
 
     private fun changed(reason: String, now: Instant) {
-        contentVersion++
+        mutableContentVersion++
         raise(CartRefreshRequestedEvent(id, buyerId, contentVersion, reason, now))
     }
 

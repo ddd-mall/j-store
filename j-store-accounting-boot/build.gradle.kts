@@ -10,7 +10,7 @@ dependencies {
     implementation(project(":j-store-accounting-domain"))
     implementation(project(":j-store-accounting-application"))
     implementation(project(":j-store-accounting-infrastructure"))
-    implementation(project(":j-store-order-domain"))
+    implementation(project(":j-store-order-api"))
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-integration-contracts"))
     implementation(libs.spring.tx)

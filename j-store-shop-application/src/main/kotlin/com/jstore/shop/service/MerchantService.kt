@@ -21,6 +21,8 @@ import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.common.utils.onFailure
+import com.jstore.shop.api.MerchantAuthorizationQuery
+import com.jstore.shop.api.MerchantCapability
 import com.jstore.shop.domain.merchant.Merchant
 import com.jstore.shop.domain.merchant.MerchantErrors
 import com.jstore.shop.domain.merchant.MerchantId
@@ -71,7 +73,14 @@ interface MerchantUseCase {
 class MerchantAuthorizationService(
     private val merchantRepository: MerchantRepository,
     private val membershipRepository: MerchantMembershipRepository,
-) {
+) : MerchantAuthorizationQuery {
+    override fun isAllowed(accountId: Long, merchantId: Long, capability: MerchantCapability) =
+        hasPermission(
+            accountId,
+            MerchantId(merchantId),
+            MerchantPermission.valueOf(capability.name),
+        )
+
     fun hasPermission(
         userId: Long,
         merchantId: MerchantId,
@@ -104,7 +113,9 @@ class MerchantService(
                 creatorUserId,
                 setOf(MerchantRole.OWNER),
             )
-        return Success(merchantRepository.createWithOwner(merchant, owner))
+        val saved = merchantRepository.save(merchant)
+        membershipRepository.save(owner)
+        return Success(saved)
     }
 
     override fun listForUser(userId: Long): List<MerchantAccountView> =

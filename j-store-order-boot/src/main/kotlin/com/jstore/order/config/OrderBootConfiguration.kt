@@ -29,12 +29,15 @@ import com.jstore.order.acl.OfferService
 import com.jstore.order.acl.OfferServiceImpl
 import com.jstore.order.acl.UserService
 import com.jstore.order.acl.UserServiceImpl
+import com.jstore.order.api.OrderAccountingQuery
 import com.jstore.order.domain.aftersale.*
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderFactoryImpl
 import com.jstore.order.domain.order.OrderRepository
 import com.jstore.order.domain.order.TrustedOrderFactory
 import com.jstore.order.domain.order.TrustedOrderFactoryImpl
+import com.jstore.order.service.AfterSaleAccessService
+import com.jstore.order.service.AfterSaleAccessUseCase
 import com.jstore.order.service.AfterSaleApplicationService
 import com.jstore.order.service.AfterSaleUseCase
 import com.jstore.order.service.CancelOrderFromTradeIntegrationCommandHandler
@@ -43,11 +46,13 @@ import com.jstore.order.service.FulfillmentDeliveredOrderHandler
 import com.jstore.order.service.FulfillmentDispatchedOrderHandler
 import com.jstore.order.service.FulfillmentPreparedOrderHandler
 import com.jstore.order.service.InternalOrderCreationUseCase
+import com.jstore.order.service.OrderAccountingQueryService
 import com.jstore.order.service.OrderService
 import com.jstore.order.service.OrderUseCase
 import com.jstore.order.service.PaymentCapturedOrderHandler
 import com.jstore.order.service.PaymentRefundFailedOrderHandler
 import com.jstore.order.service.PaymentRefundSucceededOrderHandler
+import com.jstore.shop.api.MerchantAuthorizationQuery
 import com.jstore.shop.api.OfferSnapshotQueryService
 import com.jstore.user.api.UserProfileQueryService
 import org.springframework.context.annotation.Bean
@@ -58,6 +63,10 @@ import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
 class OrderBootConfiguration {
+    @Bean
+    fun orderAccountingQuery(orders: OrderRepository): OrderAccountingQuery =
+        OrderAccountingQueryService(orders)
+
     @Bean
     fun snowFlakSequence(): SnowFlakSequence {
         return SnowFlakSequence()
@@ -187,9 +196,19 @@ class OrderBootConfiguration {
     fun afterSaleApplicationService(
         factory: AfterSaleFactory,
         repository: AfterSaleRepository,
+        refundCapacityRepository: RefundCapacityRepository,
+        receiptStore: AfterSaleCommandReceiptStore,
         orderRepository: OrderRepository,
         domainEventPublisher: DomainEventPublisher,
-    ) = AfterSaleApplicationService(factory, repository, orderRepository, domainEventPublisher)
+    ) =
+        AfterSaleApplicationService(
+            factory,
+            repository,
+            refundCapacityRepository,
+            receiptStore,
+            orderRepository,
+            domainEventPublisher,
+        )
 
     @Bean
     @Primary
@@ -198,6 +217,12 @@ class OrderBootConfiguration {
         transactionManager: PlatformTransactionManager,
     ): AfterSaleUseCase =
         TransactionalAfterSaleUseCase(afterSaleApplicationService, transactionManager)
+
+    @Bean
+    fun afterSaleAccessUseCase(
+        afterSaleUseCase: AfterSaleUseCase,
+        authorization: MerchantAuthorizationQuery,
+    ): AfterSaleAccessUseCase = AfterSaleAccessService(afterSaleUseCase, authorization)
 
     private fun <T : IntegrationMessage> transactional(
         delegate: IntegrationMessageHandler<T>,

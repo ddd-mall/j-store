@@ -11,6 +11,7 @@ class OrderModuleBoundaryTests(unittest.TestCase):
         settings = (ROOT / "settings.gradle.kts").read_text(encoding="utf-8")
         for module in (
             "j-store-order-domain",
+            "j-store-order-api",
             "j-store-order-application",
             "j-store-order-infrastructure",
             "j-store-order-boot",
@@ -26,6 +27,8 @@ class OrderModuleBoundaryTests(unittest.TestCase):
                 "j-store-common-core",
                 "j-store-integration-contracts",
                 "j-store-messaging-core",
+                "j-store-order-api",
+                "j-store-shop-api",
             },
             "j-store-order-infrastructure": {
                 "j-store-order-domain",

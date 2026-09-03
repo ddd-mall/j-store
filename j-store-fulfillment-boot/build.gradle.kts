@@ -12,7 +12,7 @@ dependencies {
     implementation(project(":j-store-fulfillment-infrastructure"))
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-integration-contracts"))
-    implementation(project(":j-store-shop-application"))
+    implementation(project(":j-store-shop-api"))
     implementation(project(":j-store-authentication-spring-sdk"))
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.tx)

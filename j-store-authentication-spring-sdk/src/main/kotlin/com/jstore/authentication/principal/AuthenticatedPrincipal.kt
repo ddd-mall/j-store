@@ -16,8 +16,6 @@
  */
 package com.jstore.authentication.principal
 
-import com.jstore.user.domain.useraccount.UserId
-
 data class AuthenticatedSession(val sessionId: String, val sessionEpoch: Long) {
     init {
         require(sessionId.isNotBlank()) { "sessionId must not be blank" }
@@ -25,10 +23,17 @@ data class AuthenticatedSession(val sessionId: String, val sessionEpoch: Long) {
     }
 }
 
+/** Issuer-local account subject. The same numeric value may exist in another domain. */
+data class AuthenticatedAccountId(val value: Long) {
+    init {
+        require(value > 0) { "accountId must be positive" }
+    }
+}
+
 /** An account authenticated within one issuer/domain; [accountId] is not globally unique. */
 data class AuthenticatedPrincipal(
     val authenticationDomain: String,
-    val accountId: UserId,
+    val accountId: AuthenticatedAccountId,
     val session: AuthenticatedSession? = null,
 ) {
     init {
@@ -40,4 +45,13 @@ data class AuthenticatedPrincipal(
 /** Verifies an access token and maps its subject to the current authentication domain. */
 fun interface AccessTokenVerifier {
     fun verifyAccessToken(token: String): AuthenticatedPrincipal?
+}
+
+/** Optional session-revocation port implemented by the authentication provider. */
+fun interface AuthenticatedSessionStore {
+    fun isSessionActive(
+        accountId: AuthenticatedAccountId,
+        sessionId: String,
+        sessionEpoch: Long,
+    ): Boolean
 }

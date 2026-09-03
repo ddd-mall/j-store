@@ -17,6 +17,7 @@
 package com.jstore.user.domain.useraccount
 
 import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.authentication.principal.AuthenticatedSession
 import io.jsonwebtoken.Jwts
@@ -124,7 +125,7 @@ class JwtTokenProvider(
         parseAccessToken(token)?.let { claims ->
             AuthenticatedPrincipal(
                 authenticationDomain = issuer,
-                accountId = claims.userId,
+                accountId = AuthenticatedAccountId(claims.userId.value),
                 session = AuthenticatedSession(claims.sessionId, claims.sessionEpoch),
             )
         }

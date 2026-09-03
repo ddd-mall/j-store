@@ -23,17 +23,12 @@ import com.jstore.common.currency.SiteCurrencyPolicy
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.errors.CommonBusinessError
 import com.jstore.common.properties.Price
-import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.fold
-import com.jstore.payment.domain.payment.PaymentErrors
 import com.jstore.payment.domain.payment.PaymentOrder
 import com.jstore.payment.domain.payment.PaymentRefundId
+import com.jstore.payment.service.MerchantPaymentUseCase
 import com.jstore.payment.service.PaymentCaptureCommand
-import com.jstore.payment.service.PaymentUseCase
-import com.jstore.shop.domain.merchant.MerchantId
-import com.jstore.shop.domain.merchant.MerchantPermission
-import com.jstore.shop.service.MerchantAuthorizationService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -46,8 +41,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/payments")
 @RequireLogin
 class PaymentController(
-    private val service: PaymentUseCase,
-    private val merchantAuthorization: MerchantAuthorizationService,
+    private val service: MerchantPaymentUseCase,
     private val currencyPolicy: SiteCurrencyPolicy,
 ) {
     data class CaptureRequest(
@@ -87,7 +81,7 @@ class PaymentController(
         @CurrentPrincipal principal: AuthenticatedPrincipal,
         @PathVariable orderId: Long,
     ): ResponseEntity<*> =
-        authorized(principal, orderId, MerchantPermission.PAYMENT_READ).response { it.toResponse() }
+        service.get(principal.accountId.value, orderId).response { it.toResponse() }
 
     /** 预上线阶段的渠道回调模拟入口；接真实支付渠道时应替换为签名验签适配器。 */
     @PostMapping("/orders/{orderId}/capture")
@@ -96,19 +90,18 @@ class PaymentController(
         @PathVariable orderId: Long,
         @RequestBody body: CaptureRequest,
     ): ResponseEntity<*> {
-        val authorization = authorized(principal, orderId, MerchantPermission.PAYMENT_MANAGE)
-        if (authorization is Failure) return authorization.response {}
         val currency =
             currencyPolicy.select(body.currency)
                 ?: return CommonBusinessError.INVALID_PARAM.msg("币种不属于当前站允许范围").errorResponse()
         return service
             .capture(
+                principal.accountId.value,
                 PaymentCaptureCommand(
                     orderId,
                     body.providerTransactionId,
                     Price.ofFen(body.amount),
                     currency,
-                )
+                ),
             )
             .response { mapOf("changed" to it) }
     }
@@ -121,59 +114,14 @@ class PaymentController(
         @RequestBody body: RefundResultRequest,
     ): ResponseEntity<*> {
         val id = PaymentRefundId(refundId)
-        val authorization = authorizedRefund(principal, id, MerchantPermission.PAYMENT_MANAGE)
-        if (authorization is Failure) return authorization.response {}
         val result =
-            if (!body.providerRefundId.isNullOrBlank()) {
-                service.markRefundSucceeded(id, body.providerRefundId)
-            } else {
-                service.markRefundFailed(id, body.failureReason.orEmpty())
-            }
+            service.recordRefundResult(
+                principal.accountId.value,
+                id,
+                body.providerRefundId,
+                body.failureReason,
+            )
         return result.response { mapOf("changed" to it) }
-    }
-
-    private fun authorized(
-        principal: AuthenticatedPrincipal,
-        orderId: Long,
-        permission: MerchantPermission,
-    ): Result<PaymentOrder, BusinessError> {
-        val result = service.getByOrderId(orderId)
-        return result.fold(
-            onSuccess = {
-                if (
-                    merchantAuthorization.hasPermission(
-                        principal.accountId.value,
-                        MerchantId(it.merchantId),
-                        permission,
-                    )
-                )
-                    result
-                else Failure(PaymentErrors.ORDER_NOT_FOUND)
-            },
-            onFailure = { result },
-        )
-    }
-
-    private fun authorizedRefund(
-        principal: AuthenticatedPrincipal,
-        refundId: PaymentRefundId,
-        permission: MerchantPermission,
-    ): Result<PaymentOrder, BusinessError> {
-        val result = service.getByRefundId(refundId)
-        return result.fold(
-            onSuccess = {
-                if (
-                    merchantAuthorization.hasPermission(
-                        principal.accountId.value,
-                        MerchantId(it.merchantId),
-                        permission,
-                    )
-                )
-                    result
-                else Failure(PaymentErrors.REFUND_NOT_FOUND)
-            },
-            onFailure = { result },
-        )
     }
 
     private fun PaymentOrder.toResponse() =

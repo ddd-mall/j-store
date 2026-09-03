@@ -76,14 +76,6 @@ class MerchantServiceTest {
         MerchantRepository {
         private val values = linkedMapOf<MerchantId, Merchant>()
 
-        override fun createWithOwner(
-            merchant: Merchant,
-            ownerMembership: MerchantMembership,
-        ): Merchant = merchant.also {
-            values[it.id] = it
-            memberships.save(ownerMembership)
-        }
-
         override fun save(aggregate: Merchant) = aggregate.also { values[it.id] = it }
 
         override fun findById(id: MerchantId) = values[id]

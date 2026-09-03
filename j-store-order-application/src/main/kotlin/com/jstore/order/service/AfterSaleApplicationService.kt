@@ -26,14 +26,18 @@ import com.jstore.common.utils.onFailure
 import com.jstore.common.utils.onSuccess
 import com.jstore.order.domain.aftersale.AfterSale
 import com.jstore.order.domain.aftersale.AfterSaleCommandReceipt
+import com.jstore.order.domain.aftersale.AfterSaleCommandReceiptStore
 import com.jstore.order.domain.aftersale.AfterSaleCommandType
+import com.jstore.order.domain.aftersale.AfterSaleCommandValidator
 import com.jstore.order.domain.aftersale.AfterSaleErrors
 import com.jstore.order.domain.aftersale.AfterSaleFactory
 import com.jstore.order.domain.aftersale.AfterSaleId
 import com.jstore.order.domain.aftersale.AfterSaleRepository
 import com.jstore.order.domain.aftersale.AllocationAction
 import com.jstore.order.domain.aftersale.MerchantActorId
+import com.jstore.order.domain.aftersale.RefundCapacity
 import com.jstore.order.domain.aftersale.RefundCapacityCeiling
+import com.jstore.order.domain.aftersale.RefundCapacityRepository
 import com.jstore.order.domain.aftersale.command.AfterSaleApproveCMD
 import com.jstore.order.domain.aftersale.command.AfterSaleCancelCMD
 import com.jstore.order.domain.aftersale.command.AfterSaleCreateCMD
@@ -56,6 +60,8 @@ data class AfterSaleOrderAccess(
 class AfterSaleApplicationService(
     private val factory: AfterSaleFactory,
     private val afterSaleRepository: AfterSaleRepository,
+    private val refundCapacityRepository: RefundCapacityRepository,
+    private val receiptStore: AfterSaleCommandReceiptStore,
     private val orderRepository: OrderRepository,
     private val domainEventPublisher: DomainEventPublisher,
 ) : AfterSaleUseCase {
@@ -81,7 +87,7 @@ class AfterSaleApplicationService(
         cmd: AfterSaleCreateCMD,
     ): Result<AfterSale, BusinessError> {
         val valid =
-            when (val result = cmd.validate()) {
+            when (val result = AfterSaleCommandValidator.validate(cmd)) {
                 is Success -> result.value
                 is Failure -> return result
             }
@@ -119,22 +125,45 @@ class AfterSaleApplicationService(
                 .filter { it.id in requestedItemIds }
                 .map { RefundCapacityCeiling(order.id, it.id, it.quantity, it.purchasedAmount) }
                 .toList()
-        val result =
-            afterSaleRepository.createWithAllocation(
-                afterSale,
-                ceilings,
-                AfterSaleCommandReceipt(
-                    valid.applicantId.value,
-                    AfterSaleCommandType.CREATE,
-                    scopedIdempotencyKey,
-                    hash(valid.toString()),
-                    afterSale.id,
-                    afterSale.status,
-                    LocalDateTime.now(),
-                ),
+        val capacities = ceilings.map(RefundCapacity::from)
+        refundCapacityRepository.initializeIfAbsent(capacities)
+        val locked =
+            refundCapacityRepository.lockAll(afterSale.items.map { it.orderItemId }).associateBy {
+                it.id
+            }
+        if (
+            locked.size != ceilings.size ||
+                ceilings.any { locked[it.orderItemId]?.matches(it) != true }
+        )
+            return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+        afterSale.items.forEach { item ->
+            locked[item.orderItemId]!!
+                .reserve(item.requestedQuantity, item.requestedAmount)
+                .onFailure {
+                    return Failure(it)
+                }
+        }
+        val commandReceipt =
+            AfterSaleCommandReceipt(
+                valid.applicantId.value,
+                AfterSaleCommandType.CREATE,
+                scopedIdempotencyKey,
+                hash(valid.toString()),
+                afterSale.id,
+                afterSale.status,
+                LocalDateTime.now(),
             )
-        if (result is Success) afterSale.publishPendingEvents(domainEventPublisher)
-        return result
+        if (!receiptStore.claim(commandReceipt))
+            return receipt(
+                valid.applicantId.value,
+                AfterSaleCommandType.CREATE,
+                scopedIdempotencyKey,
+                commandReceipt.requestHash,
+            ) ?: Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+        locked.values.sortedBy { it.id.value }.forEach(refundCapacityRepository::save)
+        val saved = afterSaleRepository.save(afterSale)
+        afterSale.publishPendingEvents(domainEventPublisher)
+        return Success(saved)
     }
 
     override fun approve(cmd: AfterSaleApproveCMD): Result<AfterSale, BusinessError> =
@@ -261,26 +290,40 @@ class AfterSaleApplicationService(
             return it
         }
         val aggregate =
-            afterSaleRepository.findById(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
+            afterSaleRepository.findByIdForUpdate(id) ?: return Failure(AfterSaleErrors.NOT_FOUND)
         operation(aggregate).onFailure {
             return Failure(it)
         }
-        val result =
-            afterSaleRepository.saveDecision(
-                aggregate,
-                action,
-                AfterSaleCommandReceipt(
-                    actor,
-                    type,
-                    key.trim(),
-                    digest,
-                    id,
-                    aggregate.status,
-                    LocalDateTime.now(),
-                ),
+        val locked =
+            refundCapacityRepository.lockAll(aggregate.items.map { it.orderItemId }).associateBy {
+                it.id
+            }
+        if (locked.size != aggregate.items.size)
+            return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+        aggregate.items.forEach { item ->
+            locked[item.orderItemId]!!
+                .settle(item.requestedQuantity, item.requestedAmount, action)
+                .onFailure {
+                    return Failure(it)
+                }
+        }
+        val commandReceipt =
+            AfterSaleCommandReceipt(
+                actor,
+                type,
+                key.trim(),
+                digest,
+                id,
+                aggregate.status,
+                LocalDateTime.now(),
             )
-        if (result is Success) aggregate.publishPendingEvents(domainEventPublisher)
-        return result
+        if (!receiptStore.claim(commandReceipt))
+            return receipt(actor, type, key, digest)
+                ?: Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+        locked.values.sortedBy { it.id.value }.forEach(refundCapacityRepository::save)
+        val saved = afterSaleRepository.save(aggregate)
+        aggregate.publishPendingEvents(domainEventPublisher)
+        return Success(saved)
     }
 
     private fun receipt(
@@ -289,7 +332,7 @@ class AfterSaleApplicationService(
         key: String,
         digest: String,
     ): Result<AfterSale, BusinessError>? {
-        val receipt = afterSaleRepository.findReceipt(actor, type, key.trim()) ?: return null
+        val receipt = receiptStore.find(actor, type, key.trim()) ?: return null
         if (receipt.requestHash != digest) return Failure(AfterSaleErrors.IDEMPOTENCY_CONFLICT)
         return afterSaleRepository.findById(receipt.afterSaleId)?.let(::Success)
             ?: Failure(AfterSaleErrors.NOT_FOUND)

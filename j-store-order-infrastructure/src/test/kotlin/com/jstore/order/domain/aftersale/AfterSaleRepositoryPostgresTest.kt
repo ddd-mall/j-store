@@ -16,9 +16,11 @@
  */
 package com.jstore.order.domain.aftersale
 
+import com.jstore.common.errors.BusinessError
 import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.common.utils.Failure
+import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
 import com.jstore.order.domain.aftersale.persistence.*
 import com.jstore.order.domain.order.FulfillmentStatus
@@ -157,12 +159,9 @@ class AfterSaleRepositoryPostgresTest {
                 val transactions = TransactionTemplate(JpaTransactionManager(emf))
                 test(
                     Fixture(
-                        AfterSaleRepositoryImpl(
-                            roots,
-                            capacities,
-                            receipts,
-                            SnowFlakSequence(1, 1),
-                        ),
+                        AfterSaleRepositoryImpl(roots),
+                        RefundCapacityRepositoryImpl(capacities),
+                        AfterSaleCommandReceiptStoreImpl(receipts, SnowFlakSequence(1, 1)),
                         roots,
                         capacities,
                         receipts,
@@ -177,6 +176,8 @@ class AfterSaleRepositoryPostgresTest {
 
     private data class Fixture(
         val repository: AfterSaleRepositoryImpl,
+        val capacityRepository: RefundCapacityRepository,
+        val receiptStore: AfterSaleCommandReceiptStore,
         val roots: AfterSalePOJpaRepository,
         val capacities: AfterSaleCapacityPOJpaRepository,
         val receipts: AfterSaleCommandReceiptPOJpaRepository,
@@ -186,10 +187,37 @@ class AfterSaleRepositoryPostgresTest {
             afterSale: AfterSale,
             ceilings: List<RefundCapacityCeiling>,
             receipt: AfterSaleCommandReceipt,
-        ) =
+        ): Result<AfterSale, BusinessError> =
             requireNotNull(
                 transactions.execute {
-                    repository.createWithAllocation(afterSale, ceilings, receipt)
+                    if (
+                        afterSale.items.map { it.orderItemId }.toSet() !=
+                            ceilings.map { it.orderItemId }.toSet()
+                    )
+                        return@execute Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+                    capacityRepository.initializeIfAbsent(ceilings.map(RefundCapacity::from))
+                    val locked =
+                        capacityRepository.lockAll(ceilings.map { it.orderItemId }).associateBy {
+                            it.id
+                        }
+                    if (ceilings.any { locked[it.orderItemId]?.matches(it) != true })
+                        return@execute Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+                    afterSale.items.forEach { item ->
+                        when (
+                            val reserved =
+                                locked[item.orderItemId]!!.reserve(
+                                    item.requestedQuantity,
+                                    item.requestedAmount,
+                                )
+                        ) {
+                            is Failure -> return@execute reserved
+                            is Success -> Unit
+                        }
+                    }
+                    if (!receiptStore.claim(receipt))
+                        return@execute Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+                    locked.values.forEach(capacityRepository::save)
+                    Success(repository.save(afterSale))
                 }
             )
     }

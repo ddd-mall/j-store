@@ -19,6 +19,7 @@ package com.jstore.accounting.domain.journal
 import com.jstore.common.errors.BusinessError
 
 object AccountingErrors {
+    val SOURCE_DOCUMENT_NOT_FOUND = BusinessError("来源单据不存在", "Accounting.Source.NotFound", 404)
     val JOURNAL_ENTRY_UNBALANCED = BusinessError("账务凭证借贷不平", "Accounting.Journal.Unbalanced", 400)
     val JOURNAL_ENTRY_ALREADY_POSTED =
         BusinessError("已过账凭证不可修改", "Accounting.Journal.AlreadyPosted", 400)

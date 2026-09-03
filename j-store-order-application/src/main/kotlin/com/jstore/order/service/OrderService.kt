@@ -30,6 +30,7 @@ import com.jstore.common.utils.onSuccess
 import com.jstore.order.acl.UserService
 import com.jstore.order.domain.aftersale.AfterSaleId
 import com.jstore.order.domain.order.Order
+import com.jstore.order.domain.order.OrderCommandValidator
 import com.jstore.order.domain.order.OrderErrors
 import com.jstore.order.domain.order.OrderFactory
 import com.jstore.order.domain.order.OrderId
@@ -82,7 +83,7 @@ class OrderService(
 
     /** 旧的领域测试/内部构造入口；公开 HTTP 创建已删除。 */
     fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError> {
-        cmd.validate().onFailure {
+        OrderCommandValidator.validate(cmd).onFailure {
             return Failure(it)
         }
         val buyerInfo =
@@ -287,15 +288,17 @@ class OrderService(
         buyerId: Long,
         cmd: OrderCancelCMD,
     ): Result<Unit, BusinessError> {
-        cmd.validate().onFailure {
-            return Failure(it)
-        }
+        val reason =
+            when (val result = OrderCommandValidator.cancellationReason(cmd)) {
+                is Success -> result.value
+                is Failure -> return result
+            }
         val order =
             orderRepository.findById(cmd.orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
         if (!order.buyerInfo.matches(buyerAuthenticationDomain, buyerId)) {
             return Failure(OrderErrors.ORDER_NOT_FOUND)
         }
-        order.cancel(cmd.toReason()).onFailure {
+        order.cancel(reason).onFailure {
             return Failure(it)
         }
         orderRepository.save(order)

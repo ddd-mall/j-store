@@ -24,6 +24,8 @@ import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.payment.domain.payment.PaymentOrderRepository
 import com.jstore.payment.domain.payment.TradePaymentRepository
 import com.jstore.payment.service.CancelPaymentInstallmentCommandHandler
+import com.jstore.payment.service.MerchantPaymentService
+import com.jstore.payment.service.MerchantPaymentUseCase
 import com.jstore.payment.service.PaymentApplicationService
 import com.jstore.payment.service.PaymentProviderCancellationGateway
 import com.jstore.payment.service.PaymentProviderCancellationResult
@@ -32,11 +34,13 @@ import com.jstore.payment.service.PaymentProviderRequest
 import com.jstore.payment.service.PaymentProviderResult
 import com.jstore.payment.service.PaymentUseCase
 import com.jstore.payment.service.PreparePaymentInstallmentCommandHandler
+import com.jstore.payment.service.ReadyCheckoutPaymentQueryService
 import com.jstore.payment.service.RequestPaymentRefundCommandHandler
 import com.jstore.payment.service.TradePaymentCancellationService
 import com.jstore.payment.service.TradePaymentCancellationUseCase
 import com.jstore.payment.service.TradePaymentPreparationService
 import com.jstore.payment.service.TradePaymentPreparationUseCase
+import com.jstore.shop.api.MerchantAuthorizationQuery
 import java.time.Instant
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -48,7 +52,8 @@ import org.springframework.transaction.support.TransactionTemplate
 @Configuration
 class PaymentBootConfiguration {
     @Bean
-    fun checkoutPaymentGateway(payments: TradePaymentRepository) = CheckoutPaymentAdapter(payments)
+    fun readyCheckoutPaymentQuery(payments: TradePaymentRepository) =
+        ReadyCheckoutPaymentQueryService(payments)
 
     @Bean
     fun tradePaymentPreparationUseCase(
@@ -128,6 +133,12 @@ class PaymentBootConfiguration {
         paymentApplicationService: PaymentApplicationService,
         transactionManager: PlatformTransactionManager,
     ): PaymentUseCase = TransactionalPaymentUseCase(paymentApplicationService, transactionManager)
+
+    @Bean
+    fun merchantPaymentUseCase(
+        paymentUseCase: PaymentUseCase,
+        authorization: MerchantAuthorizationQuery,
+    ): MerchantPaymentUseCase = MerchantPaymentService(paymentUseCase, authorization)
 
     @Bean
     fun requestPaymentRefundCommandHandler(service: PaymentUseCase) =

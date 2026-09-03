@@ -43,8 +43,22 @@ private fun orderCreatedEvent(orderId: OrderId) =
         merchantId = MerchantId(7),
         payableAmount = Price.ofFen(9999),
         currency = "CNY",
-        items = listOf(OrderItemSnapshot(1L, 1L, 2, 1L, Price.ofFen(9999))),
+        items = listOf(orderItemSnapshot(quantity = 2)),
         occurredAt = Instant.parse("2025-01-01T00:00:00Z"),
+    )
+
+private fun orderItemSnapshot(quantity: Int = 1) =
+    OrderItemSnapshot(
+        spuId = 1,
+        skuId = 1,
+        quantity = quantity,
+        catalogSnapshotVersion = 1,
+        unitPrice = Price.ofFen(9999),
+        offerId = 1,
+        storeId = 1,
+        offerVersion = 1,
+        fulfillmentNodeId = "DEFAULT",
+        channelId = "ONLINE",
     )
 
 /**
@@ -107,7 +121,7 @@ class OutboxEventPublisherTest :
                     merchantId = MerchantId(7),
                     payableAmount = Price.ofFen(9999),
                     currency = "CNY",
-                    items = listOf(OrderItemSnapshot(1L, 1L, 2, 1L, Price.ofFen(9999))),
+                    items = listOf(orderItemSnapshot(quantity = 2)),
                     occurredAt = Instant.parse("2025-01-01T00:00:00Z"),
                 )
 
@@ -314,7 +328,7 @@ class OutboxEventPublisherTest :
                     merchantId = MerchantId(7),
                     payableAmount = Price.ofFen(100),
                     currency = "CNY",
-                    items = listOf(OrderItemSnapshot(1L, 1L, 1, 1L, Price.ofFen(9999))),
+                    items = listOf(orderItemSnapshot()),
                     occurredAt = Instant.now(),
                 )
 
@@ -343,7 +357,7 @@ class OutboxEventPublisherTest :
                     merchantId = MerchantId(7),
                     payableAmount = Price.ofFen(100),
                     currency = "CNY",
-                    items = listOf(OrderItemSnapshot(1L, 1L, 1, 1L, Price.ofFen(9999))),
+                    items = listOf(orderItemSnapshot()),
                     occurredAt = Instant.now(),
                 )
 

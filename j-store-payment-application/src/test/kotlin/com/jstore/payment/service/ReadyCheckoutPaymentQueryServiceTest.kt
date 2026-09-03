@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jstore.payment.config
+package com.jstore.payment.service
 
 import com.jstore.common.properties.Price
 import com.jstore.payment.domain.payment.PaymentAllocationSnapshot
@@ -26,7 +26,7 @@ import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-class CheckoutPaymentAdapterTest {
+class ReadyCheckoutPaymentQueryServiceTest {
     private val acceptedAt = Instant.parse("2029-01-01T00:00:00Z")
 
     @Test
@@ -53,10 +53,9 @@ class CheckoutPaymentAdapterTest {
                 }
         val repository = SinglePaymentRepository(payment)
 
-        assertNotNull(CheckoutPaymentAdapter(repository) { acceptedAt }.findReadyPayment(8001))
+        assertNotNull(ReadyCheckoutPaymentQueryService(repository) { acceptedAt }.find(8001))
         assertNull(
-            CheckoutPaymentAdapter(repository) { acceptedAt.plusSeconds(300) }
-                .findReadyPayment(8001)
+            ReadyCheckoutPaymentQueryService(repository) { acceptedAt.plusSeconds(300) }.find(8001)
         )
     }
 }
@@ -66,10 +65,8 @@ private class SinglePaymentRepository(private var payment: TradePayment?) : Trad
 
     override fun findById(id: TradePaymentId): TradePayment? = payment?.takeIf { it.id == id }
 
-    override fun findByInstallment(
-        settlementPlanId: Long,
-        installmentId: String,
-    ): TradePayment? = payment?.takeIf {
-        it.settlementPlanId == settlementPlanId && it.installmentId == installmentId
-    }
+    override fun findByInstallment(settlementPlanId: Long, installmentId: String): TradePayment? =
+        payment?.takeIf {
+            it.settlementPlanId == settlementPlanId && it.installmentId == installmentId
+        }
 }

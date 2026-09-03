@@ -207,20 +207,26 @@ class TradeOrderPlan(
     orderId: Long? = null,
 ) : com.jstore.common.framework.Entity<TradeOrderPlanId> {
     val items: List<TradeItemSnapshot> = items.toList()
-    var status: TradeOrderPlanStatus = status
-        private set
+    private var mutableStatus = status
+    private var mutableAuthorizations = authorizations.toList()
+    private var mutableReservationIds = reservationIds.toList()
+    private var mutableReservationExpiresAt = reservationExpiresAt
+    private var mutableOrderId = orderId
 
-    var authorizations: List<TradeAuthorization> = authorizations.toList()
-        private set
+    val status: TradeOrderPlanStatus
+        get() = mutableStatus
 
-    var reservationIds: List<String> = reservationIds.toList()
-        private set
+    val authorizations: List<TradeAuthorization>
+        get() = mutableAuthorizations
 
-    var reservationExpiresAt: Instant? = reservationExpiresAt
-        private set
+    val reservationIds: List<String>
+        get() = mutableReservationIds
 
-    var orderId: Long? = orderId
-        private set
+    val reservationExpiresAt: Instant?
+        get() = mutableReservationExpiresAt
+
+    val orderId: Long?
+        get() = mutableOrderId
 
     init {
         require(merchantId > 0 && fulfillmentGroup.isNotBlank() && this.items.isNotEmpty())
@@ -238,8 +244,8 @@ class TradeOrderPlan(
         if (normalized.isEmpty() || normalized.map { it.offerId }.toSet() != offers) {
             return Failure(TradeErrors.INVALID_AUTHORIZATION)
         }
-        authorizations = normalized
-        status = TradeOrderPlanStatus.RESERVING
+        mutableAuthorizations = normalized
+        mutableStatus = TradeOrderPlanStatus.RESERVING
         return Success(true)
     }
 
@@ -263,15 +269,15 @@ class TradeOrderPlan(
         ) {
             return Failure(TradeErrors.INVALID_RESERVATION)
         }
-        reservationIds = normalized
-        reservationExpiresAt = expiresAt
-        status = TradeOrderPlanStatus.RESERVED
+        mutableReservationIds = normalized
+        mutableReservationExpiresAt = expiresAt
+        mutableStatus = TradeOrderPlanStatus.RESERVED
         return Success(true)
     }
 
     internal fun startOrderCreation() {
         require(status == TradeOrderPlanStatus.RESERVED)
-        status = TradeOrderPlanStatus.ORDER_CREATING
+        mutableStatus = TradeOrderPlanStatus.ORDER_CREATING
     }
 
     internal fun recordOrderCreated(value: Long): Result<Boolean, BusinessError> {
@@ -280,8 +286,8 @@ class TradeOrderPlan(
         }
         if (status != TradeOrderPlanStatus.ORDER_CREATING || value <= 0)
             return illegal("record created order")
-        orderId = value
-        status = TradeOrderPlanStatus.ORDER_CREATED
+        mutableOrderId = value
+        mutableStatus = TradeOrderPlanStatus.ORDER_CREATED
         return Success(true)
     }
 
@@ -290,14 +296,14 @@ class TradeOrderPlan(
         if (status in setOf(TradeOrderPlanStatus.ORDER_CREATED, TradeOrderPlanStatus.CLOSED)) {
             return false
         }
-        status = TradeOrderPlanStatus.FAILED
+        mutableStatus = TradeOrderPlanStatus.FAILED
         return true
     }
 
     internal fun closeCreatedOrder(): Boolean {
         if (status == TradeOrderPlanStatus.CLOSED) return false
         if (status != TradeOrderPlanStatus.ORDER_CREATED) return false
-        status = TradeOrderPlanStatus.CLOSED
+        mutableStatus = TradeOrderPlanStatus.CLOSED
         return true
     }
 
@@ -369,21 +375,27 @@ class Trade(
     val sourceSnapshot: CheckoutSourceSnapshot = CheckoutSourceSnapshot.direct(requestDigest),
 ) : AggregateRoot<TradeId> {
     val orderPlans: List<TradeOrderPlan> = orderPlans.toList()
-    var status: TradeStatus = status
-        private set
-
-    var settlementPlanId: SettlementPlanId? = settlementPlanId
-        private set
+    private var mutableStatus = status
+    private var mutableSettlementPlanId = settlementPlanId
 
     private val _paymentReferences = paymentReferences.toMutableMap()
     val paymentReferences: Map<String, Long>
         get() = _paymentReferences.toMap()
 
-    var failureReason: String? = failureReason
-        private set
+    private var mutableFailureReason = failureReason
+    private var mutableUpdatedAt = updatedAt
 
-    var updatedAt: Instant = updatedAt
-        private set
+    val status: TradeStatus
+        get() = mutableStatus
+
+    val settlementPlanId: SettlementPlanId?
+        get() = mutableSettlementPlanId
+
+    val failureReason: String?
+        get() = mutableFailureReason
+
+    val updatedAt: Instant
+        get() = mutableUpdatedAt
 
     init {
         require(checkoutRequestId.isNotBlank() && requestDigest.isNotBlank())
@@ -420,7 +432,7 @@ class Trade(
             return illegal("record authorization")
         val result = plan(id).recordSaleAuthorized(values)
         if (result is Success && result.value) {
-            status = TradeStatus.RESERVING
+            mutableStatus = TradeStatus.RESERVING
             touch()
         }
         return result
@@ -445,7 +457,7 @@ class Trade(
         )
             return illegal("start order creation")
         orderPlans.forEach { it.startOrderCreation() }
-        status = TradeStatus.CREATING_ORDERS
+        mutableStatus = TradeStatus.CREATING_ORDERS
         touch()
         return Success(true)
     }
@@ -478,8 +490,8 @@ class Trade(
                 orderPlans.any { it.status != TradeOrderPlanStatus.ORDER_CREATED }
         )
             return illegal("prepare settlement")
-        settlementPlanId = id
-        status = TradeStatus.SETTLEMENT_PREPARING
+        mutableSettlementPlanId = id
+        mutableStatus = TradeStatus.SETTLEMENT_PREPARING
         touch()
         return Success(true)
     }
@@ -499,8 +511,8 @@ class Trade(
         ) {
             return illegal("fail settlement preparation")
         }
-        failureReason = reason
-        status = TradeStatus.FAILED
+        mutableFailureReason = reason
+        mutableStatus = TradeStatus.FAILED
         touch()
         return Success(true)
     }
@@ -540,7 +552,7 @@ class Trade(
             return illegal("record prepared payment")
         }
         _paymentReferences[installmentId] = paymentId
-        status = TradeStatus.PAYMENT_READY
+        mutableStatus = TradeStatus.PAYMENT_READY
         touch()
         return Success(true)
     }
@@ -580,8 +592,8 @@ class Trade(
             return illegal("record uncertain payment")
         }
         _paymentReferences[installmentId] = paymentId
-        failureReason = reason
-        status = TradeStatus.PAYMENT_UNCERTAIN
+        mutableFailureReason = reason
+        mutableStatus = TradeStatus.PAYMENT_UNCERTAIN
         touch()
         return Success(true)
     }
@@ -611,8 +623,8 @@ class Trade(
             return illegal("record rejected payment")
         }
         _paymentReferences[installmentId] = paymentId
-        failureReason = reason
-        status = TradeStatus.FAILED
+        mutableFailureReason = reason
+        mutableStatus = TradeStatus.FAILED
         touch()
         return Success(true)
     }
@@ -638,8 +650,8 @@ class Trade(
         }
         if (status != TradeStatus.CLOSING) return illegal("record payment cancellation")
         _paymentReferences[installmentId] = paymentId
-        failureReason = reason
-        status = TradeStatus.FAILED
+        mutableFailureReason = reason
+        mutableStatus = TradeStatus.FAILED
         touch()
         return Success(true)
     }
@@ -665,8 +677,8 @@ class Trade(
         }
         val changed = plan(planId).fail()
         if (!changed) return illegal("fail order plan")
-        failureReason = reason
-        status = TradeStatus.FAILED
+        mutableFailureReason = reason
+        mutableStatus = TradeStatus.FAILED
         touch()
         return Success(true)
     }
@@ -692,11 +704,11 @@ class Trade(
         ) {
             return illegal("record cancelled order")
         }
-        failureReason = reason
+        mutableFailureReason = reason
         if (status == TradeStatus.CREATING_ORDERS) {
-            status = TradeStatus.FAILED
+            mutableStatus = TradeStatus.FAILED
         } else {
-            status = TradeStatus.CLOSING
+            mutableStatus = TradeStatus.CLOSING
         }
         touch()
         return Success(true)
@@ -706,7 +718,7 @@ class Trade(
         this.buyerParty == buyerParty && requestDigest == digest
 
     private fun touch() {
-        updatedAt = Instant.now()
+        mutableUpdatedAt = Instant.now()
     }
 
     private fun illegal(action: String): Failure<BusinessError> =

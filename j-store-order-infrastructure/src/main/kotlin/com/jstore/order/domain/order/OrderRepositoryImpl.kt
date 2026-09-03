@@ -246,11 +246,9 @@ class OrderRepositoryImpl(
                 id = OrderItemId(po.id),
                 skuId = po.skuId,
                 spuId = po.spuId,
-                // Rows written before the Offer boundary was introduced have no offer columns.
-                // The migration backfills them; these fallbacks also keep history readers safe.
-                offerId = po.offerId.takeIf { it > 0 } ?: po.skuId,
-                storeId = po.storeId.takeIf { it > 0 } ?: 1,
-                offerVersion = po.offerVersion.coerceAtLeast(1),
+                offerId = po.offerId,
+                storeId = po.storeId,
+                offerVersion = po.offerVersion,
                 fulfillmentNodeId = po.fulfillmentNodeId,
                 channelId = po.channelId,
                 goodsName = po.goodsName,

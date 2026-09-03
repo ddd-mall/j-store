@@ -18,9 +18,9 @@ package com.jstore.cart.config
 
 import com.jstore.cart.acl.CartCommerceFactsServiceImpl
 import com.jstore.cart.api.CartCheckoutSourceQueryService
-import com.jstore.cart.domain.CartAssessmentRepository
+import com.jstore.cart.domain.CartAssessmentStore
 import com.jstore.cart.domain.CartRepository
-import com.jstore.cart.domain.CartRequestReceiptRepository
+import com.jstore.cart.domain.CartRequestReceiptStore
 import com.jstore.cart.service.*
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
@@ -45,8 +45,8 @@ class CartBootConfiguration {
     @Bean
     fun cartApplicationService(
         carts: CartRepository,
-        assessments: CartAssessmentRepository,
-        receipts: CartRequestReceiptRepository,
+        assessments: CartAssessmentStore,
+        receipts: CartRequestReceiptStore,
         commerce: CartCommerceFactsServiceImpl,
         sequence: SnowFlakSequence,
         publisher: DomainEventPublisher,

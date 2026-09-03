@@ -16,7 +16,6 @@
  */
 package com.jstore.order.domain.aftersale
 
-import com.jstore.common.persistent.SnowFlakSequence
 import com.jstore.common.properties.Price
 import com.jstore.order.domain.aftersale.persistence.*
 import com.jstore.order.domain.order.FulfillmentStatus
@@ -30,13 +29,7 @@ import org.mockito.Mockito.mock
 class AfterSalePORoundTripTest {
     @Test
     fun `persistence mapping preserves aggregate snapshots and review decision`() {
-        val repository =
-            AfterSaleRepositoryImpl(
-                mock(AfterSalePOJpaRepository::class.java),
-                mock(AfterSaleCapacityPOJpaRepository::class.java),
-                mock(AfterSaleCommandReceiptPOJpaRepository::class.java),
-                SnowFlakSequence(1, 1),
-            )
+        val repository = AfterSaleRepositoryImpl(mock(AfterSalePOJpaRepository::class.java))
         val now = LocalDateTime.of(2026, 8, 3, 10, 0)
         val goods = GoodsSnapshot(91, 81, "商品", "红色")
         val source =

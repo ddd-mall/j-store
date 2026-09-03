@@ -77,7 +77,7 @@ class CommodityService(
      * TODO: 与 editOnSale 可能存在职能上的重复
      */
     override fun createOrUpdate(cmd: CommodityCreateCmd): Result<Spu, BusinessError> {
-        return cmd.verify().map {
+        return CommodityCommandValidator.validate(cmd).map {
             validateBrandReference(cmd.brandId, MerchantId(cmd.merchantId)).onFailure {
                 return Failure(it)
             }
@@ -279,7 +279,7 @@ class CommodityService(
 
     /** 保存或更新商品展示样式 */
     override fun saveGoodsStyle(cmd: GoodsStyleSaveCmd): Result<GoodsStyle, BusinessError> {
-        cmd.verify().onFailure {
+        CommodityCommandValidator.validate(cmd).onFailure {
             return Failure(it)
         }
 

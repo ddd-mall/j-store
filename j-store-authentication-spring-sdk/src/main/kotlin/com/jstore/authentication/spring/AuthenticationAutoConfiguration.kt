@@ -19,7 +19,7 @@ package com.jstore.authentication.spring
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.config.AuthenticationConfigurer
 import com.jstore.authentication.principal.AccessTokenVerifier
-import com.jstore.user.domain.useraccount.TokenStore
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -39,7 +39,7 @@ class AuthenticationAutoConfiguration {
     @ConditionalOnMissingBean
     fun authenticationInterceptor(
         accessTokenVerifier: AccessTokenVerifier,
-        tokenStore: ObjectProvider<TokenStore>,
+        tokenStore: ObjectProvider<AuthenticatedSessionStore>,
         configurers: List<AuthenticationConfigurer>,
         objectMapper: ObjectMapper,
     ): AuthenticationInterceptor {

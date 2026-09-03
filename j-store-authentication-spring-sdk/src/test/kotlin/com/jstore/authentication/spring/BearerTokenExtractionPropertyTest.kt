@@ -19,10 +19,10 @@ package com.jstore.authentication.spring
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.error.AuthenticationErrors
 import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.authentication.principal.AuthenticatedSession
-import com.jstore.user.domain.useraccount.TokenStore
-import com.jstore.user.domain.useraccount.UserId
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -53,7 +53,7 @@ class BearerTokenExtractionPropertyTest :
             ) { token ->
                 // --- Build mocks ---
                 val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<TokenStore>()
+                val tokenStore = mock<AuthenticatedSessionStore>()
                 val interceptor =
                     AuthenticationInterceptor(
                         accessTokenVerifier = tokenVerifier,
@@ -71,7 +71,7 @@ class BearerTokenExtractionPropertyTest :
                 whenever(request.requestURI).thenReturn("/api/test")
 
                 // parseAccessToken returns a UserId → token was successfully extracted
-                val userId = UserId(1L)
+                val userId = AuthenticatedAccountId(1L)
                 val principal =
                     AuthenticatedPrincipal(
                         "issuer-a",
@@ -104,7 +104,7 @@ class BearerTokenExtractionPropertyTest :
             ) { headerValue ->
                 // --- Build mocks ---
                 val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<TokenStore>()
+                val tokenStore = mock<AuthenticatedSessionStore>()
                 val interceptor =
                     AuthenticationInterceptor(
                         accessTokenVerifier = tokenVerifier,

@@ -20,13 +20,13 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import com.jstore.authentication.spring.AuthenticationInterceptor
 import com.jstore.outbox.spring.DeadLetterRequeueResult
 import com.jstore.outbox.spring.OutboxDeadLetterOperations
 import com.jstore.outbox.spring.OutboxDeadLetterPage
-import com.jstore.user.domain.useraccount.TokenStore
-import com.jstore.user.domain.useraccount.UserId
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.springframework.core.MethodParameter
@@ -54,7 +54,7 @@ class OutboxOperationsControllerTest {
                 .addInterceptors(
                     AuthenticationInterceptor(
                         mock<AccessTokenVerifier>(),
-                        mock<TokenStore>(),
+                        mock<AuthenticatedSessionStore>(),
                         emptyList(),
                         ObjectMapper(),
                     )
@@ -131,7 +131,7 @@ class OutboxOperationsControllerTest {
         ) =
             AuthenticatedPrincipal(
                 "issuer-a",
-                UserId(webRequest.getHeader("X-Test-User")!!.toLong()),
+                AuthenticatedAccountId(webRequest.getHeader("X-Test-User")!!.toLong()),
             )
     }
 

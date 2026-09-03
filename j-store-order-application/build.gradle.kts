@@ -12,6 +12,8 @@ dependencies {
     implementation(project(":j-store-common-core"))
     api(project(":j-store-messaging-core"))
     implementation(project(":j-store-integration-contracts"))
+    implementation(project(":j-store-shop-api"))
+    implementation(project(":j-store-order-api"))
 
     testImplementation(libs.mockito)
     testImplementation(testFixtures(project(":j-store-order-domain")))

@@ -139,6 +139,8 @@ class SnapshotVersionMismatchPropertyTest :
                                     skuId = 1L,
                                     quantity = 1,
                                     snapshotVersion = cmdSnapshotVersion,
+                                    offerId = 2L,
+                                    offerVersion = 1L,
                                 )
                             ),
                     )

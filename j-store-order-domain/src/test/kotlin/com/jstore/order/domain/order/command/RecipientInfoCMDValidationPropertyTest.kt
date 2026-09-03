@@ -18,6 +18,7 @@ package com.jstore.order.domain.order.command
 
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Failure
+import com.jstore.order.domain.order.OrderCommandValidator
 import com.jstore.order.domain.order.OrderErrors
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -58,7 +59,7 @@ class RecipientInfoCMDValidationPropertyTest :
                         shippingDetailAddress = "三里屯街道xx号",
                     )
 
-                val result = cmd.validate()
+                val result = OrderCommandValidator.validate(cmd)
 
                 result.shouldBeInstanceOf<Failure<*>>()
                 (result as Failure).error.errorCode shouldBe
@@ -79,7 +80,7 @@ class RecipientInfoCMDValidationPropertyTest :
                         shippingDetailAddress = "三里屯街道xx号",
                     )
 
-                val result = cmd.validate()
+                val result = OrderCommandValidator.validate(cmd)
 
                 result.shouldBeInstanceOf<Failure<*>>()
                 (result as Failure).error.errorCode shouldBe
@@ -100,7 +101,7 @@ class RecipientInfoCMDValidationPropertyTest :
                         shippingDetailAddress = "三里屯街道xx号",
                     )
 
-                val result = cmd.validate()
+                val result = OrderCommandValidator.validate(cmd)
 
                 result.shouldBeInstanceOf<Failure<*>>()
                 (result as Failure).error.errorCode shouldBe

@@ -16,12 +16,12 @@
  */
 package com.jstore.trade.controller
 
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.utils.Success
 import com.jstore.trade.service.CheckoutAccepted
 import com.jstore.trade.service.CheckoutUseCase
 import com.jstore.trade.service.CreateCheckoutCommand
-import com.jstore.user.domain.useraccount.UserId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -91,4 +91,5 @@ private class CapturingCheckoutUseCase : CheckoutUseCase {
         )
 }
 
-private fun principal(accountId: Long) = AuthenticatedPrincipal("issuer-a", UserId(accountId))
+private fun principal(accountId: Long) =
+    AuthenticatedPrincipal("issuer-a", AuthenticatedAccountId(accountId))

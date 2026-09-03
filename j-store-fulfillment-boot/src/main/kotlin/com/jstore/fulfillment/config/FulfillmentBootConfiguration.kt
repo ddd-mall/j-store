@@ -22,6 +22,9 @@ import com.jstore.fulfillment.domain.FulfillmentOrderRepository
 import com.jstore.fulfillment.service.CreateFulfillmentForOrderCommandHandler
 import com.jstore.fulfillment.service.FulfillmentApplicationService
 import com.jstore.fulfillment.service.FulfillmentUseCase
+import com.jstore.fulfillment.service.MerchantFulfillmentService
+import com.jstore.fulfillment.service.MerchantFulfillmentUseCase
+import com.jstore.shop.api.MerchantAuthorizationQuery
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -43,6 +46,12 @@ class FulfillmentBootConfiguration {
         transactionManager: PlatformTransactionManager,
     ): FulfillmentUseCase =
         TransactionalFulfillmentUseCase(fulfillmentApplicationService, transactionManager)
+
+    @Bean
+    fun merchantFulfillmentUseCase(
+        fulfillmentUseCase: FulfillmentUseCase,
+        authorization: MerchantAuthorizationQuery,
+    ): MerchantFulfillmentUseCase = MerchantFulfillmentService(fulfillmentUseCase, authorization)
 
     @Bean
     fun createFulfillmentForOrderCommandHandler(service: FulfillmentUseCase) =

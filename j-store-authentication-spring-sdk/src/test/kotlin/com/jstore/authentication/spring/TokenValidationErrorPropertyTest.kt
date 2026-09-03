@@ -19,10 +19,10 @@ package com.jstore.authentication.spring
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.error.AuthenticationErrors
 import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.authentication.principal.AuthenticatedSession
-import com.jstore.user.domain.useraccount.TokenStore
-import com.jstore.user.domain.useraccount.UserId
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -52,7 +52,7 @@ class TokenValidationErrorPropertyTest :
                 Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
             ) { token ->
                 val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<TokenStore>()
+                val tokenStore = mock<AuthenticatedSessionStore>()
                 val interceptor =
                     AuthenticationInterceptor(
                         accessTokenVerifier = tokenVerifier,
@@ -97,7 +97,7 @@ class TokenValidationErrorPropertyTest :
                 Arb.string(minSize = 1, maxSize = 30).filter { !it.contains('\u0000') },
             ) { token, userIdValue, jti ->
                 val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<TokenStore>()
+                val tokenStore = mock<AuthenticatedSessionStore>()
                 val interceptor =
                     AuthenticationInterceptor(
                         accessTokenVerifier = tokenVerifier,
@@ -113,7 +113,7 @@ class TokenValidationErrorPropertyTest :
                 whenever(request.getHeader("Authorization")).thenReturn("Bearer $token")
                 whenever(request.requestURI).thenReturn("/api/test")
 
-                val userId = UserId(userIdValue)
+                val userId = AuthenticatedAccountId(userIdValue)
                 val principal =
                     AuthenticatedPrincipal(
                         "issuer-a",
@@ -147,7 +147,7 @@ class TokenValidationErrorPropertyTest :
                 Arb.string(minSize = 1, maxSize = 50),
             ) { requestPath ->
                 val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<TokenStore>()
+                val tokenStore = mock<AuthenticatedSessionStore>()
                 val interceptor =
                     AuthenticationInterceptor(
                         accessTokenVerifier = tokenVerifier,

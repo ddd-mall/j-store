@@ -17,6 +17,7 @@
 package com.jstore.shop.controller
 
 import com.jstore.authentication.annotation.CurrentPrincipal
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.shop.domain.merchant.Merchant
 import com.jstore.shop.domain.merchant.MerchantId
@@ -26,7 +27,6 @@ import com.jstore.shop.domain.merchant.MerchantMembershipRepository
 import com.jstore.shop.domain.merchant.MerchantRepository
 import com.jstore.shop.service.MerchantService
 import com.jstore.shop.service.UserAccountLookup
-import com.jstore.user.domain.useraccount.UserId
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.core.MethodParameter
@@ -91,19 +91,13 @@ class MerchantControllerContractTest {
         ) =
             AuthenticatedPrincipal(
                 "issuer-a",
-                UserId(webRequest.getHeader("X-Test-User")!!.toLong()),
+                AuthenticatedAccountId(webRequest.getHeader("X-Test-User")!!.toLong()),
             )
     }
 
     private class FakeMerchantRepository(private val memberships: MerchantMembershipRepository) :
         MerchantRepository {
         private val values = linkedMapOf<MerchantId, Merchant>()
-
-        override fun createWithOwner(merchant: Merchant, ownerMembership: MerchantMembership) =
-            merchant.also {
-                values[it.id] = it
-                memberships.save(ownerMembership)
-            }
 
         override fun save(aggregate: Merchant) = aggregate.also { values[it.id] = it }
 

@@ -16,29 +16,21 @@
  */
 package com.jstore.payment.controller
 
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 import com.jstore.common.currency.SiteCurrencyPolicy
 import com.jstore.common.properties.Price
+import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Success
+import com.jstore.payment.domain.payment.PaymentErrors
 import com.jstore.payment.domain.payment.PaymentOrderId
 import com.jstore.payment.domain.payment.PaymentOrderImpl
+import com.jstore.payment.service.MerchantPaymentUseCase
 import com.jstore.payment.service.PaymentCaptureCommand
-import com.jstore.payment.service.PaymentUseCase
-import com.jstore.shop.domain.merchant.Merchant
-import com.jstore.shop.domain.merchant.MerchantId
-import com.jstore.shop.domain.merchant.MerchantMembership
-import com.jstore.shop.domain.merchant.MerchantMembershipId
-import com.jstore.shop.domain.merchant.MerchantMembershipRepository
-import com.jstore.shop.domain.merchant.MerchantRepository
-import com.jstore.shop.domain.merchant.MerchantRole
-import com.jstore.shop.service.MerchantAuthorizationService
-import com.jstore.user.domain.useraccount.UserId
-import java.time.Instant
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
-import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -47,29 +39,13 @@ import org.springframework.http.HttpStatus
 class PaymentControllerMerchantAuthorizationTest {
     @Test
     fun `finance member can access payment while numerically equal non-member cannot`() {
-        val service = mock(PaymentUseCase::class.java)
+        val service = mock(MerchantPaymentUseCase::class.java)
         val order = PaymentOrderImpl(PaymentOrderId(1), 9, 70, Price.ofFen(100), "CNY")
-        `when`(service.getByOrderId(9)).thenReturn(Success(order))
-
-        val merchants =
-            FakeMerchantRepository().also {
-                it.save(Merchant(MerchantId(70), "示例商户"))
-            }
-        val memberships =
-            FakeMembershipRepository().also {
-                it.save(
-                    MerchantMembership(
-                        MerchantMembershipId(1),
-                        MerchantId(70),
-                        900,
-                        setOf(MerchantRole.FINANCE),
-                    )
-                )
-            }
+        `when`(service.get(900, 9)).thenReturn(Success(order))
+        `when`(service.get(70, 9)).thenReturn(Failure(PaymentErrors.ORDER_NOT_FOUND))
         val controller =
             PaymentController(
                 service,
-                MerchantAuthorizationService(merchants, memberships),
                 SiteCurrencyPolicy("CNY", setOf("CNY")),
             )
 
@@ -79,33 +55,18 @@ class PaymentControllerMerchantAuthorizationTest {
 
     @Test
     fun `capture uses site default and rejects currencies outside the site policy`() {
-        val service = mock(PaymentUseCase::class.java)
-        val order = PaymentOrderImpl(PaymentOrderId(1), 9, 70, Price.ofFen(100), "JPY")
-        `when`(service.getByOrderId(9)).thenReturn(Success(order))
+        val service = mock(MerchantPaymentUseCase::class.java)
         `when`(
                 service.capture(
+                    eq(900L),
                     eq(PaymentCaptureCommand(9, "txn-1", Price.ofFen(100), "JPY")),
-                    any<Instant>(),
                 )
             )
             .thenReturn(Success(true))
 
-        val merchants = FakeMerchantRepository().also { it.save(Merchant(MerchantId(70), "示例商户")) }
-        val memberships =
-            FakeMembershipRepository().also {
-                it.save(
-                    MerchantMembership(
-                        MerchantMembershipId(1),
-                        MerchantId(70),
-                        900,
-                        setOf(MerchantRole.FINANCE),
-                    )
-                )
-            }
         val controller =
             PaymentController(
                 service,
-                MerchantAuthorizationService(merchants, memberships),
                 SiteCurrencyPolicy("JPY", setOf("JPY", "USD")),
             )
 
@@ -131,39 +92,16 @@ class PaymentControllerMerchantAuthorizationTest {
         )
         verify(service)
             .capture(
+                eq(900L),
                 eq(PaymentCaptureCommand(9, "txn-1", Price.ofFen(100), "JPY")),
-                any<Instant>(),
             )
         verify(service, never())
             .capture(
+                eq(900L),
                 eq(PaymentCaptureCommand(9, "txn-2", Price.ofFen(100), "CNY")),
-                any<Instant>(),
             )
-    }
-
-    private class FakeMerchantRepository : MerchantRepository {
-        private val values = mutableMapOf<MerchantId, Merchant>()
-
-        override fun createWithOwner(merchant: Merchant, ownerMembership: MerchantMembership) =
-            save(merchant)
-
-        override fun save(entity: Merchant) = entity.also { values[it.id] = it }
-
-        override fun findById(id: MerchantId) = values[id]
-    }
-
-    private class FakeMembershipRepository : MerchantMembershipRepository {
-        private val values = mutableMapOf<MerchantMembershipId, MerchantMembership>()
-
-        override fun save(entity: MerchantMembership) = entity.also { values[it.id] = it }
-
-        override fun findById(id: MerchantMembershipId) = values[id]
-
-        override fun findByMerchantAndUser(merchantId: MerchantId, userId: Long) =
-            values.values.firstOrNull { it.merchantId == merchantId && it.userId == userId }
-
-        override fun findByUser(userId: Long) = values.values.filter { it.userId == userId }
     }
 }
 
-private fun principal(accountId: Long) = AuthenticatedPrincipal("issuer-a", UserId(accountId))
+private fun principal(accountId: Long) =
+    AuthenticatedPrincipal("issuer-a", AuthenticatedAccountId(accountId))

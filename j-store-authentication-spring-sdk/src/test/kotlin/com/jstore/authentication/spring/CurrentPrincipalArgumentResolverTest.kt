@@ -18,8 +18,8 @@ package com.jstore.authentication.spring
 
 import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.context.AuthenticatedPrincipalContext
+import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
-import com.jstore.user.domain.useraccount.UserId
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import org.mockito.kotlin.mock
@@ -43,7 +43,7 @@ class CurrentPrincipalArgumentResolverTest :
         }
 
         test("resolves the complete scoped principal") {
-            val principal = AuthenticatedPrincipal("issuer-a", UserId(123))
+            val principal = AuthenticatedPrincipal("issuer-a", AuthenticatedAccountId(123))
             AuthenticatedPrincipalContext.set(principal)
             val parameter = mock<MethodParameter>()
             whenever(parameter.isOptional).thenReturn(false)

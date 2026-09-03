@@ -14,7 +14,6 @@ dependencies {
     implementation(project(":j-store-common-core"))
     implementation(project(":j-store-messaging-core"))
     implementation(project(":j-store-integration-contracts"))
-    implementation(project(":j-store-user-domain"))
     implementation(project(":j-store-user-client-spring"))
     implementation(project(":j-store-authentication-spring-sdk"))
     implementation(libs.spring.boot.starter.web)

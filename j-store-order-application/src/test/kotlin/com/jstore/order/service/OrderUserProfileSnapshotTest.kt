@@ -82,6 +82,8 @@ class OrderUserProfileSnapshotTest {
                         skuId = 2,
                         quantity = 1,
                         snapshotVersion = 3,
+                        offerId = 4,
+                        offerVersion = 5,
                     )
                 ),
         )

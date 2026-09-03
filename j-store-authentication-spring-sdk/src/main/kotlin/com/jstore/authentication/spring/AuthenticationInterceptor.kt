@@ -23,8 +23,8 @@ import com.jstore.authentication.config.AuthenticationConfigurer
 import com.jstore.authentication.context.AuthenticatedPrincipalContext
 import com.jstore.authentication.error.AuthenticationErrors
 import com.jstore.authentication.principal.AccessTokenVerifier
+import com.jstore.authentication.principal.AuthenticatedSessionStore
 import com.jstore.common.errors.BusinessError
-import com.jstore.user.domain.useraccount.TokenStore
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.util.AntPathMatcher
@@ -33,7 +33,7 @@ import org.springframework.web.servlet.HandlerInterceptor
 
 class AuthenticationInterceptor(
     private val accessTokenVerifier: AccessTokenVerifier,
-    private val tokenStore: TokenStore?,
+    private val tokenStore: AuthenticatedSessionStore?,
     private val configurers: List<AuthenticationConfigurer>,
     private val objectMapper: ObjectMapper = ObjectMapper(),
 ) : HandlerInterceptor {
