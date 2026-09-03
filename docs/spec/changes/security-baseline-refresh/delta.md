@@ -4,13 +4,16 @@
 
 `develop` 的安全门禁因两项外部基线漂移而不再可重复通过：Semgrep `p/default`
 规则内容发生变化，且 OSV 新增公告后确认 Spring Boot 3.5.16 默认管理的嵌入式 Tomcat
-10.1.55 存在已公开漏洞。
+10.1.55 存在已公开漏洞。首次刷新后，`p/default` 在同一天再次改变内容，证明动态响应
+配合摘要的方式只能检测漂移，不能提供可复现的规则输入。
 
 ## 变更
 
-- Semgrep 仍使用可变规则入口加固定 SHA-256 的 fail-closed 模式。本次只在使用仓库固定的
-  Semgrep CE 版本完成实际扫描后，将审核摘要更新为
-  `d526987e830828f8962e2146969de0877b58efc786c312141c4d84673287e9b5`。
+- Semgrep CE 版本继续由 `requirements-security.txt` 固定。规则输入改为 Semgrep 官方
+  `semgrep-rules` 仓库提交 `40b8c63f75dc7c22c8a77482d73bfb864b146f7e`，不再下载可变的
+  `p/default` 响应。
+- CI 从固定提交中装载仓库所用语言的安全规则，排除 audit、best-practice、correctness、
+  maintainability、performance 和 compatibility 等非阻断类别，以保持安全门禁的高信号语义。
 - Spring Boot 继续保持 3.5.16。作为安全例外，统一依赖 Platform 将
   `tomcat-embed-core`、`tomcat-embed-el` 和 `tomcat-embed-websocket` 整体约束为
   10.1.59；业务模块不得单独覆盖。
@@ -27,7 +30,7 @@
 - 统一 Platform 之外不存在 Tomcat 版本覆盖。
 - 所有生产 `runtimeClasspath` 中的 `org.apache.tomcat.embed` 组件解析为 10.1.59。
 - 生产 SBOM 经 CI 固定的 OSV Scanner 2.4.0 扫描无已知漏洞。
-- 新摘要对应的 Semgrep `p/default` 规则对当前仓库扫描通过。
+- 固定提交的 Semgrep 安全规则对当前仓库扫描通过，且工作流不再访问 `p/default`。
 - `./scripts/quality-gate.sh`、许可证审计和相关应用测试通过。
 
 ## 回滚
