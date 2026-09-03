@@ -125,6 +125,7 @@ tasks.register("verifyDependencyResolution") {
 
     doLast {
         val approvedLog4jVersion = libs.versions.log4j.get()
+        val approvedTomcatVersion = libs.versions.tomcat.get()
         val resolvedLog4j = subprojects.flatMap { candidate ->
             val runtimeClasspath = candidate.configurations.findByName("runtimeClasspath")
             if (runtimeClasspath == null || !runtimeClasspath.isCanBeResolved) {
@@ -149,6 +150,29 @@ tasks.register("verifyDependencyResolution") {
             "Unexpected Log4j runtime versions:\n${unexpectedVersions.distinct().sorted().joinToString("\n")}"
         }
 
+        val resolvedTomcat = subprojects.flatMap { candidate ->
+            val runtimeClasspath = candidate.configurations.findByName("runtimeClasspath")
+            if (runtimeClasspath == null || !runtimeClasspath.isCanBeResolved) {
+                emptyList()
+            } else {
+                runtimeClasspath.incoming.resolutionResult.allComponents.mapNotNull { component ->
+                    component.moduleVersion
+                        ?.takeIf { it.group == "org.apache.tomcat.embed" }
+                        ?.let { "${candidate.path}\t${it.name}\t${it.version}" }
+                }
+            }
+        }
+        check(resolvedTomcat.isNotEmpty()) {
+            "No embedded Tomcat components were found in production runtime classpaths."
+        }
+        val unexpectedTomcatVersions = resolvedTomcat.filterNot {
+            it.substringAfterLast('\t') == approvedTomcatVersion
+        }
+        check(unexpectedTomcatVersions.isEmpty()) {
+            "Unexpected Tomcat runtime versions:\n" +
+                unexpectedTomcatVersions.distinct().sorted().joinToString("\n")
+        }
+
         val bootComponents =
             resolvedLog4j
                 .filter { it.startsWith(":j-store-boot\t") }
@@ -167,6 +191,12 @@ tasks.register("verifyDependencyResolution") {
             approvedLog4jVersion,
             verifiedModules,
             verifiedComponents.joinToString(),
+        )
+        logger.lifecycle(
+            "Verified embedded Tomcat {} across {} runtime classpaths: {}.",
+            approvedTomcatVersion,
+            resolvedTomcat.map { it.substringBefore('\t') }.toSet().size,
+            resolvedTomcat.map { it.split('\t')[1] }.toSet().sorted().joinToString(),
         )
     }
 }
