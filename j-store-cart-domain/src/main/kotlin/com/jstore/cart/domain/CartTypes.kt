@@ -62,12 +62,6 @@ data class MerchantId(override val value: Long) : Id<Long>(value) {
     }
 }
 
-data class CartRequestReceiptId(override val value: String) : Id<String>(value) {
-    init {
-        require(value.isNotBlank())
-    }
-}
-
 data class SettlementScope(val market: String, val channelId: String, val currency: String) {
     init {
         require(market.isNotBlank() && channelId.isNotBlank() && CurrencyCode.isValid(currency))
@@ -86,7 +80,6 @@ object CartErrors {
     val UNKNOWN_SELECTION = BusinessError("选择中包含未知购物车行", "Cart.UnknownSelectionLine", 400)
     val NOT_FOUND = BusinessError("购物车不存在", "Cart.NotFound", 404)
     val VERSION_CONFLICT = BusinessError("购物车版本冲突", "Cart.VersionConflict", 409)
-    val REQUEST_CONFLICT = BusinessError("购物车请求幂等键冲突", "Cart.RequestConflict", 409)
     val OFFER_MISMATCH = BusinessError("Offer 与 SKU 不匹配", "Cart.OfferSkuMismatch", 409)
     val NO_ELIGIBLE_LINES = BusinessError("没有可结算商品", "Cart.NoEligibleLines", 409)
     val REFRESH_UNAVAILABLE = BusinessError("购物车试算暂不可用", "Cart.RefreshUnavailable", 503)

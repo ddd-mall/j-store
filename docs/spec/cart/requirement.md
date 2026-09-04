@@ -21,7 +21,7 @@ j-store 已由 Trade / Checkout 统一承担成交快照、销售授权、库存
 本功能包括：
 
 1. 认证买家将一个由 `skuId + offerId` 确定的销售目标加入自己的购物车。
-2. 同一买家只有一个当前活动购物车；相同 Offer 再次加购时增加数量，不产生重复行。
+2. 同一买家只有一个当前活动购物车；相同 Offer 使用绝对目标数量更新，不产生重复行。
 3. 购物车内容或选择发生变化后触发购物车刷新；系统也允许显式请求刷新。
 4. 刷新时按当前商品发布状态、Store / Offer 销售状态、有效期和 Inventory ATP 计算基础结算金额。
 5. 商品或 Offer 已下架、失效，或者 ATP 不能满足购物车请求数量时，该行保留在购物车中，但不纳入试算和 Checkout。
@@ -43,14 +43,14 @@ j-store 已由 Trade / Checkout 统一承担成交快照、销售授权、库存
 
 ## 需求与验收标准
 
-### CART-R1 加购绑定 Offer 的 SKU
+### CART-R1 设置绑定 Offer 的 SKU 数量
 
-1. 加购请求必须包含认证买家、`skuId`、`offerId`、正整数数量和请求幂等键；买家身份只能来自认证上下文。
+1. 商品数量请求必须包含认证买家、`skuId`、`offerId`、`expectedCartVersion` 和 `1..999` 的绝对目标数量 `targetQuantity`；买家身份只能来自认证上下文。
 2. Store / Offer 必须确认 `offerId` 当前引用该 `skuId`；客户端不能仅凭 SKU 指定价格、商户或履约节点。
-3. 加购只确认 SKU 与 Offer 的身份关系，不锁价、不锁库存，也不因暂时下架或售罄删除购买意图；是否可结算由该版本的刷新结果决定。
-4. Given 买家的活动购物车中不存在该 Offer，When 加购成功，Then 创建一条已选择的 Cart Line、增加 Cart 内容版本并触发刷新事件。
-5. Given 已存在相同 Offer 的 Cart Line，When 再次加购，Then 在领域数量上限内累加数量、保持原行身份、增加 Cart 内容版本并触发刷新事件。
-6. Given 相同 `requestId` 和相同请求重复到达，Then 返回第一次结果且不重复增加数量；相同 `requestId` 携带冲突内容时返回冲突。
+3. 商品数量设置只确认 SKU 与 Offer 的身份关系，不锁价、不锁库存，也不因暂时下架或售罄删除购买意图；是否可结算由该版本的刷新结果决定。
+4. Given 买家的活动购物车中不存在该 Offer 且当前版本等于期望版本，When 设置目标数量，Then 创建一条已选择的 Cart Line、增加 Cart 内容版本并触发刷新事件；新 Cart 的初始版本为 `0`。
+5. Given 已存在相同 Offer 且当前版本等于期望版本，When 目标数量不同，Then 将行数量替换为目标数量、保持原行身份、增加 Cart 内容版本并触发刷新事件，不得在原数量上累加。
+6. Given 当前行数量已经等于目标数量，When 相同目标以旧期望版本重试，Then 返回当前 Cart 且不增加版本、不保存 Cart、不重复触发刷新事件；若版本不匹配且目标尚未满足，则返回 `Cart.VersionConflict`。
 7. 不同 Offer 即使引用同一 SKU 也不得合并。
 
 ### CART-R2 购物车刷新与金额试算
@@ -83,7 +83,7 @@ j-store 已由 Trade / Checkout 统一承担成交快照、销售授权、库存
 
 1. 买家可以提交期望 Cart 版本和目标 Cart Line ID 集合，原子替换当前 Selection。
 2. 选择集合只能包含该买家 Cart 中存在的行；空集合合法，但不能发起 Checkout。
-3. Selection 实际变化时增加 Cart 内容版本并触发刷新；提交相同 Selection 不增加版本。
+3. Selection 实际变化且当前版本等于期望版本时增加 Cart 内容版本并触发刷新；当前 Selection 已等于目标集合时，即使以该目标首次应用前的旧版本重试也成功返回且不增加版本；版本不匹配且目标未满足时返回 `Cart.VersionConflict`。
 4. 从 Cart 发起 Checkout 时必须携带 `checkoutRequestId`、`cartId` 和 `expectedCartVersion`；收货信息继续遵循 Trade / Checkout 现有契约。
 5. Checkout 前必须同步计算当前版本的新鲜 Cart Assessment 候选，只向 Trade 提交 `ELIGIBLE` 行；下架、售罄和库存不足行不得进入 Trade。Checkout 不得依赖异步刷新是否已完成或复用旧 Assessment。
 6. 若没有 Eligible Line，Checkout 必须明确拒绝且不得创建 Trade。
@@ -122,8 +122,9 @@ j-store 已由 Trade / Checkout 统一承担成交快照、销售授权、库存
 
 - **正确性**：同一 Cart 版本的试算可重复；被排除行不计入金额；金额全部使用整数最小货币单位。
 - **跨商户原子性**：一次 Checkout 的所有商户计划必须全部承诺成功后才能创建订单；任一授权或预留失败均触发整笔失败及补偿。
-- **并发安全**：通过业务 Cart 版本和 JPA 乐观锁检测多设备更新；旧刷新不能覆盖新结果。
-- **可靠性**：Cart 保存与刷新事件写入同一事务；刷新处理幂等并可重试。
+- **并发安全**：通过目标状态收敛、业务 Cart 版本和 JPA 乐观锁检测多设备更新；不同目标的陈旧写入冲突，旧刷新不能覆盖新结果。
+- **可靠性**：Cart 保存与刷新事件写入同一事务；相同目标重试不重复改变 Cart 或发布事件，刷新按 `cartId + cartVersion` 幂等并可重试。
+- **事务边界**：同步 Cart UseCase 的数据库事务只覆盖本地聚合读取/保存、Assessment 条件保存和 Outbox 写入；Offer、Catalog、Inventory 等跨上下文调用必须在无数据库事务阶段执行。
 - **安全性**：买家隔离，所有价格、状态和 ATP 来自可信服务。
 - **可维护性**：Cart Intent、Assessment、外部事实采集和 Checkout 解析分别只有一个主要变化原因。
 - **性能**：一次刷新必须按去重后的批量 ID 查询上游，禁止逐行 N+1 调用；第一版最多支持 100 条活动 Cart Line。

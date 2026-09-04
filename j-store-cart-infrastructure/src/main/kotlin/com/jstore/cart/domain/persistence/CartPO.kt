@@ -109,17 +109,3 @@ class CartAssessmentLinePO(
     @Column(name = "observed_atp") var observedAtp: Int? = null,
     @Column(name = "amount_fen", nullable = false) var amountFen: Long = 0,
 )
-
-@Entity
-@Table(
-    name = "cart_request_receipts",
-    uniqueConstraints = [UniqueConstraint(columnNames = ["buyer_id", "request_id"])],
-)
-class CartRequestReceiptPO(
-    @Id @Column(length = 256) var id: String = "",
-    @Column(name = "buyer_id", nullable = false) var buyerId: Long = 0,
-    @Column(name = "request_id", nullable = false, length = 128) var requestId: String = "",
-    @Column(name = "request_digest", nullable = false, length = 64) var requestDigest: String = "",
-    @Column(name = "cart_id", nullable = false) var cartId: Long = 0,
-    @Column(name = "cart_version", nullable = false) var cartVersion: Long = 0,
-)

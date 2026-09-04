@@ -3,8 +3,9 @@
 ## 已实现
 
 - 新增 Cart API/domain/application/infrastructure/boot 五个模块，以及 Inventory ATP 只读 API。
-- 实现多商户同 Settlement Scope 加购、Offer 合并、Selection 原子替换、内容版本和请求幂等记录。
+- 实现多商户同 Settlement Scope 的 Offer 目标数量设置、Selection 原子替换、内容版本和目标状态收敛幂等；普通 Cart 写入不再永久保存请求历史。
 - 实现 `CartRefreshRequestedEvent`、Catalog/Offer/ATP 批量 ACL、CartAssessment 决策表和基础金额试算。
+- Cart 的 Offer/事实采集已与数据库事务分离；数量设置、显式刷新和 Checkout 准备使用分阶段短事务编排。
 - 实现 Cart JPA 持久化、Flyway/初始化结构、认证 HTTP API 和买家隔离。
 - 扩展 Trade Checkout 支持 Cart 来源，冻结 Cart ID/版本/摘要，并保持按商户与履约节点拆分、金额守恒和既有失败补偿。
 - 增加多商户三商品形成一个 Trade、两个计划及两个订单的测试，以及 Cart 领域规则测试。

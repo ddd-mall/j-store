@@ -19,9 +19,9 @@ package com.jstore.cart.controller
 import com.jstore.authentication.annotation.CurrentPrincipal
 import com.jstore.authentication.annotation.RequireLogin
 import com.jstore.authentication.principal.AuthenticatedPrincipal
-import com.jstore.cart.service.AddCartItemCommand
 import com.jstore.cart.service.CartUseCase
 import com.jstore.cart.service.ReplaceCartSelectionCommand
+import com.jstore.cart.service.SetCartItemQuantityCommand
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
@@ -33,37 +33,34 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/carts/current")
 @RequireLogin
 class CartController(private val carts: CartUseCase) {
-    data class AddItemRequest(
-        val requestId: String,
+    data class SetItemQuantityRequest(
         val skuId: Long,
         val offerId: Long,
-        val quantity: Int,
-        val expectedCartVersion: Long? = null,
+        val targetQuantity: Int,
+        val expectedCartVersion: Long,
     )
 
     data class SelectionRequest(
-        val requestId: String,
         val expectedCartVersion: Long,
         val cartLineIds: Set<Long>,
     )
 
-    data class RefreshRequest(val requestId: String, val expectedCartVersion: Long)
+    data class RefreshRequest(val expectedCartVersion: Long)
 
-    @PostMapping("/items")
-    fun add(
+    @PutMapping("/items")
+    fun setItemQuantity(
         @CurrentPrincipal user: AuthenticatedPrincipal,
-        @RequestBody request: AddItemRequest,
+        @RequestBody request: SetItemQuantityRequest,
     ) =
         respond(
             result =
-                carts.add(
+                carts.setItemQuantity(
                     command =
-                        AddCartItemCommand(
+                        SetCartItemQuantityCommand(
                             buyerId = user.accountId.value,
-                            requestId = request.requestId,
                             skuId = request.skuId,
                             offerId = request.offerId,
-                            quantity = request.quantity,
+                            targetQuantity = request.targetQuantity,
                             expectedCartVersion = request.expectedCartVersion,
                         )
                 )
@@ -80,7 +77,6 @@ class CartController(private val carts: CartUseCase) {
                     command =
                         ReplaceCartSelectionCommand(
                             buyerId = user.accountId.value,
-                            requestId = request.requestId,
                             expectedCartVersion = request.expectedCartVersion,
                             cartLineIds = request.cartLineIds,
                         )
@@ -96,7 +92,6 @@ class CartController(private val carts: CartUseCase) {
             result =
                 carts.refresh(
                     buyerId = user.accountId.value,
-                    requestId = request.requestId,
                     expectedVersion = request.expectedCartVersion,
                 )
         )

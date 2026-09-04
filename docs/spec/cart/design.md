@@ -91,8 +91,8 @@ CartLine
 
 主要行为：
 
-- `addSku(command)`：新建行或按 Offer 累加数量；校验正数量、行数、数量上限和 Settlement Scope 一致性，不限制 merchantId。
-- `replaceSelection(lineIds)`：原子替换选择集合；未知行失败；无实际变化则不增加版本。
+- `setItemQuantity(expectedVersion, targetQuantity)`：新建行或按 Offer 设置绝对目标数量；目标已满足时收敛成功，目标未满足且版本陈旧时冲突；校验数量、行数上限和 Settlement Scope 一致性。
+- `replaceSelection(expectedVersion, lineIds)`：原子替换目标选择集合；未知行失败；目标已满足时收敛成功且不增加版本，目标未满足且版本陈旧时冲突。
 - 可选后续行为 `changeQuantity`、`removeLine` 不进入首个交付切片。
 - 每次实际内容变化将 `contentVersion + 1`，并记录 `CartRefreshRequestedEvent(cartId, contentVersion, reason)`。
 
@@ -100,7 +100,9 @@ CartLine
 
 ### 加购编排
 
-`AddSkuToCartService` 查询当前 SKU 与 Offer，确认两者存在且 `offer.skuId == request.skuId`，并把可信 Offer 的 merchantId 和 Settlement Scope 作为聚合命令参数，然后加载或创建买家的活动 Cart 并调用聚合行为。它不在加购事务中锁库存，也不把当前价格写入 Cart Line；加购提交后的刷新负责给出当前可结算结果。这样即使商品在加购与刷新之间下架或售罄，购买意图仍然保留且 Assessment 会给出明确排除原因。
+Cart 数量设置采用 `inspect -> resolve -> commit` 三阶段编排：先在短只读事务中判断目标是否已经收敛；尚未收敛时在无数据库事务阶段查询 Offer；最后在新的短写事务中重新加载 Cart、再次判断目标、校验版本与可信 Offer 身份，并保存 Cart 与 Outbox。第二次判断保证并发请求已经完成目标或 Offer 在重试前不可用时仍可按目标状态收敛。
+
+可信 Offer 的 merchantId 和 Settlement Scope 作为聚合命令参数。Cart 不在事务中锁库存，也不把当前价格写入 Cart Line；写事务提交后通过刷新事件生成当前可结算结果。数量或 Selection 修改响应只报告 Cart 命令结果，可携带已有 Assessment 的 `STALE` 视图，但 Assessment 暂时不可用不得把已经提交的 Cart 修改报告成失败。
 
 加购接口不接受 `spuId`、价格、Offer 版本、Catalog 版本、商户或履约节点；这些事实全部从发布 API 派生。
 
@@ -203,7 +205,9 @@ Cart domain/application 只看本地 `CartLineCommerceFacts`。`j-store-cart-inf
 Cart 内容变化事务执行：
 
 ```text
-load/create Cart
+short read transaction: inspect current target
+  -> no transaction: resolve required Offer identity
+  -> new short write transaction: reload/create Cart
   -> aggregate behavior
   -> save Cart
   -> persist pending CartRefreshRequestedEvent to Outbox
@@ -212,7 +216,9 @@ load/create Cart
 
 事件只携带 `eventId, cartId, cartVersion, buyerId, reason, occurredAt`，不携带完整 Cart 或外部快照。
 
-显式刷新命令在 Cart 未变化时为当前版本产生稳定刷新请求；其幂等键由 `cartId + cartVersion + requestId` 控制。
+数量与 Selection 写入若在事务提交时发生 JPA 乐观锁冲突，事务装饰器使用新事务重试一次。重试重新加载 Cart：相同目标按已收敛 no-op 返回，不同目标由聚合返回版本冲突；第一次失败事务中的 Cart 和 Outbox 写入必须整体回滚。
+
+显式刷新命令以 `expectedCartVersion` 指定目标版本；Assessment 的 `cartId + sourceCartVersion` 唯一约束提供自然幂等，已有结果直接返回，不保存请求历史。
 
 ### 事件处理
 
@@ -236,14 +242,14 @@ receive(cartId, requestedVersion)
 首期 HTTP 契约：
 
 ```text
-POST /api/carts/current/items
-  { requestId, skuId, offerId, quantity, expectedCartVersion? }
+PUT /api/carts/current/items
+  { skuId, offerId, targetQuantity, expectedCartVersion }
 
 PUT /api/carts/current/selection
-  { requestId, expectedCartVersion, cartLineIds[] }
+  { expectedCartVersion, cartLineIds[] }
 
 POST /api/carts/current/refresh
-  { requestId, expectedCartVersion }
+  { expectedCartVersion }
 
 GET /api/carts/current
 ```
@@ -286,7 +292,7 @@ eligibleLines[
 Cart 查询实现必须：
 
 1. 校验 buyer 和 expectedVersion。
-2. 使用与刷新相同的事实采集器和纯计算器同步计算当前版本的新鲜 Assessment 候选；该路径不等待异步事件，也不要求把候选保存成查询投影。
+2. 结束 Cart 快照读取事务后，使用与刷新相同的事实采集器和纯计算器同步计算当前版本的新鲜 Assessment 候选；该路径不等待异步事件，也不要求把候选保存成查询投影。
 3. 只返回已选择且 Eligible 的行。
 4. 没有 Eligible 行时返回业务错误。
 
@@ -347,10 +353,6 @@ cart_line
   added_at / modified_at
   UNIQUE(cart_id, offer_id)
 
-cart_request_dedup
-  buyer_id / request_id / request_digest / result_reference
-  UNIQUE(buyer_id, request_id)
-
 cart_assessment
   id PK
   cart_id / source_cart_version
@@ -373,7 +375,6 @@ cart_assessment_line
 
 - `Cart.NotFound`：404，同时用于越权访问。
 - `Cart.VersionConflict`：409。
-- `Cart.RequestConflict`：409。
 - `Cart.InvalidQuantity`：400。
 - `Cart.LineLimitExceeded`：400。
 - `Cart.OfferSkuMismatch`：400 或 409。
@@ -409,14 +410,14 @@ cart_assessment_line
 
 ### Domain
 
-- Cart 行唯一性、数量累加、版本增长、相同选择 no-op、未知选择失败。
+- Cart 行唯一性、绝对目标数量、版本增长、相同数量/Selection 目标收敛 no-op、不同目标陈旧版本冲突、未知选择失败。
 - 不同商户同 Settlement Scope 可共存；不同 Settlement Scope 加购失败且 Cart 不变。
 - Calculator 决策表、金额守恒、空/部分/全部 Eligible。
 - 属性测试：任何输入下金额只等于 Eligible 行之和且不为负；排除行永不计价。
 
 ### Application
 
-- fake repository 和 fake ACL 验证加购、选择、刷新、幂等、失败传播和旧事件丢弃。
+- fake repository 和 fake ACL 验证目标数量、选择、刷新、收敛幂等、失败传播和旧事件丢弃。
 - Cart Checkout 来源只返回当前版本、已选择且 Eligible 的行。
 
 ### Infrastructure
@@ -460,4 +461,4 @@ cart_assessment_line
 
 ### 使用 Redis 作为 Cart 唯一权威存储
 
-首期拒绝。仓库现有事务、Outbox 和聚合模式以 PostgreSQL 为权威；Redis 可在有容量证据后作为查询缓存，但不能替代持久化 Cart 和幂等记录。
+首期拒绝。仓库现有事务、Outbox 和聚合模式以 PostgreSQL 为 Cart 权威；普通 Cart 写入通过目标状态与版本收敛，不依赖 Redis 或永久请求历史。Redis 可在有容量证据后作为查询缓存，但不能替代持久化 Cart。

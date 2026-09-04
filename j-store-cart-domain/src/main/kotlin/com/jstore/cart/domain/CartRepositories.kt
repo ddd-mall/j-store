@@ -31,20 +31,3 @@ interface CartAssessmentStore {
 
     fun findLatestByCart(cartId: CartId): CartAssessment?
 }
-
-data class CartRequestReceipt(
-    override val id: CartRequestReceiptId,
-    val buyerId: BuyerId,
-    val requestId: String,
-    val requestDigest: String,
-    val cartId: CartId,
-    val cartVersion: Long,
-) : com.jstore.common.framework.Entity<CartRequestReceiptId>
-
-interface CartRequestReceiptStore {
-    fun save(receipt: CartRequestReceipt): CartRequestReceipt
-
-    fun findById(id: CartRequestReceiptId): CartRequestReceipt?
-
-    fun findByBuyerAndRequest(buyerId: BuyerId, requestId: String): CartRequestReceipt?
-}

@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.spring.tx)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockito.kotlin)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.test { useJUnitPlatform() }

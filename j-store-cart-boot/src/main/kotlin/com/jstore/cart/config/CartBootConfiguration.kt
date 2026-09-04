@@ -20,7 +20,6 @@ import com.jstore.cart.acl.CartCommerceFactsServiceImpl
 import com.jstore.cart.api.CartCheckoutSourceQueryService
 import com.jstore.cart.domain.CartAssessmentStore
 import com.jstore.cart.domain.CartRepository
-import com.jstore.cart.domain.CartRequestReceiptStore
 import com.jstore.cart.service.*
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
@@ -30,7 +29,9 @@ import com.jstore.shop.api.OfferSnapshotQueryService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
+import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
@@ -46,7 +47,6 @@ class CartBootConfiguration {
     fun cartApplicationService(
         carts: CartRepository,
         assessments: CartAssessmentStore,
-        receipts: CartRequestReceiptStore,
         commerce: CartCommerceFactsServiceImpl,
         sequence: SnowFlakSequence,
         publisher: DomainEventPublisher,
@@ -54,7 +54,6 @@ class CartBootConfiguration {
         CartApplicationService(
             carts,
             assessments,
-            receipts,
             commerce,
             CartIdentityGenerator(sequence::nextId),
             publisher,
@@ -90,30 +89,114 @@ class CartBootConfiguration {
 }
 
 class TransactionalCartUseCase(
-    private val delegate: CartUseCase,
-    manager: PlatformTransactionManager,
+    private val delegate: CartApplicationService,
+    private val transactions: CartTransactionOperations,
 ) : CartUseCase {
-    private val write = TransactionTemplate(manager)
-    private val read = TransactionTemplate(manager).apply { isReadOnly = true }
+    constructor(
+        delegate: CartApplicationService,
+        manager: PlatformTransactionManager,
+    ) : this(delegate, SpringCartTransactionOperations(manager))
 
-    override fun add(command: AddCartItemCommand) =
-        requireNotNull(write.execute { delegate.add(command) })
+    override fun setItemQuantity(command: SetCartItemQuantityCommand) =
+        when (val start = transactions.read { delegate.inspectSetItemQuantity(command) }) {
+            is com.jstore.common.utils.Failure -> start
+            is com.jstore.common.utils.Success ->
+                when (val value = start.value) {
+                    is SetCartItemQuantityStart.Completed ->
+                        com.jstore.common.utils.Success(value.view)
+                    SetCartItemQuantityStart.RequiresOffer -> {
+                        val offer = transactions.withoutTransaction {
+                            OfferLookup(delegate.resolveOffer(command.offerId))
+                        }
+                        executeConvergent {
+                            delegate.commitSetItemQuantity(command, offer.identity)
+                        }
+                    }
+                }
+        }
 
-    override fun replaceSelection(command: ReplaceCartSelectionCommand) =
-        requireNotNull(write.execute { delegate.replaceSelection(command) })
+    override fun replaceSelection(command: ReplaceCartSelectionCommand) = executeConvergent {
+        delegate.replaceSelection(command)
+    }
 
-    override fun refresh(buyerId: Long, requestId: String, expectedVersion: Long) =
-        requireNotNull(write.execute { delegate.refresh(buyerId, requestId, expectedVersion) })
+    override fun refresh(buyerId: Long, expectedVersion: Long) =
+        when (val start = transactions.read { delegate.startRefresh(buyerId, expectedVersion) }) {
+            is com.jstore.common.utils.Failure -> start
+            is com.jstore.common.utils.Success ->
+                when (val value = start.value) {
+                    is CartRefreshStart.Completed -> com.jstore.common.utils.Success(value.view)
+                    is CartRefreshStart.RequiresFacts ->
+                        when (
+                            val facts = transactions.withoutTransaction {
+                                delegate.collectFacts(value.cart)
+                            }
+                        ) {
+                            is com.jstore.common.utils.Failure -> facts
+                            is com.jstore.common.utils.Success ->
+                                transactions.write {
+                                    delegate.completeRefresh(value.cart, facts.value)
+                                }
+                        }
+                }
+        }
 
-    override fun current(buyerId: Long) = requireNotNull(read.execute { delegate.current(buyerId) })
+    override fun current(buyerId: Long) = transactions.read { delegate.current(buyerId) }
+
+    private fun <T : Any> executeConvergent(operation: () -> T): T =
+        try {
+            transactions.write(operation)
+        } catch (_: OptimisticLockingFailureException) {
+            transactions.write(operation)
+        }
 }
 
+private data class OfferLookup(val identity: com.jstore.cart.acl.OfferIdentity?)
+
 class TransactionalCartCheckoutSourceQueryService(
-    private val delegate: CartCheckoutSourceQueryService,
-    manager: PlatformTransactionManager,
+    private val delegate: CartApplicationService,
+    private val transactions: CartTransactionOperations,
 ) : CartCheckoutSourceQueryService {
-    private val read = TransactionTemplate(manager).apply { isReadOnly = true }
+    constructor(
+        delegate: CartApplicationService,
+        manager: PlatformTransactionManager,
+    ) : this(delegate, SpringCartTransactionOperations(manager))
 
     override fun prepare(query: com.jstore.cart.api.CartCheckoutSourceQuery) =
-        requireNotNull(read.execute { delegate.prepare(query) })
+        when (val start = transactions.read { delegate.startPrepare(query) }) {
+            is CartCheckoutPreparationStart.Completed -> start.result
+            is CartCheckoutPreparationStart.RequiresFacts ->
+                transactions.withoutTransaction { delegate.prepareWithFacts(start.cart) }
+        }
+}
+
+interface CartTransactionOperations {
+    fun <T : Any> read(action: () -> T): T
+
+    fun <T : Any> write(action: () -> T): T
+
+    fun <T : Any> withoutTransaction(action: () -> T): T
+}
+
+class SpringCartTransactionOperations(transactionManager: PlatformTransactionManager) :
+    CartTransactionOperations {
+    private val read =
+        TransactionTemplate(transactionManager).apply {
+            isReadOnly = true
+            propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
+        }
+    private val write =
+        TransactionTemplate(transactionManager).apply {
+            propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
+        }
+    private val external =
+        TransactionTemplate(transactionManager).apply {
+            propagationBehavior = TransactionDefinition.PROPAGATION_NOT_SUPPORTED
+        }
+
+    override fun <T : Any> read(action: () -> T): T = requireNotNull(read.execute { action() })
+
+    override fun <T : Any> write(action: () -> T): T = requireNotNull(write.execute { action() })
+
+    override fun <T : Any> withoutTransaction(action: () -> T): T =
+        requireNotNull(external.execute { action() })
 }
