@@ -156,39 +156,3 @@ class CartAssessmentStoreImpl(private val jpa: CartAssessmentPOJpaRepository) :
                 },
         )
 }
-
-@Repository
-class CartRequestReceiptStoreImpl(private val jpa: CartRequestReceiptPOJpaRepository) :
-    CartRequestReceiptStore {
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(receipt: CartRequestReceipt): CartRequestReceipt =
-        toDomain(
-            po =
-                jpa.save(
-                    CartRequestReceiptPO(
-                        id = receipt.id.value,
-                        buyerId = receipt.buyerId.value,
-                        requestId = receipt.requestId,
-                        requestDigest = receipt.requestDigest,
-                        cartId = receipt.cartId.value,
-                        cartVersion = receipt.cartVersion,
-                    )
-                )
-        )
-
-    override fun findById(id: CartRequestReceiptId) =
-        jpa.findById(id.value).orElse(null)?.let(::toDomain)
-
-    override fun findByBuyerAndRequest(buyerId: BuyerId, requestId: String) =
-        jpa.findByBuyerIdAndRequestId(buyerId.value, requestId)?.let(::toDomain)
-
-    private fun toDomain(po: CartRequestReceiptPO) =
-        CartRequestReceipt(
-            id = CartRequestReceiptId(po.id),
-            buyerId = BuyerId(po.buyerId),
-            requestId = po.requestId,
-            requestDigest = po.requestDigest,
-            cartId = CartId(po.cartId),
-            cartVersion = po.cartVersion,
-        )
-}

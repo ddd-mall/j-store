@@ -24,19 +24,135 @@ import kotlin.test.assertIs
 
 class CartTest {
     @Test
-    fun `cart merges the same offer and allows multiple merchants in one scope`() {
+    fun `setting an item quantity converges when a stale retry already reached its target`() {
+        val cart = Cart.create(CartId(1), BuyerId(7), scope())
+
+        val first =
+            cart.setItemQuantity(
+                expectedVersion = 0,
+                lineId = CartLineId(11),
+                skuId = SkuId(101),
+                offerId = OfferId(201),
+                merchantId = MerchantId(301),
+                targetQuantity = 3,
+                scope = scope(),
+            )
+        val retry =
+            cart.setItemQuantity(
+                expectedVersion = 0,
+                lineId = CartLineId(12),
+                skuId = SkuId(101),
+                offerId = OfferId(201),
+                merchantId = MerchantId(301),
+                targetQuantity = 3,
+                scope = scope(),
+            )
+
+        assertEquals(true, assertIs<Success<Boolean>>(first).value)
+        assertEquals(false, assertIs<Success<Boolean>>(retry).value)
+        assertEquals(1, cart.contentVersion)
+        assertEquals(3, cart.lines.single().quantity)
+    }
+
+    @Test
+    fun `setting a different target from a stale version is rejected`() {
+        val cart = Cart.create(CartId(1), BuyerId(7), scope())
+        cart.setItemQuantity(
+            expectedVersion = 0,
+            lineId = CartLineId(11),
+            skuId = SkuId(101),
+            offerId = OfferId(201),
+            merchantId = MerchantId(301),
+            targetQuantity = 2,
+            scope = scope(),
+        )
+
+        val result =
+            cart.setItemQuantity(
+                expectedVersion = 0,
+                lineId = CartLineId(12),
+                skuId = SkuId(101),
+                offerId = OfferId(201),
+                merchantId = MerchantId(301),
+                targetQuantity = 3,
+                scope = scope(),
+            )
+
+        assertEquals(CartErrors.VERSION_CONFLICT, assertIs<Failure<*>>(result).error)
+        assertEquals(1, cart.contentVersion)
+        assertEquals(2, cart.lines.single().quantity)
+    }
+
+    @Test
+    fun `selection converges on its target but rejects a stale different target`() {
+        val cart = Cart.create(CartId(1), BuyerId(7), scope())
+        cart.setItemQuantity(
+            0,
+            CartLineId(11),
+            SkuId(101),
+            OfferId(201),
+            MerchantId(301),
+            1,
+            scope(),
+        )
+        cart.setItemQuantity(
+            1,
+            CartLineId(12),
+            SkuId(102),
+            OfferId(202),
+            MerchantId(302),
+            1,
+            scope(),
+        )
+
+        val first = cart.replaceSelection(2, setOf(CartLineId(12)))
+        val retry = cart.replaceSelection(2, setOf(CartLineId(12)))
+        val conflicting = cart.replaceSelection(2, setOf(CartLineId(11)))
+
+        assertEquals(true, assertIs<Success<Boolean>>(first).value)
+        assertEquals(false, assertIs<Success<Boolean>>(retry).value)
+        assertEquals(CartErrors.VERSION_CONFLICT, assertIs<Failure<*>>(conflicting).error)
+        assertEquals(3, cart.contentVersion)
+    }
+
+    @Test
+    fun `cart sets the same offer quantity and allows multiple merchants in one scope`() {
         val cart = Cart.create(CartId(1), BuyerId(7), SettlementScope("CN", "ONLINE", "CNY"))
         assertIs<Success<*>>(
-            cart.add(CartLineId(11), SkuId(101), OfferId(201), MerchantId(301), 2, scope())
+            cart.setItemQuantity(
+                0,
+                CartLineId(11),
+                SkuId(101),
+                OfferId(201),
+                MerchantId(301),
+                2,
+                scope(),
+            )
         )
         assertIs<Success<*>>(
-            cart.add(CartLineId(12), SkuId(101), OfferId(201), MerchantId(301), 3, scope())
+            cart.setItemQuantity(
+                1,
+                CartLineId(12),
+                SkuId(101),
+                OfferId(201),
+                MerchantId(301),
+                3,
+                scope(),
+            )
         )
         assertIs<Success<*>>(
-            cart.add(CartLineId(13), SkuId(102), OfferId(202), MerchantId(302), 1, scope())
+            cart.setItemQuantity(
+                2,
+                CartLineId(13),
+                SkuId(102),
+                OfferId(202),
+                MerchantId(302),
+                1,
+                scope(),
+            )
         )
         assertEquals(2, cart.lines.size)
-        assertEquals(5, cart.lines.first { it.offerId.value == 201L }.quantity)
+        assertEquals(3, cart.lines.first { it.offerId.value == 201L }.quantity)
         assertEquals(setOf(301L, 302L), cart.lines.map { it.merchantId.value }.toSet())
         assertEquals(3, cart.contentVersion)
     }
@@ -45,10 +161,19 @@ class CartTest {
     fun `different settlement scope is rejected without changing cart`() {
         val cart = Cart.create(CartId(1), BuyerId(7), scope())
         assertIs<Success<*>>(
-            cart.add(CartLineId(11), SkuId(101), OfferId(201), MerchantId(301), 1, scope())
+            cart.setItemQuantity(
+                0,
+                CartLineId(11),
+                SkuId(101),
+                OfferId(201),
+                MerchantId(301),
+                1,
+                scope(),
+            )
         )
         val result =
-            cart.add(
+            cart.setItemQuantity(
+                1,
                 CartLineId(12),
                 SkuId(102),
                 OfferId(202),
@@ -64,12 +189,28 @@ class CartTest {
     @Test
     fun `selection is atomically replaced and no-op does not advance version`() {
         val cart = Cart.create(CartId(1), BuyerId(7), scope())
-        cart.add(CartLineId(11), SkuId(101), OfferId(201), MerchantId(301), 1, scope())
-        cart.add(CartLineId(12), SkuId(102), OfferId(202), MerchantId(302), 1, scope())
-        assertIs<Success<*>>(cart.replaceSelection(setOf(CartLineId(12))))
+        cart.setItemQuantity(
+            0,
+            CartLineId(11),
+            SkuId(101),
+            OfferId(201),
+            MerchantId(301),
+            1,
+            scope(),
+        )
+        cart.setItemQuantity(
+            1,
+            CartLineId(12),
+            SkuId(102),
+            OfferId(202),
+            MerchantId(302),
+            1,
+            scope(),
+        )
+        assertIs<Success<*>>(cart.replaceSelection(2, setOf(CartLineId(12))))
         assertEquals(3, cart.contentVersion)
         assertEquals(setOf(12L), cart.lines.filter { it.selected }.map { it.id.value }.toSet())
-        assertIs<Success<*>>(cart.replaceSelection(setOf(CartLineId(12))))
+        assertIs<Success<*>>(cart.replaceSelection(2, setOf(CartLineId(12))))
         assertEquals(3, cart.contentVersion)
     }
 

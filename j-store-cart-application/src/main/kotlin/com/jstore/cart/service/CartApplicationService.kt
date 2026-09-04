@@ -17,6 +17,7 @@
 package com.jstore.cart.service
 
 import com.jstore.cart.acl.CartCommerceFactsService
+import com.jstore.cart.acl.OfferIdentity
 import com.jstore.cart.api.*
 import com.jstore.cart.domain.*
 import com.jstore.common.errors.BusinessError
@@ -26,149 +27,200 @@ import com.jstore.common.framework.event.publishPendingEvents
 import com.jstore.common.utils.Failure
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
-import com.jstore.common.utils.onFailure
 import java.security.MessageDigest
 import java.time.Clock
 
 class CartApplicationService(
     private val carts: CartRepository,
     private val assessments: CartAssessmentStore,
-    private val receipts: CartRequestReceiptStore,
     private val commerce: CartCommerceFactsService,
     private val ids: CartIdentityGenerator,
     private val publisher: DomainEventPublisher,
     private val clock: Clock = Clock.systemUTC(),
 ) : CartUseCase, CartCheckoutSourceQueryService {
 
-    override fun add(command: AddCartItemCommand): Result<CartView, BusinessError> {
-        val buyerId = BuyerId(command.buyerId)
+    override fun setItemQuantity(
+        command: SetCartItemQuantityCommand
+    ): Result<CartView, BusinessError> {
+        return when (val start = inspectSetItemQuantity(command)) {
+            is Failure -> start
+            is Success ->
+                when (val value = start.value) {
+                    is SetCartItemQuantityStart.Completed -> Success(value.view)
+                    SetCartItemQuantityStart.RequiresOffer ->
+                        commitSetItemQuantity(command, resolveOffer(command.offerId))
+                }
+        }
+    }
 
-        if (command.requestId.isBlank() || command.requestId.length > 128) {
-            return Failure(CartErrors.REQUEST_CONFLICT)
+    fun inspectSetItemQuantity(
+        command: SetCartItemQuantityCommand
+    ): Result<SetCartItemQuantityStart, BusinessError> {
+        val buyerId = BuyerId(command.buyerId)
+        val existing = carts.findActiveByBuyerId(buyerId)
+        if (
+            existing?.hasItemTarget(
+                skuId = SkuId(command.skuId),
+                offerId = OfferId(command.offerId),
+                targetQuantity = command.targetQuantity,
+            ) == true
+        ) {
+            return Success(
+                SetCartItemQuantityStart.Completed(
+                    view(existing, assessments.findLatestByCart(existing.id))
+                )
+            )
         }
 
-        val requestDigest =
-            sha256(
-                value =
-                    "${command.skuId}|" +
-                        "${command.offerId}|" +
-                        "${command.quantity}|" +
-                        "${command.expectedCartVersion}"
-            )
+        return Success(SetCartItemQuantityStart.RequiresOffer)
+    }
 
-        receipts.findByBuyerAndRequest(buyerId, command.requestId)?.let { receipt ->
-            if (receipt.requestDigest != requestDigest) {
-                return Failure(CartErrors.REQUEST_CONFLICT)
-            }
+    fun resolveOffer(offerId: Long): OfferIdentity? = commerce.findOffer(OfferId(offerId))
 
-            val existing =
-                carts.findById(receipt.cartId)?.takeIf { it.buyerId == buyerId }
-                    ?: return Failure(CartErrors.NOT_FOUND)
-
+    fun commitSetItemQuantity(
+        command: SetCartItemQuantityCommand,
+        identity: OfferIdentity?,
+    ): Result<CartView, BusinessError> {
+        val buyerId = BuyerId(command.buyerId)
+        val existing = carts.findActiveByBuyerId(buyerId)
+        if (
+            existing?.hasItemTarget(
+                skuId = SkuId(command.skuId),
+                offerId = OfferId(command.offerId),
+                targetQuantity = command.targetQuantity,
+            ) == true
+        ) {
             return Success(view(existing, assessments.findLatestByCart(existing.id)))
         }
 
-        val identity =
-            commerce.findOffer(OfferId(command.offerId))
-                ?: return Failure(CartErrors.OFFER_MISMATCH)
+        identity ?: return Failure(CartErrors.OFFER_MISMATCH)
 
         if (identity.skuId.value != command.skuId) {
             return Failure(CartErrors.OFFER_MISMATCH)
         }
         val cart =
-            carts.findActiveByBuyerId(buyerId)
+            existing
                 ?: Cart.create(
                     CartId(ids.nextId()),
                     buyerId,
                     identity.settlementScope,
                 )
 
-        if (
-            command.expectedCartVersion != null &&
-                command.expectedCartVersion != cart.contentVersion
-        ) {
-            return Failure(CartErrors.VERSION_CONFLICT)
-        }
-
-        cart
-            .add(
-                lineId = CartLineId(ids.nextId()),
-                skuId = SkuId(command.skuId),
-                offerId = OfferId(command.offerId),
-                merchantId = MerchantId(identity.merchantId),
-                quantity = command.quantity,
-                scope = identity.settlementScope,
-                now = clock.instant(),
-            )
-            .onFailure {
-                return Failure(it)
-            }
-        carts.save(cart)
-
-        receipts.save(
-            receipt =
-                CartRequestReceipt(
-                    id = CartRequestReceiptId("${buyerId.value}:${command.requestId}"),
-                    buyerId = buyerId,
-                    requestId = command.requestId,
-                    requestDigest = requestDigest,
-                    cartId = cart.id,
-                    cartVersion = cart.contentVersion,
+        val changed =
+            cart
+                .setItemQuantity(
+                    expectedVersion = command.expectedCartVersion,
+                    lineId = CartLineId(ids.nextId()),
+                    skuId = SkuId(command.skuId),
+                    offerId = OfferId(command.offerId),
+                    merchantId = MerchantId(identity.merchantId),
+                    targetQuantity = command.targetQuantity,
+                    scope = identity.settlementScope,
+                    now = clock.instant(),
                 )
-        )
+                .let {
+                    when (it) {
+                        is Failure -> return Failure(it.error)
+                        is Success -> it.value
+                    }
+                }
+        if (!changed) {
+            return Success(view(cart, assessments.findLatestByCart(cart.id)))
+        }
+        carts.save(cart)
         cart.publishPendingEvents(publisher)
-        return refreshCart(cart).mapView(cart)
+        return Success(view(cart, assessments.findLatestByCart(cart.id)))
     }
 
     override fun replaceSelection(
         command: ReplaceCartSelectionCommand
     ): Result<CartView, BusinessError> {
         val buyerId = BuyerId(command.buyerId)
-        val digest =
-            sha256("selection|${command.expectedCartVersion}|${command.cartLineIds.sorted()}")
-        duplicate(buyerId, command.requestId, digest)?.let {
-            return it
-        }
         val cart = carts.findActiveByBuyerId(buyerId) ?: return Failure(CartErrors.NOT_FOUND)
-        if (cart.contentVersion != command.expectedCartVersion) {
-            return Failure(CartErrors.VERSION_CONFLICT)
+        val changed =
+            cart
+                .replaceSelection(
+                    expectedVersion = command.expectedCartVersion,
+                    ids = command.cartLineIds.map(::CartLineId).toSet(),
+                    now = clock.instant(),
+                )
+                .let {
+                    when (it) {
+                        is Failure -> return Failure(it.error)
+                        is Success -> it.value
+                    }
+                }
+        if (!changed) {
+            return Success(view(cart, assessments.findLatestByCart(cart.id)))
         }
 
-        cart
-            .replaceSelection(
-                ids = command.cartLineIds.map(::CartLineId).toSet(),
-                now = clock.instant(),
-            )
-            .onFailure {
-                return Failure(it)
-            }
         carts.save(cart)
-        saveReceipt(buyerId, command.requestId, digest, cart)
         cart.publishPendingEvents(publisher)
-        return refreshCart(cart).mapView(cart)
+        return Success(view(cart, assessments.findLatestByCart(cart.id)))
     }
 
     override fun refresh(
         buyerId: Long,
-        requestId: String,
         expectedVersion: Long,
     ): Result<CartView, BusinessError> {
-        val buyer = BuyerId(buyerId)
-        val digest = sha256("refresh|$expectedVersion")
-        duplicate(buyer, requestId, digest)?.let {
-            return it
+        return when (val start = startRefresh(buyerId, expectedVersion)) {
+            is Failure -> start
+            is Success ->
+                when (val value = start.value) {
+                    is CartRefreshStart.Completed -> Success(value.view)
+                    is CartRefreshStart.RequiresFacts ->
+                        when (val facts = collectFacts(value.cart)) {
+                            is Failure -> facts
+                            is Success -> completeRefresh(value.cart, facts.value)
+                        }
+                }
         }
+    }
+
+    fun startRefresh(
+        buyerId: Long,
+        expectedVersion: Long,
+    ): Result<CartRefreshStart, BusinessError> {
+        val buyer = BuyerId(buyerId)
         val cart = carts.findActiveByBuyerId(buyer) ?: return Failure(CartErrors.NOT_FOUND)
 
         if (cart.contentVersion != expectedVersion) {
             return Failure(CartErrors.VERSION_CONFLICT)
         }
 
-        val result = refreshCart(cart).mapView(cart)
-        if (result is Success) {
-            saveReceipt(buyer, requestId, digest, cart)
+        val existing = assessments.findByCartAndVersion(cart.id, cart.contentVersion)
+        return if (existing == null) {
+            Success(CartRefreshStart.RequiresFacts(cart))
+        } else {
+            Success(CartRefreshStart.Completed(view(cart, existing)))
         }
-        return result
+    }
+
+    fun collectFacts(cart: Cart): Result<List<CartLineCommerceFacts>, BusinessError> =
+        try {
+            Success(commerce.collect(cart.lines))
+        } catch (_: RuntimeException) {
+            Failure(CartErrors.REFRESH_UNAVAILABLE)
+        }
+
+    fun completeRefresh(
+        cart: Cart,
+        facts: List<CartLineCommerceFacts>,
+    ): Result<CartView, BusinessError> {
+        assessments.findByCartAndVersion(cart.id, cart.contentVersion)?.let {
+            return Success(view(cart, it))
+        }
+        if (carts.findById(cart.id)?.contentVersion != cart.contentVersion) {
+            return Failure(CartErrors.VERSION_CONFLICT)
+        }
+        val calculated =
+            CartAssessmentCalculator.evaluate(
+                id = CartAssessmentId(ids.nextId()),
+                cart = cart,
+                facts = facts,
+                now = clock.instant(),
+            )
+        return Success(view(cart, assessments.save(calculated)))
     }
 
     override fun current(buyerId: Long): Result<CartView, BusinessError> {
@@ -185,16 +237,29 @@ class CartApplicationService(
     }
 
     override fun prepare(query: CartCheckoutSourceQuery): CartCheckoutSourceResult {
+        return when (val start = startPrepare(query)) {
+            is CartCheckoutPreparationStart.Completed -> start.result
+            is CartCheckoutPreparationStart.RequiresFacts -> prepareWithFacts(start.cart)
+        }
+    }
+
+    fun startPrepare(query: CartCheckoutSourceQuery): CartCheckoutPreparationStart {
         val cart =
             carts.findById(CartId(query.cartId))?.takeIf { it.buyerId.value == query.buyerId }
-                ?: return CartCheckoutSourceResult.NotFound
+                ?: return CartCheckoutPreparationStart.Completed(CartCheckoutSourceResult.NotFound)
 
         if (cart.contentVersion != query.expectedCartVersion) {
-            return CartCheckoutSourceResult.VersionConflict
+            return CartCheckoutPreparationStart.Completed(CartCheckoutSourceResult.VersionConflict)
         }
 
+        return CartCheckoutPreparationStart.RequiresFacts(cart)
+    }
+
+    fun prepareWithFacts(cart: Cart): CartCheckoutSourceResult {
         val facts =
-            runCatching { commerce.collect(cart.lines) }
+            runCatching {
+                    commerce.collect(cart.lines)
+                }
                 .getOrElse {
                     return CartCheckoutSourceResult.Unavailable
                 }
@@ -247,35 +312,20 @@ class CartApplicationService(
     }
 
     internal fun refreshCart(cart: Cart): Result<CartAssessment, BusinessError> {
-        return try {
-            val existing = assessments.findByCartAndVersion(cart.id, cart.contentVersion)
-            if (existing != null) return Success(existing)
-            val calculated =
-                CartAssessmentCalculator.evaluate(
-                    id = CartAssessmentId(ids.nextId()),
-                    cart = cart,
-                    facts = commerce.collect(cart.lines),
-                    now = clock.instant(),
-                )
-
-            if (carts.findById(cart.id)?.contentVersion != cart.contentVersion) {
-                Failure(CartErrors.VERSION_CONFLICT)
-            } else {
-                Success(assessments.save(calculated))
-            }
-        } catch (_: RuntimeException) {
-            assessments.findByCartAndVersion(cart.id, cart.contentVersion)?.let(::Success)
-                ?: Failure(CartErrors.REFRESH_UNAVAILABLE)
+        return when (val facts = collectFacts(cart)) {
+            is Failure -> facts
+            is Success ->
+                when (val refreshed = completeRefresh(cart, facts.value)) {
+                    is Failure -> refreshed
+                    is Success -> {
+                        val assessment =
+                            assessments.findByCartAndVersion(cart.id, cart.contentVersion)
+                                ?: return Failure(CartErrors.REFRESH_UNAVAILABLE)
+                        Success(assessment)
+                    }
+                }
         }
     }
-
-    private fun Result<CartAssessment, BusinessError>.mapView(
-        cart: Cart
-    ): Result<CartView, BusinessError> =
-        when (this) {
-            is Failure -> this
-            is Success -> Success(view(cart, value))
-        }
 
     private fun view(cart: Cart, assessment: CartAssessment?) =
         CartView(
@@ -301,41 +351,6 @@ class CartApplicationService(
                     )
                 },
         )
-
-    private fun duplicate(
-        buyerId: BuyerId,
-        requestId: String,
-        digest: String,
-    ): Result<CartView, BusinessError>? {
-        if (requestId.isBlank() || requestId.length > 128) {
-            return Failure(CartErrors.REQUEST_CONFLICT)
-        }
-
-        val receipt = receipts.findByBuyerAndRequest(buyerId, requestId) ?: return null
-
-        if (receipt.requestDigest != digest) {
-            return Failure(CartErrors.REQUEST_CONFLICT)
-        }
-
-        val cart =
-            carts.findById(receipt.cartId)?.takeIf { it.buyerId == buyerId }
-                ?: return Failure(CartErrors.NOT_FOUND)
-
-        return Success(view(cart, assessments.findLatestByCart(cart.id)))
-    }
-
-    private fun saveReceipt(buyerId: BuyerId, requestId: String, digest: String, cart: Cart) {
-        receipts.save(
-            CartRequestReceipt(
-                id = CartRequestReceiptId("${buyerId.value}:$requestId"),
-                buyerId = buyerId,
-                requestId = requestId,
-                requestDigest = digest,
-                cartId = cart.id,
-                cartVersion = cart.contentVersion,
-            )
-        )
-    }
 
     private fun sha256(value: String) =
         MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") {

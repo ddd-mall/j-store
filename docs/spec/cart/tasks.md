@@ -17,12 +17,13 @@
 
 ## T2 以 TDD 实现 Cart 聚合
 
-**结果**：认证买家的活动 Cart 可以添加具体 Offer 的 SKU、合并相同行并管理 Selection。
+**结果**：认证买家的活动 Cart 可以把具体 Offer 的 SKU 设置到绝对目标数量、收敛相同目标重试并管理 Selection。
 
 测试先行覆盖：
 
-- 首次加购创建已选择行并增加版本。
-- 同 Offer 累加数量；同 SKU 不同 Offer 不合并。
+- 首次设置目标数量创建已选择行并增加版本。
+- 同 Offer 替换为绝对目标数量；同 SKU 不同 Offer 不合并。
+- 相同目标的陈旧版本重试 no-op；不同目标的陈旧版本请求冲突。
 - 不同商户、相同 Settlement Scope 的 Offer 可以共存；不同 market、channelId 或 currency 的 Offer 加购失败且 Cart 版本不变。
 - 非正数量、数量溢出、超过 100 行失败。
 - 原子替换 Selection、未知行失败、相同 Selection no-op、空 Selection 合法。
@@ -80,7 +81,7 @@
 - 计算期间 Cart 版本改变时拒绝保存旧 Assessment。
 - 技术失败保留最近成功结果，但查询标记 STALE/UNAVAILABLE。
 
-实现 `CartCommerceFactsService` ACL、`CartRefreshService`、Assessment Repository 和事件 handler。Cart 保存、幂等记录与 Outbox 事件写入由 Cart boot 事务装饰器统一提交。
+实现 `CartCommerceFactsService` ACL、`CartRefreshService`、Assessment Repository 和事件 handler。Cart 保存与 Outbox 事件写入由 Cart boot 的短写事务统一提交；显式刷新拆成短读事务、无事务事实采集和短写事务，依靠 Assessment 业务唯一键幂等，不保存请求历史。
 
 **覆盖**：CART-R2、CART-R3.3、可靠性和性能目标。
 
@@ -88,10 +89,10 @@
 
 ## T6 实现 PostgreSQL 持久化与并发约束
 
-**结果**：Cart、行、幂等请求和 Assessment 可以完整往返，并由数据库约束兜底。
+**结果**：Cart、行和 Assessment 可以完整往返，并由数据库约束兜底。
 
 - 为 Cart 与 Assessment 建立各自 Repository 实现和 PO Converter。
-- 建立一个 buyer 一个 ACTIVE Cart、一个 Cart 一个 Offer 行、一个 Cart 版本一个 Assessment、一个 buyer/requestId 一条幂等记录的唯一约束。
+- 建立一个 buyer 一个 ACTIVE Cart、一个 Cart 一个 Offer 行、一个 Cart 版本一个 Assessment 的唯一约束。
 - 分离 `contentVersion` 与 JPA `persistenceVersion`。
 - 增加并发更新、陈旧版本和重复事件的 PostgreSQL 测试。
 - 更新当前数据库基线/初始化快照；不增加数据回填或双写逻辑。
@@ -106,7 +107,8 @@
 
 按顺序为 application 与 controller 契约增加失败测试，再实现：
 
-- `POST /api/carts/current/items`
+- `PUT /api/carts/current/items`
+- 数量设置先在短事务中检查收敛状态，在无事务阶段解析 Offer，再于新短事务中重新加载并提交；Cart 写入成功不依赖同步 Assessment 刷新成功。
 - `PUT /api/carts/current/selection`
 - `POST /api/carts/current/refresh`
 - `GET /api/carts/current`

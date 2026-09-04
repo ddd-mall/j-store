@@ -25,9 +25,33 @@ class CartAssessmentCalculatorTest {
     @Test
     fun `only selected published active and sufficiently stocked lines contribute amount`() {
         val cart = Cart.create(CartId(1), BuyerId(7), SettlementScope("CN", "ONLINE", "CNY"))
-        cart.add(CartLineId(1), SkuId(1), OfferId(1), MerchantId(10), 2, cart.settlementScope)
-        cart.add(CartLineId(2), SkuId(2), OfferId(2), MerchantId(20), 4, cart.settlementScope)
-        cart.add(CartLineId(3), SkuId(3), OfferId(3), MerchantId(20), 1, cart.settlementScope)
+        cart.setItemQuantity(
+            0,
+            CartLineId(1),
+            SkuId(1),
+            OfferId(1),
+            MerchantId(10),
+            2,
+            cart.settlementScope,
+        )
+        cart.setItemQuantity(
+            1,
+            CartLineId(2),
+            SkuId(2),
+            OfferId(2),
+            MerchantId(20),
+            4,
+            cart.settlementScope,
+        )
+        cart.setItemQuantity(
+            2,
+            CartLineId(3),
+            SkuId(3),
+            OfferId(3),
+            MerchantId(20),
+            1,
+            cart.settlementScope,
+        )
         val facts =
             listOf(
                 fact(1, 100, 5),

@@ -20,18 +20,16 @@ import com.jstore.cart.domain.*
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
 
-data class AddCartItemCommand(
+data class SetCartItemQuantityCommand(
     val buyerId: Long,
-    val requestId: String,
     val skuId: Long,
     val offerId: Long,
-    val quantity: Int,
-    val expectedCartVersion: Long? = null,
+    val targetQuantity: Int,
+    val expectedCartVersion: Long,
 )
 
 data class ReplaceCartSelectionCommand(
     val buyerId: Long,
-    val requestId: String,
     val expectedCartVersion: Long,
     val cartLineIds: Set<Long>,
 )
@@ -55,17 +53,35 @@ data class CartView(
 )
 
 interface CartUseCase {
-    fun add(command: AddCartItemCommand): Result<CartView, BusinessError>
+    fun setItemQuantity(command: SetCartItemQuantityCommand): Result<CartView, BusinessError>
 
     fun replaceSelection(command: ReplaceCartSelectionCommand): Result<CartView, BusinessError>
 
     fun refresh(
         buyerId: Long,
-        requestId: String,
         expectedVersion: Long,
     ): Result<CartView, BusinessError>
 
     fun current(buyerId: Long): Result<CartView, BusinessError>
+}
+
+sealed interface SetCartItemQuantityStart {
+    data class Completed(val view: CartView) : SetCartItemQuantityStart
+
+    data object RequiresOffer : SetCartItemQuantityStart
+}
+
+sealed interface CartRefreshStart {
+    data class Completed(val view: CartView) : CartRefreshStart
+
+    data class RequiresFacts(val cart: Cart) : CartRefreshStart
+}
+
+sealed interface CartCheckoutPreparationStart {
+    data class Completed(val result: com.jstore.cart.api.CartCheckoutSourceResult) :
+        CartCheckoutPreparationStart
+
+    data class RequiresFacts(val cart: Cart) : CartCheckoutPreparationStart
 }
 
 fun interface CartIdentityGenerator {

@@ -28,7 +28,3 @@ interface CartAssessmentPOJpaRepository : JpaRepository<CartAssessmentPO, Long> 
 
     fun findFirstByCartIdOrderBySourceCartVersionDesc(cartId: Long): CartAssessmentPO?
 }
-
-interface CartRequestReceiptPOJpaRepository : JpaRepository<CartRequestReceiptPO, String> {
-    fun findByBuyerIdAndRequestId(buyerId: Long, requestId: String): CartRequestReceiptPO?
-}

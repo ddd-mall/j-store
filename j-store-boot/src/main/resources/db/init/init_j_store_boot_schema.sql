@@ -361,16 +361,6 @@ CREATE TABLE cart_assessment_lines (
     UNIQUE(assessment_id, cart_line_id)
 );
 
-CREATE TABLE cart_request_receipts (
-    id varchar(256) PRIMARY KEY,
-    buyer_id bigint NOT NULL,
-    request_id varchar(128) NOT NULL,
-    request_digest varchar(64) NOT NULL,
-    cart_id bigint NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
-    cart_version bigint NOT NULL,
-    UNIQUE(buyer_id, request_id)
-);
-
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS checkout_source_type varchar(16) NOT NULL DEFAULT 'DIRECT';
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS checkout_source_id bigint;
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS checkout_source_version bigint;
