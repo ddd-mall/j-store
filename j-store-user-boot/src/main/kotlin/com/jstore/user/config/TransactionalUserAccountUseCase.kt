@@ -52,22 +52,22 @@ class TransactionalUserAccountUseCase(
         delegate.register(cmd, verificationProof)
     }
 
-    override fun login(phoneNumber: PhoneNumber, rawPassword: String) =
-        tx { delegate.login(phoneNumber, rawPassword) }
-            .also { result ->
-                if (result is Success) {
-                    tokenProvider.parseRefreshToken(result.value.refreshToken)?.let { claims ->
-                        tokenStore.storeRefreshSession(
-                            userId = claims.userId,
-                            sessionId = claims.sessionId,
-                            refreshTokenDigest =
-                                RefreshTokenDigest.sha256(result.value.refreshToken),
-                            sessionEpoch = claims.sessionEpoch,
-                            ttlSeconds = REFRESH_TOKEN_TTL_SECONDS,
-                        )
-                    }
+    override fun login(phoneNumber: PhoneNumber, rawPassword: String) = tx {
+        delegate.login(phoneNumber, rawPassword)
+    }
+        .also { result ->
+            if (result is Success) {
+                tokenProvider.parseRefreshToken(result.value.refreshToken)?.let { claims ->
+                    tokenStore.storeRefreshSession(
+                        userId = claims.userId,
+                        sessionId = claims.sessionId,
+                        refreshTokenDigest = RefreshTokenDigest.sha256(result.value.refreshToken),
+                        sessionEpoch = claims.sessionEpoch,
+                        ttlSeconds = REFRESH_TOKEN_TTL_SECONDS,
+                    )
                 }
             }
+        }
 
     // 刷新令牌是 Redis 主导的外部状态交换，不伪装成数据库原子事务。
     override fun refreshToken(refreshToken: String) = delegate.refreshToken(refreshToken)

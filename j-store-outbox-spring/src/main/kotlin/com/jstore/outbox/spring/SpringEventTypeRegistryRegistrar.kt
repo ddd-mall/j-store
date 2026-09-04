@@ -77,14 +77,15 @@ class SpringEventTypeRegistryRegistrar(
 
     @Suppress("UNCHECKED_CAST")
     private fun loadEventClass(className: String): Class<out DomainEvent> {
-        val clazz =
-            runCatching { Class.forName(className) }
-                .getOrElse { cause ->
-                    throw IllegalStateException(
-                        "Failed to load @DomainEventType class: $className",
-                        cause,
-                    )
-                }
+        val clazz = runCatching {
+            Class.forName(className)
+        }
+            .getOrElse { cause ->
+                throw IllegalStateException(
+                    "Failed to load @DomainEventType class: $className",
+                    cause,
+                )
+            }
         require(DomainEvent::class.java.isAssignableFrom(clazz)) {
             "@DomainEventType class must implement DomainEvent: $className"
         }

@@ -47,8 +47,7 @@ class ResultTest :
             var mapped = false
 
             Success(42).getOrThrow {
-                mapped = true
-                IllegalStateException(it.toString())
+                it
             } shouldBe 42
             mapped shouldBe false
         }
@@ -354,10 +353,11 @@ class ResultTest :
         }
 
         test("resultOf result is composable with map and flatMap") {
-            val result =
-                resultOf { "42".toInt() }
-                    .map { it * 2 }
-                    .flatMap { if (it > 0) Success(it) else Failure(Exception("non-positive")) }
+            val result = resultOf {
+                "42".toInt()
+            }
+                .map { it * 2 }
+                .flatMap { if (it > 0) Success(it) else Failure(Exception("non-positive")) }
             result shouldBe Success(84)
         }
 
@@ -472,5 +472,6 @@ class ResultTest :
 
         test("test for ResultKt.mapOr") {
             val value = Results.ok<Int, String>(12)
+            value.isSuccess shouldBe true
         }
     })

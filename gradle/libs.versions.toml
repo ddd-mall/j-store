@@ -23,7 +23,7 @@ money-api = "1.1"
 licensee = "1.14.1"
 cyclonedx = "3.3.0"
 google-java-format = "1.35.0"
-ktfmt = "0.63"
+ktfmt = "0.64"
 
 [libraries]
 # Platforms

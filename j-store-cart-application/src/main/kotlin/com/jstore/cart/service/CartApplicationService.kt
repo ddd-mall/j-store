@@ -142,6 +142,7 @@ class CartApplicationService(
             .onFailure {
                 return Failure(it)
             }
+
         carts.save(cart)
         saveReceipt(buyerId, command.requestId, digest, cart)
         cart.publishPendingEvents(publisher)
@@ -193,11 +194,12 @@ class CartApplicationService(
             return CartCheckoutSourceResult.VersionConflict
         }
 
-        val facts =
-            runCatching { commerce.collect(cart.lines) }
-                .getOrElse {
-                    return CartCheckoutSourceResult.Unavailable
-                }
+        val facts = runCatching {
+            commerce.collect(cart.lines)
+        }
+            .getOrElse {
+                return CartCheckoutSourceResult.Unavailable
+            }
 
         val assessment =
             CartAssessmentCalculator.evaluate(

@@ -31,10 +31,10 @@ class SpringDomainEventMulticasterGuard(
     override fun afterSingletonsInstantiated() {
         val multicaster =
             runCatching {
-                    applicationContext.getBean(
-                        AbstractApplicationContext.APPLICATION_EVENT_MULTICASTER_BEAN_NAME
-                    )
-                }
+                applicationContext.getBean(
+                    AbstractApplicationContext.APPLICATION_EVENT_MULTICASTER_BEAN_NAME
+                )
+            }
                 .getOrNull() ?: return
 
         if (multicaster is SimpleApplicationEventMulticaster && multicaster.hasTaskExecutor()) {
