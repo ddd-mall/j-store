@@ -77,6 +77,50 @@ class OutboxPublisherTest :
                 sequenceNo = 1,
             )
 
+        test(
+            "preparation precedes delivery transaction and preparation failures remain retryable"
+        ) {
+            val entry = createEntry()
+            val repo =
+                mock<OutboxEntryRepository> {
+                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
+                        listOf(entry)
+                    on { renewLease(any(), any(), any(), any()) } doReturn true
+                    on { markPublished(any(), any()) } doReturn true
+                    on { markFailed(any(), any()) } doReturn true
+                }
+            val tx = RecordingTransactionOperations()
+            var fail = true
+            val channel =
+                object : PreparingOutboxDeliveryChannel {
+                    override val transportId = entry.transportId
+
+                    override fun deliver(entry: OutboxEntry) = error("must prepare")
+
+                    override fun prepare(entry: OutboxEntry): () -> Unit {
+                        tx.calls.contains("delivery-begin") shouldBe false
+                        if (fail) error("upstream unavailable")
+                        return { tx.calls.last() shouldBe "delivery-begin" }
+                    }
+                }
+            val publisher =
+                OutboxPublisher(
+                    repo,
+                    OutboxDeliveryRouter(listOf(channel)),
+                    OutboxProperties(),
+                    transactionOperations = tx,
+                )
+            publisher.pollAndPublish()
+            verify(repo).markFailed(any(), any())
+            verify(repo, never()).markPublished(any(), any())
+            tx.calls shouldBe listOf("failure-begin", "failure-commit")
+            tx.calls.clear()
+            fail = false
+            publisher.pollAndPublish()
+            tx.calls shouldBe listOf("delivery-begin", "delivery-commit")
+            verify(repo).markPublished(any(), any())
+        }
+
         test("drain batch budget must be positive") {
             shouldThrow<IllegalArgumentException> { OutboxProperties(maxBatchesPerDrain = 0) }
         }

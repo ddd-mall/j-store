@@ -102,6 +102,27 @@ class CartApplicationServiceTest {
         assertEquals(1, publisher.events.size)
     }
 
+    @Test
+    fun `automatic refresh propagates upstream failure for redelivery`() {
+        val carts = InMemoryCartRepository()
+        val commerce = FixedCommerceFacts().apply { failWhenCollecting = true }
+        val publisher = RecordingPublisher()
+        var nextId = 10L
+        val service =
+            CartApplicationService(
+                carts,
+                InMemoryCartAssessmentStore(),
+                commerce,
+                CartIdentityGenerator { nextId++ },
+                publisher,
+            )
+        service.setItemQuantity(SetCartItemQuantityCommand(7, 101, 201, 3, 0))
+        val event = publisher.events.single() as CartRefreshRequestedEvent
+        kotlin.test.assertFailsWith<com.jstore.common.errors.BusinessErrorException> {
+            CartRefreshRequestedHandler(service, carts).onDomainEvent(event)
+        }
+    }
+
     private class InMemoryCartRepository : CartRepository {
         private var cart: Cart? = null
         var saveCount = 0

@@ -16,6 +16,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.embedded.postgres)
     testRuntimeOnly(libs.postgresql)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.test { useJUnitPlatform() }

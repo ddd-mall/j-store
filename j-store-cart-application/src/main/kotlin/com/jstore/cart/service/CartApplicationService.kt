@@ -311,22 +311,6 @@ class CartApplicationService(
         )
     }
 
-    internal fun refreshCart(cart: Cart): Result<CartAssessment, BusinessError> {
-        return when (val facts = collectFacts(cart)) {
-            is Failure -> facts
-            is Success ->
-                when (val refreshed = completeRefresh(cart, facts.value)) {
-                    is Failure -> refreshed
-                    is Success -> {
-                        val assessment =
-                            assessments.findByCartAndVersion(cart.id, cart.contentVersion)
-                                ?: return Failure(CartErrors.REFRESH_UNAVAILABLE)
-                        Success(assessment)
-                    }
-                }
-        }
-    }
-
     private fun view(cart: Cart, assessment: CartAssessment?) =
         CartView(
             cartId = cart.id.value,
@@ -364,10 +348,27 @@ class CartRefreshRequestedHandler(
 ) : DomainEventListener<CartRefreshRequestedEvent> {
     override fun listenerId() = "cart.refresh-requested.v1"
 
+    fun start(event: CartRefreshRequestedEvent): Cart? =
+        carts.findById(event.cartId)?.takeIf { it.contentVersion == event.cartVersion }
+
+    fun collect(cart: Cart): List<CartLineCommerceFacts> =
+        when (val result = service.collectFacts(cart)) {
+            is Failure -> throw com.jstore.common.errors.BusinessErrorException(result.error)
+            is Success -> result.value
+        }
+
+    fun complete(cart: Cart, facts: List<CartLineCommerceFacts>) {
+        when (val result = service.completeRefresh(cart, facts)) {
+            is Failure ->
+                if (result.error != CartErrors.VERSION_CONFLICT) {
+                    throw com.jstore.common.errors.BusinessErrorException(result.error)
+                }
+            is Success -> Unit
+        }
+    }
+
     override fun onDomainEvent(event: CartRefreshRequestedEvent) {
-        carts
-            .findById(event.cartId)
-            ?.takeIf { it.contentVersion == event.cartVersion }
-            ?.let { service.refreshCart(it) }
+        val cart = start(event) ?: return
+        complete(cart, collect(cart))
     }
 }

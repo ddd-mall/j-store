@@ -22,7 +22,17 @@ import org.springframework.context.ApplicationEventPublisher
 class SpringLocalDomainEventBus(
     private val registry: SpringDomainEventListenerRegistry,
     private val applicationEventPublisher: ApplicationEventPublisher,
-) : LocalDomainEventBus {
+) : PreparingLocalDomainEventBus {
+
+    override fun prepareEvent(event: DomainEvent): () -> Unit {
+        val completion = registry.prepare(event)
+        return {
+            completion()
+            // Prepared consumers have already recorded their consumption in this transaction.
+            // The regular broadcast preserves native Spring listeners and skips those consumers.
+            publishEvent(event)
+        }
+    }
 
     override fun publishEvent(domainEvent: DomainEvent) {
         applicationEventPublisher.publishEvent(domainEvent)

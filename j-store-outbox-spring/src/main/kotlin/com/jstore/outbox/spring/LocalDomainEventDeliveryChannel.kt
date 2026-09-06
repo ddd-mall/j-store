@@ -17,15 +17,18 @@
 package com.jstore.outbox.spring
 
 import com.jstore.common.framework.event.LocalDomainEventBus
+import com.jstore.common.framework.event.PreparingLocalDomainEventBus
 import com.jstore.outbox.*
 
 class LocalDomainEventDeliveryChannel(
     private val eventSerializer: EventSerializer,
     private val localDomainEventBus: LocalDomainEventBus,
-) : OutboxDeliveryChannel {
+) : PreparingOutboxDeliveryChannel {
     override val transportId: String = OutboxTransportIds.LOCAL_DOMAIN
 
-    override fun deliver(entry: OutboxEntry) {
+    override fun deliver(entry: OutboxEntry) = prepare(entry).invoke()
+
+    override fun prepare(entry: OutboxEntry): () -> Unit {
         check(entry.transportId == transportId) {
             "LOCAL_DOMAIN channel cannot deliver transport ${entry.transportId}"
         }
@@ -38,6 +41,10 @@ class LocalDomainEventDeliveryChannel(
                 entry.eventType,
                 entry.eventVersion,
             )
-        localDomainEventBus.publishEvent(event)
+        return if (localDomainEventBus is PreparingLocalDomainEventBus)
+            localDomainEventBus.prepareEvent(event)
+        else {
+            { localDomainEventBus.publishEvent(event) }
+        }
     }
 }

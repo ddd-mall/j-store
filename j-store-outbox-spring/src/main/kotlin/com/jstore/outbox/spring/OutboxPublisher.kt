@@ -70,8 +70,9 @@ class OutboxPublisher(
                     ) {
                         throw OutboxLockOwnershipChangedException(entry.id, workerId)
                     }
+                    val delivery = deliveryRouter.prepare(entry)
                     val updated = transactionOperations.executeDelivery {
-                        deliveryRouter.deliver(entry)
+                        delivery()
                         val publishedAt = Instant.now()
                         outboxEntryRepository
                             .markPublished(
