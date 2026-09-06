@@ -31,6 +31,20 @@ class DomainListenerSpringWrapper(
     private val listenerEventType =
         SpringDomainEventListenerTypeResolver.require(domainEventListener)
 
+    @Suppress("UNCHECKED_CAST")
+    fun prepare(event: DomainEvent): (() -> Unit)? {
+        if (!listenerEventType.isInstance(event)) return null
+        val listener = domainEventListener as DomainEventListener<DomainEvent>
+        val action =
+            if (listener is PreparingDomainEventListener<DomainEvent>) listener.prepare(event)
+            else {
+                { listener.onDomainEvent(event) }
+            }
+        return {
+            if (consumptionRepository.tryStart(listener.listenerId(), event)) action()
+        }
+    }
+
     override fun onApplicationEvent(event: ApplicationEvent) {
         (event as? PayloadApplicationEvent<*>)?.let {
             (it.payload as? DomainEvent)?.let { domainEvent ->

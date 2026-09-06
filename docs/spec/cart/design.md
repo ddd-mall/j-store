@@ -224,14 +224,21 @@ short read transaction: inspect current target
 
 ```text
 receive(cartId, requestedVersion)
-  -> load Cart
+  -> before Outbox delivery transaction: load Cart in a short read transaction
   -> if cart.version != requestedVersion: discard as stale
   -> if Assessment for version already exists: success/no-op
-  -> collect current facts
+  -> collect current facts without a transaction
+  -> begin delivery transaction and claim consumption receipt
   -> calculate Assessment
   -> before save, verify Cart version still equals requestedVersion
-  -> save Assessment
+  -> save Assessment and mark Outbox published in the same transaction
 ```
+
+本地领域事件投递支持可选的 prepare/completion 两阶段：prepare 仅允许可重复的读取，不得执行持久化写入或不可逆外部副作用；返回的 completion 在原有投递事务中执行。Cart 的 prepare 结束读取事务后才采集外部事实，不通过挂起一个已经打开的投递事务来模拟释放连接。普通监听器继续使用 Spring 广播；预备型监听器完成并记录消费后，广播通过同一事务内的消费去重跳过重复执行。
+
+事实查询失败必须传播到 Outbox 重试路径，不能正常确认消费；版本过期可作为 no-op 确认。completion 失败或 fencing 校验失败时，Assessment、消费记录与发布状态一起回滚。prepare 的结果只存在于本次尝试内，重投会重新采集。
+
+Assessment 保存通过 PostgreSQL `INSERT ... ON CONFLICT (cart_id, source_cart_version) DO NOTHING` 仲裁并发。胜出者在同一事务保存明细，竞争者读取已提交的完整结果；不在已经失败的事务中捕获唯一约束异常继续查询。
 
 最后一次版本检查必须由数据库条件更新或同一短事务中的乐观校验兜底，不能依赖 JVM 锁。
 

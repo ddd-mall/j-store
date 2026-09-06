@@ -88,11 +88,33 @@ class CartRepositoryImpl(private val jpa: CartPOJpaRepository) : CartRepository 
 }
 
 @Repository
-class CartAssessmentStoreImpl(private val jpa: CartAssessmentPOJpaRepository) :
-    CartAssessmentStore {
+class CartAssessmentStoreImpl(
+    private val jpa: CartAssessmentPOJpaRepository,
+    private val entityManager: jakarta.persistence.EntityManager,
+) : CartAssessmentStore {
     @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(assessment: CartAssessment): CartAssessment =
-        toDomain(jpa.save(toPO(assessment)))
+    override fun save(assessment: CartAssessment): CartAssessment {
+        // PostgreSQL waits for the competing insert to commit before resolving this conflict.
+        // Only the winner writes line rows; all callers return the same persisted identity.
+        val inserted =
+            entityManager
+                .createNativeQuery(
+                    """INSERT INTO cart_assessments
+                (id, cart_id, source_cart_version, status, amount_fen, currency, evaluated_at)
+                VALUES (:id, :cartId, :version, :status, :amount, :currency, :evaluatedAt)
+                ON CONFLICT (cart_id, source_cart_version) DO NOTHING"""
+                )
+                .setParameter("id", assessment.id.value)
+                .setParameter("cartId", assessment.cartId.value)
+                .setParameter("version", assessment.sourceCartVersion)
+                .setParameter("status", assessment.status.name)
+                .setParameter("amount", assessment.estimatedAmount.fen)
+                .setParameter("currency", assessment.currency)
+                .setParameter("evaluatedAt", assessment.evaluatedAt)
+                .executeUpdate()
+        return if (inserted == 1) toDomain(jpa.save(toPO(assessment)))
+        else requireNotNull(findByCartAndVersion(assessment.cartId, assessment.sourceCartVersion))
+    }
 
     override fun findById(id: CartAssessmentId): CartAssessment? =
         jpa.findById(id.value).orElse(null)?.let(::toDomain)

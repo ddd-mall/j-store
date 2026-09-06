@@ -153,6 +153,29 @@ class TransactionalCartUseCaseTest {
         assertTrue(definitions.firstValue.isReadOnly)
     }
 
+    @Test
+    fun `automatic refresh prepares facts before the acknowledgement transaction`() {
+        val tx = RecordingCartTransactions()
+        val delegate = mock<CartRefreshRequestedHandler>()
+        val cart = cart()
+        val event =
+            com.jstore.cart.domain.CartRefreshRequestedEvent(cart.id, cart.buyerId, 0, "test")
+        whenever(delegate.start(event)).thenAnswer {
+            assertTrue(tx.inTransaction)
+            cart
+        }
+        whenever(delegate.collect(cart)).thenAnswer {
+            assertFalse(tx.inTransaction)
+            emptyList<CartLineCommerceFacts>()
+        }
+        val handler = TransactionalCartRefreshRequestedHandler(delegate, tx)
+        val completion = handler.prepare(event)
+        org.mockito.kotlin.verify(delegate, org.mockito.kotlin.never()).complete(any(), any())
+        tx.write { completion() }
+        verify(delegate).complete(cart, emptyList())
+        assertEquals(listOf("read", "external", "write"), tx.phases)
+    }
+
     private fun command() =
         SetCartItemQuantityCommand(
             buyerId = 7,

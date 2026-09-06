@@ -45,6 +45,14 @@ class SpringDomainEventListenerRegistry(
         registeredListeners.remove(listener)
     }
 
+    fun prepare(event: DomainEvent): () -> Unit {
+        val actions =
+            registeredListeners.filterIsInstance<PreparingDomainEventListener<*>>().mapNotNull {
+                DomainListenerSpringWrapper(it, consumptionRepository).prepare(event)
+            }
+        return { actions.forEach { it() } }
+    }
+
     override fun getListeners(): List<DomainEventListener<*>> {
         return registeredListeners.toList()
     }

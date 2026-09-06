@@ -24,6 +24,63 @@ import org.springframework.context.support.GenericApplicationContext
 
 class SpringDomainEventListenerRegistryTest :
     FunSpec({
+        test("prepared delivery preserves native broadcast and consumes each listener once") {
+            GenericApplicationContext().use { context ->
+                context.refresh()
+                val consumed = mutableSetOf<String>()
+                var prepared = 0
+                var completed = 0
+                var ordinary = 0
+                var native = 0
+                val registry =
+                    SpringDomainEventListenerRegistry(
+                        context,
+                        MessageConsumptionRepository { id, eventId, _, _ ->
+                            consumed.add("$id:$eventId")
+                        },
+                    )
+                registry.register(
+                    object : PreparingDomainEventListener<StubDomainEvent> {
+                        override fun listenerId() = "prepared"
+
+                        override fun onDomainEvent(event: StubDomainEvent) =
+                            error("must use prepared action")
+
+                        override fun prepare(event: StubDomainEvent): () -> Unit {
+                            kotlin.test.assertTrue(consumed.isEmpty())
+                            prepared++
+                            return { completed++ }
+                        }
+                    }
+                )
+                registry.register(
+                    object : DomainEventListener<StubDomainEvent> {
+                        override fun listenerId() = "ordinary"
+
+                        override fun onDomainEvent(event: StubDomainEvent) {
+                            ordinary++
+                        }
+                    }
+                )
+                context.addApplicationListener(
+                    org.springframework.context.ApplicationListener<
+                        org.springframework.context.PayloadApplicationEvent<*>
+                    > {
+                        if (it.payload is StubDomainEvent) native++
+                    }
+                )
+                val bus = SpringLocalDomainEventBus(registry, context)
+                val action = bus.prepareEvent(StubDomainEvent())
+                kotlin.test.assertEquals(1, prepared)
+                kotlin.test.assertTrue(consumed.isEmpty())
+                action()
+                action()
+                kotlin.test.assertEquals(1, completed)
+                kotlin.test.assertEquals(1, ordinary)
+                kotlin.test.assertEquals(2, native)
+            }
+        }
+
         test("register fails when listener generic event type cannot be resolved") {
             GenericApplicationContext().use { context ->
                 val registry =

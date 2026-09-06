@@ -63,7 +63,12 @@ class CartBootConfiguration {
     fun cartRefreshRequestedHandler(
         service: CartApplicationService,
         carts: CartRepository,
-    ) = CartRefreshRequestedHandler(service, carts)
+        tx: PlatformTransactionManager,
+    ) =
+        TransactionalCartRefreshRequestedHandler(
+            CartRefreshRequestedHandler(service, carts),
+            SpringCartTransactionOperations(tx),
+        )
 
     @Bean
     @Primary

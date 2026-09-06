@@ -22,13 +22,24 @@ interface OutboxDeliveryChannel {
     fun deliver(entry: OutboxEntry)
 }
 
+/** Read-only preparation outside the delivery transaction, followed by atomic local completion. */
+interface PreparingOutboxDeliveryChannel : OutboxDeliveryChannel {
+    fun prepare(entry: OutboxEntry): () -> Unit
+}
+
 class OutboxDeliveryRouter(private val channels: List<OutboxDeliveryChannel>) {
-    fun deliver(entry: OutboxEntry) {
+    fun deliver(entry: OutboxEntry) = prepare(entry).invoke()
+
+    fun prepare(entry: OutboxEntry): () -> Unit {
         val matching = channels.filter { it.transportId == entry.transportId }
         check(matching.size == 1) {
             "Expected exactly one outbox delivery channel for transportId=${entry.transportId}, found=${matching.size}"
         }
-        matching.single().deliver(entry)
+        val channel = matching.single()
+        return if (channel is PreparingOutboxDeliveryChannel) channel.prepare(entry)
+        else {
+            { channel.deliver(entry) }
+        }
     }
 }
 

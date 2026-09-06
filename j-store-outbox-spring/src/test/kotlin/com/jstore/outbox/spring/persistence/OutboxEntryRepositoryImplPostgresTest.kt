@@ -799,6 +799,111 @@ class OutboxEntryRepositoryImplPostgresTest {
         }
     }
 
+    @Test
+    fun `prepared delivery retries failures and atomically commits after fencing succeeds`() {
+        repository.save(
+            entry("prepared-probe", payload = "prepared-probe", aggregateId = "prepared-probe")
+        )
+        var stage = 0
+        val serializer =
+            object : EventSerializer {
+                override fun serialize(event: DomainEvent) = error("unused")
+
+                override fun deserialize(
+                    payload: String,
+                    eventName: String,
+                    eventVersion: Int,
+                ): DomainEvent = RelayProbeEvent(payload)
+            }
+        org.springframework.context.support.GenericApplicationContext().use { context ->
+            context.refresh()
+            val registry =
+                com.jstore.messaging.local.event.SpringDomainEventListenerRegistry(
+                    context,
+                    consumptionRepository,
+                )
+            registry.register(
+                object :
+                    com.jstore.common.framework.event.PreparingDomainEventListener<
+                        RelayProbeEvent
+                    > {
+                    override fun listenerId() = "prepared-probe-listener"
+
+                    override fun onDomainEvent(event: RelayProbeEvent) =
+                        error("must use preparation")
+
+                    override fun prepare(event: RelayProbeEvent): () -> Unit {
+                        assertFalse(
+                            org.springframework.transaction.support
+                                .TransactionSynchronizationManager
+                                .isActualTransactionActive()
+                        )
+                        assertFalse(
+                            org.springframework.transaction.support
+                                .TransactionSynchronizationManager
+                                .hasResource(dataSource)
+                        )
+                        if (stage == 0) error("upstream unavailable")
+                        return {
+                            assertTrue(
+                                org.springframework.transaction.support
+                                    .TransactionSynchronizationManager
+                                    .isActualTransactionActive()
+                            )
+                            entityManager
+                                .createNativeQuery(
+                                    "INSERT INTO outbox_listener_probe(event_id) VALUES (:id)"
+                                )
+                                .setParameter("id", event.eventId)
+                                .executeUpdate()
+                            if (stage == 1) error("completion failed")
+                        }
+                    }
+                }
+            )
+            val bus = com.jstore.messaging.local.event.SpringLocalDomainEventBus(registry, context)
+            val fencedRepository =
+                object : OutboxEntryRepository by repository {
+                    override fun markPublished(entry: OutboxEntry, lockedBy: String): Boolean =
+                        if (stage == 2) false else repository.markPublished(entry, lockedBy)
+                }
+            val publisher =
+                OutboxPublisher(
+                    fencedRepository,
+                    OutboxDeliveryRouter(listOf(LocalDomainEventDeliveryChannel(serializer, bus))),
+                    OutboxProperties(batchSize = 1, maxRetryCount = 5),
+                    transactionOperations =
+                        SpringOutboxRelayTransactionOperations(transactionManager),
+                )
+            for (attempt in 0..3) {
+                stage = attempt
+                TransactionTemplate(transactionManager).executeWithoutResult {
+                    entityManager
+                        .createNativeQuery(
+                            "UPDATE outbox_entry SET next_attempt_at = :now WHERE id = 'prepared-probe'"
+                        )
+                        .setParameter("now", Instant.now().minusSeconds(1))
+                        .executeUpdate()
+                }
+                publisher.pollAndPublish()
+                assertEquals(
+                    if (attempt == 3) OutboxEntryStatus.PUBLISHED else OutboxEntryStatus.FAILED,
+                    jpaRepository.findById("prepared-probe").orElseThrow().status,
+                )
+                dataSource.connection.use { connection ->
+                    connection.createStatement().use { statement ->
+                        for (table in listOf("outbox_listener_probe", "domain_event_consumption")) {
+                            statement.executeQuery("SELECT count(*) FROM $table").use { rows ->
+                                rows.next()
+                                assertEquals(if (attempt == 3) 1 else 0, rows.getInt(1))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private data class RelayProbeEvent(
         override val eventId: String,
         override val eventName: String = "relay.probe",
