@@ -39,89 +39,89 @@ class SalesOffer(
     version: Long,
     val persistenceVersion: Long = 0,
 ) : AggregateRoot<SalesOfferId> {
-    private var _price = price
-    private var _status = status
-    private var _version = version
+  private var _price = price
+  private var _status = status
+  private var _version = version
 
-    val price: Price
-        get() = _price
+  val price: Price
+    get() = _price
 
-    val status: OfferStatus
-        get() = _status
+  val status: OfferStatus
+    get() = _status
 
-    val version: Long
-        get() = _version
+  val version: Long
+    get() = _version
 
-    init {
-        require(price > Price.ZERO && version > 0)
+  init {
+    require(price > Price.ZERO && version > 0)
+  }
+
+  fun activate(): Result<Unit, BusinessError> {
+    if (_status == OfferStatus.ENDED) return Failure(OfferErrors.ILLEGAL_STATE)
+    if (_status != OfferStatus.ACTIVE) {
+      _status = OfferStatus.ACTIVE
+      _version++
     }
+    return Success(Unit)
+  }
 
-    fun activate(): Result<Unit, BusinessError> {
-        if (_status == OfferStatus.ENDED) return Failure(OfferErrors.ILLEGAL_STATE)
-        if (_status != OfferStatus.ACTIVE) {
-            _status = OfferStatus.ACTIVE
-            _version++
-        }
-        return Success(Unit)
+  fun suspend(): Result<Unit, BusinessError> {
+    if (_status != OfferStatus.ACTIVE) return Failure(OfferErrors.ILLEGAL_STATE)
+    _status = OfferStatus.SUSPENDED
+    _version++
+    return Success(Unit)
+  }
+
+  fun end(): Result<Unit, BusinessError> {
+    if (_status == OfferStatus.ENDED) return Failure(OfferErrors.ILLEGAL_STATE)
+    _status = OfferStatus.ENDED
+    _version++
+    return Success(Unit)
+  }
+
+  fun changePrice(newPrice: Price): Result<Unit, BusinessError> {
+    if (_status == OfferStatus.ENDED || newPrice <= Price.ZERO) {
+      return Failure(OfferErrors.ILLEGAL_STATE)
     }
-
-    fun suspend(): Result<Unit, BusinessError> {
-        if (_status != OfferStatus.ACTIVE) return Failure(OfferErrors.ILLEGAL_STATE)
-        _status = OfferStatus.SUSPENDED
-        _version++
-        return Success(Unit)
+    if (_price != newPrice) {
+      _price = newPrice
+      _version++
     }
+    return Success(Unit)
+  }
 
-    fun end(): Result<Unit, BusinessError> {
-        if (_status == OfferStatus.ENDED) return Failure(OfferErrors.ILLEGAL_STATE)
-        _status = OfferStatus.ENDED
-        _version++
-        return Success(Unit)
+  fun authorize(
+      tradeId: Long,
+      orderPlanId: Long,
+      quantity: Int,
+      expectedPriceFen: Long,
+      now: Instant,
+      expectedVersion: Long = version,
+      ttl: Duration = Duration.ofMinutes(15),
+  ): Result<SaleAuthorization, BusinessError> {
+    if (_status != OfferStatus.ACTIVE) return Failure(OfferErrors.NOT_ACTIVE)
+    if (!effectivePeriod.contains(now)) return Failure(OfferErrors.OUTSIDE_EFFECTIVE_PERIOD)
+    if (_version != expectedVersion) return Failure(OfferErrors.VERSION_MISMATCH)
+    if (_price.fen != expectedPriceFen) return Failure(OfferErrors.PRICE_MISMATCH)
+    if (quantity !in 1..purchaseLimit.maxQuantityPerOrder) {
+      return Failure(OfferErrors.PURCHASE_LIMIT_EXCEEDED)
     }
-
-    fun changePrice(newPrice: Price): Result<Unit, BusinessError> {
-        if (_status == OfferStatus.ENDED || newPrice <= Price.ZERO) {
-            return Failure(OfferErrors.ILLEGAL_STATE)
-        }
-        if (_price != newPrice) {
-            _price = newPrice
-            _version++
-        }
-        return Success(Unit)
-    }
-
-    fun authorize(
-        tradeId: Long,
-        orderPlanId: Long,
-        quantity: Int,
-        expectedPriceFen: Long,
-        now: Instant,
-        expectedVersion: Long = version,
-        ttl: Duration = Duration.ofMinutes(15),
-    ): Result<SaleAuthorization, BusinessError> {
-        if (_status != OfferStatus.ACTIVE) return Failure(OfferErrors.NOT_ACTIVE)
-        if (!effectivePeriod.contains(now)) return Failure(OfferErrors.OUTSIDE_EFFECTIVE_PERIOD)
-        if (_version != expectedVersion) return Failure(OfferErrors.VERSION_MISMATCH)
-        if (_price.fen != expectedPriceFen) return Failure(OfferErrors.PRICE_MISMATCH)
-        if (quantity !in 1..purchaseLimit.maxQuantityPerOrder) {
-            return Failure(OfferErrors.PURCHASE_LIMIT_EXCEEDED)
-        }
-        return Success(
-            SaleAuthorization.authorized(
-                id = SaleAuthorizationId("TRADE-$tradeId-PLAN-$orderPlanId-OFFER-${id.value}"),
-                tradeId = tradeId,
-                orderPlanId = orderPlanId,
-                offerId = id,
-                storeId = storeId,
-                merchantId = merchantId,
-                skuId = skuId,
-                quantity = quantity,
-                offerVersion = _version,
-                unitPrice = _price,
-                fulfillmentPolicy = fulfillmentPolicy,
-                authorizedAt = now,
-                expiresAt = now.plus(ttl),
-            )
+    return Success(
+        SaleAuthorization.authorized(
+            id = SaleAuthorizationId("TRADE-$tradeId-PLAN-$orderPlanId-OFFER-${id.value}"),
+            tradeId = tradeId,
+            orderPlanId = orderPlanId,
+            offerId = id,
+            storeId = storeId,
+            merchantId = merchantId,
+            skuId = skuId,
+            quantity = quantity,
+            offerVersion = _version,
+            unitPrice = _price,
+            fulfillmentPolicy = fulfillmentPolicy,
+            authorizedAt = now,
+            expiresAt = now.plus(ttl),
         )
-    }
+    )
+  }
 }

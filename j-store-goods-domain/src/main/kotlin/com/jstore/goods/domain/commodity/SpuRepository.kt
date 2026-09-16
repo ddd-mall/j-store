@@ -19,11 +19,11 @@ package com.jstore.goods.domain.commodity
 import com.jstore.common.framework.AggregateRepository
 
 interface SpuRepository : AggregateRepository<SpuId, Spu> {
-    fun findPublishedBySkuIds(skuIds: List<SkuId>): List<Spu>
+  fun findPublishedBySkuIds(skuIds: List<SkuId>): List<Spu>
 
-    /** 根据源商品 ID 查询其草稿副本 */
-    fun findDraftBySourceSpuId(sourceSpuId: SpuId): Spu?
+  /** 根据源商品 ID 查询其草稿副本 */
+  fun findDraftBySourceSpuId(sourceSpuId: SpuId): Spu?
 
-    /** 删除 SPU（含关联 SKU），仅用于草稿副本清理 */
-    fun delete(spu: Spu)
+  /** 删除 SPU（含关联 SKU），仅用于草稿副本清理 */
+  fun delete(spu: Spu)
 }

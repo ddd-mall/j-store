@@ -26,16 +26,16 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 class MerchantUserAccountLookupConfigurationTest {
-    private val profiles = mock<UserProfileQueryService>()
-    private val lookup = MerchantBootConfiguration().merchantUserAccountLookup(profiles)
+  private val profiles = mock<UserProfileQueryService>()
+  private val lookup = MerchantBootConfiguration().merchantUserAccountLookup(profiles)
 
-    @Test
-    fun `merchant account lookup uses the published user profile contract`() {
-        whenever(profiles.findInCurrentAuthenticationDomain(42))
-            .thenReturn(UserProfileInfo(42, "member", "+8613800138000", UserProfileStatus.ACTIVE))
-        whenever(profiles.findInCurrentAuthenticationDomain(404)).thenReturn(null)
+  @Test
+  fun `merchant account lookup uses the published user profile contract`() {
+    whenever(profiles.findInCurrentAuthenticationDomain(42))
+        .thenReturn(UserProfileInfo(42, "member", "+8613800138000", UserProfileStatus.ACTIVE))
+    whenever(profiles.findInCurrentAuthenticationDomain(404)).thenReturn(null)
 
-        assertTrue(lookup.exists(42))
-        assertFalse(lookup.exists(404))
-    }
+    assertTrue(lookup.exists(42))
+    assertFalse(lookup.exists(404))
+  }
 }

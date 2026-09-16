@@ -39,57 +39,57 @@ import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
 class InventoryBootConfiguration {
-    @Bean
-    fun inventoryAvailabilityQueryService(positions: StockPositionRepository) =
-        InventoryAvailabilityQueryServiceImpl(positions)
+  @Bean
+  fun inventoryAvailabilityQueryService(positions: StockPositionRepository) =
+      InventoryAvailabilityQueryServiceImpl(positions)
 
-    @Bean
-    fun inventoryService(
-        guard: StockPositionGuard,
-        positions: StockPositionRepository,
-        reservations: StockReservationRepository,
-    ) = InventoryService(guard, positions, reservations)
+  @Bean
+  fun inventoryService(
+      guard: StockPositionGuard,
+      positions: StockPositionRepository,
+      reservations: StockReservationRepository,
+  ) = InventoryService(guard, positions, reservations)
 
-    @Bean
-    fun reserveInventoryHandler(
-        service: InventoryService,
-        publisher: DomainEventPublisher,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<ReserveInventoryCommand> =
-        transactional(ReserveInventoryCommandHandler(service, publisher), transactionManager)
+  @Bean
+  fun reserveInventoryHandler(
+      service: InventoryService,
+      publisher: DomainEventPublisher,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<ReserveInventoryCommand> =
+      transactional(ReserveInventoryCommandHandler(service, publisher), transactionManager)
 
-    @Bean
-    fun confirmInventoryHandler(
-        service: InventoryService,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<ConfirmInventoryCommand> =
-        transactional(ConfirmInventoryCommandHandler(service), transactionManager)
+  @Bean
+  fun confirmInventoryHandler(
+      service: InventoryService,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<ConfirmInventoryCommand> =
+      transactional(ConfirmInventoryCommandHandler(service), transactionManager)
 
-    @Bean
-    fun releaseInventoryHandler(
-        service: InventoryService,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<ReleaseInventoryCommand> =
-        transactional(ReleaseInventoryCommandHandler(service), transactionManager)
+  @Bean
+  fun releaseInventoryHandler(
+      service: InventoryService,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<ReleaseInventoryCommand> =
+      transactional(ReleaseInventoryCommandHandler(service), transactionManager)
 
-    @Bean
-    fun physicalStockChangedHandler(
-        service: InventoryService,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<PhysicalStockChangedIntegrationEvent> =
-        transactional(PhysicalStockChangedHandler(service), transactionManager)
+  @Bean
+  fun physicalStockChangedHandler(
+      service: InventoryService,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<PhysicalStockChangedIntegrationEvent> =
+      transactional(PhysicalStockChangedHandler(service), transactionManager)
 
-    private fun <T : IntegrationMessage> transactional(
-        delegate: IntegrationMessageHandler<T>,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<T> =
-        object : IntegrationMessageHandler<T> {
-            private val transaction = TransactionTemplate(transactionManager)
+  private fun <T : IntegrationMessage> transactional(
+      delegate: IntegrationMessageHandler<T>,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<T> =
+      object : IntegrationMessageHandler<T> {
+        private val transaction = TransactionTemplate(transactionManager)
 
-            override fun handlerId() = delegate.handlerId()
+        override fun handlerId() = delegate.handlerId()
 
-            override fun handle(message: T) {
-                transaction.executeWithoutResult { delegate.handle(message) }
-            }
+        override fun handle(message: T) {
+          transaction.executeWithoutResult { delegate.handle(message) }
         }
+      }
 }

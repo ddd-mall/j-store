@@ -1,7 +1,7 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.plugin.jpa)
-    alias(libs.plugins.kotlin.plugin.spring)
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.kotlin.plugin.jpa)
+  alias(libs.plugins.kotlin.plugin.spring)
 }
 
 group = "com.jstore"
@@ -9,26 +9,26 @@ group = "com.jstore"
 version = "0.0.1-SNAPSHOT"
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 dependencies {
-    api(project(":j-store-shop-domain"))
-    implementation(project(":j-store-common-core"))
-    implementation(libs.spring.boot.starter.data.jpa)
-    implementation(libs.spring.data.jpa)
-    runtimeOnly(libs.postgresql)
-    testImplementation(libs.spring.boot.starter.test)
-    testImplementation(kotlin("test"))
-    testImplementation(libs.kotlin.test.junit5)
-    testImplementation(libs.embedded.postgres)
-    testRuntimeOnly(libs.junit.platform.launcher)
+  api(project(":j-store-shop-domain"))
+  implementation(project(":j-store-common-core"))
+  implementation(libs.spring.boot.starter.data.jpa)
+  implementation(libs.spring.data.jpa)
+  runtimeOnly(libs.postgresql)
+  testImplementation(libs.spring.boot.starter.test)
+  testImplementation(kotlin("test"))
+  testImplementation(libs.kotlin.test.junit5)
+  testImplementation(libs.embedded.postgres)
+  testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 kotlin {
-    jvmToolchain(25)
+  jvmToolchain(25)
 }
 
 tasks.test {
-    useJUnitPlatform()
+  useJUnitPlatform()
 }

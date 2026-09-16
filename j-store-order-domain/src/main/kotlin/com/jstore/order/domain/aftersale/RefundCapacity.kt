@@ -37,70 +37,70 @@ class RefundCapacity(
     approvedAmount: Price = Price.ZERO,
     val persistenceVersion: Long = 0,
 ) : AggregateRoot<OrderItemId> {
-    private var mutableRequestedQuantity = requestedQuantity
-    private var mutableRequestedAmount = requestedAmount
-    private var mutableApprovedQuantity = approvedQuantity
-    private var mutableApprovedAmount = approvedAmount
+  private var mutableRequestedQuantity = requestedQuantity
+  private var mutableRequestedAmount = requestedAmount
+  private var mutableApprovedQuantity = approvedQuantity
+  private var mutableApprovedAmount = approvedAmount
 
-    val requestedQuantity: Int
-        get() = mutableRequestedQuantity
+  val requestedQuantity: Int
+    get() = mutableRequestedQuantity
 
-    val requestedAmount: Price
-        get() = mutableRequestedAmount
+  val requestedAmount: Price
+    get() = mutableRequestedAmount
 
-    val approvedQuantity: Int
-        get() = mutableApprovedQuantity
+  val approvedQuantity: Int
+    get() = mutableApprovedQuantity
 
-    val approvedAmount: Price
-        get() = mutableApprovedAmount
+  val approvedAmount: Price
+    get() = mutableApprovedAmount
 
-    fun matches(ceiling: RefundCapacityCeiling): Boolean =
-        orderId == ceiling.orderId &&
-            id == ceiling.orderItemId &&
-            quantityCeiling == ceiling.quantity &&
-            amountCeiling == ceiling.amount
+  fun matches(ceiling: RefundCapacityCeiling): Boolean =
+      orderId == ceiling.orderId &&
+          id == ceiling.orderItemId &&
+          quantityCeiling == ceiling.quantity &&
+          amountCeiling == ceiling.amount
 
-    fun reserve(quantity: Int, amount: Price): Result<Unit, BusinessError> {
-        if (
-            mutableRequestedQuantity + mutableApprovedQuantity + quantity > quantityCeiling ||
-                mutableRequestedAmount + mutableApprovedAmount + amount > amountCeiling
-        )
-            return Failure(AfterSaleErrors.CAPACITY_EXCEEDED)
-        mutableRequestedQuantity += quantity
-        mutableRequestedAmount += amount
-        return Success(Unit)
+  fun reserve(quantity: Int, amount: Price): Result<Unit, BusinessError> {
+    if (
+        mutableRequestedQuantity + mutableApprovedQuantity + quantity > quantityCeiling ||
+            mutableRequestedAmount + mutableApprovedAmount + amount > amountCeiling
+    )
+        return Failure(AfterSaleErrors.CAPACITY_EXCEEDED)
+    mutableRequestedQuantity += quantity
+    mutableRequestedAmount += amount
+    return Success(Unit)
+  }
+
+  fun settle(
+      quantity: Int,
+      amount: Price,
+      action: AllocationAction,
+  ): Result<Unit, BusinessError> {
+    if (mutableRequestedQuantity < quantity || mutableRequestedAmount < amount)
+        return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
+    mutableRequestedQuantity -= quantity
+    mutableRequestedAmount -= amount
+    if (action == AllocationAction.APPROVE) {
+      mutableApprovedQuantity += quantity
+      mutableApprovedAmount += amount
     }
+    return Success(Unit)
+  }
 
-    fun settle(
-        quantity: Int,
-        amount: Price,
-        action: AllocationAction,
-    ): Result<Unit, BusinessError> {
-        if (mutableRequestedQuantity < quantity || mutableRequestedAmount < amount)
-            return Failure(AfterSaleErrors.CONCURRENT_MODIFICATION)
-        mutableRequestedQuantity -= quantity
-        mutableRequestedAmount -= amount
-        if (action == AllocationAction.APPROVE) {
-            mutableApprovedQuantity += quantity
-            mutableApprovedAmount += amount
-        }
-        return Success(Unit)
-    }
-
-    companion object {
-        fun from(ceiling: RefundCapacityCeiling) =
-            RefundCapacity(ceiling.orderItemId, ceiling.orderId, ceiling.quantity, ceiling.amount)
-    }
+  companion object {
+    fun from(ceiling: RefundCapacityCeiling) =
+        RefundCapacity(ceiling.orderItemId, ceiling.orderId, ceiling.quantity, ceiling.amount)
+  }
 }
 
 interface RefundCapacityRepository : AggregateRepository<OrderItemId, RefundCapacity> {
-    fun initializeIfAbsent(capacities: List<RefundCapacity>)
+  fun initializeIfAbsent(capacities: List<RefundCapacity>)
 
-    fun lockAll(ids: Collection<OrderItemId>): List<RefundCapacity>
+  fun lockAll(ids: Collection<OrderItemId>): List<RefundCapacity>
 }
 
 interface AfterSaleCommandReceiptStore {
-    fun find(actorId: Long, type: AfterSaleCommandType, key: String): AfterSaleCommandReceipt?
+  fun find(actorId: Long, type: AfterSaleCommandType, key: String): AfterSaleCommandReceipt?
 
-    fun claim(receipt: AfterSaleCommandReceipt): Boolean
+  fun claim(receipt: AfterSaleCommandReceipt): Boolean
 }

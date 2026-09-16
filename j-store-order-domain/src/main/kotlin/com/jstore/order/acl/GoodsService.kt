@@ -17,7 +17,7 @@
 package com.jstore.order.acl
 
 interface GoodsService {
-    fun queryGoods(goodsId: List<GoodsId>): List<GoodsInfo>
+  fun queryGoods(goodsId: List<GoodsId>): List<GoodsInfo>
 }
 
 data class GoodsId(val spuId: Long, val skuId: Long)

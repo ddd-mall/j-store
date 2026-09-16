@@ -43,64 +43,63 @@ import org.mockito.kotlin.whenever
 
 class CommodityServiceGoodsSnapshotQueryTest :
     FunSpec({
-        test("queryLatestSnapshots maps goods domain snapshot to published API DTO") {
-            val snapshotRepository = mock<SpuSnapshotRepository>()
-            val service =
-                CommodityService(
-                    spuFactory = mock<SpuFactory>(),
-                    spuRepository = mock<SpuRepository>(),
-                    domainEventPublisher = mock<DomainEventPublisher>(),
-                    snapshotFactory = mock<SpuSnapshotFactory>(),
-                    snapshotRepository = snapshotRepository,
-                    goodsStyleRepository = mock<GoodsStyleRepository>(),
-                    goodsStyleFactory = mock<GoodsStyleFactory>(),
-                    brandRepository = mock(),
-                )
-            val snapshot =
-                SpuSnapshot(
-                    id = SpuSnapshotId(9001L),
-                    merchantId = MerchantId(7),
-                    spuId = SpuId(1001L),
-                    snapshotVersion = 3L,
-                    spuName = "Keyboard",
-                    description = "Mechanical keyboard",
-                    brandId = BrandId(81),
-                    brandName = LocalizedText.of("en-US" to "Key Works"),
-                    skuSnapshots =
-                        listOf(
-                            SkuSnapshot(
-                                skuId = SkuId(2001L),
-                                skuName = "Blue Switch",
-                                attributes =
-                                    listOf(Attribute("switch", "blue"), Attribute("layout", "87")),
-                            )
-                        ),
-                    createdAt = LocalDateTime.parse("2026-05-08T10:15:30"),
-                )
-            whenever(snapshotRepository.findLatestBySpuId(argThat { value == 1001L }))
-                .thenReturn(snapshot)
-            whenever(snapshotRepository.findLatestBySpuId(argThat { value == 1002L }))
-                .thenReturn(null)
-
-            val result = service.queryLatestSnapshots(listOf(1001L, 1002L, 1001L))
-
-            result.size shouldBe 1
-            result.first().spuId shouldBe 1001L
-            result.first().snapshotVersion shouldBe 3L
-            result.first().spuName shouldBe "Keyboard"
-            result.first().brandId shouldBe 81L
-            result.first().brandName shouldBe mapOf("en-US" to "Key Works")
-            result
-                .first()
-                .skuSnapshots
-                .shouldContainExactly(
+      test("queryLatestSnapshots maps goods domain snapshot to published API DTO") {
+        val snapshotRepository = mock<SpuSnapshotRepository>()
+        val service =
+            CommodityService(
+                spuFactory = mock<SpuFactory>(),
+                spuRepository = mock<SpuRepository>(),
+                domainEventPublisher = mock<DomainEventPublisher>(),
+                snapshotFactory = mock<SpuSnapshotFactory>(),
+                snapshotRepository = snapshotRepository,
+                goodsStyleRepository = mock<GoodsStyleRepository>(),
+                goodsStyleFactory = mock<GoodsStyleFactory>(),
+                brandRepository = mock(),
+            )
+        val snapshot =
+            SpuSnapshot(
+                id = SpuSnapshotId(9001L),
+                merchantId = MerchantId(7),
+                spuId = SpuId(1001L),
+                snapshotVersion = 3L,
+                spuName = "Keyboard",
+                description = "Mechanical keyboard",
+                brandId = BrandId(81),
+                brandName = LocalizedText.of("en-US" to "Key Works"),
+                skuSnapshots =
                     listOf(
-                        GoodsSkuSnapshotInfo(
-                            skuId = 2001L,
+                        SkuSnapshot(
+                            skuId = SkuId(2001L),
                             skuName = "Blue Switch",
-                            attributes = listOf("switch" to "blue", "layout" to "87"),
+                            attributes =
+                                listOf(Attribute("switch", "blue"), Attribute("layout", "87")),
                         )
+                    ),
+                createdAt = LocalDateTime.parse("2026-05-08T10:15:30"),
+            )
+        whenever(snapshotRepository.findLatestBySpuId(argThat { value == 1001L }))
+            .thenReturn(snapshot)
+        whenever(snapshotRepository.findLatestBySpuId(argThat { value == 1002L })).thenReturn(null)
+
+        val result = service.queryLatestSnapshots(listOf(1001L, 1002L, 1001L))
+
+        result.size shouldBe 1
+        result.first().spuId shouldBe 1001L
+        result.first().snapshotVersion shouldBe 3L
+        result.first().spuName shouldBe "Keyboard"
+        result.first().brandId shouldBe 81L
+        result.first().brandName shouldBe mapOf("en-US" to "Key Works")
+        result
+            .first()
+            .skuSnapshots
+            .shouldContainExactly(
+                listOf(
+                    GoodsSkuSnapshotInfo(
+                        skuId = 2001L,
+                        skuName = "Blue Switch",
+                        attributes = listOf("switch" to "blue", "layout" to "87"),
                     )
                 )
-        }
+            )
+      }
     })

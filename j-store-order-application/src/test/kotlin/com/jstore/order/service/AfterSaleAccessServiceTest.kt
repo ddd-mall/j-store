@@ -31,54 +31,54 @@ import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 
 class AfterSaleAccessServiceTest {
-    private val afterSales = mock(AfterSaleUseCase::class.java)
-    private val aggregate = mock(AfterSale::class.java)
+  private val afterSales = mock(AfterSaleUseCase::class.java)
+  private val aggregate = mock(AfterSale::class.java)
 
-    @Test
-    fun `same numeric buyer in another authentication domain cannot read after sale`() {
-        val id = AfterSaleId(8)
-        val orderId = OrderId(9)
-        `when`(aggregate.orderId).thenReturn(orderId)
-        `when`(afterSales.findById(id)).thenReturn(Success(aggregate))
-        `when`(afterSales.listByOrderForAccess(orderId))
-            .thenReturn(
-                Success(
-                    AfterSaleOrderAccess(
-                        buyerAuthenticationDomain = "issuer-a",
-                        buyerId = 3,
-                        merchantId = MerchantActorId(7),
-                        afterSales = listOf(aggregate),
-                    )
+  @Test
+  fun `same numeric buyer in another authentication domain cannot read after sale`() {
+    val id = AfterSaleId(8)
+    val orderId = OrderId(9)
+    `when`(aggregate.orderId).thenReturn(orderId)
+    `when`(afterSales.findById(id)).thenReturn(Success(aggregate))
+    `when`(afterSales.listByOrderForAccess(orderId))
+        .thenReturn(
+            Success(
+                AfterSaleOrderAccess(
+                    buyerAuthenticationDomain = "issuer-a",
+                    buyerId = 3,
+                    merchantId = MerchantActorId(7),
+                    afterSales = listOf(aggregate),
                 )
             )
-        val authorization = mock(com.jstore.shop.api.MerchantAuthorizationQuery::class.java)
-        val service = AfterSaleAccessService(afterSales, authorization)
+        )
+    val authorization = mock(com.jstore.shop.api.MerchantAuthorizationQuery::class.java)
+    val service = AfterSaleAccessService(afterSales, authorization)
 
-        val result = service.get("issuer-b", accountId = 3, id)
+    val result = service.get("issuer-b", accountId = 3, id)
 
-        assertEquals(AfterSaleErrors.NOT_FOUND, assertIs<Failure<*>>(result).error)
-    }
+    assertEquals(AfterSaleErrors.NOT_FOUND, assertIs<Failure<*>>(result).error)
+  }
 
-    @Test
-    fun `buyer access is scoped by both authentication domain and account id`() {
-        val orderId = OrderId(9)
-        `when`(afterSales.listByOrderForAccess(orderId))
-            .thenReturn(
-                Success(
-                    AfterSaleOrderAccess(
-                        buyerAuthenticationDomain = "issuer-a",
-                        buyerId = 3,
-                        merchantId = MerchantActorId(7),
-                        afterSales = listOf(aggregate),
-                    )
+  @Test
+  fun `buyer access is scoped by both authentication domain and account id`() {
+    val orderId = OrderId(9)
+    `when`(afterSales.listByOrderForAccess(orderId))
+        .thenReturn(
+            Success(
+                AfterSaleOrderAccess(
+                    buyerAuthenticationDomain = "issuer-a",
+                    buyerId = 3,
+                    merchantId = MerchantActorId(7),
+                    afterSales = listOf(aggregate),
                 )
             )
-        val authorization = mock(com.jstore.shop.api.MerchantAuthorizationQuery::class.java)
-        val service = AfterSaleAccessService(afterSales, authorization)
+        )
+    val authorization = mock(com.jstore.shop.api.MerchantAuthorizationQuery::class.java)
+    val service = AfterSaleAccessService(afterSales, authorization)
 
-        val result = service.list("issuer-a", accountId = 3, orderId)
+    val result = service.list("issuer-a", accountId = 3, orderId)
 
-        assertEquals(listOf(aggregate), assertIs<Success<List<AfterSale>>>(result).value)
-        verifyNoInteractions(authorization)
-    }
+    assertEquals(listOf(aggregate), assertIs<Success<List<AfterSale>>>(result).value)
+    verifyNoInteractions(authorization)
+  }
 }

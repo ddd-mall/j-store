@@ -28,32 +28,31 @@ import com.jstore.order.domain.aftersale.command.AfterSaleRejectCMD
 
 /** Validates and normalizes after-sale commands while keeping commands behavior-free. */
 object AfterSaleCommandValidator {
-    fun validate(command: AfterSaleCreateCMD): Result<AfterSaleCreateCMD, BusinessError> {
-        if (!validKey(command.idempotencyKey))
-            return Failure(AfterSaleErrors.IDEMPOTENCY_KEY_INVALID)
-        if (command.items.isEmpty() || command.items.size > 100)
-            return Failure(AfterSaleErrors.ITEMS_EMPTY)
-        if (command.items.map { it.orderItemId }.toSet().size != command.items.size)
-            return Failure(AfterSaleErrors.ITEM_DUPLICATED)
-        if (command.items.any { it.quantity <= 0 }) return Failure(AfterSaleErrors.QUANTITY_INVALID)
-        if (command.items.any { it.amount <= Price.ZERO })
-            return Failure(AfterSaleErrors.AMOUNT_INVALID)
-        return Success(command.copy(idempotencyKey = command.idempotencyKey.trim()))
-    }
+  fun validate(command: AfterSaleCreateCMD): Result<AfterSaleCreateCMD, BusinessError> {
+    if (!validKey(command.idempotencyKey)) return Failure(AfterSaleErrors.IDEMPOTENCY_KEY_INVALID)
+    if (command.items.isEmpty() || command.items.size > 100)
+        return Failure(AfterSaleErrors.ITEMS_EMPTY)
+    if (command.items.map { it.orderItemId }.toSet().size != command.items.size)
+        return Failure(AfterSaleErrors.ITEM_DUPLICATED)
+    if (command.items.any { it.quantity <= 0 }) return Failure(AfterSaleErrors.QUANTITY_INVALID)
+    if (command.items.any { it.amount <= Price.ZERO })
+        return Failure(AfterSaleErrors.AMOUNT_INVALID)
+    return Success(command.copy(idempotencyKey = command.idempotencyKey.trim()))
+  }
 
-    fun validate(command: AfterSaleApproveCMD): Result<AfterSaleApproveCMD, BusinessError> =
-        validateKey(command, command.idempotencyKey)
+  fun validate(command: AfterSaleApproveCMD): Result<AfterSaleApproveCMD, BusinessError> =
+      validateKey(command, command.idempotencyKey)
 
-    fun validate(command: AfterSaleRejectCMD): Result<AfterSaleRejectCMD, BusinessError> =
-        if (command.rejectionReason.trim().length !in 1..500)
-            Failure(AfterSaleErrors.REJECTION_REASON_INVALID)
-        else validateKey(command, command.idempotencyKey)
+  fun validate(command: AfterSaleRejectCMD): Result<AfterSaleRejectCMD, BusinessError> =
+      if (command.rejectionReason.trim().length !in 1..500)
+          Failure(AfterSaleErrors.REJECTION_REASON_INVALID)
+      else validateKey(command, command.idempotencyKey)
 
-    fun validate(command: AfterSaleCancelCMD): Result<AfterSaleCancelCMD, BusinessError> =
-        validateKey(command, command.idempotencyKey)
+  fun validate(command: AfterSaleCancelCMD): Result<AfterSaleCancelCMD, BusinessError> =
+      validateKey(command, command.idempotencyKey)
 
-    private fun <T> validateKey(value: T, key: String): Result<T, BusinessError> =
-        if (validKey(key)) Success(value) else Failure(AfterSaleErrors.IDEMPOTENCY_KEY_INVALID)
+  private fun <T> validateKey(value: T, key: String): Result<T, BusinessError> =
+      if (validKey(key)) Success(value) else Failure(AfterSaleErrors.IDEMPOTENCY_KEY_INVALID)
 
-    private fun validKey(key: String): Boolean = key.trim().length in 1..128
+  private fun validKey(key: String): Boolean = key.trim().length in 1..128
 }

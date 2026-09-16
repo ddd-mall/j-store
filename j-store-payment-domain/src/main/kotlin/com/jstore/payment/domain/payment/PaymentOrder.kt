@@ -29,16 +29,16 @@ data class PaymentOrderId(override val value: Long) : Id<Long>(value)
 data class PaymentRefundId(override val value: Long) : Id<Long>(value)
 
 enum class PaymentOrderStatus {
-    PENDING,
-    CAPTURED,
-    PARTIALLY_REFUNDED,
-    REFUNDED,
+  PENDING,
+  CAPTURED,
+  PARTIALLY_REFUNDED,
+  REFUNDED,
 }
 
 enum class PaymentRefundStatus {
-    PENDING,
-    SUCCEEDED,
-    FAILED,
+  PENDING,
+  SUCCEEDED,
+  FAILED,
 }
 
 data class PaymentCapture(
@@ -53,9 +53,9 @@ data class PaymentRefundItem(
     val quantity: Int,
     val amount: Price,
 ) {
-    init {
-        require(orderItemId > 0 && skuId > 0 && quantity > 0 && amount > Price.ZERO)
-    }
+  init {
+    require(orderItemId > 0 && skuId > 0 && quantity > 0 && amount > Price.ZERO)
+  }
 }
 
 class PaymentRefund(
@@ -69,77 +69,77 @@ class PaymentRefund(
     val requestedAt: Instant,
     completedAt: Instant? = null,
 ) {
-    private var _status: PaymentRefundStatus = status
-    private var _providerRefundId: String? = providerRefundId
-    private var _failureReason: String? = failureReason
-    private var _completedAt: Instant? = completedAt
+  private var _status: PaymentRefundStatus = status
+  private var _providerRefundId: String? = providerRefundId
+  private var _failureReason: String? = failureReason
+  private var _completedAt: Instant? = completedAt
 
-    val status: PaymentRefundStatus
-        get() = _status
+  val status: PaymentRefundStatus
+    get() = _status
 
-    val providerRefundId: String?
-        get() = _providerRefundId
+  val providerRefundId: String?
+    get() = _providerRefundId
 
-    val failureReason: String?
-        get() = _failureReason
+  val failureReason: String?
+    get() = _failureReason
 
-    val completedAt: Instant?
-        get() = _completedAt
+  val completedAt: Instant?
+    get() = _completedAt
 
-    init {
-        require(afterSaleId > 0 && items.isNotEmpty())
-        require(amount == Price.sumOf(items.map { it.amount }))
-    }
+  init {
+    require(afterSaleId > 0 && items.isNotEmpty())
+    require(amount == Price.sumOf(items.map { it.amount }))
+  }
 
-    internal fun markPending() {
-        _status = PaymentRefundStatus.PENDING
-        _failureReason = null
-        _completedAt = null
-    }
+  internal fun markPending() {
+    _status = PaymentRefundStatus.PENDING
+    _failureReason = null
+    _completedAt = null
+  }
 
-    internal fun markSucceeded(providerRefundId: String, completedAt: Instant) {
-        _status = PaymentRefundStatus.SUCCEEDED
-        _providerRefundId = providerRefundId
-        _failureReason = null
-        _completedAt = completedAt
-    }
+  internal fun markSucceeded(providerRefundId: String, completedAt: Instant) {
+    _status = PaymentRefundStatus.SUCCEEDED
+    _providerRefundId = providerRefundId
+    _failureReason = null
+    _completedAt = completedAt
+  }
 
-    internal fun markFailed(reason: String, completedAt: Instant) {
-        _status = PaymentRefundStatus.FAILED
-        _failureReason = reason
-        _completedAt = completedAt
-    }
+  internal fun markFailed(reason: String, completedAt: Instant) {
+    _status = PaymentRefundStatus.FAILED
+    _failureReason = reason
+    _completedAt = completedAt
+  }
 }
 
 interface PaymentOrder : AggregateRoot<PaymentOrderId>, RecordsDomainEvents {
-    val orderId: Long
-    val merchantId: Long
-    val payableAmount: Price
-    val currency: String
-    val status: PaymentOrderStatus
-    val capture: PaymentCapture?
-    val refunds: List<PaymentRefund>
+  val orderId: Long
+  val merchantId: Long
+  val payableAmount: Price
+  val currency: String
+  val status: PaymentOrderStatus
+  val capture: PaymentCapture?
+  val refunds: List<PaymentRefund>
 
-    fun capture(
-        providerTransactionId: String,
-        amount: Price,
-        currency: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError>
+  fun capture(
+      providerTransactionId: String,
+      amount: Price,
+      currency: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError>
 
-    fun requestRefund(refund: PaymentRefund, occurredAt: Instant): Result<Boolean, BusinessError>
+  fun requestRefund(refund: PaymentRefund, occurredAt: Instant): Result<Boolean, BusinessError>
 
-    fun retryRefund(refundId: PaymentRefundId, occurredAt: Instant): Result<Boolean, BusinessError>
+  fun retryRefund(refundId: PaymentRefundId, occurredAt: Instant): Result<Boolean, BusinessError>
 
-    fun markRefundSucceeded(
-        refundId: PaymentRefundId,
-        providerRefundId: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError>
+  fun markRefundSucceeded(
+      refundId: PaymentRefundId,
+      providerRefundId: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError>
 
-    fun markRefundFailed(
-        refundId: PaymentRefundId,
-        reason: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError>
+  fun markRefundFailed(
+      refundId: PaymentRefundId,
+      reason: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError>
 }

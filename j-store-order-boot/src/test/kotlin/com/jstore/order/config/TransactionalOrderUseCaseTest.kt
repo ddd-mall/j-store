@@ -31,40 +31,40 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import org.springframework.transaction.support.TransactionSynchronizationManager
 
 class TransactionalOrderUseCaseTest {
-    @Test
-    fun `outbox failure rolls back business and outbox rows in the same transaction`() {
-        EmbeddedPostgres.start().use { postgres ->
-            val dataSource = postgres.postgresDatabase
-            val jdbc = JdbcTemplate(dataSource)
-            jdbc.execute("create table business_write(id bigint primary key)")
-            jdbc.execute("create table outbox_write(id bigint primary key)")
-            val delegate = mock<InternalOrderCreationUseCase>()
-            doAnswer {
-                    assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
-                    jdbc.update("insert into business_write(id) values (1)")
-                    jdbc.update("insert into outbox_write(id) values (1)")
-                    throw IllegalStateException("outbox serialization failed")
-                }
-                .`when`(delegate)
-                .createOrder(any())
-            val useCase =
-                TransactionalInternalOrderCreationUseCase(
-                    delegate,
-                    DataSourceTransactionManager(dataSource),
-                )
+  @Test
+  fun `outbox failure rolls back business and outbox rows in the same transaction`() {
+    EmbeddedPostgres.start().use { postgres ->
+      val dataSource = postgres.postgresDatabase
+      val jdbc = JdbcTemplate(dataSource)
+      jdbc.execute("create table business_write(id bigint primary key)")
+      jdbc.execute("create table outbox_write(id bigint primary key)")
+      val delegate = mock<InternalOrderCreationUseCase>()
+      doAnswer {
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+            jdbc.update("insert into business_write(id) values (1)")
+            jdbc.update("insert into outbox_write(id) values (1)")
+            throw IllegalStateException("outbox serialization failed")
+          }
+          .`when`(delegate)
+          .createOrder(any())
+      val useCase =
+          TransactionalInternalOrderCreationUseCase(
+              delegate,
+              DataSourceTransactionManager(dataSource),
+          )
 
-            assertFailsWith<IllegalStateException> {
-                useCase.createOrder(mock<CreateOrderFromTradeCommand>())
-            }
+      assertFailsWith<IllegalStateException> {
+        useCase.createOrder(mock<CreateOrderFromTradeCommand>())
+      }
 
-            assertEquals(
-                0,
-                jdbc.queryForObject("select count(*) from business_write", Int::class.java),
-            )
-            assertEquals(
-                0,
-                jdbc.queryForObject("select count(*) from outbox_write", Int::class.java),
-            )
-        }
+      assertEquals(
+          0,
+          jdbc.queryForObject("select count(*) from business_write", Int::class.java),
+      )
+      assertEquals(
+          0,
+          jdbc.queryForObject("select count(*) from outbox_write", Int::class.java),
+      )
     }
+  }
 }

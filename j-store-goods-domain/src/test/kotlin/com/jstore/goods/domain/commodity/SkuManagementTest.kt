@@ -23,77 +23,77 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class SkuManagementTest {
-    @Test
-    fun `draft supports updating and removing a sku`() {
-        val draft = draftSpu(SkuImpl(SkuId(11), "红色", listOf(Attribute("color", "red"))))
-        val replacement =
-            SkuImpl(
-                id = SkuId(11),
-                skuName = "正红色",
-                attributes = listOf(Attribute("color", "crimson")),
-                merchantCode = "RED-01",
-            )
-
-        assertIs<Success<Unit>>(draft.updateSku(replacement))
-        assertEquals("正红色", draft.skus.single().skuName)
-        assertIs<Success<Unit>>(draft.removeSku(SkuId(11)))
-        assertEquals(emptyList(), draft.skus)
-    }
-
-    @Test
-    fun `published product rejects direct sku changes`() {
-        val published =
-            SpuImpl(
-                id = SpuId(1),
-                name = "T恤",
-                _status = CommodityStatus.PUBLISHED,
-                _skus = mutableListOf(SkuImpl(SkuId(11), "红色", emptyList())),
-            )
-
-        assertIs<Failure<*>>(published.addSku(SkuImpl(SkuId(12), "蓝色", emptyList())))
-        assertIs<Failure<*>>(published.removeSku(SkuId(11)))
-    }
-
-    @Test
-    fun `sku codes and barcodes must be unique inside a product`() {
-        val draft =
-            draftSpu(
-                SkuImpl(
-                    SkuId(11),
-                    "红色",
-                    listOf(Attribute("color", "red")),
-                    merchantCode = "TSHIRT-01",
-                    barcode = "690000000001",
-                )
-            )
-
-        assertIs<Failure<*>>(
-            draft.addSku(
-                SkuImpl(
-                    SkuId(12),
-                    "蓝色",
-                    listOf(Attribute("color", "blue")),
-                    merchantCode = "TSHIRT-01",
-                )
-            )
+  @Test
+  fun `draft supports updating and removing a sku`() {
+    val draft = draftSpu(SkuImpl(SkuId(11), "红色", listOf(Attribute("color", "red"))))
+    val replacement =
+        SkuImpl(
+            id = SkuId(11),
+            skuName = "正红色",
+            attributes = listOf(Attribute("color", "crimson")),
+            merchantCode = "RED-01",
         )
-        assertIs<Failure<*>>(
-            draft.addSku(
-                SkuImpl(
-                    SkuId(13),
-                    "绿色",
-                    listOf(Attribute("color", "green")),
-                    barcode = "690000000001",
-                )
-            )
-        )
-    }
 
-    private fun draftSpu(vararg skus: Sku): Spu =
+    assertIs<Success<Unit>>(draft.updateSku(replacement))
+    assertEquals("正红色", draft.skus.single().skuName)
+    assertIs<Success<Unit>>(draft.removeSku(SkuId(11)))
+    assertEquals(emptyList(), draft.skus)
+  }
+
+  @Test
+  fun `published product rejects direct sku changes`() {
+    val published =
         SpuImpl(
             id = SpuId(1),
             name = "T恤",
-            _status = CommodityStatus.DRAFT,
-            _skus = skus.toMutableList(),
+            _status = CommodityStatus.PUBLISHED,
+            _skus = mutableListOf(SkuImpl(SkuId(11), "红色", emptyList())),
         )
+
+    assertIs<Failure<*>>(published.addSku(SkuImpl(SkuId(12), "蓝色", emptyList())))
+    assertIs<Failure<*>>(published.removeSku(SkuId(11)))
+  }
+
+  @Test
+  fun `sku codes and barcodes must be unique inside a product`() {
+    val draft =
+        draftSpu(
+            SkuImpl(
+                SkuId(11),
+                "红色",
+                listOf(Attribute("color", "red")),
+                merchantCode = "TSHIRT-01",
+                barcode = "690000000001",
+            )
+        )
+
+    assertIs<Failure<*>>(
+        draft.addSku(
+            SkuImpl(
+                SkuId(12),
+                "蓝色",
+                listOf(Attribute("color", "blue")),
+                merchantCode = "TSHIRT-01",
+            )
+        )
+    )
+    assertIs<Failure<*>>(
+        draft.addSku(
+            SkuImpl(
+                SkuId(13),
+                "绿色",
+                listOf(Attribute("color", "green")),
+                barcode = "690000000001",
+            )
+        )
+    )
+  }
+
+  private fun draftSpu(vararg skus: Sku): Spu =
+      SpuImpl(
+          id = SpuId(1),
+          name = "T恤",
+          _status = CommodityStatus.DRAFT,
+          _skus = skus.toMutableList(),
+      )
 }

@@ -20,8 +20,8 @@ import com.jstore.common.framework.AggregateRepository
 import com.jstore.goods.domain.commodity.MerchantId
 
 interface BrandRepository : AggregateRepository<BrandId, Brand> {
-    fun findByMerchantIdAndNormalizedName(
-        merchantId: MerchantId,
-        normalizedName: String,
-    ): Brand?
+  fun findByMerchantIdAndNormalizedName(
+      merchantId: MerchantId,
+      normalizedName: String,
+  ): Brand?
 }

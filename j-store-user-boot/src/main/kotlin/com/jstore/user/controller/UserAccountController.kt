@@ -36,180 +36,178 @@ import org.springframework.web.bind.annotation.*
 @RequireLogin
 class UserAccountController(private val userAccountService: UserAccountUseCase) {
 
-    // ---- Request DTOs ----
+  // ---- Request DTOs ----
 
-    data class RegisterRequest(
-        val phoneNumber: String,
-        val nickname: String,
-        val password: String,
-        val challengeId: String,
-        val verificationCode: String,
-    )
+  data class RegisterRequest(
+      val phoneNumber: String,
+      val nickname: String,
+      val password: String,
+      val challengeId: String,
+      val verificationCode: String,
+  )
 
-    data class PhoneVerificationRequest(val phoneNumber: String)
+  data class PhoneVerificationRequest(val phoneNumber: String)
 
-    data class LoginRequest(
-        val phoneNumber: String,
-        val password: String,
-    )
+  data class LoginRequest(
+      val phoneNumber: String,
+      val password: String,
+  )
 
-    data class RefreshTokenRequest(val refreshToken: String)
+  data class RefreshTokenRequest(val refreshToken: String)
 
-    data class ChangeNicknameRequest(val nickname: String)
+  data class ChangeNicknameRequest(val nickname: String)
 
-    data class ChangePasswordRequest(
-        val oldPassword: String,
-        val newPassword: String,
-    )
+  data class ChangePasswordRequest(
+      val oldPassword: String,
+      val newPassword: String,
+  )
 
-    // ---- Response DTOs ----
+  // ---- Response DTOs ----
 
-    data class UserResponse(
-        val id: Long,
-        val phoneNumber: String,
-        val nickname: String,
-        val status: String,
-        val createTime: LocalDateTime,
-        val updateTime: LocalDateTime,
-    )
+  data class UserResponse(
+      val id: Long,
+      val phoneNumber: String,
+      val nickname: String,
+      val status: String,
+      val createTime: LocalDateTime,
+      val updateTime: LocalDateTime,
+  )
 
-    data class TokenResponse(
-        val accessToken: String,
-        val accessTokenExpiresAt: LocalDateTime,
-        val refreshToken: String,
-        val refreshTokenExpiresAt: LocalDateTime,
-    )
+  data class TokenResponse(
+      val accessToken: String,
+      val accessTokenExpiresAt: LocalDateTime,
+      val refreshToken: String,
+      val refreshTokenExpiresAt: LocalDateTime,
+  )
 
-    data class ErrorResponse(
-        val message: String,
-        val errorCode: String,
-    )
+  data class ErrorResponse(
+      val message: String,
+      val errorCode: String,
+  )
 
-    // ---- Endpoints ----
+  // ---- Endpoints ----
 
-    @SkipLogin
-    @PostMapping("/phone-verifications")
-    fun requestPhoneVerification(
-        @RequestBody request: PhoneVerificationRequest
-    ): ResponseEntity<*> =
-        userAccountService.requestPhoneVerification(PhoneNumber(request.phoneNumber)).toResponse {
-            it
-        }
+  @SkipLogin
+  @PostMapping("/phone-verifications")
+  fun requestPhoneVerification(@RequestBody request: PhoneVerificationRequest): ResponseEntity<*> =
+      userAccountService.requestPhoneVerification(PhoneNumber(request.phoneNumber)).toResponse {
+        it
+      }
 
-    @SkipLogin
-    @PostMapping("/register")
-    fun register(@RequestBody request: RegisterRequest): ResponseEntity<*> {
-        val cmd =
-            UserRegisterCMD(
-                phoneNumber = PhoneNumber(request.phoneNumber),
-                nickname = request.nickname,
-                rawPassword = request.password,
-            )
-        val proof = PhoneVerificationProof(request.challengeId, request.verificationCode)
-        return userAccountService.register(cmd, proof).toResponse { account ->
-            UserResponse(
-                id = account.id.value,
-                phoneNumber = account.phoneNumber.value,
-                nickname = account.nickname.value,
-                status = account.status.name,
-                createTime = account.createTime,
-                updateTime = account.updateTime,
-            )
-        }
-    }
-
-    @SkipLogin
-    @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest): ResponseEntity<*> {
-        return userAccountService
-            .login(
-                phoneNumber = PhoneNumber(request.phoneNumber),
-                rawPassword = request.password,
-            )
-            .toResponse { tokenPair ->
-                TokenResponse(
-                    accessToken = tokenPair.accessToken,
-                    accessTokenExpiresAt = tokenPair.accessTokenExpiresAt,
-                    refreshToken = tokenPair.refreshToken,
-                    refreshTokenExpiresAt = tokenPair.refreshTokenExpiresAt,
-                )
-            }
-    }
-
-    @SkipLogin
-    @PostMapping("/refresh-token")
-    fun refreshToken(@RequestBody request: RefreshTokenRequest): ResponseEntity<*> {
-        return userAccountService.refreshToken(request.refreshToken).toResponse { tokenPair ->
-            TokenResponse(
-                accessToken = tokenPair.accessToken,
-                accessTokenExpiresAt = tokenPair.accessTokenExpiresAt,
-                refreshToken = tokenPair.refreshToken,
-                refreshTokenExpiresAt = tokenPair.refreshTokenExpiresAt,
-            )
-        }
-    }
-
-    @GetMapping("/me")
-    fun findMe(@CurrentPrincipal principal: AuthenticatedPrincipal): ResponseEntity<*> {
-        return userAccountService.findById(principal.userId()).toResponse { account ->
-            UserResponse(
-                id = account.id.value,
-                phoneNumber = account.phoneNumber.value,
-                nickname = account.nickname.value,
-                status = account.status.name,
-                createTime = account.createTime,
-                updateTime = account.updateTime,
-            )
-        }
-    }
-
-    @PutMapping("/me/nickname")
-    fun changeNickname(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @RequestBody request: ChangeNicknameRequest,
-    ): ResponseEntity<*> {
-        return userAccountService
-            .changeNickname(
-                userId = principal.userId(),
-                newNickname = Nickname(request.nickname),
-            )
-            .toResponse {}
-    }
-
-    @PutMapping("/me/password")
-    fun changePassword(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @RequestBody request: ChangePasswordRequest,
-    ): ResponseEntity<*> {
-        return userAccountService
-            .changePassword(
-                userId = principal.userId(),
-                oldPassword = request.oldPassword,
-                newPassword = request.newPassword,
-            )
-            .toResponse {}
-    }
-
-    @PostMapping("/me/logout")
-    fun logout(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @RequestHeader("Authorization") authorization: String,
-    ): ResponseEntity<*> =
-        userAccountService
-            .logout(principal.userId(), authorization.removePrefix("Bearer "))
-            .toResponse {}
-
-    // ---- Helper ----
-
-    private fun AuthenticatedPrincipal.userId() = UserId(accountId.value)
-
-    private fun <T> Result<T, BusinessError>.toResponse(mapper: (T) -> Any): ResponseEntity<*> {
-        return fold(
-            onSuccess = { ResponseEntity.ok(mapper(it)) },
-            onFailure = { error ->
-                ResponseEntity.status(error.httpCode)
-                    .body(ErrorResponse(message = error.message, errorCode = error.errorCode))
-            },
+  @SkipLogin
+  @PostMapping("/register")
+  fun register(@RequestBody request: RegisterRequest): ResponseEntity<*> {
+    val cmd =
+        UserRegisterCMD(
+            phoneNumber = PhoneNumber(request.phoneNumber),
+            nickname = request.nickname,
+            rawPassword = request.password,
         )
+    val proof = PhoneVerificationProof(request.challengeId, request.verificationCode)
+    return userAccountService.register(cmd, proof).toResponse { account ->
+      UserResponse(
+          id = account.id.value,
+          phoneNumber = account.phoneNumber.value,
+          nickname = account.nickname.value,
+          status = account.status.name,
+          createTime = account.createTime,
+          updateTime = account.updateTime,
+      )
     }
+  }
+
+  @SkipLogin
+  @PostMapping("/login")
+  fun login(@RequestBody request: LoginRequest): ResponseEntity<*> {
+    return userAccountService
+        .login(
+            phoneNumber = PhoneNumber(request.phoneNumber),
+            rawPassword = request.password,
+        )
+        .toResponse { tokenPair ->
+          TokenResponse(
+              accessToken = tokenPair.accessToken,
+              accessTokenExpiresAt = tokenPair.accessTokenExpiresAt,
+              refreshToken = tokenPair.refreshToken,
+              refreshTokenExpiresAt = tokenPair.refreshTokenExpiresAt,
+          )
+        }
+  }
+
+  @SkipLogin
+  @PostMapping("/refresh-token")
+  fun refreshToken(@RequestBody request: RefreshTokenRequest): ResponseEntity<*> {
+    return userAccountService.refreshToken(request.refreshToken).toResponse { tokenPair ->
+      TokenResponse(
+          accessToken = tokenPair.accessToken,
+          accessTokenExpiresAt = tokenPair.accessTokenExpiresAt,
+          refreshToken = tokenPair.refreshToken,
+          refreshTokenExpiresAt = tokenPair.refreshTokenExpiresAt,
+      )
+    }
+  }
+
+  @GetMapping("/me")
+  fun findMe(@CurrentPrincipal principal: AuthenticatedPrincipal): ResponseEntity<*> {
+    return userAccountService.findById(principal.userId()).toResponse { account ->
+      UserResponse(
+          id = account.id.value,
+          phoneNumber = account.phoneNumber.value,
+          nickname = account.nickname.value,
+          status = account.status.name,
+          createTime = account.createTime,
+          updateTime = account.updateTime,
+      )
+    }
+  }
+
+  @PutMapping("/me/nickname")
+  fun changeNickname(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @RequestBody request: ChangeNicknameRequest,
+  ): ResponseEntity<*> {
+    return userAccountService
+        .changeNickname(
+            userId = principal.userId(),
+            newNickname = Nickname(request.nickname),
+        )
+        .toResponse {}
+  }
+
+  @PutMapping("/me/password")
+  fun changePassword(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @RequestBody request: ChangePasswordRequest,
+  ): ResponseEntity<*> {
+    return userAccountService
+        .changePassword(
+            userId = principal.userId(),
+            oldPassword = request.oldPassword,
+            newPassword = request.newPassword,
+        )
+        .toResponse {}
+  }
+
+  @PostMapping("/me/logout")
+  fun logout(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @RequestHeader("Authorization") authorization: String,
+  ): ResponseEntity<*> =
+      userAccountService
+          .logout(principal.userId(), authorization.removePrefix("Bearer "))
+          .toResponse {}
+
+  // ---- Helper ----
+
+  private fun AuthenticatedPrincipal.userId() = UserId(accountId.value)
+
+  private fun <T> Result<T, BusinessError>.toResponse(mapper: (T) -> Any): ResponseEntity<*> {
+    return fold(
+        onSuccess = { ResponseEntity.ok(mapper(it)) },
+        onFailure = { error ->
+          ResponseEntity.status(error.httpCode)
+              .body(ErrorResponse(message = error.message, errorCode = error.errorCode))
+        },
+    )
+  }
 }

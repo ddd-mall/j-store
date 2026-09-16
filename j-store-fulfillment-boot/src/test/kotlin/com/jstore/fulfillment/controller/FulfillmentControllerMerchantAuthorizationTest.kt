@@ -33,24 +33,24 @@ import org.mockito.Mockito.`when`
 import org.springframework.http.HttpStatus
 
 class FulfillmentControllerMerchantAuthorizationTest {
-    @Test
-    fun `order manager can access fulfillment while numerically equal non-member cannot`() {
-        val service = mock(MerchantFulfillmentUseCase::class.java)
-        val order =
-            FulfillmentOrderImpl(
-                FulfillmentOrderId(1),
-                orderId = 9,
-                merchantId = 70,
-                recipient = ShippingRecipient("张三", null, null, "CN", "310000", null),
-                items = listOf(FulfillmentItem(1, 2, 1)),
-            )
-        `when`(service.get(900, 9)).thenReturn(Success(order))
-        `when`(service.get(70, 9)).thenReturn(Failure(FulfillmentErrors.NOT_FOUND))
-        val controller = FulfillmentController(service)
+  @Test
+  fun `order manager can access fulfillment while numerically equal non-member cannot`() {
+    val service = mock(MerchantFulfillmentUseCase::class.java)
+    val order =
+        FulfillmentOrderImpl(
+            FulfillmentOrderId(1),
+            orderId = 9,
+            merchantId = 70,
+            recipient = ShippingRecipient("张三", null, null, "CN", "310000", null),
+            items = listOf(FulfillmentItem(1, 2, 1)),
+        )
+    `when`(service.get(900, 9)).thenReturn(Success(order))
+    `when`(service.get(70, 9)).thenReturn(Failure(FulfillmentErrors.NOT_FOUND))
+    val controller = FulfillmentController(service)
 
-        assertEquals(HttpStatus.OK, controller.get(principal(900), 9).statusCode)
-        assertEquals(HttpStatus.NOT_FOUND, controller.get(principal(70), 9).statusCode)
-    }
+    assertEquals(HttpStatus.OK, controller.get(principal(900), 9).statusCode)
+    assertEquals(HttpStatus.NOT_FOUND, controller.get(principal(70), 9).statusCode)
+  }
 }
 
 private fun principal(accountId: Long) =

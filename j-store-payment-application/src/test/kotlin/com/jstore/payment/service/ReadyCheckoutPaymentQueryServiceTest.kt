@@ -27,46 +27,46 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class ReadyCheckoutPaymentQueryServiceTest {
-    private val acceptedAt = Instant.parse("2029-01-01T00:00:00Z")
+  private val acceptedAt = Instant.parse("2029-01-01T00:00:00Z")
 
-    @Test
-    fun `only an unexpired ready action is exposed`() {
-        val payment =
-            TradePayment.prepare(
-                    TradePaymentId(8001),
-                    9001,
-                    9901,
-                    "FULL",
-                    Price.ofFen(1000),
-                    "CNY",
-                    listOf(PaymentAllocationSnapshot(9101, 7001, 7, Price.ofFen(1000))),
-                    acceptedAt,
-                )
-                .also {
-                    it.markReady(
-                        "provider-1",
-                        "opaque-payment-action",
-                        acceptedAt,
-                        acceptedAt.plusSeconds(600),
-                        acceptedAt.plusSeconds(300),
-                    )
-                }
-        val repository = SinglePaymentRepository(payment)
+  @Test
+  fun `only an unexpired ready action is exposed`() {
+    val payment =
+        TradePayment.prepare(
+                TradePaymentId(8001),
+                9001,
+                9901,
+                "FULL",
+                Price.ofFen(1000),
+                "CNY",
+                listOf(PaymentAllocationSnapshot(9101, 7001, 7, Price.ofFen(1000))),
+                acceptedAt,
+            )
+            .also {
+              it.markReady(
+                  "provider-1",
+                  "opaque-payment-action",
+                  acceptedAt,
+                  acceptedAt.plusSeconds(600),
+                  acceptedAt.plusSeconds(300),
+              )
+            }
+    val repository = SinglePaymentRepository(payment)
 
-        assertNotNull(ReadyCheckoutPaymentQueryService(repository) { acceptedAt }.find(8001))
-        assertNull(
-            ReadyCheckoutPaymentQueryService(repository) { acceptedAt.plusSeconds(300) }.find(8001)
-        )
-    }
+    assertNotNull(ReadyCheckoutPaymentQueryService(repository) { acceptedAt }.find(8001))
+    assertNull(
+        ReadyCheckoutPaymentQueryService(repository) { acceptedAt.plusSeconds(300) }.find(8001)
+    )
+  }
 }
 
 private class SinglePaymentRepository(private var payment: TradePayment?) : TradePaymentRepository {
-    override fun save(aggregate: TradePayment): TradePayment = aggregate.also { payment = it }
+  override fun save(aggregate: TradePayment): TradePayment = aggregate.also { payment = it }
 
-    override fun findById(id: TradePaymentId): TradePayment? = payment?.takeIf { it.id == id }
+  override fun findById(id: TradePaymentId): TradePayment? = payment?.takeIf { it.id == id }
 
-    override fun findByInstallment(settlementPlanId: Long, installmentId: String): TradePayment? =
-        payment?.takeIf {
-            it.settlementPlanId == settlementPlanId && it.installmentId == installmentId
-        }
+  override fun findByInstallment(settlementPlanId: Long, installmentId: String): TradePayment? =
+      payment?.takeIf {
+        it.settlementPlanId == settlementPlanId && it.installmentId == installmentId
+      }
 }

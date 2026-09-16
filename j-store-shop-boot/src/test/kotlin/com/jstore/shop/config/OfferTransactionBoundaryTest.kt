@@ -34,50 +34,49 @@ import org.springframework.transaction.support.DefaultTransactionStatus
 import org.springframework.transaction.support.TransactionSynchronizationManager
 
 class OfferTransactionBoundaryTest {
-    @Test
-    fun `authorize handler publishes its outcome inside a transaction`() {
-        val transactionManager = RecordingTransactionManager()
-        val publisher =
-            object : DomainEventPublisher {
-                override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
-                    assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
-                }
-            }
-        val authorizations =
-            object : SaleAuthorizationRepository {
-                override fun save(aggregate: SaleAuthorization) = aggregate
-
-                override fun findById(id: SaleAuthorizationId): SaleAuthorization? = null
-
-                override fun findByOrderPlanId(orderPlanId: Long): List<SaleAuthorization> =
-                    emptyList()
-            }
-        val service =
-            OfferAuthorizationService(
-                StoreGuard { emptyList() },
-                SalesOfferGuard { emptyList() },
-                authorizations,
-                publisher,
-            )
-        val handler =
-            OfferBootConfiguration().authorizeSaleHandler(service, publisher, transactionManager)
-
-        handler.handle(AuthorizeSaleCommand(1, 11, 2, emptyList(), "source", Instant.EPOCH))
-
-        assertEquals(1, transactionManager.commits)
-    }
-
-    private class RecordingTransactionManager : AbstractPlatformTransactionManager() {
-        var commits = 0
-
-        override fun doGetTransaction() = Any()
-
-        override fun doBegin(transaction: Any, definition: TransactionDefinition) = Unit
-
-        override fun doCommit(status: DefaultTransactionStatus) {
-            commits++
+  @Test
+  fun `authorize handler publishes its outcome inside a transaction`() {
+    val transactionManager = RecordingTransactionManager()
+    val publisher =
+        object : DomainEventPublisher {
+          override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+          }
         }
+    val authorizations =
+        object : SaleAuthorizationRepository {
+          override fun save(aggregate: SaleAuthorization) = aggregate
 
-        override fun doRollback(status: DefaultTransactionStatus) = Unit
+          override fun findById(id: SaleAuthorizationId): SaleAuthorization? = null
+
+          override fun findByOrderPlanId(orderPlanId: Long): List<SaleAuthorization> = emptyList()
+        }
+    val service =
+        OfferAuthorizationService(
+            StoreGuard { emptyList() },
+            SalesOfferGuard { emptyList() },
+            authorizations,
+            publisher,
+        )
+    val handler =
+        OfferBootConfiguration().authorizeSaleHandler(service, publisher, transactionManager)
+
+    handler.handle(AuthorizeSaleCommand(1, 11, 2, emptyList(), "source", Instant.EPOCH))
+
+    assertEquals(1, transactionManager.commits)
+  }
+
+  private class RecordingTransactionManager : AbstractPlatformTransactionManager() {
+    var commits = 0
+
+    override fun doGetTransaction() = Any()
+
+    override fun doBegin(transaction: Any, definition: TransactionDefinition) = Unit
+
+    override fun doCommit(status: DefaultTransactionStatus) {
+      commits++
     }
+
+    override fun doRollback(status: DefaultTransactionStatus) = Unit
+  }
 }

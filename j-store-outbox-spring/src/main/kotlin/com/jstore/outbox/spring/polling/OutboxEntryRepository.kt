@@ -25,39 +25,39 @@ import java.time.Instant
  */
 interface OutboxEntryRepository {
 
-    fun save(entry: OutboxEntry): OutboxEntry
+  fun save(entry: OutboxEntry): OutboxEntry
 
-    /** Saves an ordered entry batch as one logical repository operation. */
-    fun saveAll(entries: List<OutboxEntry>): List<OutboxEntry> = entries.map(::save)
+  /** Saves an ordered entry batch as one logical repository operation. */
+  fun saveAll(entries: List<OutboxEntry>): List<OutboxEntry> = entries.map(::save)
 
-    fun claimPendingAndRetryable(
-        maxRetryCount: Int,
-        batchSize: Int,
-        lockedBy: String,
-        lockedUntil: Instant,
-    ): List<OutboxEntry>
+  fun claimPendingAndRetryable(
+      maxRetryCount: Int,
+      batchSize: Int,
+      lockedBy: String,
+      lockedUntil: Instant,
+  ): List<OutboxEntry>
 
-    fun renewLease(id: String, lockedBy: String, lockToken: Long, lockedUntil: Instant): Boolean
+  fun renewLease(id: String, lockedBy: String, lockToken: Long, lockedUntil: Instant): Boolean
 
-    fun markPublished(entry: OutboxEntry, lockedBy: String): Boolean
+  fun markPublished(entry: OutboxEntry, lockedBy: String): Boolean
 
-    fun markFailed(entry: OutboxEntry, lockedBy: String): Boolean
+  fun markFailed(entry: OutboxEntry, lockedBy: String): Boolean
 
-    fun findDeadLetters(batchSize: Int): List<OutboxEntry>
+  fun findDeadLetters(batchSize: Int): List<OutboxEntry>
 
-    fun countByStatus(status: OutboxEntryStatus): Long
+  fun countByStatus(status: OutboxEntryStatus): Long
 
-    fun countByStatus(status: OutboxEntryStatus, transportId: String): Long
+  fun countByStatus(status: OutboxEntryStatus, transportId: String): Long
 
-    fun findOldestReadyAt(now: Instant, maxRetryCount: Int): Instant?
+  fun findOldestReadyAt(now: Instant, maxRetryCount: Int): Instant?
 
-    fun findOldestReadyAt(now: Instant, maxRetryCount: Int, transportId: String): Instant?
+  fun findOldestReadyAt(now: Instant, maxRetryCount: Int, transportId: String): Instant?
 
-    fun countExpiredLocks(now: Instant): Long
+  fun countExpiredLocks(now: Instant): Long
 
-    fun countExpiredLocks(now: Instant, transportId: String): Long
+  fun countExpiredLocks(now: Instant, transportId: String): Long
 
-    fun findTransportIds(): Set<String>
+  fun findTransportIds(): Set<String>
 
-    fun deletePublishedBefore(before: Instant, batchSize: Int): Int
+  fun deletePublishedBefore(before: Instant, batchSize: Int): Int
 }

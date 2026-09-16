@@ -17,7 +17,7 @@
 package com.jstore.goods.api
 
 interface GoodsSnapshotQueryService {
-    fun queryLatestSnapshots(spuIds: List<Long>): List<GoodsSnapshotInfo>
+  fun queryLatestSnapshots(spuIds: List<Long>): List<GoodsSnapshotInfo>
 }
 
 data class CurrentGoodsSkuInfo(
@@ -31,7 +31,7 @@ data class CurrentGoodsSkuInfo(
 )
 
 fun interface CurrentGoodsSkuQueryService {
-    fun querySkus(skuIds: List<Long>): List<CurrentGoodsSkuInfo>
+  fun querySkus(skuIds: List<Long>): List<CurrentGoodsSkuInfo>
 }
 
 data class GoodsSnapshotInfo(

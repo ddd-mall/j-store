@@ -24,32 +24,32 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner
 
 class ObservabilityWebAutoConfigurationTest {
-    @Test
-    fun `servlet application receives correlation filter without component scanning`() {
-        WebApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
-            .run { context ->
-                assertThat(context).hasSingleBean(CorrelationIdFilter::class.java)
-            }
-    }
+  @Test
+  fun `servlet application receives correlation filter without component scanning`() {
+    WebApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
+        .run { context ->
+          assertThat(context).hasSingleBean(CorrelationIdFilter::class.java)
+        }
+  }
 
-    @Test
-    fun `non servlet application does not receive servlet correlation filter`() {
-        ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
-            .run { context ->
-                assertThat(context).doesNotHaveBean(CorrelationIdFilter::class.java)
-            }
-    }
+  @Test
+  fun `non servlet application does not receive servlet correlation filter`() {
+    ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
+        .run { context ->
+          assertThat(context).doesNotHaveBean(CorrelationIdFilter::class.java)
+        }
+  }
 
-    @Test
-    fun `runtime without servlet web API can still load common observability`() {
-        ApplicationContextRunner()
-            .withClassLoader(FilteredClassLoader("org.springframework.web", "jakarta.servlet"))
-            .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
-            .run { context ->
-                assertThat(context).hasNotFailed()
-                assertThat(context).doesNotHaveBean(CorrelationIdFilter::class.java)
-            }
-    }
+  @Test
+  fun `runtime without servlet web API can still load common observability`() {
+    ApplicationContextRunner()
+        .withClassLoader(FilteredClassLoader("org.springframework.web", "jakarta.servlet"))
+        .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
+        .run { context ->
+          assertThat(context).hasNotFailed()
+          assertThat(context).doesNotHaveBean(CorrelationIdFilter::class.java)
+        }
+  }
 }

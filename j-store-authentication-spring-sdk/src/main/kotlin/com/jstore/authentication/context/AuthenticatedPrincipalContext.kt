@@ -19,18 +19,18 @@ package com.jstore.authentication.context
 import com.jstore.authentication.principal.AuthenticatedPrincipal
 
 object AuthenticatedPrincipalContext {
-    private val holder: ThreadLocal<AuthenticatedPrincipal> = ThreadLocal()
+  private val holder: ThreadLocal<AuthenticatedPrincipal> = ThreadLocal()
 
-    fun set(principal: AuthenticatedPrincipal) {
-        holder.set(principal)
-    }
+  fun set(principal: AuthenticatedPrincipal) {
+    holder.set(principal)
+  }
 
-    fun getCurrent(): AuthenticatedPrincipal =
-        holder.get() ?: throw AuthenticationException("当前上下文中无已认证主体")
+  fun getCurrent(): AuthenticatedPrincipal =
+      holder.get() ?: throw AuthenticationException("当前上下文中无已认证主体")
 
-    fun getCurrentOrNull(): AuthenticatedPrincipal? = holder.get()
+  fun getCurrentOrNull(): AuthenticatedPrincipal? = holder.get()
 
-    fun clear() {
-        holder.remove()
-    }
+  fun clear() {
+    holder.remove()
+  }
 }

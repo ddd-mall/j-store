@@ -33,29 +33,29 @@ import io.kotest.property.checkAll
  */
 class NicknamePropertyTest :
     FunSpec({
-        test("blank strings should be rejected by Nickname constructor") {
-            val blankStrings = Arb.string(0..20).filter { it.isBlank() }
-            checkAll(100, blankStrings) { blank ->
-                shouldThrow<IllegalArgumentException> {
-                    Nickname(blank)
-                }
-            }
+      test("blank strings should be rejected by Nickname constructor") {
+        val blankStrings = Arb.string(0..20).filter { it.isBlank() }
+        checkAll(100, blankStrings) { blank ->
+          shouldThrow<IllegalArgumentException> {
+            Nickname(blank)
+          }
         }
+      }
 
-        test("strings longer than 20 characters should be rejected by Nickname constructor") {
-            val longStrings = Arb.string(21..100).filter { it.isNotBlank() }
-            checkAll(100, longStrings) { long ->
-                shouldThrow<IllegalArgumentException> {
-                    Nickname(long)
-                }
-            }
+      test("strings longer than 20 characters should be rejected by Nickname constructor") {
+        val longStrings = Arb.string(21..100).filter { it.isNotBlank() }
+        checkAll(100, longStrings) { long ->
+          shouldThrow<IllegalArgumentException> {
+            Nickname(long)
+          }
         }
+      }
 
-        test("non-blank strings with length <= 20 should construct Nickname successfully") {
-            val validStrings = Arb.string(1..20).filter { it.isNotBlank() }
-            checkAll(100, validStrings) { valid ->
-                val nickname = Nickname(valid)
-                assert(nickname.value == valid)
-            }
+      test("non-blank strings with length <= 20 should construct Nickname successfully") {
+        val validStrings = Arb.string(1..20).filter { it.isNotBlank() }
+        checkAll(100, validStrings) { valid ->
+          val nickname = Nickname(valid)
+          assert(nickname.value == valid)
         }
+      }
     })

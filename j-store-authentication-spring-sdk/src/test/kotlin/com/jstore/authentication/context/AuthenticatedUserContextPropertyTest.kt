@@ -35,62 +35,61 @@ import java.util.concurrent.CountDownLatch
 class AuthenticatedUserContextPropertyTest :
     FunSpec({
 
-        // **Validates: Requirements 5.1, 5.3, 5.5**
-        test(
-            "set → getCurrentUserId → getCurrentUserIdOrNull → clear → getCurrentUserIdOrNull round-trip"
-        ) {
-            val userIdArb = Arb.long(min = 1L).map { AuthenticatedAccountId(it) }
+      // **Validates: Requirements 5.1, 5.3, 5.5**
+      test(
+          "set → getCurrentUserId → getCurrentUserIdOrNull → clear → getCurrentUserIdOrNull round-trip"
+      ) {
+        val userIdArb = Arb.long(min = 1L).map { AuthenticatedAccountId(it) }
 
-            checkAll(PropTestConfig(iterations = 100), userIdArb) { userId ->
-                try {
-                    val principal = AuthenticatedPrincipal("issuer-a", userId)
-                    AuthenticatedPrincipalContext.set(principal)
-                    AuthenticatedPrincipalContext.getCurrent() shouldBe principal
-                    AuthenticatedPrincipalContext.getCurrentOrNull() shouldBe principal
-                    AuthenticatedPrincipalContext.clear()
-                    AuthenticatedPrincipalContext.getCurrentOrNull().shouldBeNull()
-                } finally {
-                    AuthenticatedPrincipalContext.clear()
-                }
-            }
+        checkAll(PropTestConfig(iterations = 100), userIdArb) { userId ->
+          try {
+            val principal = AuthenticatedPrincipal("issuer-a", userId)
+            AuthenticatedPrincipalContext.set(principal)
+            AuthenticatedPrincipalContext.getCurrent() shouldBe principal
+            AuthenticatedPrincipalContext.getCurrentOrNull() shouldBe principal
+            AuthenticatedPrincipalContext.clear()
+            AuthenticatedPrincipalContext.getCurrentOrNull().shouldBeNull()
+          } finally {
+            AuthenticatedPrincipalContext.clear()
+          }
         }
+      }
 
-        // Feature: authentication-sdk, Property 5: AuthenticatedUserContext 线程隔离
-        // **Validates: Requirements 5.2**
-        test("thread isolation — each thread sees only its own UserId") {
-            val userIdPairArb = Arb.long(min = 1L).map { AuthenticatedAccountId(it) }
+      // Feature: authentication-sdk, Property 5: AuthenticatedUserContext 线程隔离
+      // **Validates: Requirements 5.2**
+      test("thread isolation — each thread sees only its own UserId") {
+        val userIdPairArb = Arb.long(min = 1L).map { AuthenticatedAccountId(it) }
 
-            checkAll(PropTestConfig(iterations = 100), userIdPairArb, userIdPairArb) {
-                userIdA,
-                userIdB ->
-                val barrier = CountDownLatch(2)
+        checkAll(PropTestConfig(iterations = 100), userIdPairArb, userIdPairArb) { userIdA, userIdB
+          ->
+          val barrier = CountDownLatch(2)
 
-                val futureA = CompletableFuture.supplyAsync {
-                    try {
-                        val principal = AuthenticatedPrincipal("issuer-a", userIdA)
-                        AuthenticatedPrincipalContext.set(principal)
-                        barrier.countDown()
-                        barrier.await()
-                        AuthenticatedPrincipalContext.getCurrent()
-                    } finally {
-                        AuthenticatedPrincipalContext.clear()
-                    }
-                }
-
-                val futureB = CompletableFuture.supplyAsync {
-                    try {
-                        val principal = AuthenticatedPrincipal("issuer-b", userIdB)
-                        AuthenticatedPrincipalContext.set(principal)
-                        barrier.countDown()
-                        barrier.await()
-                        AuthenticatedPrincipalContext.getCurrent()
-                    } finally {
-                        AuthenticatedPrincipalContext.clear()
-                    }
-                }
-
-                futureA.get() shouldBe AuthenticatedPrincipal("issuer-a", userIdA)
-                futureB.get() shouldBe AuthenticatedPrincipal("issuer-b", userIdB)
+          val futureA = CompletableFuture.supplyAsync {
+            try {
+              val principal = AuthenticatedPrincipal("issuer-a", userIdA)
+              AuthenticatedPrincipalContext.set(principal)
+              barrier.countDown()
+              barrier.await()
+              AuthenticatedPrincipalContext.getCurrent()
+            } finally {
+              AuthenticatedPrincipalContext.clear()
             }
+          }
+
+          val futureB = CompletableFuture.supplyAsync {
+            try {
+              val principal = AuthenticatedPrincipal("issuer-b", userIdB)
+              AuthenticatedPrincipalContext.set(principal)
+              barrier.countDown()
+              barrier.await()
+              AuthenticatedPrincipalContext.getCurrent()
+            } finally {
+              AuthenticatedPrincipalContext.clear()
+            }
+          }
+
+          futureA.get() shouldBe AuthenticatedPrincipal("issuer-a", userIdA)
+          futureB.get() shouldBe AuthenticatedPrincipal("issuer-b", userIdB)
         }
+      }
     })

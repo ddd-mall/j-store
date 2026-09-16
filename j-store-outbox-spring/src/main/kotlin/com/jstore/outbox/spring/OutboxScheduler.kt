@@ -29,13 +29,13 @@ class OutboxScheduler(
     private val outboxCleaner: OutboxCleaner,
 ) {
 
-    @Scheduled(fixedDelayString = $$"${jstore.outbox.polling-interval:5000}")
-    fun schedulePollAndPublish() {
-        relayTrigger.requestDrain()
-    }
+  @Scheduled(fixedDelayString = $$"${jstore.outbox.polling-interval:5000}")
+  fun schedulePollAndPublish() {
+    relayTrigger.requestDrain()
+  }
 
-    @Scheduled(fixedDelayString = $$"${jstore.outbox.cleanup-interval-millis:60000}")
-    fun scheduleCleanup() {
-        outboxCleaner.cleanup()
-    }
+  @Scheduled(fixedDelayString = $$"${jstore.outbox.cleanup-interval-millis:60000}")
+  fun scheduleCleanup() {
+    outboxCleaner.cleanup()
+  }
 }

@@ -23,13 +23,13 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class SiteCurrencyConfiguration {
-    @Bean
-    fun siteCurrencyPolicy(
-        @Value("\${jstore.site.default-currency}") defaultCurrency: String,
-        @Value("\${jstore.site.allowed-currencies}") allowedCurrencies: String,
-    ): SiteCurrencyPolicy =
-        SiteCurrencyPolicy(
-            defaultCurrency,
-            allowedCurrencies.split(',').mapTo(linkedSetOf()) { it.trim() },
-        )
+  @Bean
+  fun siteCurrencyPolicy(
+      @Value("\${jstore.site.default-currency}") defaultCurrency: String,
+      @Value("\${jstore.site.allowed-currencies}") allowedCurrencies: String,
+  ): SiteCurrencyPolicy =
+      SiteCurrencyPolicy(
+          defaultCurrency,
+          allowedCurrencies.split(',').mapTo(linkedSetOf()) { it.trim() },
+      )
 }

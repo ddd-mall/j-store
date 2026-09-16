@@ -28,51 +28,51 @@ import com.jstore.common.utils.Success
 import java.time.Instant
 
 data class TradeId(override val value: Long) : Id<Long>(value) {
-    init {
-        require(value > 0) { "Trade ID must be positive" }
-    }
+  init {
+    require(value > 0) { "Trade ID must be positive" }
+  }
 }
 
 data class TradeOrderPlanId(override val value: Long) : Id<Long>(value) {
-    init {
-        require(value > 0) { "Trade order plan ID must be positive" }
-    }
+  init {
+    require(value > 0) { "Trade order plan ID must be positive" }
+  }
 }
 
 data class SettlementPlanId(override val value: Long) : Id<Long>(value) {
-    init {
-        require(value > 0) { "Settlement plan ID must be positive" }
-    }
+  init {
+    require(value > 0) { "Settlement plan ID must be positive" }
+  }
 }
 
 enum class PartyType {
-    INDIVIDUAL,
-    ORGANIZATION,
+  INDIVIDUAL,
+  ORGANIZATION,
 }
 
 data class BuyerPartySnapshot(val partyType: PartyType, val partyId: Long) {
-    init {
-        require(partyId > 0) { "Buyer party ID must be positive" }
-    }
+  init {
+    require(partyId > 0) { "Buyer party ID must be positive" }
+  }
 }
 
 data class AuthenticatedAccountSnapshot(
     val authenticationDomain: String,
     val accountId: Long,
 ) {
-    init {
-        require(authenticationDomain.isNotBlank()) { "Authentication domain must not be blank" }
-        require(accountId > 0) { "Account ID must be positive" }
-    }
+  init {
+    require(authenticationDomain.isNotBlank()) { "Authentication domain must not be blank" }
+    require(accountId > 0) { "Account ID must be positive" }
+  }
 }
 
 data class TradeBuyerProfileSnapshot(
     val displayName: String,
     val phone: String?,
 ) {
-    init {
-        require(displayName.isNotBlank())
-    }
+  init {
+    require(displayName.isNotBlank())
+  }
 }
 
 data class TradeRecipientSnapshot(
@@ -86,11 +86,11 @@ data class TradeRecipientSnapshot(
     val postalCode: String? = null,
     val customsFields: Map<String, String> = emptyMap(),
 ) {
-    init {
-        require(name.isNotBlank() && countryCode.isNotBlank() && districtCode.isNotBlank())
-        require(detailAddress.isNotBlank())
-        require(!phone.isNullOrBlank() || !email.isNullOrBlank())
-    }
+  init {
+    require(name.isNotBlank() && countryCode.isNotBlank() && districtCode.isNotBlank())
+    require(detailAddress.isNotBlank())
+    require(!phone.isNullOrBlank() || !email.isNullOrBlank())
+  }
 }
 
 data class TradeItemSnapshot(
@@ -107,12 +107,12 @@ data class TradeItemSnapshot(
     val goodsName: String,
     val skuDescription: String,
 ) {
-    init {
-        require(offerId > 0 && storeId > 0 && spuId > 0 && skuId > 0 && quantity > 0)
-        require(catalogSnapshotVersion > 0 && offerVersion > 0)
-        require(fulfillmentNodeId.isNotBlank() && channelId.isNotBlank() && unitPrice > Price.ZERO)
-        require(goodsName.isNotBlank() && skuDescription.isNotBlank())
-    }
+  init {
+    require(offerId > 0 && storeId > 0 && spuId > 0 && skuId > 0 && quantity > 0)
+    require(catalogSnapshotVersion > 0 && offerVersion > 0)
+    require(fulfillmentNodeId.isNotBlank() && channelId.isNotBlank() && unitPrice > Price.ZERO)
+    require(goodsName.isNotBlank() && skuDescription.isNotBlank())
+  }
 }
 
 data class TradeAuthorization(
@@ -120,35 +120,35 @@ data class TradeAuthorization(
     val offerId: Long,
     val expiresAt: Instant,
 ) {
-    init {
-        require(authorizationId.isNotBlank() && offerId > 0)
-    }
+  init {
+    require(authorizationId.isNotBlank() && offerId > 0)
+  }
 }
 
 enum class TradeMode {
-    NORMAL,
-    PRESALE,
-    CROWDFUNDING,
+  NORMAL,
+  PRESALE,
+  CROWDFUNDING,
 }
 
 data class CommitmentPolicySnapshot(val tradeMode: TradeMode)
 
 enum class SettlementMode {
-    PREPAID,
-    DEPOSIT_BALANCE,
-    OPEN_ACCOUNT,
+  PREPAID,
+  DEPOSIT_BALANCE,
+  OPEN_ACCOUNT,
 }
 
 enum class FulfillmentReleaseRule {
-    FULL_PAYMENT,
-    DEPOSIT_PAID,
-    CREDIT_APPROVED,
+  FULL_PAYMENT,
+  DEPOSIT_PAID,
+  CREDIT_APPROVED,
 }
 
 enum class InstallmentPurpose {
-    FULL,
-    DEPOSIT,
-    BALANCE,
+  FULL,
+  DEPOSIT,
+  BALANCE,
 }
 
 data class PaymentInstallmentSnapshot(
@@ -156,9 +156,9 @@ data class PaymentInstallmentSnapshot(
     val purpose: InstallmentPurpose,
     val amount: Price,
 ) {
-    init {
-        require(installmentId.isNotBlank() && amount > Price.ZERO)
-    }
+  init {
+    require(installmentId.isNotBlank() && amount > Price.ZERO)
+  }
 }
 
 data class SettlementTermsSnapshot(
@@ -166,32 +166,31 @@ data class SettlementTermsSnapshot(
     val fulfillmentReleaseRule: FulfillmentReleaseRule,
     val installments: List<PaymentInstallmentSnapshot>,
 ) {
-    init {
-        require(installments.map { it.installmentId }.distinct().size == installments.size)
-        when (mode) {
-            SettlementMode.PREPAID ->
-                require(
-                    installments.size == 1 &&
-                        installments.single().purpose == InstallmentPurpose.FULL
-                )
-            SettlementMode.DEPOSIT_BALANCE ->
-                require(
-                    installments.map { it.purpose }.toSet() ==
-                        setOf(InstallmentPurpose.DEPOSIT, InstallmentPurpose.BALANCE)
-                )
-            SettlementMode.OPEN_ACCOUNT -> require(installments.isEmpty())
-        }
+  init {
+    require(installments.map { it.installmentId }.distinct().size == installments.size)
+    when (mode) {
+      SettlementMode.PREPAID ->
+          require(
+              installments.size == 1 && installments.single().purpose == InstallmentPurpose.FULL
+          )
+      SettlementMode.DEPOSIT_BALANCE ->
+          require(
+              installments.map { it.purpose }.toSet() ==
+                  setOf(InstallmentPurpose.DEPOSIT, InstallmentPurpose.BALANCE)
+          )
+      SettlementMode.OPEN_ACCOUNT -> require(installments.isEmpty())
     }
+  }
 }
 
 enum class TradeOrderPlanStatus {
-    AUTHORIZING,
-    RESERVING,
-    RESERVED,
-    ORDER_CREATING,
-    ORDER_CREATED,
-    FAILED,
-    CLOSED,
+  AUTHORIZING,
+  RESERVING,
+  RESERVED,
+  ORDER_CREATING,
+  ORDER_CREATED,
+  FAILED,
+  CLOSED,
 }
 
 class TradeOrderPlan(
@@ -206,127 +205,127 @@ class TradeOrderPlan(
     reservationExpiresAt: Instant? = null,
     orderId: Long? = null,
 ) : com.jstore.common.framework.Entity<TradeOrderPlanId> {
-    val items: List<TradeItemSnapshot> = items.toList()
-    private var mutableStatus = status
-    private var mutableAuthorizations = authorizations.toList()
-    private var mutableReservationIds = reservationIds.toList()
-    private var mutableReservationExpiresAt = reservationExpiresAt
-    private var mutableOrderId = orderId
+  val items: List<TradeItemSnapshot> = items.toList()
+  private var mutableStatus = status
+  private var mutableAuthorizations = authorizations.toList()
+  private var mutableReservationIds = reservationIds.toList()
+  private var mutableReservationExpiresAt = reservationExpiresAt
+  private var mutableOrderId = orderId
 
-    val status: TradeOrderPlanStatus
-        get() = mutableStatus
+  val status: TradeOrderPlanStatus
+    get() = mutableStatus
 
-    val authorizations: List<TradeAuthorization>
-        get() = mutableAuthorizations
+  val authorizations: List<TradeAuthorization>
+    get() = mutableAuthorizations
 
-    val reservationIds: List<String>
-        get() = mutableReservationIds
+  val reservationIds: List<String>
+    get() = mutableReservationIds
 
-    val reservationExpiresAt: Instant?
-        get() = mutableReservationExpiresAt
+  val reservationExpiresAt: Instant?
+    get() = mutableReservationExpiresAt
 
-    val orderId: Long?
-        get() = mutableOrderId
+  val orderId: Long?
+    get() = mutableOrderId
 
-    init {
-        require(merchantId > 0 && fulfillmentGroup.isNotBlank() && this.items.isNotEmpty())
-        require(Price.sumOf(this.items.map { it.unitPrice * it.quantity }) == payableAmount)
+  init {
+    require(merchantId > 0 && fulfillmentGroup.isNotBlank() && this.items.isNotEmpty())
+    require(Price.sumOf(this.items.map { it.unitPrice * it.quantity }) == payableAmount)
+  }
+
+  internal fun recordSaleAuthorized(
+      values: List<TradeAuthorization>
+  ): Result<Boolean, BusinessError> {
+    val normalized = values.sortedBy { it.offerId }
+    if (status == TradeOrderPlanStatus.RESERVING && authorizations == normalized)
+        return Success(false)
+    if (status != TradeOrderPlanStatus.AUTHORIZING) return illegal("record authorization")
+    val offers = items.map { it.offerId }.toSet()
+    if (normalized.isEmpty() || normalized.map { it.offerId }.toSet() != offers) {
+      return Failure(TradeErrors.INVALID_AUTHORIZATION)
     }
+    mutableAuthorizations = normalized
+    mutableStatus = TradeOrderPlanStatus.RESERVING
+    return Success(true)
+  }
 
-    internal fun recordSaleAuthorized(
-        values: List<TradeAuthorization>
-    ): Result<Boolean, BusinessError> {
-        val normalized = values.sortedBy { it.offerId }
-        if (status == TradeOrderPlanStatus.RESERVING && authorizations == normalized)
-            return Success(false)
-        if (status != TradeOrderPlanStatus.AUTHORIZING) return illegal("record authorization")
-        val offers = items.map { it.offerId }.toSet()
-        if (normalized.isEmpty() || normalized.map { it.offerId }.toSet() != offers) {
-            return Failure(TradeErrors.INVALID_AUTHORIZATION)
-        }
-        mutableAuthorizations = normalized
-        mutableStatus = TradeOrderPlanStatus.RESERVING
-        return Success(true)
+  internal fun recordInventoryReserved(
+      ids: List<String>,
+      expiresAt: Instant,
+  ): Result<Boolean, BusinessError> {
+    val normalized = ids.sorted()
+    if (
+        status == TradeOrderPlanStatus.RESERVED &&
+            reservationIds == normalized &&
+            reservationExpiresAt == expiresAt
+    )
+        return Success(false)
+    if (status != TradeOrderPlanStatus.RESERVING) return illegal("record inventory")
+    if (
+        normalized.isEmpty() ||
+            normalized.any { it.isBlank() } ||
+            normalized.distinct().size != normalized.size ||
+            expiresAt > authorizations.minOf { it.expiresAt }
+    ) {
+      return Failure(TradeErrors.INVALID_RESERVATION)
     }
+    mutableReservationIds = normalized
+    mutableReservationExpiresAt = expiresAt
+    mutableStatus = TradeOrderPlanStatus.RESERVED
+    return Success(true)
+  }
 
-    internal fun recordInventoryReserved(
-        ids: List<String>,
-        expiresAt: Instant,
-    ): Result<Boolean, BusinessError> {
-        val normalized = ids.sorted()
-        if (
-            status == TradeOrderPlanStatus.RESERVED &&
-                reservationIds == normalized &&
-                reservationExpiresAt == expiresAt
-        )
-            return Success(false)
-        if (status != TradeOrderPlanStatus.RESERVING) return illegal("record inventory")
-        if (
-            normalized.isEmpty() ||
-                normalized.any { it.isBlank() } ||
-                normalized.distinct().size != normalized.size ||
-                expiresAt > authorizations.minOf { it.expiresAt }
-        ) {
-            return Failure(TradeErrors.INVALID_RESERVATION)
-        }
-        mutableReservationIds = normalized
-        mutableReservationExpiresAt = expiresAt
-        mutableStatus = TradeOrderPlanStatus.RESERVED
-        return Success(true)
+  internal fun startOrderCreation() {
+    require(status == TradeOrderPlanStatus.RESERVED)
+    mutableStatus = TradeOrderPlanStatus.ORDER_CREATING
+  }
+
+  internal fun recordOrderCreated(value: Long): Result<Boolean, BusinessError> {
+    if (status == TradeOrderPlanStatus.ORDER_CREATED) {
+      return if (orderId == value) Success(false) else illegal("replace created order")
     }
+    if (status != TradeOrderPlanStatus.ORDER_CREATING || value <= 0)
+        return illegal("record created order")
+    mutableOrderId = value
+    mutableStatus = TradeOrderPlanStatus.ORDER_CREATED
+    return Success(true)
+  }
 
-    internal fun startOrderCreation() {
-        require(status == TradeOrderPlanStatus.RESERVED)
-        mutableStatus = TradeOrderPlanStatus.ORDER_CREATING
+  internal fun fail(): Boolean {
+    if (status == TradeOrderPlanStatus.FAILED) return false
+    if (status in setOf(TradeOrderPlanStatus.ORDER_CREATED, TradeOrderPlanStatus.CLOSED)) {
+      return false
     }
+    mutableStatus = TradeOrderPlanStatus.FAILED
+    return true
+  }
 
-    internal fun recordOrderCreated(value: Long): Result<Boolean, BusinessError> {
-        if (status == TradeOrderPlanStatus.ORDER_CREATED) {
-            return if (orderId == value) Success(false) else illegal("replace created order")
-        }
-        if (status != TradeOrderPlanStatus.ORDER_CREATING || value <= 0)
-            return illegal("record created order")
-        mutableOrderId = value
-        mutableStatus = TradeOrderPlanStatus.ORDER_CREATED
-        return Success(true)
-    }
+  internal fun closeCreatedOrder(): Boolean {
+    if (status == TradeOrderPlanStatus.CLOSED) return false
+    if (status != TradeOrderPlanStatus.ORDER_CREATED) return false
+    mutableStatus = TradeOrderPlanStatus.CLOSED
+    return true
+  }
 
-    internal fun fail(): Boolean {
-        if (status == TradeOrderPlanStatus.FAILED) return false
-        if (status in setOf(TradeOrderPlanStatus.ORDER_CREATED, TradeOrderPlanStatus.CLOSED)) {
-            return false
-        }
-        mutableStatus = TradeOrderPlanStatus.FAILED
-        return true
-    }
-
-    internal fun closeCreatedOrder(): Boolean {
-        if (status == TradeOrderPlanStatus.CLOSED) return false
-        if (status != TradeOrderPlanStatus.ORDER_CREATED) return false
-        mutableStatus = TradeOrderPlanStatus.CLOSED
-        return true
-    }
-
-    private fun illegal(action: String): Failure<BusinessError> =
-        Failure(TradeErrors.ILLEGAL_STATE.msg("Cannot $action while order plan is $status"))
+  private fun illegal(action: String): Failure<BusinessError> =
+      Failure(TradeErrors.ILLEGAL_STATE.msg("Cannot $action while order plan is $status"))
 }
 
 enum class TradeStatus {
-    AUTHORIZING,
-    RESERVING,
-    CREATING_ORDERS,
-    SETTLEMENT_PREPARING,
-    PAYMENT_READY,
-    PAYMENT_UNCERTAIN,
-    PAID,
-    FAILED,
-    CLOSING,
-    CLOSED,
+  AUTHORIZING,
+  RESERVING,
+  CREATING_ORDERS,
+  SETTLEMENT_PREPARING,
+  PAYMENT_READY,
+  PAYMENT_UNCERTAIN,
+  PAID,
+  FAILED,
+  CLOSING,
+  CLOSED,
 }
 
 enum class CheckoutSourceType {
-    DIRECT,
-    CART,
+  DIRECT,
+  CART,
 }
 
 data class CheckoutSourceSnapshot(
@@ -335,21 +334,21 @@ data class CheckoutSourceSnapshot(
     val sourceVersion: Long?,
     val sourceDigest: String,
 ) {
-    init {
-        require(sourceDigest.isNotBlank())
-        require(
-            (type == CheckoutSourceType.DIRECT && sourceId == null && sourceVersion == null) ||
-                (type == CheckoutSourceType.CART && sourceId != null && sourceVersion != null)
-        )
-    }
+  init {
+    require(sourceDigest.isNotBlank())
+    require(
+        (type == CheckoutSourceType.DIRECT && sourceId == null && sourceVersion == null) ||
+            (type == CheckoutSourceType.CART && sourceId != null && sourceVersion != null)
+    )
+  }
 
-    companion object {
-        fun direct(digest: String) =
-            CheckoutSourceSnapshot(CheckoutSourceType.DIRECT, null, null, digest)
+  companion object {
+    fun direct(digest: String) =
+        CheckoutSourceSnapshot(CheckoutSourceType.DIRECT, null, null, digest)
 
-        fun cart(id: Long, version: Long, digest: String) =
-            CheckoutSourceSnapshot(CheckoutSourceType.CART, id, version, digest)
-    }
+    fun cart(id: Long, version: Long, digest: String) =
+        CheckoutSourceSnapshot(CheckoutSourceType.CART, id, version, digest)
+  }
 }
 
 class Trade(
@@ -374,385 +373,382 @@ class Trade(
     val persistenceVersion: Long = 0,
     val sourceSnapshot: CheckoutSourceSnapshot = CheckoutSourceSnapshot.direct(requestDigest),
 ) : AggregateRoot<TradeId> {
-    val orderPlans: List<TradeOrderPlan> = orderPlans.toList()
-    private var mutableStatus = status
-    private var mutableSettlementPlanId = settlementPlanId
+  val orderPlans: List<TradeOrderPlan> = orderPlans.toList()
+  private var mutableStatus = status
+  private var mutableSettlementPlanId = settlementPlanId
 
-    private val _paymentReferences = paymentReferences.toMutableMap()
-    val paymentReferences: Map<String, Long>
-        get() = _paymentReferences.toMap()
+  private val _paymentReferences = paymentReferences.toMutableMap()
+  val paymentReferences: Map<String, Long>
+    get() = _paymentReferences.toMap()
 
-    private var mutableFailureReason = failureReason
-    private var mutableUpdatedAt = updatedAt
+  private var mutableFailureReason = failureReason
+  private var mutableUpdatedAt = updatedAt
 
-    val status: TradeStatus
-        get() = mutableStatus
+  val status: TradeStatus
+    get() = mutableStatus
 
-    val settlementPlanId: SettlementPlanId?
-        get() = mutableSettlementPlanId
+  val settlementPlanId: SettlementPlanId?
+    get() = mutableSettlementPlanId
 
-    val failureReason: String?
-        get() = mutableFailureReason
+  val failureReason: String?
+    get() = mutableFailureReason
 
-    val updatedAt: Instant
-        get() = mutableUpdatedAt
+  val updatedAt: Instant
+    get() = mutableUpdatedAt
 
-    init {
-        require(checkoutRequestId.isNotBlank() && requestDigest.isNotBlank())
-        require(
-            this.orderPlans.isNotEmpty() &&
-                this.orderPlans.map { it.id }.distinct().size == this.orderPlans.size
-        )
-        require(
-            CurrencyCode.isValid(currency) &&
-                Price.sumOf(this.orderPlans.map { it.payableAmount }) == payableAmount
-        )
-        require(
-            Price.sumOf(settlementTerms.installments.map { it.amount }) == payableAmount ||
-                settlementTerms.mode == SettlementMode.OPEN_ACCOUNT
-        )
-        require(
-            _paymentReferences.keys.all { reference ->
-                settlementTerms.installments.any { it.installmentId == reference }
-            } &&
-                _paymentReferences.values.all { it > 0 } &&
-                _paymentReferences.values.distinct().size == _paymentReferences.size
-        )
+  init {
+    require(checkoutRequestId.isNotBlank() && requestDigest.isNotBlank())
+    require(
+        this.orderPlans.isNotEmpty() &&
+            this.orderPlans.map { it.id }.distinct().size == this.orderPlans.size
+    )
+    require(
+        CurrencyCode.isValid(currency) &&
+            Price.sumOf(this.orderPlans.map { it.payableAmount }) == payableAmount
+    )
+    require(
+        Price.sumOf(settlementTerms.installments.map { it.amount }) == payableAmount ||
+            settlementTerms.mode == SettlementMode.OPEN_ACCOUNT
+    )
+    require(
+        _paymentReferences.keys.all { reference ->
+          settlementTerms.installments.any { it.installmentId == reference }
+        } &&
+            _paymentReferences.values.all { it > 0 } &&
+            _paymentReferences.values.distinct().size == _paymentReferences.size
+    )
+  }
+
+  fun plan(id: TradeOrderPlanId): TradeOrderPlan =
+      orderPlans.firstOrNull { it.id == id }
+          ?: throw IllegalArgumentException("Unknown order plan ${id.value}")
+
+  fun recordSaleAuthorized(
+      id: TradeOrderPlanId,
+      values: List<TradeAuthorization>,
+  ): Result<Boolean, BusinessError> {
+    if (status !in setOf(TradeStatus.AUTHORIZING, TradeStatus.RESERVING))
+        return illegal("record authorization")
+    val result = plan(id).recordSaleAuthorized(values)
+    if (result is Success && result.value) {
+      mutableStatus = TradeStatus.RESERVING
+      touch()
     }
+    return result
+  }
 
-    fun plan(id: TradeOrderPlanId): TradeOrderPlan =
-        orderPlans.firstOrNull { it.id == id }
-            ?: throw IllegalArgumentException("Unknown order plan ${id.value}")
+  fun recordInventoryReserved(
+      id: TradeOrderPlanId,
+      reservationIds: List<String>,
+      expiresAt: Instant,
+  ): Result<Boolean, BusinessError> {
+    if (status != TradeStatus.RESERVING) return illegal("record inventory")
+    val result = plan(id).recordInventoryReserved(reservationIds, expiresAt)
+    if (result is Success && result.value) touch()
+    return result
+  }
 
-    fun recordSaleAuthorized(
-        id: TradeOrderPlanId,
-        values: List<TradeAuthorization>,
-    ): Result<Boolean, BusinessError> {
-        if (status !in setOf(TradeStatus.AUTHORIZING, TradeStatus.RESERVING))
-            return illegal("record authorization")
-        val result = plan(id).recordSaleAuthorized(values)
-        if (result is Success && result.value) {
-            mutableStatus = TradeStatus.RESERVING
-            touch()
-        }
-        return result
+  fun startOrderCreation(): Result<Boolean, BusinessError> {
+    if (status == TradeStatus.CREATING_ORDERS) return Success(false)
+    if (
+        status != TradeStatus.RESERVING ||
+            orderPlans.any { it.status != TradeOrderPlanStatus.RESERVED }
+    )
+        return illegal("start order creation")
+    orderPlans.forEach { it.startOrderCreation() }
+    mutableStatus = TradeStatus.CREATING_ORDERS
+    touch()
+    return Success(true)
+  }
+
+  fun recordOrderCreated(
+      planId: TradeOrderPlanId,
+      orderId: Long,
+  ): Result<Boolean, BusinessError> {
+    val plan = plan(planId)
+    if (plan.status == TradeOrderPlanStatus.ORDER_CREATED) {
+      return plan.recordOrderCreated(orderId)
     }
-
-    fun recordInventoryReserved(
-        id: TradeOrderPlanId,
-        reservationIds: List<String>,
-        expiresAt: Instant,
-    ): Result<Boolean, BusinessError> {
-        if (status != TradeStatus.RESERVING) return illegal("record inventory")
-        val result = plan(id).recordInventoryReserved(reservationIds, expiresAt)
-        if (result is Success && result.value) touch()
-        return result
+    if (
+        status != TradeStatus.CREATING_ORDERS &&
+            !(status == TradeStatus.FAILED && plan.status == TradeOrderPlanStatus.ORDER_CREATING)
+    ) {
+      return illegal("record created order")
     }
+    val result = plan.recordOrderCreated(orderId)
+    if (result is Success && result.value) touch()
+    return result
+  }
 
-    fun startOrderCreation(): Result<Boolean, BusinessError> {
-        if (status == TradeStatus.CREATING_ORDERS) return Success(false)
-        if (
-            status != TradeStatus.RESERVING ||
-                orderPlans.any { it.status != TradeOrderPlanStatus.RESERVED }
-        )
-            return illegal("start order creation")
-        orderPlans.forEach { it.startOrderCreation() }
-        mutableStatus = TradeStatus.CREATING_ORDERS
-        touch()
-        return Success(true)
+  fun prepareSettlement(id: SettlementPlanId): Result<Boolean, BusinessError> {
+    if (status == TradeStatus.SETTLEMENT_PREPARING && settlementPlanId == id) return Success(false)
+    if (
+        status != TradeStatus.CREATING_ORDERS ||
+            orderPlans.any { it.status != TradeOrderPlanStatus.ORDER_CREATED }
+    )
+        return illegal("prepare settlement")
+    mutableSettlementPlanId = id
+    mutableStatus = TradeStatus.SETTLEMENT_PREPARING
+    touch()
+    return Success(true)
+  }
+
+  fun failSettlementPreparation(
+      id: SettlementPlanId,
+      reason: String,
+  ): Result<Boolean, BusinessError> {
+    if (reason.isBlank()) return Failure(TradeErrors.INVALID_REASON)
+    if (status == TradeStatus.FAILED && settlementPlanId == id && failureReason == reason) {
+      return Success(false)
     }
-
-    fun recordOrderCreated(
-        planId: TradeOrderPlanId,
-        orderId: Long,
-    ): Result<Boolean, BusinessError> {
-        val plan = plan(planId)
-        if (plan.status == TradeOrderPlanStatus.ORDER_CREATED) {
-            return plan.recordOrderCreated(orderId)
-        }
-        if (
-            status != TradeStatus.CREATING_ORDERS &&
-                !(status == TradeStatus.FAILED &&
-                    plan.status == TradeOrderPlanStatus.ORDER_CREATING)
-        ) {
-            return illegal("record created order")
-        }
-        val result = plan.recordOrderCreated(orderId)
-        if (result is Success && result.value) touch()
-        return result
+    if (
+        status != TradeStatus.SETTLEMENT_PREPARING ||
+            settlementPlanId != id ||
+            _paymentReferences.isNotEmpty()
+    ) {
+      return illegal("fail settlement preparation")
     }
+    mutableFailureReason = reason
+    mutableStatus = TradeStatus.FAILED
+    touch()
+    return Success(true)
+  }
 
-    fun prepareSettlement(id: SettlementPlanId): Result<Boolean, BusinessError> {
-        if (status == TradeStatus.SETTLEMENT_PREPARING && settlementPlanId == id)
-            return Success(false)
-        if (
-            status != TradeStatus.CREATING_ORDERS ||
-                orderPlans.any { it.status != TradeOrderPlanStatus.ORDER_CREATED }
-        )
-            return illegal("prepare settlement")
-        mutableSettlementPlanId = id
-        mutableStatus = TradeStatus.SETTLEMENT_PREPARING
-        touch()
-        return Success(true)
+  fun recordPaymentPrepared(
+      settlementPlanId: SettlementPlanId,
+      installmentId: String,
+      paymentId: Long,
+      amount: Price,
+      currency: String,
+  ): Result<Boolean, BusinessError> {
+    val installment = settlementTerms.installments.firstOrNull { it.installmentId == installmentId }
+    if (
+        this.settlementPlanId != settlementPlanId ||
+            installment?.installmentId != installmentId ||
+            installment.amount != amount ||
+            this.currency != currency ||
+            paymentId <= 0
+    ) {
+      return illegal("record prepared payment")
     }
-
-    fun failSettlementPreparation(
-        id: SettlementPlanId,
-        reason: String,
-    ): Result<Boolean, BusinessError> {
-        if (reason.isBlank()) return Failure(TradeErrors.INVALID_REASON)
-        if (status == TradeStatus.FAILED && settlementPlanId == id && failureReason == reason) {
-            return Success(false)
-        }
-        if (
-            status != TradeStatus.SETTLEMENT_PREPARING ||
-                settlementPlanId != id ||
-                _paymentReferences.isNotEmpty()
-        ) {
-            return illegal("fail settlement preparation")
-        }
-        mutableFailureReason = reason
-        mutableStatus = TradeStatus.FAILED
-        touch()
-        return Success(true)
+    val existingPaymentId = _paymentReferences[installmentId]
+    if (status == TradeStatus.PAYMENT_READY && existingPaymentId == paymentId) {
+      return Success(false)
     }
-
-    fun recordPaymentPrepared(
-        settlementPlanId: SettlementPlanId,
-        installmentId: String,
-        paymentId: Long,
-        amount: Price,
-        currency: String,
-    ): Result<Boolean, BusinessError> {
-        val installment =
-            settlementTerms.installments.firstOrNull { it.installmentId == installmentId }
-        if (
-            this.settlementPlanId != settlementPlanId ||
-                installment?.installmentId != installmentId ||
-                installment.amount != amount ||
-                this.currency != currency ||
-                paymentId <= 0
-        ) {
-            return illegal("record prepared payment")
-        }
-        val existingPaymentId = _paymentReferences[installmentId]
-        if (status == TradeStatus.PAYMENT_READY && existingPaymentId == paymentId) {
-            return Success(false)
-        }
-        if (existingPaymentId != null && existingPaymentId != paymentId) {
-            return illegal("replace installment payment")
-        }
-        if (status == TradeStatus.CLOSING) {
-            if (existingPaymentId == paymentId) return Success(false)
-            _paymentReferences[installmentId] = paymentId
-            touch()
-            return Success(true)
-        }
-        if (status !in setOf(TradeStatus.SETTLEMENT_PREPARING, TradeStatus.PAYMENT_READY)) {
-            return illegal("record prepared payment")
-        }
-        _paymentReferences[installmentId] = paymentId
-        mutableStatus = TradeStatus.PAYMENT_READY
-        touch()
-        return Success(true)
+    if (existingPaymentId != null && existingPaymentId != paymentId) {
+      return illegal("replace installment payment")
     }
-
-    fun recordPaymentPreparationUncertain(
-        settlementPlanId: SettlementPlanId,
-        installmentId: String,
-        paymentId: Long,
-        reason: String,
-    ): Result<Boolean, BusinessError> {
-        if (
-            this.settlementPlanId != settlementPlanId ||
-                settlementTerms.installments.none { it.installmentId == installmentId } ||
-                paymentId <= 0 ||
-                reason.isBlank()
-        ) {
-            return illegal("record uncertain payment")
-        }
-        if (
-            status == TradeStatus.PAYMENT_UNCERTAIN &&
-                _paymentReferences[installmentId] == paymentId &&
-                failureReason == reason
-        ) {
-            return Success(false)
-        }
-        if (status == TradeStatus.CLOSING) {
-            val existingPaymentId = _paymentReferences[installmentId]
-            if (existingPaymentId != null && existingPaymentId != paymentId) {
-                return illegal("replace closing payment")
-            }
-            if (existingPaymentId == paymentId) return Success(false)
-            _paymentReferences[installmentId] = paymentId
-            touch()
-            return Success(true)
-        }
-        if (status != TradeStatus.SETTLEMENT_PREPARING) {
-            return illegal("record uncertain payment")
-        }
-        _paymentReferences[installmentId] = paymentId
-        mutableFailureReason = reason
-        mutableStatus = TradeStatus.PAYMENT_UNCERTAIN
-        touch()
-        return Success(true)
+    if (status == TradeStatus.CLOSING) {
+      if (existingPaymentId == paymentId) return Success(false)
+      _paymentReferences[installmentId] = paymentId
+      touch()
+      return Success(true)
     }
-
-    fun recordPaymentPreparationRejected(
-        settlementPlanId: SettlementPlanId,
-        installmentId: String,
-        paymentId: Long,
-        reason: String,
-    ): Result<Boolean, BusinessError> {
-        if (
-            this.settlementPlanId != settlementPlanId ||
-                settlementTerms.installments.none { it.installmentId == installmentId } ||
-                paymentId <= 0 ||
-                reason.isBlank()
-        ) {
-            return illegal("record rejected payment")
-        }
-        val existingPaymentId = _paymentReferences[installmentId]
-        if (existingPaymentId != null && existingPaymentId != paymentId) {
-            return illegal("replace closing payment")
-        }
-        if (status == TradeStatus.FAILED && existingPaymentId == paymentId) {
-            return Success(false)
-        }
-        if (status !in setOf(TradeStatus.SETTLEMENT_PREPARING, TradeStatus.CLOSING)) {
-            return illegal("record rejected payment")
-        }
-        _paymentReferences[installmentId] = paymentId
-        mutableFailureReason = reason
-        mutableStatus = TradeStatus.FAILED
-        touch()
-        return Success(true)
+    if (status !in setOf(TradeStatus.SETTLEMENT_PREPARING, TradeStatus.PAYMENT_READY)) {
+      return illegal("record prepared payment")
     }
+    _paymentReferences[installmentId] = paymentId
+    mutableStatus = TradeStatus.PAYMENT_READY
+    touch()
+    return Success(true)
+  }
 
-    fun recordPaymentCancellationConfirmed(
-        settlementPlanId: SettlementPlanId,
-        installmentId: String,
-        paymentId: Long,
-        reason: String,
-    ): Result<Boolean, BusinessError> {
-        val existingPaymentId = _paymentReferences[installmentId]
-        if (
-            this.settlementPlanId != settlementPlanId ||
-                settlementTerms.installments.none { it.installmentId == installmentId } ||
-                paymentId <= 0 ||
-                (existingPaymentId != null && existingPaymentId != paymentId) ||
-                reason.isBlank()
-        ) {
-            return illegal("record payment cancellation")
-        }
-        if (status == TradeStatus.FAILED && existingPaymentId == paymentId) {
-            return Success(false)
-        }
-        if (status != TradeStatus.CLOSING) return illegal("record payment cancellation")
-        _paymentReferences[installmentId] = paymentId
-        mutableFailureReason = reason
-        mutableStatus = TradeStatus.FAILED
-        touch()
-        return Success(true)
+  fun recordPaymentPreparationUncertain(
+      settlementPlanId: SettlementPlanId,
+      installmentId: String,
+      paymentId: Long,
+      reason: String,
+  ): Result<Boolean, BusinessError> {
+    if (
+        this.settlementPlanId != settlementPlanId ||
+            settlementTerms.installments.none { it.installmentId == installmentId } ||
+            paymentId <= 0 ||
+            reason.isBlank()
+    ) {
+      return illegal("record uncertain payment")
     }
-
-    fun paymentIdFor(installmentId: String): Long? = _paymentReferences[installmentId]
-
-    fun fail(planId: TradeOrderPlanId, reason: String): Result<Boolean, BusinessError> {
-        if (reason.isBlank()) return Failure(TradeErrors.INVALID_REASON)
-        if (status == TradeStatus.FAILED) {
-            return if (failureReason == reason) Success(false) else illegal("replace failure")
-        }
-        if (
-            status in
-                setOf(
-                    TradeStatus.SETTLEMENT_PREPARING,
-                    TradeStatus.PAYMENT_READY,
-                    TradeStatus.PAYMENT_UNCERTAIN,
-                    TradeStatus.PAID,
-                    TradeStatus.CLOSED,
-                )
-        ) {
-            return illegal("fail trade")
-        }
-        val changed = plan(planId).fail()
-        if (!changed) return illegal("fail order plan")
-        mutableFailureReason = reason
-        mutableStatus = TradeStatus.FAILED
-        touch()
-        return Success(true)
+    if (
+        status == TradeStatus.PAYMENT_UNCERTAIN &&
+            _paymentReferences[installmentId] == paymentId &&
+            failureReason == reason
+    ) {
+      return Success(false)
     }
-
-    fun recordOrderCancelled(
-        planId: TradeOrderPlanId,
-        orderId: Long,
-        reason: String,
-    ): Result<Boolean, BusinessError> {
-        if (reason.isBlank() || orderId <= 0) return Failure(TradeErrors.INVALID_REASON)
-        val cancelledPlan = plan(planId)
-        if (cancelledPlan.orderId != orderId) return Failure(TradeErrors.ORDER_MISMATCH)
-        if (status == TradeStatus.FAILED) return Success(false)
-        if (status == TradeStatus.CLOSING) return Success(false)
-        if (
-            status !in
-                setOf(
-                    TradeStatus.CREATING_ORDERS,
-                    TradeStatus.SETTLEMENT_PREPARING,
-                    TradeStatus.PAYMENT_READY,
-                    TradeStatus.PAYMENT_UNCERTAIN,
-                )
-        ) {
-            return illegal("record cancelled order")
-        }
-        mutableFailureReason = reason
-        if (status == TradeStatus.CREATING_ORDERS) {
-            mutableStatus = TradeStatus.FAILED
-        } else {
-            mutableStatus = TradeStatus.CLOSING
-        }
-        touch()
-        return Success(true)
+    if (status == TradeStatus.CLOSING) {
+      val existingPaymentId = _paymentReferences[installmentId]
+      if (existingPaymentId != null && existingPaymentId != paymentId) {
+        return illegal("replace closing payment")
+      }
+      if (existingPaymentId == paymentId) return Success(false)
+      _paymentReferences[installmentId] = paymentId
+      touch()
+      return Success(true)
     }
-
-    fun matchesRequest(buyerParty: BuyerPartySnapshot, digest: String): Boolean =
-        this.buyerParty == buyerParty && requestDigest == digest
-
-    private fun touch() {
-        mutableUpdatedAt = Instant.now()
+    if (status != TradeStatus.SETTLEMENT_PREPARING) {
+      return illegal("record uncertain payment")
     }
+    _paymentReferences[installmentId] = paymentId
+    mutableFailureReason = reason
+    mutableStatus = TradeStatus.PAYMENT_UNCERTAIN
+    touch()
+    return Success(true)
+  }
 
-    private fun illegal(action: String): Failure<BusinessError> =
-        Failure(TradeErrors.ILLEGAL_STATE.msg("Cannot $action while trade is $status"))
+  fun recordPaymentPreparationRejected(
+      settlementPlanId: SettlementPlanId,
+      installmentId: String,
+      paymentId: Long,
+      reason: String,
+  ): Result<Boolean, BusinessError> {
+    if (
+        this.settlementPlanId != settlementPlanId ||
+            settlementTerms.installments.none { it.installmentId == installmentId } ||
+            paymentId <= 0 ||
+            reason.isBlank()
+    ) {
+      return illegal("record rejected payment")
+    }
+    val existingPaymentId = _paymentReferences[installmentId]
+    if (existingPaymentId != null && existingPaymentId != paymentId) {
+      return illegal("replace closing payment")
+    }
+    if (status == TradeStatus.FAILED && existingPaymentId == paymentId) {
+      return Success(false)
+    }
+    if (status !in setOf(TradeStatus.SETTLEMENT_PREPARING, TradeStatus.CLOSING)) {
+      return illegal("record rejected payment")
+    }
+    _paymentReferences[installmentId] = paymentId
+    mutableFailureReason = reason
+    mutableStatus = TradeStatus.FAILED
+    touch()
+    return Success(true)
+  }
 
-    companion object {
-        fun start(
-            id: TradeId,
-            checkoutRequestId: String,
-            requestDigest: String,
-            buyerParty: BuyerPartySnapshot,
-            buyerProfile: TradeBuyerProfileSnapshot,
-            actingPrincipal: AuthenticatedAccountSnapshot,
-            recipient: TradeRecipientSnapshot,
-            orderPlans: List<TradeOrderPlan>,
-            currency: String,
-            commitmentPolicy: CommitmentPolicySnapshot,
-            settlementTerms: SettlementTermsSnapshot,
-            sourceSnapshot: CheckoutSourceSnapshot = CheckoutSourceSnapshot.direct(requestDigest),
-        ) =
-            Trade(
-                id,
-                checkoutRequestId,
-                requestDigest,
-                buyerParty,
-                buyerProfile,
-                actingPrincipal,
-                recipient,
-                orderPlans,
-                Price.sumOf(orderPlans.map { it.payableAmount }),
-                currency,
-                commitmentPolicy,
-                settlementTerms,
-                sourceSnapshot = sourceSnapshot,
+  fun recordPaymentCancellationConfirmed(
+      settlementPlanId: SettlementPlanId,
+      installmentId: String,
+      paymentId: Long,
+      reason: String,
+  ): Result<Boolean, BusinessError> {
+    val existingPaymentId = _paymentReferences[installmentId]
+    if (
+        this.settlementPlanId != settlementPlanId ||
+            settlementTerms.installments.none { it.installmentId == installmentId } ||
+            paymentId <= 0 ||
+            (existingPaymentId != null && existingPaymentId != paymentId) ||
+            reason.isBlank()
+    ) {
+      return illegal("record payment cancellation")
+    }
+    if (status == TradeStatus.FAILED && existingPaymentId == paymentId) {
+      return Success(false)
+    }
+    if (status != TradeStatus.CLOSING) return illegal("record payment cancellation")
+    _paymentReferences[installmentId] = paymentId
+    mutableFailureReason = reason
+    mutableStatus = TradeStatus.FAILED
+    touch()
+    return Success(true)
+  }
+
+  fun paymentIdFor(installmentId: String): Long? = _paymentReferences[installmentId]
+
+  fun fail(planId: TradeOrderPlanId, reason: String): Result<Boolean, BusinessError> {
+    if (reason.isBlank()) return Failure(TradeErrors.INVALID_REASON)
+    if (status == TradeStatus.FAILED) {
+      return if (failureReason == reason) Success(false) else illegal("replace failure")
+    }
+    if (
+        status in
+            setOf(
+                TradeStatus.SETTLEMENT_PREPARING,
+                TradeStatus.PAYMENT_READY,
+                TradeStatus.PAYMENT_UNCERTAIN,
+                TradeStatus.PAID,
+                TradeStatus.CLOSED,
             )
+    ) {
+      return illegal("fail trade")
     }
+    val changed = plan(planId).fail()
+    if (!changed) return illegal("fail order plan")
+    mutableFailureReason = reason
+    mutableStatus = TradeStatus.FAILED
+    touch()
+    return Success(true)
+  }
+
+  fun recordOrderCancelled(
+      planId: TradeOrderPlanId,
+      orderId: Long,
+      reason: String,
+  ): Result<Boolean, BusinessError> {
+    if (reason.isBlank() || orderId <= 0) return Failure(TradeErrors.INVALID_REASON)
+    val cancelledPlan = plan(planId)
+    if (cancelledPlan.orderId != orderId) return Failure(TradeErrors.ORDER_MISMATCH)
+    if (status == TradeStatus.FAILED) return Success(false)
+    if (status == TradeStatus.CLOSING) return Success(false)
+    if (
+        status !in
+            setOf(
+                TradeStatus.CREATING_ORDERS,
+                TradeStatus.SETTLEMENT_PREPARING,
+                TradeStatus.PAYMENT_READY,
+                TradeStatus.PAYMENT_UNCERTAIN,
+            )
+    ) {
+      return illegal("record cancelled order")
+    }
+    mutableFailureReason = reason
+    if (status == TradeStatus.CREATING_ORDERS) {
+      mutableStatus = TradeStatus.FAILED
+    } else {
+      mutableStatus = TradeStatus.CLOSING
+    }
+    touch()
+    return Success(true)
+  }
+
+  fun matchesRequest(buyerParty: BuyerPartySnapshot, digest: String): Boolean =
+      this.buyerParty == buyerParty && requestDigest == digest
+
+  private fun touch() {
+    mutableUpdatedAt = Instant.now()
+  }
+
+  private fun illegal(action: String): Failure<BusinessError> =
+      Failure(TradeErrors.ILLEGAL_STATE.msg("Cannot $action while trade is $status"))
+
+  companion object {
+    fun start(
+        id: TradeId,
+        checkoutRequestId: String,
+        requestDigest: String,
+        buyerParty: BuyerPartySnapshot,
+        buyerProfile: TradeBuyerProfileSnapshot,
+        actingPrincipal: AuthenticatedAccountSnapshot,
+        recipient: TradeRecipientSnapshot,
+        orderPlans: List<TradeOrderPlan>,
+        currency: String,
+        commitmentPolicy: CommitmentPolicySnapshot,
+        settlementTerms: SettlementTermsSnapshot,
+        sourceSnapshot: CheckoutSourceSnapshot = CheckoutSourceSnapshot.direct(requestDigest),
+    ) =
+        Trade(
+            id,
+            checkoutRequestId,
+            requestDigest,
+            buyerParty,
+            buyerProfile,
+            actingPrincipal,
+            recipient,
+            orderPlans,
+            Price.sumOf(orderPlans.map { it.payableAmount }),
+            currency,
+            commitmentPolicy,
+            settlementTerms,
+            sourceSnapshot = sourceSnapshot,
+        )
+  }
 }

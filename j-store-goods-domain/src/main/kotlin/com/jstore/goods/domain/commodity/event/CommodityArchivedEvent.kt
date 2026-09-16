@@ -28,8 +28,8 @@ data class CommodityArchivedEvent(
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
-    override val eventName = "catalog.product-archived"
-    override val eventVersion = 1
-    override val aggregateType = "CatalogProduct"
-    override val aggregateId = spuId.value.toString()
+  override val eventName = "catalog.product-archived"
+  override val eventVersion = 1
+  override val aggregateType = "CatalogProduct"
+  override val aggregateId = spuId.value.toString()
 }

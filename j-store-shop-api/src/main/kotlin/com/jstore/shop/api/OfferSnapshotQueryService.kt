@@ -39,5 +39,5 @@ data class OfferSnapshotInfo(
 )
 
 fun interface OfferSnapshotQueryService {
-    fun queryOffers(offerIds: List<Long>): List<OfferSnapshotInfo>
+  fun queryOffers(offerIds: List<Long>): List<OfferSnapshotInfo>
 }

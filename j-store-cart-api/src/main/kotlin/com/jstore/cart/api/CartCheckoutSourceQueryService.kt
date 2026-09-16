@@ -43,17 +43,17 @@ data class CartCheckoutSource(
 )
 
 sealed interface CartCheckoutSourceResult {
-    data class Found(val source: CartCheckoutSource) : CartCheckoutSourceResult
+  data class Found(val source: CartCheckoutSource) : CartCheckoutSourceResult
 
-    data object NotFound : CartCheckoutSourceResult
+  data object NotFound : CartCheckoutSourceResult
 
-    data object VersionConflict : CartCheckoutSourceResult
+  data object VersionConflict : CartCheckoutSourceResult
 
-    data object NoEligibleLines : CartCheckoutSourceResult
+  data object NoEligibleLines : CartCheckoutSourceResult
 
-    data object Unavailable : CartCheckoutSourceResult
+  data object Unavailable : CartCheckoutSourceResult
 }
 
 fun interface CartCheckoutSourceQueryService {
-    fun prepare(query: CartCheckoutSourceQuery): CartCheckoutSourceResult
+  fun prepare(query: CartCheckoutSourceQuery): CartCheckoutSourceResult
 }

@@ -22,19 +22,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class SiteCurrencyPolicyTest {
-    @Test
-    fun `uses configured default and accepts only configured legal currencies`() {
-        val policy = SiteCurrencyPolicy("JPY", setOf("JPY", "USD"))
+  @Test
+  fun `uses configured default and accepts only configured legal currencies`() {
+    val policy = SiteCurrencyPolicy("JPY", setOf("JPY", "USD"))
 
-        assertEquals("JPY", policy.select(null))
-        assertEquals("USD", policy.select("USD"))
-        assertNull(policy.select("CNY"))
-        assertNull(policy.select("ZZZ"))
-    }
+    assertEquals("JPY", policy.select(null))
+    assertEquals("USD", policy.select("USD"))
+    assertNull(policy.select("CNY"))
+    assertNull(policy.select("ZZZ"))
+  }
 
-    @Test
-    fun `configuration requires legal currencies and an allowed default`() {
-        shouldThrow<IllegalArgumentException> { SiteCurrencyPolicy("ZZZ", setOf("ZZZ")) }
-        shouldThrow<IllegalArgumentException> { SiteCurrencyPolicy("JPY", setOf("USD")) }
-    }
+  @Test
+  fun `configuration requires legal currencies and an allowed default`() {
+    shouldThrow<IllegalArgumentException> { SiteCurrencyPolicy("ZZZ", setOf("ZZZ")) }
+    shouldThrow<IllegalArgumentException> { SiteCurrencyPolicy("JPY", setOf("USD")) }
+  }
 }

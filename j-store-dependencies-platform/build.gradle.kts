@@ -5,18 +5,18 @@ repositories { mavenCentral() }
 javaPlatform { allowDependencies() }
 
 dependencies {
-    api(platform(libs.spring.boot.dependencies))
-    api(platform(libs.junit.bom))
-    api(platform(libs.open.telemetry.bom))
-    api(platform(libs.jackson.bom))
-    api(platform(libs.netty.bom))
-    api(platform(libs.log4j.bom))
+  api(platform(libs.spring.boot.dependencies))
+  api(platform(libs.junit.bom))
+  api(platform(libs.open.telemetry.bom))
+  api(platform(libs.jackson.bom))
+  api(platform(libs.netty.bom))
+  api(platform(libs.log4j.bom))
 
-    constraints {
-        api(libs.postgresql)
-        api(libs.commons.lang3)
-        api(libs.tomcat.embed.core)
-        api(libs.tomcat.embed.el)
-        api(libs.tomcat.embed.websocket)
-    }
+  constraints {
+    api(libs.postgresql)
+    api(libs.commons.lang3)
+    api(libs.tomcat.embed.core)
+    api(libs.tomcat.embed.el)
+    api(libs.tomcat.embed.websocket)
+  }
 }

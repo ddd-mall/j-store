@@ -23,17 +23,17 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
 interface StorePOJpaRepository : JpaRepository<StorePO, Long> {
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from StorePO s where s.id in :ids order by s.id")
-    fun findAllByIdForUpdate(@Param("ids") ids: List<Long>): List<StorePO>
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select s from StorePO s where s.id in :ids order by s.id")
+  fun findAllByIdForUpdate(@Param("ids") ids: List<Long>): List<StorePO>
 }
 
 interface SalesOfferPOJpaRepository : JpaRepository<SalesOfferPO, Long> {
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select o from SalesOfferPO o where o.id in :ids order by o.id")
-    fun findAllByIdForUpdate(@Param("ids") ids: List<Long>): List<SalesOfferPO>
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select o from SalesOfferPO o where o.id in :ids order by o.id")
+  fun findAllByIdForUpdate(@Param("ids") ids: List<Long>): List<SalesOfferPO>
 }
 
 interface SaleAuthorizationPOJpaRepository : JpaRepository<SaleAuthorizationPO, String> {
-    fun findAllByOrderPlanIdOrderByOfferId(orderPlanId: Long): List<SaleAuthorizationPO>
+  fun findAllByOrderPlanIdOrderByOfferId(orderPlanId: Long): List<SaleAuthorizationPO>
 }

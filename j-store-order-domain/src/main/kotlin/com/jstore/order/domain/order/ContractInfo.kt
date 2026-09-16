@@ -26,10 +26,10 @@ data class ContractInfo(
     val email: String? = null,
     val phoneNumber: PhoneNumber? = null,
 ) {
-    fun validate(): Result<ContractInfo, BusinessError> {
-        if (email.isNullOrBlank() && phoneNumber == null) {
-            return Failure(OrderErrors.CONTRACT_INFO_INVALID)
-        }
-        return Success(this)
+  fun validate(): Result<ContractInfo, BusinessError> {
+    if (email.isNullOrBlank() && phoneNumber == null) {
+      return Failure(OrderErrors.CONTRACT_INFO_INVALID)
     }
+    return Success(this)
+  }
 }

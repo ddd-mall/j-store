@@ -28,23 +28,23 @@ data class OrderAmountSnapshot(
     val taxAmount: Price,
     val payableAmount: Price,
 ) {
-    init {
-        require(CurrencyCode.isValid(currency)) { "currency must be a valid ISO 4217 code" }
-        require(discountAmount <= itemsSubtotal) { "discount cannot exceed item subtotal" }
-        require(payableAmount == itemsSubtotal - discountAmount + shippingAmount + taxAmount) {
-            "payable amount does not match amount components"
-        }
+  init {
+    require(CurrencyCode.isValid(currency)) { "currency must be a valid ISO 4217 code" }
+    require(discountAmount <= itemsSubtotal) { "discount cannot exceed item subtotal" }
+    require(payableAmount == itemsSubtotal - discountAmount + shippingAmount + taxAmount) {
+      "payable amount does not match amount components"
     }
+  }
 
-    companion object {
-        fun singleCurrency(currency: String, itemsSubtotal: Price): OrderAmountSnapshot =
-            OrderAmountSnapshot(
-                currency = currency,
-                itemsSubtotal = itemsSubtotal,
-                discountAmount = Price.ZERO,
-                shippingAmount = Price.ZERO,
-                taxAmount = Price.ZERO,
-                payableAmount = itemsSubtotal,
-            )
-    }
+  companion object {
+    fun singleCurrency(currency: String, itemsSubtotal: Price): OrderAmountSnapshot =
+        OrderAmountSnapshot(
+            currency = currency,
+            itemsSubtotal = itemsSubtotal,
+            discountAmount = Price.ZERO,
+            shippingAmount = Price.ZERO,
+            taxAmount = Price.ZERO,
+            payableAmount = itemsSubtotal,
+        )
+  }
 }

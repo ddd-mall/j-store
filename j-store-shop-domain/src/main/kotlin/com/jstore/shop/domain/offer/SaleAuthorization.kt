@@ -43,89 +43,89 @@ private constructor(
     status: SaleAuthorizationStatus,
     val persistenceVersion: Long,
 ) : EventRecordingAggregateRoot<SaleAuthorizationId>() {
-    private var _status = status
+  private var _status = status
 
-    val status: SaleAuthorizationStatus
-        get() = _status
+  val status: SaleAuthorizationStatus
+    get() = _status
 
-    fun isUsable(now: Instant): Boolean =
-        _status == SaleAuthorizationStatus.AUTHORIZED && now.isBefore(expiresAt)
+  fun isUsable(now: Instant): Boolean =
+      _status == SaleAuthorizationStatus.AUTHORIZED && now.isBefore(expiresAt)
 
-    fun release(now: Instant): Result<Boolean, BusinessError> {
-        if (_status == SaleAuthorizationStatus.RELEASED) return Success(false)
-        if (_status != SaleAuthorizationStatus.AUTHORIZED) return Failure(OfferErrors.ILLEGAL_STATE)
-        _status = SaleAuthorizationStatus.RELEASED
-        raise(SaleAuthorizationReleasedEvent(id, tradeId, orderPlanId, now))
-        return Success(true)
-    }
+  fun release(now: Instant): Result<Boolean, BusinessError> {
+    if (_status == SaleAuthorizationStatus.RELEASED) return Success(false)
+    if (_status != SaleAuthorizationStatus.AUTHORIZED) return Failure(OfferErrors.ILLEGAL_STATE)
+    _status = SaleAuthorizationStatus.RELEASED
+    raise(SaleAuthorizationReleasedEvent(id, tradeId, orderPlanId, now))
+    return Success(true)
+  }
 
-    companion object {
-        fun authorized(
-            id: SaleAuthorizationId,
-            tradeId: Long,
-            orderPlanId: Long,
-            offerId: SalesOfferId,
-            storeId: StoreId,
-            merchantId: MerchantId,
-            skuId: SkuId,
-            quantity: Int,
-            offerVersion: Long,
-            unitPrice: Price,
-            fulfillmentPolicy: FulfillmentPolicy,
-            authorizedAt: Instant,
-            expiresAt: Instant,
-        ) =
-            SaleAuthorization(
-                id,
-                tradeId,
-                orderPlanId,
-                offerId,
-                storeId,
-                merchantId,
-                skuId,
-                quantity,
-                offerVersion,
-                unitPrice,
-                fulfillmentPolicy,
-                authorizedAt,
-                expiresAt,
-                SaleAuthorizationStatus.AUTHORIZED,
-                0,
-            )
+  companion object {
+    fun authorized(
+        id: SaleAuthorizationId,
+        tradeId: Long,
+        orderPlanId: Long,
+        offerId: SalesOfferId,
+        storeId: StoreId,
+        merchantId: MerchantId,
+        skuId: SkuId,
+        quantity: Int,
+        offerVersion: Long,
+        unitPrice: Price,
+        fulfillmentPolicy: FulfillmentPolicy,
+        authorizedAt: Instant,
+        expiresAt: Instant,
+    ) =
+        SaleAuthorization(
+            id,
+            tradeId,
+            orderPlanId,
+            offerId,
+            storeId,
+            merchantId,
+            skuId,
+            quantity,
+            offerVersion,
+            unitPrice,
+            fulfillmentPolicy,
+            authorizedAt,
+            expiresAt,
+            SaleAuthorizationStatus.AUTHORIZED,
+            0,
+        )
 
-        fun reconstitute(
-            id: SaleAuthorizationId,
-            tradeId: Long,
-            orderPlanId: Long,
-            offerId: SalesOfferId,
-            storeId: StoreId,
-            merchantId: MerchantId,
-            skuId: SkuId,
-            quantity: Int,
-            offerVersion: Long,
-            unitPrice: Price,
-            fulfillmentPolicy: FulfillmentPolicy,
-            authorizedAt: Instant,
-            expiresAt: Instant,
-            status: SaleAuthorizationStatus,
-            persistenceVersion: Long = 0,
-        ) =
-            SaleAuthorization(
-                id,
-                tradeId,
-                orderPlanId,
-                offerId,
-                storeId,
-                merchantId,
-                skuId,
-                quantity,
-                offerVersion,
-                unitPrice,
-                fulfillmentPolicy,
-                authorizedAt,
-                expiresAt,
-                status,
-                persistenceVersion,
-            )
-    }
+    fun reconstitute(
+        id: SaleAuthorizationId,
+        tradeId: Long,
+        orderPlanId: Long,
+        offerId: SalesOfferId,
+        storeId: StoreId,
+        merchantId: MerchantId,
+        skuId: SkuId,
+        quantity: Int,
+        offerVersion: Long,
+        unitPrice: Price,
+        fulfillmentPolicy: FulfillmentPolicy,
+        authorizedAt: Instant,
+        expiresAt: Instant,
+        status: SaleAuthorizationStatus,
+        persistenceVersion: Long = 0,
+    ) =
+        SaleAuthorization(
+            id,
+            tradeId,
+            orderPlanId,
+            offerId,
+            storeId,
+            merchantId,
+            skuId,
+            quantity,
+            offerVersion,
+            unitPrice,
+            fulfillmentPolicy,
+            authorizedAt,
+            expiresAt,
+            status,
+            persistenceVersion,
+        )
+  }
 }

@@ -27,25 +27,25 @@ import com.jstore.common.query.Page
  */
 interface OrderRepository : AggregateRepository<OrderId, Order> {
 
-    /** 添加新订单 */
-    fun add(order: Order)
+  /** 添加新订单 */
+  fun add(order: Order)
 
-    /** 保存已存在的订单（更新） */
-    override fun save(entity: Order): Order
+  /** 保存已存在的订单（更新） */
+  override fun save(entity: Order): Order
 
-    /** 根据ID查询订单 */
-    override fun findById(id: OrderId): Order?
+  /** 根据ID查询订单 */
+  override fun findById(id: OrderId): Order?
 
-    /** 根据买家ID查询订单列表 */
-    fun findByBuyerUserId(authenticationDomain: String, uid: Long): List<Order>
+  /** 根据买家ID查询订单列表 */
+  fun findByBuyerUserId(authenticationDomain: String, uid: Long): List<Order>
 
-    fun findBySourceOrderPlanId(orderPlanId: Long): Order? = null
+  fun findBySourceOrderPlanId(orderPlanId: Long): Order? = null
 
-    /** 分页查询用户订单 */
-    fun pageListByUserId(
-        authenticationDomain: String,
-        uid: Long,
-        currentPage: Int,
-        pageSize: Int,
-    ): Page<Order>
+  /** 分页查询用户订单 */
+  fun pageListByUserId(
+      authenticationDomain: String,
+      uid: Long,
+      currentPage: Int,
+      pageSize: Int,
+  ): Page<Order>
 }

@@ -26,27 +26,27 @@ data class OrderCreateCMD(
     val recipientInfo: RecipientInfoCMD,
     val items: List<OrderItemCMD>,
 ) : Serializable {
-    data class OrderItemCMD(
-        val spuId: Long,
-        val skuId: Long,
-        val quantity: Int,
-        val snapshotVersion: Long,
-        val offerId: Long,
-        val offerVersion: Long,
-    )
+  data class OrderItemCMD(
+      val spuId: Long,
+      val skuId: Long,
+      val quantity: Int,
+      val snapshotVersion: Long,
+      val offerId: Long,
+      val offerVersion: Long,
+  )
 
-    data class ContractInfoCMD(
-        val phoneNumber: PhoneNumber? = null,
-        val emailAddress: String? = null,
-    )
+  data class ContractInfoCMD(
+      val phoneNumber: PhoneNumber? = null,
+      val emailAddress: String? = null,
+  )
 
-    data class RecipientInfoCMD(
-        val consigneeName: String,
-        val countryCode: String,
-        val consigneeContractInfo: ContractInfoCMD,
-        val shippingDistrictCode: String,
-        val shippingDetailAddress: String,
-        val postalCode: String? = null,
-        val customsFields: Map<String, String> = emptyMap(),
-    )
+  data class RecipientInfoCMD(
+      val consigneeName: String,
+      val countryCode: String,
+      val consigneeContractInfo: ContractInfoCMD,
+      val shippingDistrictCode: String,
+      val shippingDetailAddress: String,
+      val postalCode: String? = null,
+      val customsFields: Map<String, String> = emptyMap(),
+  )
 }

@@ -34,97 +34,96 @@ import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class OutboxBackendSelectionTest {
-    private fun runner() =
-        ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(OutboxAutoConfiguration::class.java))
-            .withBean(
-                ObjectMapper::class.java,
-                { ObjectMapper().registerKotlinModule().registerModule(JavaTimeModule()) },
-            )
-            .withBean(SnowFlakSequence::class.java, { SnowFlakSequence(1, 1) })
-            .withPropertyValues("jstore.outbox.enabled=true", "jstore.outbox.mode=recording")
+  private fun runner() =
+      ApplicationContextRunner()
+          .withConfiguration(AutoConfigurations.of(OutboxAutoConfiguration::class.java))
+          .withBean(
+              ObjectMapper::class.java,
+              { ObjectMapper().registerKotlinModule().registerModule(JavaTimeModule()) },
+          )
+          .withBean(SnowFlakSequence::class.java, { SnowFlakSequence(1, 1) })
+          .withPropertyValues("jstore.outbox.enabled=true", "jstore.outbox.mode=recording")
 
-    @Test
-    fun `independent backend publishes with no polling database or runtime`() {
-        val accepted = mutableListOf<OutboxMessage>()
-        val positions = mutableMapOf<OutboxStreamKey, Long>()
-        val backend =
-            OutboxBackend(
-                "recording",
-                OutboxWriter { accepted.addAll(it) },
-                OutboxStreamSequenceAllocator { transport, key ->
-                    val stream = OutboxStreamKey(transport, key)
-                    (positions.getOrDefault(stream, 0) + 1).also { positions[stream] = it }
-                },
-            )
-        runner().withBean("recordingBackend", OutboxBackend::class.java, { backend }).run { context
-            ->
-            assertNull(context.startupFailure)
-            assertTrue(context.getBeansOfType(OutboxEntryRepository::class.java).isEmpty())
-            assertTrue(context.getBeansOfType(OutboxEntryPOJpaRepository::class.java).isEmpty())
-            assertTrue(context.getBeansOfType(OutboxScheduler::class.java).isEmpty())
-            assertTrue(context.getBeansOfType(OutboxCleaner::class.java).isEmpty())
-            assertTrue(context.getBeansOfType(OutboxMonitor::class.java).isEmpty())
-            assertTrue(context.getBeansOfType(OutboxRelaySignal::class.java).isEmpty())
-            assertTrue(context.getBeansOfType(DomainEventPublisher::class.java).isNotEmpty())
-            val command = TestReserveInventoryCommand(42, Instant.parse("2026-01-01T00:00:00Z"))
-            val publisher = context.getBean(IntegrationMessagePublisher::class.java)
-            publisher.publish(command)
-            publisher.publish(command)
-            assertEquals(listOf(1L, 2L), accepted.map { it.sequenceNo })
-            assertEquals(listOf(command.messageId, command.messageId), accepted.map { it.eventId })
-            assertTrue(
-                accepted.all {
-                    it.transportId == "local" && it.acceptBefore == command.acceptBefore
-                }
-            )
-            val event = OrderCompletedEvent(OrderId(42), command.occurredAt)
-            context.getBean(DomainEventPublisher::class.java).publishEvents(listOf(event))
-            val domainMessage = accepted.last()
-            assertEquals(event.eventId, domainMessage.eventId)
-            assertEquals(OutboxMessageKind.DOMAIN_EVENT, domainMessage.messageKind)
-            assertEquals("local-domain", domainMessage.transportId)
-            assertEquals(1L, domainMessage.sequenceNo)
-        }
+  @Test
+  fun `independent backend publishes with no polling database or runtime`() {
+    val accepted = mutableListOf<OutboxMessage>()
+    val positions = mutableMapOf<OutboxStreamKey, Long>()
+    val backend =
+        OutboxBackend(
+            "recording",
+            OutboxWriter { accepted.addAll(it) },
+            OutboxStreamSequenceAllocator { transport, key ->
+              val stream = OutboxStreamKey(transport, key)
+              (positions.getOrDefault(stream, 0) + 1).also { positions[stream] = it }
+            },
+        )
+    runner().withBean("recordingBackend", OutboxBackend::class.java, { backend }).run { context ->
+      assertNull(context.startupFailure)
+      assertTrue(context.getBeansOfType(OutboxEntryRepository::class.java).isEmpty())
+      assertTrue(context.getBeansOfType(OutboxEntryPOJpaRepository::class.java).isEmpty())
+      assertTrue(context.getBeansOfType(OutboxScheduler::class.java).isEmpty())
+      assertTrue(context.getBeansOfType(OutboxCleaner::class.java).isEmpty())
+      assertTrue(context.getBeansOfType(OutboxMonitor::class.java).isEmpty())
+      assertTrue(context.getBeansOfType(OutboxRelaySignal::class.java).isEmpty())
+      assertTrue(context.getBeansOfType(DomainEventPublisher::class.java).isNotEmpty())
+      val command = TestReserveInventoryCommand(42, Instant.parse("2026-01-01T00:00:00Z"))
+      val publisher = context.getBean(IntegrationMessagePublisher::class.java)
+      publisher.publish(command)
+      publisher.publish(command)
+      assertEquals(listOf(1L, 2L), accepted.map { it.sequenceNo })
+      assertEquals(listOf(command.messageId, command.messageId), accepted.map { it.eventId })
+      assertTrue(
+          accepted.all {
+            it.transportId == "local" && it.acceptBefore == command.acceptBefore
+          }
+      )
+      val event = OrderCompletedEvent(OrderId(42), command.occurredAt)
+      context.getBean(DomainEventPublisher::class.java).publishEvents(listOf(event))
+      val domainMessage = accepted.last()
+      assertEquals(event.eventId, domainMessage.eventId)
+      assertEquals(OutboxMessageKind.DOMAIN_EVENT, domainMessage.messageKind)
+      assertEquals("local-domain", domainMessage.transportId)
+      assertEquals(1L, domainMessage.sequenceNo)
     }
+  }
 
-    @Test
-    fun `missing selected backend fails instead of falling back to polling`() {
-        runner().run { assertNotNull(it.startupFailure) }
-    }
+  @Test
+  fun `missing selected backend fails instead of falling back to polling`() {
+    runner().run { assertNotNull(it.startupFailure) }
+  }
 
-    @Test
-    fun `mismatched backend fails`() {
-        runner()
-            .withBean(
-                OutboxBackend::class.java,
-                {
-                    OutboxBackend(
-                        "different",
-                        OutboxWriter {},
-                        OutboxStreamSequenceAllocator { _, _ -> 1 },
-                    )
-                },
-            )
-            .run { assertNotNull(it.startupFailure) }
-    }
+  @Test
+  fun `mismatched backend fails`() {
+    runner()
+        .withBean(
+            OutboxBackend::class.java,
+            {
+              OutboxBackend(
+                  "different",
+                  OutboxWriter {},
+                  OutboxStreamSequenceAllocator { _, _ -> 1 },
+              )
+            },
+        )
+        .run { assertNotNull(it.startupFailure) }
+  }
 
-    @Test
-    fun `duplicate backend owners fail even with the same implementation id`() {
-        val backend =
-            OutboxBackend("recording", OutboxWriter {}, OutboxStreamSequenceAllocator { _, _ -> 1 })
-        runner()
-            .withBean("firstBackend", OutboxBackend::class.java, { backend })
-            .withBean("secondBackend", OutboxBackend::class.java, { backend })
-            .run { assertNotNull(it.startupFailure) }
-    }
+  @Test
+  fun `duplicate backend owners fail even with the same implementation id`() {
+    val backend =
+        OutboxBackend("recording", OutboxWriter {}, OutboxStreamSequenceAllocator { _, _ -> 1 })
+    runner()
+        .withBean("firstBackend", OutboxBackend::class.java, { backend })
+        .withBean("secondBackend", OutboxBackend::class.java, { backend })
+        .run { assertNotNull(it.startupFailure) }
+  }
 
-    @Test
-    fun `disabled outbox does not require a backend`() {
-        runner().withPropertyValues("jstore.outbox.enabled=false").run { context ->
-            assertNull(context.startupFailure)
-            assertTrue(context.getBeansOfType(IntegrationMessagePublisher::class.java).isEmpty())
-            assertTrue(context.getBeansOfType(OutboxScheduler::class.java).isEmpty())
-        }
+  @Test
+  fun `disabled outbox does not require a backend`() {
+    runner().withPropertyValues("jstore.outbox.enabled=false").run { context ->
+      assertNull(context.startupFailure)
+      assertTrue(context.getBeansOfType(IntegrationMessagePublisher::class.java).isEmpty())
+      assertTrue(context.getBeansOfType(OutboxScheduler::class.java).isEmpty())
     }
+  }
 }

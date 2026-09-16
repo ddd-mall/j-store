@@ -37,30 +37,30 @@ import io.kotest.property.checkAll
 class GoodsStyleMainImagesOrderPropertyTest :
     FunSpec({
 
-        // Generator for a distinct ImageKey list (including empty lists)
-        val distinctImageKeysArb: Arb<List<String>> =
-            Arb.list(Arb.string(1..30), 0..20).map { it.distinct() }
+      // Generator for a distinct ImageKey list (including empty lists)
+      val distinctImageKeysArb: Arb<List<String>> =
+          Arb.list(Arb.string(1..30), 0..20).map { it.distinct() }
 
-        fun createGoodsStyle(): GoodsStyle {
-            return GoodsStyleImpl(
-                id = GoodsStyleId(1L),
-                spuId = SpuId(1L),
-                _mainImages = mutableListOf(),
-                _detailHtml = "",
-                _skuImages = mutableMapOf(),
-            )
+      fun createGoodsStyle(): GoodsStyle {
+        return GoodsStyleImpl(
+            id = GoodsStyleId(1L),
+            spuId = SpuId(1L),
+            _mainImages = mutableListOf(),
+            _detailHtml = "",
+            _skuImages = mutableMapOf(),
+        )
+      }
+
+      test(
+          "updateMainImages should preserve element order and content for any distinct ImageKey list"
+      ) {
+        checkAll(100, distinctImageKeysArb) { images ->
+          val goodsStyle = createGoodsStyle()
+
+          val result = goodsStyle.updateMainImages(images)
+
+          result.shouldBeInstanceOf<Success<Unit>>()
+          goodsStyle.mainImages shouldBe images
         }
-
-        test(
-            "updateMainImages should preserve element order and content for any distinct ImageKey list"
-        ) {
-            checkAll(100, distinctImageKeysArb) { images ->
-                val goodsStyle = createGoodsStyle()
-
-                val result = goodsStyle.updateMainImages(images)
-
-                result.shouldBeInstanceOf<Success<Unit>>()
-                goodsStyle.mainImages shouldBe images
-            }
-        }
+      }
     })

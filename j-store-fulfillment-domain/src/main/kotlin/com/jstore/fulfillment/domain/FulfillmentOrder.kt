@@ -26,10 +26,10 @@ import java.time.Instant
 data class FulfillmentOrderId(override val value: Long) : Id<Long>(value)
 
 enum class FulfillmentOrderStatus {
-    PENDING,
-    READY,
-    SHIPPED,
-    DELIVERED,
+  PENDING,
+  READY,
+  SHIPPED,
+  DELIVERED,
 }
 
 data class ShippingRecipient(
@@ -46,27 +46,27 @@ data class FulfillmentItem(
     val skuId: Long,
     val quantity: Int,
 ) {
-    init {
-        require(orderItemId > 0 && skuId > 0 && quantity > 0)
-    }
+  init {
+    require(orderItemId > 0 && skuId > 0 && quantity > 0)
+  }
 }
 
 interface FulfillmentOrder : AggregateRoot<FulfillmentOrderId>, RecordsDomainEvents {
-    val orderId: Long
-    val merchantId: Long
-    val status: FulfillmentOrderStatus
-    val recipient: ShippingRecipient
-    val items: List<FulfillmentItem>
-    val carrierCode: String?
-    val trackingNumber: String?
+  val orderId: Long
+  val merchantId: Long
+  val status: FulfillmentOrderStatus
+  val recipient: ShippingRecipient
+  val items: List<FulfillmentItem>
+  val carrierCode: String?
+  val trackingNumber: String?
 
-    fun prepare(occurredAt: Instant): Result<Boolean, BusinessError>
+  fun prepare(occurredAt: Instant): Result<Boolean, BusinessError>
 
-    fun dispatch(
-        carrierCode: String,
-        trackingNumber: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError>
+  fun dispatch(
+      carrierCode: String,
+      trackingNumber: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError>
 
-    fun deliver(occurredAt: Instant): Result<Boolean, BusinessError>
+  fun deliver(occurredAt: Instant): Result<Boolean, BusinessError>
 }

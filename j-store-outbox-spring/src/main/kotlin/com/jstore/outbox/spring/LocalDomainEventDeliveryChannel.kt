@@ -24,27 +24,27 @@ class LocalDomainEventDeliveryChannel(
     private val eventSerializer: EventSerializer,
     private val localDomainEventBus: LocalDomainEventBus,
 ) : PreparingOutboxDeliveryChannel {
-    override val transportId: String = OutboxTransportIds.LOCAL_DOMAIN
+  override val transportId: String = OutboxTransportIds.LOCAL_DOMAIN
 
-    override fun deliver(entry: OutboxMessage) = prepare(entry).invoke()
+  override fun deliver(entry: OutboxMessage) = prepare(entry).invoke()
 
-    override fun prepare(entry: OutboxMessage): () -> Unit {
-        check(entry.transportId == transportId) {
-            "LOCAL_DOMAIN channel cannot deliver transport ${entry.transportId}"
-        }
-        check(entry.messageKind == OutboxMessageKind.DOMAIN_EVENT) {
-            "LOCAL_DOMAIN channel only accepts DOMAIN_EVENT, actual=${entry.messageKind}"
-        }
-        val event =
-            eventSerializer.deserialize(
-                entry.payload,
-                entry.eventType,
-                entry.eventVersion,
-            )
-        return if (localDomainEventBus is PreparingLocalDomainEventBus)
-            localDomainEventBus.prepareEvent(event)
-        else {
-            { localDomainEventBus.publishEvent(event) }
-        }
+  override fun prepare(entry: OutboxMessage): () -> Unit {
+    check(entry.transportId == transportId) {
+      "LOCAL_DOMAIN channel cannot deliver transport ${entry.transportId}"
     }
+    check(entry.messageKind == OutboxMessageKind.DOMAIN_EVENT) {
+      "LOCAL_DOMAIN channel only accepts DOMAIN_EVENT, actual=${entry.messageKind}"
+    }
+    val event =
+        eventSerializer.deserialize(
+            entry.payload,
+            entry.eventType,
+            entry.eventVersion,
+        )
+    return if (localDomainEventBus is PreparingLocalDomainEventBus)
+        localDomainEventBus.prepareEvent(event)
+    else {
+      { localDomainEventBus.publishEvent(event) }
+    }
+  }
 }

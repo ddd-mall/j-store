@@ -39,63 +39,62 @@ fun testOrder(
     sourcePlanDigest: String? = null,
     currency: String = "CNY",
 ): OrderImpl {
-    val items = itemStatuses.mapIndexed { index, status ->
-        OrderItemImpl(
-            id = OrderItemId((index + 1).toLong()),
-            skuId = (index + 10).toLong(),
-            spuId = 1,
-            offerId = (index + 100).toLong(),
-            storeId = 7,
-            offerVersion = 3,
-            fulfillmentNodeId = "NODE-1",
-            channelId = "ONLINE",
-            goodsName = "商品$index",
-            skuDescription = "规格$index",
-            quantity = 1,
-            unitPrice = Price.ofFen(100),
-            status = status,
-        )
-    }
-    return OrderImpl(
-        id = OrderId(1),
-        merchantId = MerchantId(7),
-        buyerInfo = UserInfo("issuer-a", 1, null, null),
-        _items = items.toMutableList(),
-        recipientInfo =
-            RecipientInfo(
-                name = "收货人",
-                contractInfo = ContractInfo(null, null),
-                shippingAddress =
-                    I18nGeoAddress(
-                        CountryCode.CN,
-                        listOf(
-                            AddressComponent(
-                                "110000",
-                                DivisionLevel(1, "省"),
-                                mapOf(Locale.SIMPLIFIED_CHINESE to "北京市"),
-                                Locale.SIMPLIFIED_CHINESE,
-                            )
-                        ),
-                    ),
-                shippingDetailAddress = "测试地址",
-            ),
-        _tradeStatus = trade,
-        _paymentStatus = payment,
-        _fulfillmentStatus = fulfillment,
-        _commitmentStatus = commitment,
-        amountSnapshot =
-            OrderAmountSnapshot.singleCurrency(currency, Price.ofFen(items.size * 100)),
-        _paidAmount =
-            if (payment == PaymentStatus.UNPAID) Price.ZERO else Price.ofFen(items.size * 100),
-        _paymentReference = if (payment == PaymentStatus.UNPAID) null else "payment-1",
-        _fulfillmentReference =
-            if (fulfillment == FulfillmentStatus.UNFULFILLED) null else "fulfillment-1",
-        createTime = LocalDateTime.of(2026, 1, 1, 0, 0),
-        _updateTime = LocalDateTime.of(2026, 1, 1, 0, 0),
-        sourceTradeId = sourceTradeId,
-        sourceOrderPlanId = sourceOrderPlanId,
-        sourcePlanDigest = sourcePlanDigest,
+  val items = itemStatuses.mapIndexed { index, status ->
+    OrderItemImpl(
+        id = OrderItemId((index + 1).toLong()),
+        skuId = (index + 10).toLong(),
+        spuId = 1,
+        offerId = (index + 100).toLong(),
+        storeId = 7,
+        offerVersion = 3,
+        fulfillmentNodeId = "NODE-1",
+        channelId = "ONLINE",
+        goodsName = "商品$index",
+        skuDescription = "规格$index",
+        quantity = 1,
+        unitPrice = Price.ofFen(100),
+        status = status,
     )
+  }
+  return OrderImpl(
+      id = OrderId(1),
+      merchantId = MerchantId(7),
+      buyerInfo = UserInfo("issuer-a", 1, null, null),
+      _items = items.toMutableList(),
+      recipientInfo =
+          RecipientInfo(
+              name = "收货人",
+              contractInfo = ContractInfo(null, null),
+              shippingAddress =
+                  I18nGeoAddress(
+                      CountryCode.CN,
+                      listOf(
+                          AddressComponent(
+                              "110000",
+                              DivisionLevel(1, "省"),
+                              mapOf(Locale.SIMPLIFIED_CHINESE to "北京市"),
+                              Locale.SIMPLIFIED_CHINESE,
+                          )
+                      ),
+                  ),
+              shippingDetailAddress = "测试地址",
+          ),
+      _tradeStatus = trade,
+      _paymentStatus = payment,
+      _fulfillmentStatus = fulfillment,
+      _commitmentStatus = commitment,
+      amountSnapshot = OrderAmountSnapshot.singleCurrency(currency, Price.ofFen(items.size * 100)),
+      _paidAmount =
+          if (payment == PaymentStatus.UNPAID) Price.ZERO else Price.ofFen(items.size * 100),
+      _paymentReference = if (payment == PaymentStatus.UNPAID) null else "payment-1",
+      _fulfillmentReference =
+          if (fulfillment == FulfillmentStatus.UNFULFILLED) null else "fulfillment-1",
+      createTime = LocalDateTime.of(2026, 1, 1, 0, 0),
+      _updateTime = LocalDateTime.of(2026, 1, 1, 0, 0),
+      sourceTradeId = sourceTradeId,
+      sourceOrderPlanId = sourceOrderPlanId,
+      sourcePlanDigest = sourcePlanDigest,
+  )
 }
 
 fun testOfferService(
@@ -103,19 +102,19 @@ fun testOfferService(
     price: Price = Price.ofFen(100),
     currency: String = "CNY",
 ): OfferService = OfferService { ids ->
-    ids.map {
-        OfferInfo(
-            offerId = it,
-            storeId = 1,
-            merchantId = merchantId,
-            skuId = it,
-            channelId = "ONLINE",
-            market = "CN",
-            price = price,
-            currency = currency,
-            version = 1,
-            fulfillmentNodeId = "DEFAULT",
-            allowBackorder = false,
-        )
-    }
+  ids.map {
+    OfferInfo(
+        offerId = it,
+        storeId = 1,
+        merchantId = merchantId,
+        skuId = it,
+        channelId = "ONLINE",
+        market = "CN",
+        price = price,
+        currency = currency,
+        version = 1,
+        fulfillmentNodeId = "DEFAULT",
+        allowBackorder = false,
+    )
+  }
 }

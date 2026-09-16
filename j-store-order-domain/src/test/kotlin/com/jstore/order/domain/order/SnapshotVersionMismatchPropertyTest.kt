@@ -46,114 +46,113 @@ import java.util.Locale
  */
 class SnapshotVersionMismatchPropertyTest :
     FunSpec({
-        val sampleAddress =
-            I18nGeoAddress(
-                countryCode = CountryCode.CN,
-                components =
-                    listOf(
-                        AddressComponent(
-                            code = "110000",
-                            level = DivisionLevel(1, "省"),
-                            names = mapOf(Locale.SIMPLIFIED_CHINESE to "北京市"),
-                            defaultLocale = Locale.SIMPLIFIED_CHINESE,
-                        )
-                    ),
-            )
+      val sampleAddress =
+          I18nGeoAddress(
+              countryCode = CountryCode.CN,
+              components =
+                  listOf(
+                      AddressComponent(
+                          code = "110000",
+                          level = DivisionLevel(1, "省"),
+                          names = mapOf(Locale.SIMPLIFIED_CHINESE to "北京市"),
+                          defaultLocale = Locale.SIMPLIFIED_CHINESE,
+                      )
+                  ),
+          )
 
-        val stubGeoAddressService =
-            object : GeoAddressService {
-                override fun getByCode(
-                    countryCode: String,
-                    addressCode: String,
-                ): Result<I18nGeoAddress, BusinessError> {
-                    return Success(sampleAddress)
-                }
+      val stubGeoAddressService =
+          object : GeoAddressService {
+            override fun getByCode(
+                countryCode: String,
+                addressCode: String,
+            ): Result<I18nGeoAddress, BusinessError> {
+              return Success(sampleAddress)
             }
+          }
 
-        val snowFlakSequence = SnowFlakSequence(1, 1)
+      val snowFlakSequence = SnowFlakSequence(1, 1)
 
-        // Generator for SPU IDs (positive longs)
-        val spuIdArb: Arb<Long> = Arb.long(1L..10000L)
+      // Generator for SPU IDs (positive longs)
+      val spuIdArb: Arb<Long> = Arb.long(1L..10000L)
 
-        // Generator for the goods service snapshot version (the "real" version)
-        val goodsVersionArb: Arb<Long> = Arb.long(1L..1000L)
+      // Generator for the goods service snapshot version (the "real" version)
+      val goodsVersionArb: Arb<Long> = Arb.long(1L..1000L)
 
-        // Generator for a version offset that is guaranteed non-zero (to create mismatch)
-        val nonZeroOffsetArb: Arb<Long> =
-            Arb.choice(
-                Arb.long(1L..100L),
-                Arb.long(-100L..-1L),
-            )
+      // Generator for a version offset that is guaranteed non-zero (to create mismatch)
+      val nonZeroOffsetArb: Arb<Long> =
+          Arb.choice(
+              Arb.long(1L..100L),
+              Arb.long(-100L..-1L),
+          )
 
-        test(
-            "OrderFactory.create() returns Failure(SNAPSHOT_VERSION_MISMATCH) when snapshotVersion mismatches"
-        ) {
-            checkAll(100, spuIdArb, goodsVersionArb, nonZeroOffsetArb) { spuId, goodsVersion, offset
-                ->
-                val cmdSnapshotVersion = goodsVersion + offset
+      test(
+          "OrderFactory.create() returns Failure(SNAPSHOT_VERSION_MISMATCH) when snapshotVersion mismatches"
+      ) {
+        checkAll(100, spuIdArb, goodsVersionArb, nonZeroOffsetArb) { spuId, goodsVersion, offset ->
+          val cmdSnapshotVersion = goodsVersion + offset
 
-                val goodsService =
-                    object : GoodsService {
-                        override fun queryGoods(goodsId: List<GoodsId>): List<GoodsInfo> {
-                            return goodsId.map {
-                                GoodsInfo(
-                                    id = it,
-                                    merchantId = 7,
-                                    snapshotVersion = goodsVersion,
-                                    spuName = "测试商品",
-                                    skuName = "默认规格",
-                                    attributes = emptyList(),
-                                )
-                            }
-                        }
-                    }
-
-                val factory =
-                    OrderFactoryImpl(
-                        snowFlakSequence,
-                        goodsService,
-                        stubGeoAddressService,
-                        testOfferService(),
-                    )
-
-                val cmd =
-                    OrderCreateCMD(
-                        buyerUid = 1L,
+          val goodsService =
+              object : GoodsService {
+                override fun queryGoods(goodsId: List<GoodsId>): List<GoodsInfo> {
+                  return goodsId.map {
+                    GoodsInfo(
+                        id = it,
                         merchantId = 7,
-                        recipientInfo =
-                            OrderCreateCMD.RecipientInfoCMD(
-                                consigneeName = "张三",
-                                countryCode = "CN",
-                                consigneeContractInfo =
-                                    OrderCreateCMD.ContractInfoCMD(
-                                        phoneNumber = PhoneNumber("+8613900139000"),
-                                        emailAddress = null,
-                                    ),
-                                shippingDistrictCode = "110000",
-                                shippingDetailAddress = "朝阳区三里屯",
-                            ),
-                        items =
-                            listOf(
-                                OrderCreateCMD.OrderItemCMD(
-                                    spuId = spuId,
-                                    skuId = 1L,
-                                    quantity = 1,
-                                    snapshotVersion = cmdSnapshotVersion,
-                                    offerId = 2L,
-                                    offerVersion = 1L,
-                                )
-                            ),
+                        snapshotVersion = goodsVersion,
+                        spuName = "测试商品",
+                        skuName = "默认规格",
+                        attributes = emptyList(),
                     )
+                  }
+                }
+              }
 
-                val result =
-                    factory.create(
-                        cmd,
-                        UserInfo("issuer-a", 1L, PhoneNumber("+8613800138000"), "买家"),
-                    )
+          val factory =
+              OrderFactoryImpl(
+                  snowFlakSequence,
+                  goodsService,
+                  stubGeoAddressService,
+                  testOfferService(),
+              )
 
-                result.shouldBeInstanceOf<Failure<BusinessError>>()
-                result.error.errorCode shouldBe "Order.Snapshot.VersionMismatch"
-                result.error.message shouldContain spuId.toString()
-            }
+          val cmd =
+              OrderCreateCMD(
+                  buyerUid = 1L,
+                  merchantId = 7,
+                  recipientInfo =
+                      OrderCreateCMD.RecipientInfoCMD(
+                          consigneeName = "张三",
+                          countryCode = "CN",
+                          consigneeContractInfo =
+                              OrderCreateCMD.ContractInfoCMD(
+                                  phoneNumber = PhoneNumber("+8613900139000"),
+                                  emailAddress = null,
+                              ),
+                          shippingDistrictCode = "110000",
+                          shippingDetailAddress = "朝阳区三里屯",
+                      ),
+                  items =
+                      listOf(
+                          OrderCreateCMD.OrderItemCMD(
+                              spuId = spuId,
+                              skuId = 1L,
+                              quantity = 1,
+                              snapshotVersion = cmdSnapshotVersion,
+                              offerId = 2L,
+                              offerVersion = 1L,
+                          )
+                      ),
+              )
+
+          val result =
+              factory.create(
+                  cmd,
+                  UserInfo("issuer-a", 1L, PhoneNumber("+8613800138000"), "买家"),
+              )
+
+          result.shouldBeInstanceOf<Failure<BusinessError>>()
+          result.error.errorCode shouldBe "Order.Snapshot.VersionMismatch"
+          result.error.message shouldContain spuId.toString()
         }
+      }
     })

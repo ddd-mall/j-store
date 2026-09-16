@@ -38,157 +38,155 @@ import java.util.Locale
 class RecipientInfoPORoundTripPropertyTest :
     FunSpec({
 
-        // Generator for valid Chinese phone numbers in E.164 (mobile numbers starting with 13x)
-        val validPhoneArb: Arb<PhoneNumber> =
-            Arb.int(0..99999999).map { num ->
-                PhoneNumber("+8613${num.toString().padStart(9, '0')}")
-            }
+      // Generator for valid Chinese phone numbers in E.164 (mobile numbers starting with 13x)
+      val validPhoneArb: Arb<PhoneNumber> =
+          Arb.int(0..99999999).map { num ->
+            PhoneNumber("+8613${num.toString().padStart(9, '0')}")
+          }
 
-        // Generator for non-blank strings
-        val nonBlankStringArb: Arb<String> = Arb.string(1..30).filter { it.isNotBlank() }
+      // Generator for non-blank strings
+      val nonBlankStringArb: Arb<String> = Arb.string(1..30).filter { it.isNotBlank() }
 
-        // Generator for 6-digit code strings
-        val digitCodeArb: Arb<String> = Arb.int(100000..999999).map { it.toString() }
+      // Generator for 6-digit code strings
+      val digitCodeArb: Arb<String> = Arb.int(100000..999999).map { it.toString() }
 
-        // Generator for I18nGeoAddress
-        val i18nGeoAddressArb: Arb<I18nGeoAddress> =
-            Arb.bind(
-                digitCodeArb,
-                nonBlankStringArb,
-            ) { code, name ->
-                I18nGeoAddress(
-                    countryCode = CountryCode.CN,
-                    components =
-                        listOf(
-                            AddressComponent(
-                                code = code,
-                                level = DivisionLevel(1, "省"),
-                                names = mapOf(Locale.SIMPLIFIED_CHINESE to name),
-                                defaultLocale = Locale.SIMPLIFIED_CHINESE,
-                            )
-                        ),
-                )
-            }
-
-        // Generator for valid ContractInfo (at least one of phone or email non-null)
-        val validContractInfoArb: Arb<ContractInfo> =
-            Arb.bind(
-                Arb.boolean(),
-                validPhoneArb,
-                Arb.choice(
-                    Arb.constant(null as String?),
-                    nonBlankStringArb.map { "${it.take(10)}@test.com" },
-                ),
-            ) { hasPhone, phone, email ->
-                if (hasPhone) {
-                    ContractInfo(email = email, phoneNumber = phone)
-                } else {
-                    ContractInfo(email = email ?: "fallback@test.com", phoneNumber = null)
-                }
-            }
-
-        // Generator for optional detail address
-        val optionalDetailAddressArb: Arb<String?> =
-            Arb.choice(
-                Arb.constant(null as String?),
-                nonBlankStringArb,
+      // Generator for I18nGeoAddress
+      val i18nGeoAddressArb: Arb<I18nGeoAddress> =
+          Arb.bind(
+              digitCodeArb,
+              nonBlankStringArb,
+          ) { code, name ->
+            I18nGeoAddress(
+                countryCode = CountryCode.CN,
+                components =
+                    listOf(
+                        AddressComponent(
+                            code = code,
+                            level = DivisionLevel(1, "省"),
+                            names = mapOf(Locale.SIMPLIFIED_CHINESE to name),
+                            defaultLocale = Locale.SIMPLIFIED_CHINESE,
+                        )
+                    ),
             )
+          }
 
-        // Generator for optional postal codes
-        val optionalPostalCodeArb: Arb<String?> =
-            Arb.choice(
-                Arb.constant(null as String?),
-                Arb.int(100000..999999).map { it.toString() },
-            )
-
-        // Generator for customs fields (按国附加清关字段)
-        val customsFieldsArb: Arb<Map<String, String>> =
-            Arb.choice(
-                Arb.constant(emptyMap()),
-                nonBlankStringArb.map { mapOf("CPF" to it) },
-            )
-
-        // Generator for valid ShippingInfo
-        val recipientInfoArb: Arb<RecipientInfo> =
-            Arb.bind(
-                nonBlankStringArb,
-                validContractInfoArb,
-                i18nGeoAddressArb,
-                optionalDetailAddressArb,
-                optionalPostalCodeArb,
-                customsFieldsArb,
-            ) { consigneeName, contractInfo, address, detailAddress, postalCode, customsFields ->
-                RecipientInfo(
-                    name = consigneeName,
-                    contractInfo = contractInfo,
-                    shippingAddress = address,
-                    shippingDetailAddress = detailAddress,
-                    postalCode = postalCode,
-                    customsFields = customsFields,
-                )
+      // Generator for valid ContractInfo (at least one of phone or email non-null)
+      val validContractInfoArb: Arb<ContractInfo> =
+          Arb.bind(
+              Arb.boolean(),
+              validPhoneArb,
+              Arb.choice(
+                  Arb.constant(null as String?),
+                  nonBlankStringArb.map { "${it.take(10)}@test.com" },
+              ),
+          ) { hasPhone, phone, email ->
+            if (hasPhone) {
+              ContractInfo(email = email, phoneNumber = phone)
+            } else {
+              ContractInfo(email = email ?: "fallback@test.com", phoneNumber = null)
             }
+          }
 
-        test("ShippingInfo round-trips through RecipientInfoPO via Converter toPO/toDomain") {
-            val converter = OrderRepositoryImpl.Converter
-            val now = LocalDateTime.now()
+      // Generator for optional detail address
+      val optionalDetailAddressArb: Arb<String?> =
+          Arb.choice(
+              Arb.constant(null as String?),
+              nonBlankStringArb,
+          )
 
-            checkAll(100, recipientInfoArb) { originalShippingInfo ->
-                // Build a minimal Order with the generated ShippingInfo
-                val order: Order =
-                    OrderImpl(
-                        id = OrderId(1L),
-                        merchantId = MerchantId(1L),
-                        buyerInfo =
-                            UserInfo(
-                                authenticationDomain = "issuer-a",
-                                uid = 1L,
-                                phoneNumber = null,
-                                userName = "test",
-                            ),
-                        _items =
-                            mutableListOf(
-                                OrderItemImpl(
-                                    id = OrderItemId(1L),
-                                    skuId = 1L,
-                                    spuId = 1L,
-                                    offerId = 2L,
-                                    storeId = 3L,
-                                    offerVersion = 4L,
-                                    fulfillmentNodeId = "NODE-1",
-                                    channelId = "ONLINE",
-                                    goodsName = "test",
-                                    skuDescription = "test",
-                                    quantity = 1,
-                                    unitPrice = Price.ofFen(100),
-                                    status = OrderItemStatus.NONE,
-                                )
-                            ),
-                        recipientInfo = originalShippingInfo,
-                        _tradeStatus = TradeStatus.CREATED,
-                        _paymentStatus = PaymentStatus.UNPAID,
-                        _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
-                        amountSnapshot =
-                            OrderAmountSnapshot.singleCurrency("CNY", Price.ofFen(100)),
-                        createTime = now,
-                        _updateTime = now,
-                    )
+      // Generator for optional postal codes
+      val optionalPostalCodeArb: Arb<String?> =
+          Arb.choice(
+              Arb.constant(null as String?),
+              Arb.int(100000..999999).map { it.toString() },
+          )
 
-                // Convert to PO and back
-                val po = converter.toPO(order)
-                val restored = converter.toDomain(po)
-                val restoredShippingInfo = restored.recipientInfo
+      // Generator for customs fields (按国附加清关字段)
+      val customsFieldsArb: Arb<Map<String, String>> =
+          Arb.choice(
+              Arb.constant(emptyMap()),
+              nonBlankStringArb.map { mapOf("CPF" to it) },
+          )
 
-                // Verify all fields are equivalent
-                restoredShippingInfo.name shouldBe originalShippingInfo.name
-                restoredShippingInfo.contractInfo.phoneNumber shouldBe
-                    originalShippingInfo.contractInfo.phoneNumber
-                restoredShippingInfo.contractInfo.email shouldBe
-                    originalShippingInfo.contractInfo.email
-                restoredShippingInfo.shippingAddress shouldBe originalShippingInfo.shippingAddress
-                restoredShippingInfo.shippingDetailAddress shouldBe
-                    originalShippingInfo.shippingDetailAddress
-                restoredShippingInfo.postalCode shouldBe originalShippingInfo.postalCode
-                restoredShippingInfo.customsFields shouldBe originalShippingInfo.customsFields
-            }
+      // Generator for valid ShippingInfo
+      val recipientInfoArb: Arb<RecipientInfo> =
+          Arb.bind(
+              nonBlankStringArb,
+              validContractInfoArb,
+              i18nGeoAddressArb,
+              optionalDetailAddressArb,
+              optionalPostalCodeArb,
+              customsFieldsArb,
+          ) { consigneeName, contractInfo, address, detailAddress, postalCode, customsFields ->
+            RecipientInfo(
+                name = consigneeName,
+                contractInfo = contractInfo,
+                shippingAddress = address,
+                shippingDetailAddress = detailAddress,
+                postalCode = postalCode,
+                customsFields = customsFields,
+            )
+          }
+
+      test("ShippingInfo round-trips through RecipientInfoPO via Converter toPO/toDomain") {
+        val converter = OrderRepositoryImpl.Converter
+        val now = LocalDateTime.now()
+
+        checkAll(100, recipientInfoArb) { originalShippingInfo ->
+          // Build a minimal Order with the generated ShippingInfo
+          val order: Order =
+              OrderImpl(
+                  id = OrderId(1L),
+                  merchantId = MerchantId(1L),
+                  buyerInfo =
+                      UserInfo(
+                          authenticationDomain = "issuer-a",
+                          uid = 1L,
+                          phoneNumber = null,
+                          userName = "test",
+                      ),
+                  _items =
+                      mutableListOf(
+                          OrderItemImpl(
+                              id = OrderItemId(1L),
+                              skuId = 1L,
+                              spuId = 1L,
+                              offerId = 2L,
+                              storeId = 3L,
+                              offerVersion = 4L,
+                              fulfillmentNodeId = "NODE-1",
+                              channelId = "ONLINE",
+                              goodsName = "test",
+                              skuDescription = "test",
+                              quantity = 1,
+                              unitPrice = Price.ofFen(100),
+                              status = OrderItemStatus.NONE,
+                          )
+                      ),
+                  recipientInfo = originalShippingInfo,
+                  _tradeStatus = TradeStatus.CREATED,
+                  _paymentStatus = PaymentStatus.UNPAID,
+                  _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
+                  amountSnapshot = OrderAmountSnapshot.singleCurrency("CNY", Price.ofFen(100)),
+                  createTime = now,
+                  _updateTime = now,
+              )
+
+          // Convert to PO and back
+          val po = converter.toPO(order)
+          val restored = converter.toDomain(po)
+          val restoredShippingInfo = restored.recipientInfo
+
+          // Verify all fields are equivalent
+          restoredShippingInfo.name shouldBe originalShippingInfo.name
+          restoredShippingInfo.contractInfo.phoneNumber shouldBe
+              originalShippingInfo.contractInfo.phoneNumber
+          restoredShippingInfo.contractInfo.email shouldBe originalShippingInfo.contractInfo.email
+          restoredShippingInfo.shippingAddress shouldBe originalShippingInfo.shippingAddress
+          restoredShippingInfo.shippingDetailAddress shouldBe
+              originalShippingInfo.shippingDetailAddress
+          restoredShippingInfo.postalCode shouldBe originalShippingInfo.postalCode
+          restoredShippingInfo.customsFields shouldBe originalShippingInfo.customsFields
         }
+      }
     })

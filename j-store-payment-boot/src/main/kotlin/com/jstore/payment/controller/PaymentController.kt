@@ -44,114 +44,114 @@ class PaymentController(
     private val service: MerchantPaymentUseCase,
     private val currencyPolicy: SiteCurrencyPolicy,
 ) {
-    data class CaptureRequest(
-        val providerTransactionId: String,
-        val amount: Long,
-        val currency: String? = null,
-    )
+  data class CaptureRequest(
+      val providerTransactionId: String,
+      val amount: Long,
+      val currency: String? = null,
+  )
 
-    data class RefundResultRequest(
-        val providerRefundId: String? = null,
-        val failureReason: String? = null,
-    )
+  data class RefundResultRequest(
+      val providerRefundId: String? = null,
+      val failureReason: String? = null,
+  )
 
-    data class ErrorResponse(val message: String, val errorCode: String)
+  data class ErrorResponse(val message: String, val errorCode: String)
 
-    data class Response(
-        val id: Long,
-        val orderId: Long,
-        val merchantId: Long,
-        val payableAmount: Long,
-        val currency: String,
-        val status: String,
-        val providerTransactionId: String?,
-        val refunds: List<RefundResponse>,
-    )
+  data class Response(
+      val id: Long,
+      val orderId: Long,
+      val merchantId: Long,
+      val payableAmount: Long,
+      val currency: String,
+      val status: String,
+      val providerTransactionId: String?,
+      val refunds: List<RefundResponse>,
+  )
 
-    data class RefundResponse(
-        val id: Long,
-        val afterSaleId: Long,
-        val amount: Long,
-        val status: String,
-        val failureReason: String?,
-    )
+  data class RefundResponse(
+      val id: Long,
+      val afterSaleId: Long,
+      val amount: Long,
+      val status: String,
+      val failureReason: String?,
+  )
 
-    @GetMapping("/orders/{orderId}")
-    fun get(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> =
-        service.get(principal.accountId.value, orderId).response { it.toResponse() }
+  @GetMapping("/orders/{orderId}")
+  fun get(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable orderId: Long,
+  ): ResponseEntity<*> =
+      service.get(principal.accountId.value, orderId).response { it.toResponse() }
 
-    /** 预上线阶段的渠道回调模拟入口；接真实支付渠道时应替换为签名验签适配器。 */
-    @PostMapping("/orders/{orderId}/capture")
-    fun capture(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable orderId: Long,
-        @RequestBody body: CaptureRequest,
-    ): ResponseEntity<*> {
-        val currency =
-            currencyPolicy.select(body.currency)
-                ?: return CommonBusinessError.INVALID_PARAM.msg("币种不属于当前站允许范围").errorResponse()
-        return service
-            .capture(
-                principal.accountId.value,
-                PaymentCaptureCommand(
-                    orderId,
-                    body.providerTransactionId,
-                    Price.ofFen(body.amount),
-                    currency,
-                ),
-            )
-            .response { mapOf("changed" to it) }
-    }
-
-    /** 预上线阶段的退款渠道结果模拟入口。 */
-    @PostMapping("/refunds/{refundId}/result")
-    fun refundResult(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable refundId: Long,
-        @RequestBody body: RefundResultRequest,
-    ): ResponseEntity<*> {
-        val id = PaymentRefundId(refundId)
-        val result =
-            service.recordRefundResult(
-                principal.accountId.value,
-                id,
-                body.providerRefundId,
-                body.failureReason,
-            )
-        return result.response { mapOf("changed" to it) }
-    }
-
-    private fun PaymentOrder.toResponse() =
-        Response(
-            id.value,
-            orderId,
-            merchantId,
-            payableAmount.fen,
-            currency,
-            status.name,
-            capture?.providerTransactionId,
-            refunds.map {
-                RefundResponse(
-                    it.id.value,
-                    it.afterSaleId,
-                    it.amount.fen,
-                    it.status.name,
-                    it.failureReason,
-                )
-            },
+  /** 预上线阶段的渠道回调模拟入口；接真实支付渠道时应替换为签名验签适配器。 */
+  @PostMapping("/orders/{orderId}/capture")
+  fun capture(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable orderId: Long,
+      @RequestBody body: CaptureRequest,
+  ): ResponseEntity<*> {
+    val currency =
+        currencyPolicy.select(body.currency)
+            ?: return CommonBusinessError.INVALID_PARAM.msg("币种不属于当前站允许范围").errorResponse()
+    return service
+        .capture(
+            principal.accountId.value,
+            PaymentCaptureCommand(
+                orderId,
+                body.providerTransactionId,
+                Price.ofFen(body.amount),
+                currency,
+            ),
         )
+        .response { mapOf("changed" to it) }
+  }
 
-    private fun <T> Result<T, BusinessError>.response(mapper: (T) -> Any): ResponseEntity<*> =
-        fold(
-            onSuccess = { ResponseEntity.ok(mapper(it)) },
-            onFailure = {
-                ResponseEntity.status(it.httpCode).body(ErrorResponse(it.message, it.errorCode))
-            },
+  /** 预上线阶段的退款渠道结果模拟入口。 */
+  @PostMapping("/refunds/{refundId}/result")
+  fun refundResult(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable refundId: Long,
+      @RequestBody body: RefundResultRequest,
+  ): ResponseEntity<*> {
+    val id = PaymentRefundId(refundId)
+    val result =
+        service.recordRefundResult(
+            principal.accountId.value,
+            id,
+            body.providerRefundId,
+            body.failureReason,
         )
+    return result.response { mapOf("changed" to it) }
+  }
 
-    private fun BusinessError.errorResponse(): ResponseEntity<ErrorResponse> =
-        ResponseEntity.status(httpCode).body(ErrorResponse(message, errorCode))
+  private fun PaymentOrder.toResponse() =
+      Response(
+          id.value,
+          orderId,
+          merchantId,
+          payableAmount.fen,
+          currency,
+          status.name,
+          capture?.providerTransactionId,
+          refunds.map {
+            RefundResponse(
+                it.id.value,
+                it.afterSaleId,
+                it.amount.fen,
+                it.status.name,
+                it.failureReason,
+            )
+          },
+      )
+
+  private fun <T> Result<T, BusinessError>.response(mapper: (T) -> Any): ResponseEntity<*> =
+      fold(
+          onSuccess = { ResponseEntity.ok(mapper(it)) },
+          onFailure = {
+            ResponseEntity.status(it.httpCode).body(ErrorResponse(it.message, it.errorCode))
+          },
+      )
+
+  private fun BusinessError.errorResponse(): ResponseEntity<ErrorResponse> =
+      ResponseEntity.status(httpCode).body(ErrorResponse(message, errorCode))
 }

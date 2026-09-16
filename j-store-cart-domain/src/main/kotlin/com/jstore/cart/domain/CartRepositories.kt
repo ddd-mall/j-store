@@ -19,15 +19,15 @@ package com.jstore.cart.domain
 import com.jstore.common.framework.AggregateRepository
 
 interface CartRepository : AggregateRepository<CartId, Cart> {
-    fun findActiveByBuyerId(buyerId: BuyerId): Cart?
+  fun findActiveByBuyerId(buyerId: BuyerId): Cart?
 }
 
 interface CartAssessmentStore {
-    fun save(assessment: CartAssessment): CartAssessment
+  fun save(assessment: CartAssessment): CartAssessment
 
-    fun findById(id: CartAssessmentId): CartAssessment?
+  fun findById(id: CartAssessmentId): CartAssessment?
 
-    fun findByCartAndVersion(cartId: CartId, version: Long): CartAssessment?
+  fun findByCartAndVersion(cartId: CartId, version: Long): CartAssessment?
 
-    fun findLatestByCart(cartId: CartId): CartAssessment?
+  fun findLatestByCart(cartId: CartId): CartAssessment?
 }

@@ -39,48 +39,48 @@ import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
 class OfferBootConfiguration {
-    @Bean
-    fun offerAuthorizationService(
-        storeGuard: StoreGuard,
-        guard: SalesOfferGuard,
-        authorizations: SaleAuthorizationRepository,
-        publisher: DomainEventPublisher,
-    ) = OfferAuthorizationService(storeGuard, guard, authorizations, publisher)
+  @Bean
+  fun offerAuthorizationService(
+      storeGuard: StoreGuard,
+      guard: SalesOfferGuard,
+      authorizations: SaleAuthorizationRepository,
+      publisher: DomainEventPublisher,
+  ) = OfferAuthorizationService(storeGuard, guard, authorizations, publisher)
 
-    @Bean
-    fun offerSnapshotQueryService(
-        offers: SalesOfferRepository,
-        stores: StoreRepository,
-        currencyPolicy: SiteCurrencyPolicy,
-    ): OfferSnapshotQueryService =
-        OfferSnapshotQueryServiceImpl(offers, stores, currencyPolicy.defaultCurrency)
+  @Bean
+  fun offerSnapshotQueryService(
+      offers: SalesOfferRepository,
+      stores: StoreRepository,
+      currencyPolicy: SiteCurrencyPolicy,
+  ): OfferSnapshotQueryService =
+      OfferSnapshotQueryServiceImpl(offers, stores, currencyPolicy.defaultCurrency)
 
-    @Bean
-    fun authorizeSaleHandler(
-        service: OfferAuthorizationService,
-        publisher: DomainEventPublisher,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<AuthorizeSaleCommand> =
-        transactional(AuthorizeSaleCommandHandler(service, publisher), transactionManager)
+  @Bean
+  fun authorizeSaleHandler(
+      service: OfferAuthorizationService,
+      publisher: DomainEventPublisher,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<AuthorizeSaleCommand> =
+      transactional(AuthorizeSaleCommandHandler(service, publisher), transactionManager)
 
-    @Bean
-    fun releaseSaleAuthorizationHandler(
-        service: OfferAuthorizationService,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<ReleaseSaleAuthorizationCommand> =
-        transactional(ReleaseSaleAuthorizationCommandHandler(service), transactionManager)
+  @Bean
+  fun releaseSaleAuthorizationHandler(
+      service: OfferAuthorizationService,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<ReleaseSaleAuthorizationCommand> =
+      transactional(ReleaseSaleAuthorizationCommandHandler(service), transactionManager)
 
-    private fun <T : IntegrationMessage> transactional(
-        delegate: IntegrationMessageHandler<T>,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<T> =
-        object : IntegrationMessageHandler<T> {
-            private val transaction = TransactionTemplate(transactionManager)
+  private fun <T : IntegrationMessage> transactional(
+      delegate: IntegrationMessageHandler<T>,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<T> =
+      object : IntegrationMessageHandler<T> {
+        private val transaction = TransactionTemplate(transactionManager)
 
-            override fun handlerId() = delegate.handlerId()
+        override fun handlerId() = delegate.handlerId()
 
-            override fun handle(message: T) {
-                transaction.executeWithoutResult { delegate.handle(message) }
-            }
+        override fun handle(message: T) {
+          transaction.executeWithoutResult { delegate.handle(message) }
         }
+      }
 }

@@ -26,14 +26,14 @@ class TransactionalBrandUseCase(
     private val delegate: BrandUseCase,
     transactionManager: PlatformTransactionManager,
 ) : BrandUseCase {
-    private val write = TransactionTemplate(transactionManager)
+  private val write = TransactionTemplate(transactionManager)
 
-    override fun save(command: BrandSaveCommand) =
-        requireNotNull(write.execute { delegate.save(command) })
+  override fun save(command: BrandSaveCommand) =
+      requireNotNull(write.execute { delegate.save(command) })
 
-    override fun activate(command: BrandStatusCommand) =
-        requireNotNull(write.execute { delegate.activate(command) })
+  override fun activate(command: BrandStatusCommand) =
+      requireNotNull(write.execute { delegate.activate(command) })
 
-    override fun deactivate(command: BrandStatusCommand) =
-        requireNotNull(write.execute { delegate.deactivate(command) })
+  override fun deactivate(command: BrandStatusCommand) =
+      requireNotNull(write.execute { delegate.deactivate(command) })
 }

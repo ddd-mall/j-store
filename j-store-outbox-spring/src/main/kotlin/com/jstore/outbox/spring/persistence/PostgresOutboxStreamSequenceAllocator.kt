@@ -25,49 +25,49 @@ import org.springframework.transaction.annotation.Transactional
 open class PostgresOutboxStreamSequenceAllocator(private val entityManager: EntityManager) :
     OutboxStreamSequenceAllocator {
 
-    @Transactional(propagation = Propagation.MANDATORY)
-    open override fun nextSequence(transportId: String, orderingKey: String): Long {
-        return allocateSequenceRange(OutboxStreamKey(transportId, orderingKey), 1).last
-    }
+  @Transactional(propagation = Propagation.MANDATORY)
+  open override fun nextSequence(transportId: String, orderingKey: String): Long {
+    return allocateSequenceRange(OutboxStreamKey(transportId, orderingKey), 1).last
+  }
 
-    @Transactional(propagation = Propagation.MANDATORY)
-    open override fun nextSequences(streams: List<OutboxStreamKey>): List<Long> {
-        if (streams.isEmpty()) return emptyList()
+  @Transactional(propagation = Propagation.MANDATORY)
+  open override fun nextSequences(streams: List<OutboxStreamKey>): List<Long> {
+    if (streams.isEmpty()) return emptyList()
 
-        val counts = linkedMapOf<OutboxStreamKey, Int>()
-        streams.forEach { stream -> counts[stream] = counts.getOrDefault(stream, 0) + 1 }
-        val nextByStream =
-            counts.mapValuesTo(linkedMapOf()) { (stream, count) ->
-                allocateSequenceRange(stream, count).first
-            }
-
-        return streams.map { stream ->
-            val next = checkNotNull(nextByStream[stream])
-            nextByStream[stream] = next + 1
-            next
+    val counts = linkedMapOf<OutboxStreamKey, Int>()
+    streams.forEach { stream -> counts[stream] = counts.getOrDefault(stream, 0) + 1 }
+    val nextByStream =
+        counts.mapValuesTo(linkedMapOf()) { (stream, count) ->
+          allocateSequenceRange(stream, count).first
         }
-    }
 
-    private fun allocateSequenceRange(stream: OutboxStreamKey, count: Int): LongRange {
-        require(count > 0) { "count must be greater than zero" }
-        return (entityManager
-                .createNativeQuery(
-                    """
-                    INSERT INTO outbox_stream_position
-                        (transport_id, ordering_key, last_sequence_no)
-                    VALUES (:transportId, :orderingKey, :count)
-                    ON CONFLICT (transport_id, ordering_key)
-                    DO UPDATE SET last_sequence_no =
-                        outbox_stream_position.last_sequence_no + :count
-                    RETURNING last_sequence_no
-                    """
-                        .trimIndent()
-                )
-                .setParameter("transportId", stream.transportId)
-                .setParameter("orderingKey", stream.orderingKey)
-                .setParameter("count", count)
-                .singleResult as Number)
-            .toLong()
-            .let { end -> (end - count + 1)..end }
+    return streams.map { stream ->
+      val next = checkNotNull(nextByStream[stream])
+      nextByStream[stream] = next + 1
+      next
     }
+  }
+
+  private fun allocateSequenceRange(stream: OutboxStreamKey, count: Int): LongRange {
+    require(count > 0) { "count must be greater than zero" }
+    return (entityManager
+            .createNativeQuery(
+                """
+                INSERT INTO outbox_stream_position
+                    (transport_id, ordering_key, last_sequence_no)
+                VALUES (:transportId, :orderingKey, :count)
+                ON CONFLICT (transport_id, ordering_key)
+                DO UPDATE SET last_sequence_no =
+                    outbox_stream_position.last_sequence_no + :count
+                RETURNING last_sequence_no
+                """
+                    .trimIndent()
+            )
+            .setParameter("transportId", stream.transportId)
+            .setParameter("orderingKey", stream.orderingKey)
+            .setParameter("count", count)
+            .singleResult as Number)
+        .toLong()
+        .let { end -> (end - count + 1)..end }
+  }
 }

@@ -39,93 +39,93 @@ class CreateOrderFromTradeIntegrationCommandHandler(
     private val publisher: IntegrationMessagePublisher,
     private val now: () -> Instant = Instant::now,
 ) : IntegrationMessageHandler<CreateOrderFromTradeIntegrationCommand> {
-    override fun handlerId() = "order.create-from-trade.v2"
+  override fun handlerId() = "order.create-from-trade.v2"
 
-    override fun handle(message: CreateOrderFromTradeIntegrationCommand) {
-        when (val result = orders.createOrder(message.toApplicationCommand())) {
-            is Success ->
-                publisher.publish(
-                    OrderCreatedFromTradeIntegrationEvent(
-                        message.tradeId,
-                        message.orderPlanId,
-                        result.value.id.value,
-                        message.messageId,
-                        now(),
-                    )
-                )
-            is Failure ->
-                publisher.publish(
-                    OrderCreationRejectedFromTradeIntegrationEvent(
-                        message.tradeId,
-                        message.orderPlanId,
-                        result.error.message,
-                        message.messageId,
-                        now(),
-                    )
-                )
-        }
+  override fun handle(message: CreateOrderFromTradeIntegrationCommand) {
+    when (val result = orders.createOrder(message.toApplicationCommand())) {
+      is Success ->
+          publisher.publish(
+              OrderCreatedFromTradeIntegrationEvent(
+                  message.tradeId,
+                  message.orderPlanId,
+                  result.value.id.value,
+                  message.messageId,
+                  now(),
+              )
+          )
+      is Failure ->
+          publisher.publish(
+              OrderCreationRejectedFromTradeIntegrationEvent(
+                  message.tradeId,
+                  message.orderPlanId,
+                  result.error.message,
+                  message.messageId,
+                  now(),
+              )
+          )
     }
+  }
 
-    private fun CreateOrderFromTradeIntegrationCommand.toApplicationCommand() =
-        CreateOrderFromTradeCommand(
-            tradeId,
-            orderPlanId,
-            planDigest,
-            merchantId,
-            buyer.authenticationDomain,
-            buyer.accountId,
-            buyerName,
-            buyerPhone,
-            recipient.name,
-            recipient.phone,
-            recipient.email,
-            I18nGeoAddress(
-                CountryCode(shippingAddress.countryCode),
-                shippingAddress.components.map { component ->
-                    val names =
-                        component.names.mapKeys { (languageTag, _) ->
-                            Locale.forLanguageTag(languageTag)
-                        }
-                    AddressComponent(
-                        component.code,
-                        DivisionLevel(component.levelDepth, component.levelName),
-                        names,
-                        Locale.forLanguageTag(component.defaultLocale),
-                    )
-                },
-            ),
-            recipient.detailAddress.orEmpty(),
-            recipient.postalCode,
-            recipient.customsFields,
-            items.map {
-                CreateOrderFromTradeItem(
-                    it.spuId,
-                    it.skuId,
-                    it.offerId,
-                    it.storeId,
-                    it.offerVersion,
-                    it.fulfillmentNodeId,
-                    it.channelId,
-                    it.goodsName,
-                    it.skuDescription,
-                    it.quantity,
-                    Price.ofFen(it.unitPriceFen),
-                    it.catalogSnapshotVersion,
+  private fun CreateOrderFromTradeIntegrationCommand.toApplicationCommand() =
+      CreateOrderFromTradeCommand(
+          tradeId,
+          orderPlanId,
+          planDigest,
+          merchantId,
+          buyer.authenticationDomain,
+          buyer.accountId,
+          buyerName,
+          buyerPhone,
+          recipient.name,
+          recipient.phone,
+          recipient.email,
+          I18nGeoAddress(
+              CountryCode(shippingAddress.countryCode),
+              shippingAddress.components.map { component ->
+                val names =
+                    component.names.mapKeys { (languageTag, _) ->
+                      Locale.forLanguageTag(languageTag)
+                    }
+                AddressComponent(
+                    component.code,
+                    DivisionLevel(component.levelDepth, component.levelName),
+                    names,
+                    Locale.forLanguageTag(component.defaultLocale),
                 )
-            },
-            Price.ofFen(payableAmountFen),
-            currency,
-        )
+              },
+          ),
+          recipient.detailAddress.orEmpty(),
+          recipient.postalCode,
+          recipient.customsFields,
+          items.map {
+            CreateOrderFromTradeItem(
+                it.spuId,
+                it.skuId,
+                it.offerId,
+                it.storeId,
+                it.offerVersion,
+                it.fulfillmentNodeId,
+                it.channelId,
+                it.goodsName,
+                it.skuDescription,
+                it.quantity,
+                Price.ofFen(it.unitPriceFen),
+                it.catalogSnapshotVersion,
+            )
+          },
+          Price.ofFen(payableAmountFen),
+          currency,
+      )
 }
 
 class CancelOrderFromTradeIntegrationCommandHandler(
     private val orders: InternalOrderCreationUseCase
 ) : IntegrationMessageHandler<CancelOrderFromTradeIntegrationCommand> {
-    override fun handlerId() = "order.cancel-from-trade.v1"
+  override fun handlerId() = "order.cancel-from-trade.v1"
 
-    override fun handle(message: CancelOrderFromTradeIntegrationCommand) {
-        orders
-            .cancelOrder(message.tradeId, message.orderPlanId, message.reason)
-            .getOrThrow(::BusinessErrorException)
-    }
+  override fun handle(message: CancelOrderFromTradeIntegrationCommand) {
+    orders
+        .cancelOrder(message.tradeId, message.orderPlanId, message.reason)
+        .getOrThrow(::BusinessErrorException)
+  }
 }

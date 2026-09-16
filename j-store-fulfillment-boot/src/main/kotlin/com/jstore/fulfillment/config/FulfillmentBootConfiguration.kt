@@ -32,28 +32,28 @@ import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
 class FulfillmentBootConfiguration {
-    @Bean
-    fun fulfillmentApplicationService(
-        repository: FulfillmentOrderRepository,
-        sequence: SnowFlakSequence,
-        publisher: DomainEventPublisher,
-    ) = FulfillmentApplicationService(repository, sequence, publisher)
+  @Bean
+  fun fulfillmentApplicationService(
+      repository: FulfillmentOrderRepository,
+      sequence: SnowFlakSequence,
+      publisher: DomainEventPublisher,
+  ) = FulfillmentApplicationService(repository, sequence, publisher)
 
-    @Bean
-    @Primary
-    fun transactionalFulfillmentUseCase(
-        fulfillmentApplicationService: FulfillmentApplicationService,
-        transactionManager: PlatformTransactionManager,
-    ): FulfillmentUseCase =
-        TransactionalFulfillmentUseCase(fulfillmentApplicationService, transactionManager)
+  @Bean
+  @Primary
+  fun transactionalFulfillmentUseCase(
+      fulfillmentApplicationService: FulfillmentApplicationService,
+      transactionManager: PlatformTransactionManager,
+  ): FulfillmentUseCase =
+      TransactionalFulfillmentUseCase(fulfillmentApplicationService, transactionManager)
 
-    @Bean
-    fun merchantFulfillmentUseCase(
-        fulfillmentUseCase: FulfillmentUseCase,
-        authorization: MerchantAuthorizationQuery,
-    ): MerchantFulfillmentUseCase = MerchantFulfillmentService(fulfillmentUseCase, authorization)
+  @Bean
+  fun merchantFulfillmentUseCase(
+      fulfillmentUseCase: FulfillmentUseCase,
+      authorization: MerchantAuthorizationQuery,
+  ): MerchantFulfillmentUseCase = MerchantFulfillmentService(fulfillmentUseCase, authorization)
 
-    @Bean
-    fun createFulfillmentForOrderCommandHandler(service: FulfillmentUseCase) =
-        CreateFulfillmentForOrderCommandHandler(service)
+  @Bean
+  fun createFulfillmentForOrderCommandHandler(service: FulfillmentUseCase) =
+      CreateFulfillmentForOrderCommandHandler(service)
 }

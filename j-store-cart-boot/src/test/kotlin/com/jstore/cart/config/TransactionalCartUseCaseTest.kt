@@ -45,205 +45,202 @@ import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.TransactionStatus
 
 class TransactionalCartUseCaseTest {
-    @Test
-    fun `resolves offer outside transaction and commits cart in a short write transaction`() {
-        val transactions = RecordingCartTransactions()
-        val delegate = mock<CartApplicationService>()
-        val command = command()
-        val offer = offer()
-        whenever(delegate.inspectSetItemQuantity(command))
-            .thenReturn(Success(SetCartItemQuantityStart.RequiresOffer))
-        whenever(delegate.resolveOffer(command.offerId)).thenAnswer {
-            assertFalse(transactions.inTransaction)
-            offer
-        }
-        whenever(delegate.commitSetItemQuantity(command, offer)).thenAnswer {
-            assertTrue(transactions.inWriteTransaction)
-            Success(view())
-        }
-
-        val result = TransactionalCartUseCase(delegate, transactions).setItemQuantity(command)
-
-        assertInstanceOf(Success::class.java, result)
-        assertEquals(listOf("read", "external", "write"), transactions.phases)
+  @Test
+  fun `resolves offer outside transaction and commits cart in a short write transaction`() {
+    val transactions = RecordingCartTransactions()
+    val delegate = mock<CartApplicationService>()
+    val command = command()
+    val offer = offer()
+    whenever(delegate.inspectSetItemQuantity(command))
+        .thenReturn(Success(SetCartItemQuantityStart.RequiresOffer))
+    whenever(delegate.resolveOffer(command.offerId)).thenAnswer {
+      assertFalse(transactions.inTransaction)
+      offer
+    }
+    whenever(delegate.commitSetItemQuantity(command, offer)).thenAnswer {
+      assertTrue(transactions.inWriteTransaction)
+      Success(view())
     }
 
-    @Test
-    fun `optimistic conflict retries only the short write phase`() {
-        val transactions = RecordingCartTransactions()
-        val delegate = mock<CartApplicationService>()
-        val command = command()
-        val offer = offer()
-        whenever(delegate.inspectSetItemQuantity(command))
-            .thenReturn(Success(SetCartItemQuantityStart.RequiresOffer))
-        whenever(delegate.resolveOffer(command.offerId)).thenReturn(offer)
-        whenever(delegate.commitSetItemQuantity(command, offer))
-            .thenThrow(OptimisticLockingFailureException("concurrent cart update"))
-            .thenReturn(Success(view()))
+    val result = TransactionalCartUseCase(delegate, transactions).setItemQuantity(command)
 
-        val result = TransactionalCartUseCase(delegate, transactions).setItemQuantity(command)
+    assertInstanceOf(Success::class.java, result)
+    assertEquals(listOf("read", "external", "write"), transactions.phases)
+  }
 
-        assertInstanceOf(Success::class.java, result)
-        assertEquals(listOf("read", "external", "write", "write"), transactions.phases)
+  @Test
+  fun `optimistic conflict retries only the short write phase`() {
+    val transactions = RecordingCartTransactions()
+    val delegate = mock<CartApplicationService>()
+    val command = command()
+    val offer = offer()
+    whenever(delegate.inspectSetItemQuantity(command))
+        .thenReturn(Success(SetCartItemQuantityStart.RequiresOffer))
+    whenever(delegate.resolveOffer(command.offerId)).thenReturn(offer)
+    whenever(delegate.commitSetItemQuantity(command, offer))
+        .thenThrow(OptimisticLockingFailureException("concurrent cart update"))
+        .thenReturn(Success(view()))
+
+    val result = TransactionalCartUseCase(delegate, transactions).setItemQuantity(command)
+
+    assertInstanceOf(Success::class.java, result)
+    assertEquals(listOf("read", "external", "write", "write"), transactions.phases)
+  }
+
+  @Test
+  fun `collects refresh facts outside transaction and saves assessment in a short transaction`() {
+    val transactions = RecordingCartTransactions()
+    val delegate = mock<CartApplicationService>()
+    val cart = cart()
+    whenever(delegate.startRefresh(7, 0)).thenReturn(Success(CartRefreshStart.RequiresFacts(cart)))
+    whenever(delegate.collectFacts(cart)).thenAnswer {
+      assertFalse(transactions.inTransaction)
+      Success(emptyList<CartLineCommerceFacts>())
+    }
+    whenever(delegate.completeRefresh(cart, emptyList<CartLineCommerceFacts>())).thenAnswer {
+      assertTrue(transactions.inWriteTransaction)
+      Success(view())
     }
 
-    @Test
-    fun `collects refresh facts outside transaction and saves assessment in a short transaction`() {
-        val transactions = RecordingCartTransactions()
-        val delegate = mock<CartApplicationService>()
-        val cart = cart()
-        whenever(delegate.startRefresh(7, 0))
-            .thenReturn(Success(CartRefreshStart.RequiresFacts(cart)))
-        whenever(delegate.collectFacts(cart)).thenAnswer {
-            assertFalse(transactions.inTransaction)
-            Success(emptyList<CartLineCommerceFacts>())
-        }
-        whenever(delegate.completeRefresh(cart, emptyList<CartLineCommerceFacts>())).thenAnswer {
-            assertTrue(transactions.inWriteTransaction)
-            Success(view())
-        }
+    val result = TransactionalCartUseCase(delegate, transactions).refresh(7, 0)
 
-        val result = TransactionalCartUseCase(delegate, transactions).refresh(7, 0)
+    assertInstanceOf(Success::class.java, result)
+    assertEquals(listOf("read", "external", "write"), transactions.phases)
+  }
 
-        assertInstanceOf(Success::class.java, result)
-        assertEquals(listOf("read", "external", "write"), transactions.phases)
+  @Test
+  fun `prepares checkout facts outside the cart read transaction`() {
+    val transactions = RecordingCartTransactions()
+    val delegate = mock<CartApplicationService>()
+    val cart = cart()
+    val query = CartCheckoutSourceQuery(cartId = 1, buyerId = 7, expectedCartVersion = 0)
+    whenever(delegate.startPrepare(query))
+        .thenReturn(CartCheckoutPreparationStart.RequiresFacts(cart))
+    whenever(delegate.prepareWithFacts(cart)).thenAnswer {
+      assertFalse(transactions.inTransaction)
+      CartCheckoutSourceResult.NoEligibleLines
     }
 
-    @Test
-    fun `prepares checkout facts outside the cart read transaction`() {
-        val transactions = RecordingCartTransactions()
-        val delegate = mock<CartApplicationService>()
-        val cart = cart()
-        val query = CartCheckoutSourceQuery(cartId = 1, buyerId = 7, expectedCartVersion = 0)
-        whenever(delegate.startPrepare(query))
-            .thenReturn(CartCheckoutPreparationStart.RequiresFacts(cart))
-        whenever(delegate.prepareWithFacts(cart)).thenAnswer {
-            assertFalse(transactions.inTransaction)
-            CartCheckoutSourceResult.NoEligibleLines
-        }
+    val result = TransactionalCartCheckoutSourceQueryService(delegate, transactions).prepare(query)
 
-        val result =
-            TransactionalCartCheckoutSourceQueryService(delegate, transactions).prepare(query)
+    assertEquals(CartCheckoutSourceResult.NoEligibleLines, result)
+    assertEquals(listOf("read", "external"), transactions.phases)
+  }
 
-        assertEquals(CartCheckoutSourceResult.NoEligibleLines, result)
-        assertEquals(listOf("read", "external"), transactions.phases)
+  @Test
+  fun `spring transaction operations use isolated transactions and suspend external calls`() {
+    val manager = mock<PlatformTransactionManager>()
+    val status = mock<TransactionStatus>()
+    whenever(manager.getTransaction(any())).thenReturn(status)
+    val operations = SpringCartTransactionOperations(manager)
+
+    operations.read { "read" }
+    operations.withoutTransaction { "external" }
+    operations.write { "write" }
+
+    val definitions = argumentCaptor<TransactionDefinition>()
+    verify(manager, times(3)).getTransaction(definitions.capture())
+    assertEquals(
+        listOf(
+            TransactionDefinition.PROPAGATION_REQUIRES_NEW,
+            TransactionDefinition.PROPAGATION_NOT_SUPPORTED,
+            TransactionDefinition.PROPAGATION_REQUIRES_NEW,
+        ),
+        definitions.allValues.map { it.propagationBehavior },
+    )
+    assertTrue(definitions.firstValue.isReadOnly)
+  }
+
+  @Test
+  fun `automatic refresh prepares facts before the acknowledgement transaction`() {
+    val tx = RecordingCartTransactions()
+    val delegate = mock<CartRefreshRequestedHandler>()
+    val cart = cart()
+    val event = com.jstore.cart.domain.CartRefreshRequestedEvent(cart.id, cart.buyerId, 0, "test")
+    whenever(delegate.start(event)).thenAnswer {
+      assertTrue(tx.inTransaction)
+      cart
     }
-
-    @Test
-    fun `spring transaction operations use isolated transactions and suspend external calls`() {
-        val manager = mock<PlatformTransactionManager>()
-        val status = mock<TransactionStatus>()
-        whenever(manager.getTransaction(any())).thenReturn(status)
-        val operations = SpringCartTransactionOperations(manager)
-
-        operations.read { "read" }
-        operations.withoutTransaction { "external" }
-        operations.write { "write" }
-
-        val definitions = argumentCaptor<TransactionDefinition>()
-        verify(manager, times(3)).getTransaction(definitions.capture())
-        assertEquals(
-            listOf(
-                TransactionDefinition.PROPAGATION_REQUIRES_NEW,
-                TransactionDefinition.PROPAGATION_NOT_SUPPORTED,
-                TransactionDefinition.PROPAGATION_REQUIRES_NEW,
-            ),
-            definitions.allValues.map { it.propagationBehavior },
-        )
-        assertTrue(definitions.firstValue.isReadOnly)
+    whenever(delegate.collect(cart)).thenAnswer {
+      assertFalse(tx.inTransaction)
+      emptyList<CartLineCommerceFacts>()
     }
+    val handler = TransactionalCartRefreshRequestedHandler(delegate, tx)
+    val completion = handler.prepare(event)
+    org.mockito.kotlin.verify(delegate, org.mockito.kotlin.never()).complete(any(), any())
+    tx.write { completion() }
+    verify(delegate).complete(cart, emptyList())
+    assertEquals(listOf("read", "external", "write"), tx.phases)
+  }
 
-    @Test
-    fun `automatic refresh prepares facts before the acknowledgement transaction`() {
-        val tx = RecordingCartTransactions()
-        val delegate = mock<CartRefreshRequestedHandler>()
-        val cart = cart()
-        val event =
-            com.jstore.cart.domain.CartRefreshRequestedEvent(cart.id, cart.buyerId, 0, "test")
-        whenever(delegate.start(event)).thenAnswer {
-            assertTrue(tx.inTransaction)
-            cart
-        }
-        whenever(delegate.collect(cart)).thenAnswer {
-            assertFalse(tx.inTransaction)
-            emptyList<CartLineCommerceFacts>()
-        }
-        val handler = TransactionalCartRefreshRequestedHandler(delegate, tx)
-        val completion = handler.prepare(event)
-        org.mockito.kotlin.verify(delegate, org.mockito.kotlin.never()).complete(any(), any())
-        tx.write { completion() }
-        verify(delegate).complete(cart, emptyList())
-        assertEquals(listOf("read", "external", "write"), tx.phases)
-    }
+  private fun command() =
+      SetCartItemQuantityCommand(
+          buyerId = 7,
+          skuId = 101,
+          offerId = 201,
+          targetQuantity = 3,
+          expectedCartVersion = 12,
+      )
 
-    private fun command() =
-        SetCartItemQuantityCommand(
-            buyerId = 7,
-            skuId = 101,
-            offerId = 201,
-            targetQuantity = 3,
-            expectedCartVersion = 12,
-        )
+  private fun offer() =
+      OfferIdentity(
+          offerId = OfferId(201),
+          skuId = SkuId(101),
+          merchantId = 301,
+          settlementScope = SettlementScope("CN", "ONLINE", "CNY"),
+      )
 
-    private fun offer() =
-        OfferIdentity(
-            offerId = OfferId(201),
-            skuId = SkuId(101),
-            merchantId = 301,
-            settlementScope = SettlementScope("CN", "ONLINE", "CNY"),
-        )
+  private fun cart() =
+      Cart.create(
+          id = CartId(1),
+          buyerId = BuyerId(7),
+          scope = SettlementScope("CN", "ONLINE", "CNY"),
+      )
 
-    private fun cart() =
-        Cart.create(
-            id = CartId(1),
-            buyerId = BuyerId(7),
-            scope = SettlementScope("CN", "ONLINE", "CNY"),
-        )
-
-    private fun view() =
-        CartView(
-            cartId = 1,
-            contentVersion = 1,
-            market = "CN",
-            channelId = "ONLINE",
-            currency = "CNY",
-            lines = emptyList(),
-            assessment = null,
-        )
+  private fun view() =
+      CartView(
+          cartId = 1,
+          contentVersion = 1,
+          market = "CN",
+          channelId = "ONLINE",
+          currency = "CNY",
+          lines = emptyList(),
+          assessment = null,
+      )
 }
 
 private class RecordingCartTransactions : CartTransactionOperations {
-    val phases = mutableListOf<String>()
-    var inTransaction = false
-        private set
+  val phases = mutableListOf<String>()
+  var inTransaction = false
+    private set
 
-    var inWriteTransaction = false
-        private set
+  var inWriteTransaction = false
+    private set
 
-    override fun <T : Any> read(action: () -> T): T = inTransaction("read", false, action)
+  override fun <T : Any> read(action: () -> T): T = inTransaction("read", false, action)
 
-    override fun <T : Any> write(action: () -> T): T = inTransaction("write", true, action)
+  override fun <T : Any> write(action: () -> T): T = inTransaction("write", true, action)
 
-    override fun <T : Any> withoutTransaction(action: () -> T): T {
-        phases += "external"
-        check(!inTransaction)
-        return action()
+  override fun <T : Any> withoutTransaction(action: () -> T): T {
+    phases += "external"
+    check(!inTransaction)
+    return action()
+  }
+
+  private fun <T : Any> inTransaction(
+      phase: String,
+      write: Boolean,
+      action: () -> T,
+  ): T {
+    phases += phase
+    check(!inTransaction)
+    inTransaction = true
+    inWriteTransaction = write
+    return try {
+      action()
+    } finally {
+      inWriteTransaction = false
+      inTransaction = false
     }
-
-    private fun <T : Any> inTransaction(
-        phase: String,
-        write: Boolean,
-        action: () -> T,
-    ): T {
-        phases += phase
-        check(!inTransaction)
-        inTransaction = true
-        inWriteTransaction = write
-        return try {
-            action()
-        } finally {
-            inWriteTransaction = false
-            inTransaction = false
-        }
-    }
+  }
 }

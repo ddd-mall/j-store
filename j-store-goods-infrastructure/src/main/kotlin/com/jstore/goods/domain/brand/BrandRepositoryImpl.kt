@@ -28,43 +28,43 @@ import org.springframework.transaction.annotation.Transactional
 
 @Repository
 class BrandRepositoryImpl(private val jpaRepository: BrandPOJpaRepository) : BrandRepository {
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(aggregate: Brand): Brand {
-        val po =
-            jpaRepository.findById(aggregate.id.value).orElse(null)?.also { existing ->
-                existing.name = JsonUtils.toJsonString(aggregate.name.values)
-                existing.normalizedName = aggregate.normalizedName
-                existing.status = aggregate.status
-                existing.updatedAt = LocalDateTime.now()
-            }
-                ?: BrandPO(
-                    id = aggregate.id.value,
-                    merchantId = aggregate.merchantId.value,
-                    name = JsonUtils.toJsonString(aggregate.name.values),
-                    normalizedName = aggregate.normalizedName,
-                    status = aggregate.status,
-                )
-        return Converter.toDomain(jpaRepository.save(po))
-    }
-
-    override fun findById(id: BrandId): Brand? =
-        jpaRepository.findById(id.value).orElse(null)?.let(Converter::toDomain)
-
-    override fun findByMerchantIdAndNormalizedName(
-        merchantId: MerchantId,
-        normalizedName: String,
-    ): Brand? =
-        jpaRepository
-            .findByMerchantIdAndNormalizedName(merchantId.value, normalizedName)
-            ?.let(Converter::toDomain)
-
-    internal object Converter {
-        fun toDomain(po: BrandPO): Brand =
-            Brand(
-                id = BrandId(po.id),
-                merchantId = MerchantId(po.merchantId),
-                name = LocalizedText(JsonUtils.deserialize(po.name)),
-                status = po.status,
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun save(aggregate: Brand): Brand {
+    val po =
+        jpaRepository.findById(aggregate.id.value).orElse(null)?.also { existing ->
+          existing.name = JsonUtils.toJsonString(aggregate.name.values)
+          existing.normalizedName = aggregate.normalizedName
+          existing.status = aggregate.status
+          existing.updatedAt = LocalDateTime.now()
+        }
+            ?: BrandPO(
+                id = aggregate.id.value,
+                merchantId = aggregate.merchantId.value,
+                name = JsonUtils.toJsonString(aggregate.name.values),
+                normalizedName = aggregate.normalizedName,
+                status = aggregate.status,
             )
-    }
+    return Converter.toDomain(jpaRepository.save(po))
+  }
+
+  override fun findById(id: BrandId): Brand? =
+      jpaRepository.findById(id.value).orElse(null)?.let(Converter::toDomain)
+
+  override fun findByMerchantIdAndNormalizedName(
+      merchantId: MerchantId,
+      normalizedName: String,
+  ): Brand? =
+      jpaRepository
+          .findByMerchantIdAndNormalizedName(merchantId.value, normalizedName)
+          ?.let(Converter::toDomain)
+
+  internal object Converter {
+    fun toDomain(po: BrandPO): Brand =
+        Brand(
+            id = BrandId(po.id),
+            merchantId = MerchantId(po.merchantId),
+            name = LocalizedText(JsonUtils.deserialize(po.name)),
+            status = po.status,
+        )
+  }
 }

@@ -25,51 +25,51 @@ import java.time.Instant
 
 class OutboxRelayCapacitySupportTest :
     FunSpec({
-        test("capacity configuration rejects invalid workload bounds") {
-            shouldThrow<IllegalArgumentException> {
-                OutboxRelayCapacityConfig(messageCount = 0)
-            }
-            shouldThrow<IllegalArgumentException> {
-                OutboxRelayCapacityConfig(producerConcurrency = 0)
-            }
-            shouldThrow<IllegalArgumentException> {
-                OutboxRelayCapacityConfig(timeout = Duration.ZERO)
-            }
+      test("capacity configuration rejects invalid workload bounds") {
+        shouldThrow<IllegalArgumentException> {
+          OutboxRelayCapacityConfig(messageCount = 0)
         }
-
-        test("nearest-rank percentiles retain long-tail latency") {
-            val samples = (1L..100L).map { Duration.ofMillis(it) }
-
-            OutboxRelayCapacityReport.percentile(samples, 0.50) shouldBe Duration.ofMillis(50)
-            OutboxRelayCapacityReport.percentile(samples, 0.95) shouldBe Duration.ofMillis(95)
-            OutboxRelayCapacityReport.percentile(samples, 0.99) shouldBe Duration.ofMillis(99)
+        shouldThrow<IllegalArgumentException> {
+          OutboxRelayCapacityConfig(producerConcurrency = 0)
         }
-
-        test("report exposes complete latency and throughput evidence") {
-            val report =
-                OutboxRelayCapacityReport.create(
-                    config = OutboxRelayCapacityConfig(messageCount = 4),
-                    latencies = listOf(10L, 20L, 30L, 40L).map(Duration::ofMillis),
-                    startedAt = Instant.parse("2026-08-14T00:00:00Z"),
-                    completedAt = Instant.parse("2026-08-14T00:00:02Z"),
-                    elapsed = Duration.ofSeconds(2),
-                )
-
-            report.deliveredCount shouldBe 4
-            report.p95Millis shouldBe 40.0
-            report.p99Millis shouldBe 40.0
-            report.throughputPerSecond shouldBe (2.0 plusOrMinus 0.001)
+        shouldThrow<IllegalArgumentException> {
+          OutboxRelayCapacityConfig(timeout = Duration.ZERO)
         }
+      }
 
-        test("report rejects a non-positive monotonic elapsed duration") {
-            shouldThrow<IllegalArgumentException> {
-                OutboxRelayCapacityReport.create(
-                    config = OutboxRelayCapacityConfig(messageCount = 1),
-                    latencies = listOf(Duration.ofMillis(1)),
-                    startedAt = Instant.parse("2026-08-14T00:00:00Z"),
-                    completedAt = Instant.parse("2026-08-14T00:00:00Z"),
-                    elapsed = Duration.ZERO,
-                )
-            }
+      test("nearest-rank percentiles retain long-tail latency") {
+        val samples = (1L..100L).map { Duration.ofMillis(it) }
+
+        OutboxRelayCapacityReport.percentile(samples, 0.50) shouldBe Duration.ofMillis(50)
+        OutboxRelayCapacityReport.percentile(samples, 0.95) shouldBe Duration.ofMillis(95)
+        OutboxRelayCapacityReport.percentile(samples, 0.99) shouldBe Duration.ofMillis(99)
+      }
+
+      test("report exposes complete latency and throughput evidence") {
+        val report =
+            OutboxRelayCapacityReport.create(
+                config = OutboxRelayCapacityConfig(messageCount = 4),
+                latencies = listOf(10L, 20L, 30L, 40L).map(Duration::ofMillis),
+                startedAt = Instant.parse("2026-08-14T00:00:00Z"),
+                completedAt = Instant.parse("2026-08-14T00:00:02Z"),
+                elapsed = Duration.ofSeconds(2),
+            )
+
+        report.deliveredCount shouldBe 4
+        report.p95Millis shouldBe 40.0
+        report.p99Millis shouldBe 40.0
+        report.throughputPerSecond shouldBe (2.0 plusOrMinus 0.001)
+      }
+
+      test("report rejects a non-positive monotonic elapsed duration") {
+        shouldThrow<IllegalArgumentException> {
+          OutboxRelayCapacityReport.create(
+              config = OutboxRelayCapacityConfig(messageCount = 1),
+              latencies = listOf(Duration.ofMillis(1)),
+              startedAt = Instant.parse("2026-08-14T00:00:00Z"),
+              completedAt = Instant.parse("2026-08-14T00:00:00Z"),
+              elapsed = Duration.ZERO,
+          )
         }
+      }
     })

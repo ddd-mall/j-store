@@ -37,65 +37,65 @@ class OrderItemImpl(
     private var _refundedQuantity: Int = 0,
     private var _refundedAmount: Price = Price.ZERO,
 ) : OrderItem {
-    private var _status: OrderItemStatus = status
+  private var _status: OrderItemStatus = status
 
-    override val status: OrderItemStatus
-        get() = _status
+  override val status: OrderItemStatus
+    get() = _status
 
-    override val purchasedAmount
-        get() = subtotal()
+  override val purchasedAmount
+    get() = subtotal()
 
-    override val refundedQuantity
-        get() = _refundedQuantity
+  override val refundedQuantity
+    get() = _refundedQuantity
 
-    override val refundedAmount
-        get() = _refundedAmount
+  override val refundedAmount
+    get() = _refundedAmount
 
-    override val refundableQuantity
-        get() = quantity - _refundedQuantity
+  override val refundableQuantity
+    get() = quantity - _refundedQuantity
 
-    override val refundableAmount
-        get() = purchasedAmount - _refundedAmount
+  override val refundableAmount
+    get() = purchasedAmount - _refundedAmount
 
-    init {
-        require(
-            offerId > 0 &&
-                storeId > 0 &&
-                offerVersion > 0 &&
-                fulfillmentNodeId.isNotBlank() &&
-                channelId.isNotBlank() &&
-                quantity > 0 &&
-                _refundedQuantity in 0..quantity &&
-                _refundedAmount <= subtotal()
-        )
-    }
-
-    override fun subtotal(): Price = unitPrice * quantity
-
-    fun markCanceled() {
-        _status = OrderItemStatus.CANCELED
-    }
-
-    internal fun markWaitingShipment() {
-        _status = OrderItemStatus.WAIT_SHIPPING
-    }
-
-    internal fun markShipping() {
-        _status = OrderItemStatus.SHIPPING
-    }
-
-    internal fun markDelivered() {
-        _status = OrderItemStatus.SHIPPING_FINISHED
-    }
-
-    internal fun registerRefund(quantity: Int, amount: Price) {
-        require(
+  init {
+    require(
+        offerId > 0 &&
+            storeId > 0 &&
+            offerVersion > 0 &&
+            fulfillmentNodeId.isNotBlank() &&
+            channelId.isNotBlank() &&
             quantity > 0 &&
-                quantity <= refundableQuantity &&
-                amount > Price.ZERO &&
-                amount <= refundableAmount
-        )
-        _refundedQuantity += quantity
-        _refundedAmount += amount
-    }
+            _refundedQuantity in 0..quantity &&
+            _refundedAmount <= subtotal()
+    )
+  }
+
+  override fun subtotal(): Price = unitPrice * quantity
+
+  fun markCanceled() {
+    _status = OrderItemStatus.CANCELED
+  }
+
+  internal fun markWaitingShipment() {
+    _status = OrderItemStatus.WAIT_SHIPPING
+  }
+
+  internal fun markShipping() {
+    _status = OrderItemStatus.SHIPPING
+  }
+
+  internal fun markDelivered() {
+    _status = OrderItemStatus.SHIPPING_FINISHED
+  }
+
+  internal fun registerRefund(quantity: Int, amount: Price) {
+    require(
+        quantity > 0 &&
+            quantity <= refundableQuantity &&
+            amount > Price.ZERO &&
+            amount <= refundableAmount
+    )
+    _refundedQuantity += quantity
+    _refundedAmount += amount
+  }
 }

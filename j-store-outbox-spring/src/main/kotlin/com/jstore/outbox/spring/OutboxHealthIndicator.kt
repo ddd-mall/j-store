@@ -28,66 +28,64 @@ import org.springframework.context.annotation.Bean
 class OutboxHealthIndicator(private val snapshotProvider: () -> OutboxOperationalSnapshot) :
     HealthIndicator {
 
-    override fun health(): Health {
-        val snapshot = snapshotProvider()
-        return Health.status(actuatorStatus(snapshot.status))
-            .withDetails(healthDetails(snapshot))
-            .build()
-    }
+  override fun health(): Health {
+    val snapshot = snapshotProvider()
+    return Health.status(actuatorStatus(snapshot.status))
+        .withDetails(healthDetails(snapshot))
+        .build()
+  }
 
-    private fun actuatorStatus(status: OutboxOperationalStatus): Status =
-        when (status) {
-            OutboxOperationalStatus.HEALTHY -> Status.UP
-            OutboxOperationalStatus.DEGRADED -> DEGRADED
-            OutboxOperationalStatus.FAILED -> Status.DOWN
-            OutboxOperationalStatus.NOT_RUN -> Status.UNKNOWN
-        }
+  private fun actuatorStatus(status: OutboxOperationalStatus): Status =
+      when (status) {
+        OutboxOperationalStatus.HEALTHY -> Status.UP
+        OutboxOperationalStatus.DEGRADED -> DEGRADED
+        OutboxOperationalStatus.FAILED -> Status.DOWN
+        OutboxOperationalStatus.NOT_RUN -> Status.UNKNOWN
+      }
 
-    private fun healthDetails(snapshot: OutboxOperationalSnapshot): Map<String, Any> =
+  private fun healthDetails(snapshot: OutboxOperationalSnapshot): Map<String, Any> =
+      mapOf(
+          "observedAt" to snapshot.observedAt.toString(),
+          "oldestReadyLagSeconds" to snapshot.oldestReadyLag.seconds,
+          "expiredLockCount" to snapshot.expiredLockCount,
+          "deadLetterCount" to snapshot.deadLetterCount,
+          "activeAlerts" to activeAlerts(snapshot),
+          "scheduler" to schedulerDetails(snapshot),
+          "transports" to transportDetails(snapshot),
+      )
+
+  private fun activeAlerts(snapshot: OutboxOperationalSnapshot): List<String> = buildList {
+    if (snapshot.lagAlert) add("lag")
+    if (snapshot.expiredLockAlert) add("expired_lock")
+    if (snapshot.deadLetterAlert) add("dead_letter")
+    if (snapshot.status == OutboxOperationalStatus.FAILED) add("scheduler_failure")
+  }
+
+  private fun schedulerDetails(snapshot: OutboxOperationalSnapshot): Map<String, Any> = buildMap {
+    put("consecutiveFailures", snapshot.scheduler.consecutiveFailures)
+    snapshot.scheduler.lastSuccessAt?.let { put("lastSuccessAt", it.toString()) }
+    snapshot.scheduler.lastFailureAt?.let { put("lastFailureAt", it.toString()) }
+  }
+
+  private fun transportDetails(snapshot: OutboxOperationalSnapshot): Map<String, Map<String, Any>> =
+      snapshot.transports.toSortedMap().mapValues { (_, transport) ->
         mapOf(
-            "observedAt" to snapshot.observedAt.toString(),
-            "oldestReadyLagSeconds" to snapshot.oldestReadyLag.seconds,
-            "expiredLockCount" to snapshot.expiredLockCount,
-            "deadLetterCount" to snapshot.deadLetterCount,
-            "activeAlerts" to activeAlerts(snapshot),
-            "scheduler" to schedulerDetails(snapshot),
-            "transports" to transportDetails(snapshot),
+            "status" to transport.status.name,
+            "oldestReadyLagSeconds" to transport.oldestReadyLag.seconds,
+            "expiredLockCount" to transport.expiredLockCount,
+            "deadLetterCount" to transport.deadLetterCount,
+            "activeAlerts" to
+                buildList {
+                  if (transport.lagAlert) add("lag")
+                  if (transport.expiredLockAlert) add("expired_lock")
+                  if (transport.deadLetterAlert) add("dead_letter")
+                },
         )
+      }
 
-    private fun activeAlerts(snapshot: OutboxOperationalSnapshot): List<String> = buildList {
-        if (snapshot.lagAlert) add("lag")
-        if (snapshot.expiredLockAlert) add("expired_lock")
-        if (snapshot.deadLetterAlert) add("dead_letter")
-        if (snapshot.status == OutboxOperationalStatus.FAILED) add("scheduler_failure")
-    }
-
-    private fun schedulerDetails(snapshot: OutboxOperationalSnapshot): Map<String, Any> = buildMap {
-        put("consecutiveFailures", snapshot.scheduler.consecutiveFailures)
-        snapshot.scheduler.lastSuccessAt?.let { put("lastSuccessAt", it.toString()) }
-        snapshot.scheduler.lastFailureAt?.let { put("lastFailureAt", it.toString()) }
-    }
-
-    private fun transportDetails(
-        snapshot: OutboxOperationalSnapshot
-    ): Map<String, Map<String, Any>> =
-        snapshot.transports.toSortedMap().mapValues { (_, transport) ->
-            mapOf(
-                "status" to transport.status.name,
-                "oldestReadyLagSeconds" to transport.oldestReadyLag.seconds,
-                "expiredLockCount" to transport.expiredLockCount,
-                "deadLetterCount" to transport.deadLetterCount,
-                "activeAlerts" to
-                    buildList {
-                        if (transport.lagAlert) add("lag")
-                        if (transport.expiredLockAlert) add("expired_lock")
-                        if (transport.deadLetterAlert) add("dead_letter")
-                    },
-            )
-        }
-
-    private companion object {
-        val DEGRADED = Status("DEGRADED")
-    }
+  private companion object {
+    val DEGRADED = Status("DEGRADED")
+  }
 }
 
 @AutoConfiguration(after = [OutboxAutoConfiguration::class])
@@ -95,8 +93,8 @@ class OutboxHealthIndicator(private val snapshotProvider: () -> OutboxOperationa
 @ConditionalOnBean(OutboxOperationalHealth::class)
 class OutboxHealthAutoConfiguration {
 
-    @Bean
-    @ConditionalOnMissingBean(name = ["outboxHealthIndicator"])
-    fun outboxHealthIndicator(operationalHealth: OutboxOperationalHealth): OutboxHealthIndicator =
-        OutboxHealthIndicator(operationalHealth::snapshot)
+  @Bean
+  @ConditionalOnMissingBean(name = ["outboxHealthIndicator"])
+  fun outboxHealthIndicator(operationalHealth: OutboxOperationalHealth): OutboxHealthIndicator =
+      OutboxHealthIndicator(operationalHealth::snapshot)
 }

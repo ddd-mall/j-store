@@ -48,112 +48,112 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/merchants")
 @RequireLogin
 class MerchantController(private val service: MerchantUseCase) {
-    data class CreateMerchantRequest(@field:NotBlank @field:Size(max = 128) val name: String)
+  data class CreateMerchantRequest(@field:NotBlank @field:Size(max = 128) val name: String)
 
-    data class AddMemberRequest(
-        @field:Positive val userId: Long,
-        @field:NotEmpty val roles: Set<MerchantRole>,
-    )
+  data class AddMemberRequest(
+      @field:Positive val userId: Long,
+      @field:NotEmpty val roles: Set<MerchantRole>,
+  )
 
-    data class ChangeRolesRequest(@field:NotEmpty val roles: Set<MerchantRole>)
+  data class ChangeRolesRequest(@field:NotEmpty val roles: Set<MerchantRole>)
 
-    data class MerchantResponse(val id: Long, val name: String, val status: String)
+  data class MerchantResponse(val id: Long, val name: String, val status: String)
 
-    data class MerchantAccountResponse(
-        val merchantId: Long,
-        val name: String,
-        val merchantStatus: String,
-        val membershipStatus: String,
-        val roles: List<String>,
-    )
+  data class MerchantAccountResponse(
+      val merchantId: Long,
+      val name: String,
+      val merchantStatus: String,
+      val membershipStatus: String,
+      val roles: List<String>,
+  )
 
-    data class MemberResponse(
-        val merchantId: Long,
-        val userId: Long,
-        val status: String,
-        val roles: List<String>,
-    )
+  data class MemberResponse(
+      val merchantId: Long,
+      val userId: Long,
+      val status: String,
+      val roles: List<String>,
+  )
 
-    data class ErrorResponse(val message: String, val errorCode: String)
+  data class ErrorResponse(val message: String, val errorCode: String)
 
-    @PostMapping
-    fun create(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @Valid @RequestBody request: CreateMerchantRequest,
-    ): ResponseEntity<*> =
-        service.create(principal.accountId.value, request.name).response(HttpStatus.CREATED) {
-            it.response()
-        }
+  @PostMapping
+  fun create(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @Valid @RequestBody request: CreateMerchantRequest,
+  ): ResponseEntity<*> =
+      service.create(principal.accountId.value, request.name).response(HttpStatus.CREATED) {
+        it.response()
+      }
 
-    @GetMapping
-    fun listMine(
-        @CurrentPrincipal principal: AuthenticatedPrincipal
-    ): ResponseEntity<List<MerchantAccountResponse>> =
-        ResponseEntity.ok(service.listForUser(principal.accountId.value).map { it.response() })
+  @GetMapping
+  fun listMine(
+      @CurrentPrincipal principal: AuthenticatedPrincipal
+  ): ResponseEntity<List<MerchantAccountResponse>> =
+      ResponseEntity.ok(service.listForUser(principal.accountId.value).map { it.response() })
 
-    @PostMapping("/{merchantId}/members")
-    fun addMember(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable merchantId: Long,
-        @Valid @RequestBody request: AddMemberRequest,
-    ): ResponseEntity<*> =
-        service
-            .addMember(
-                principal.accountId.value,
-                MerchantId(merchantId),
-                request.userId,
-                request.roles,
-            )
-            .response(HttpStatus.CREATED) { it.response() }
+  @PostMapping("/{merchantId}/members")
+  fun addMember(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable merchantId: Long,
+      @Valid @RequestBody request: AddMemberRequest,
+  ): ResponseEntity<*> =
+      service
+          .addMember(
+              principal.accountId.value,
+              MerchantId(merchantId),
+              request.userId,
+              request.roles,
+          )
+          .response(HttpStatus.CREATED) { it.response() }
 
-    @PutMapping("/{merchantId}/members/{userId}/roles")
-    fun changeRoles(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable merchantId: Long,
-        @PathVariable userId: Long,
-        @Valid @RequestBody request: ChangeRolesRequest,
-    ): ResponseEntity<*> =
-        service
-            .changeMemberRoles(
-                principal.accountId.value,
-                MerchantId(merchantId),
-                userId,
-                request.roles,
-            )
-            .response { it.response() }
+  @PutMapping("/{merchantId}/members/{userId}/roles")
+  fun changeRoles(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable merchantId: Long,
+      @PathVariable userId: Long,
+      @Valid @RequestBody request: ChangeRolesRequest,
+  ): ResponseEntity<*> =
+      service
+          .changeMemberRoles(
+              principal.accountId.value,
+              MerchantId(merchantId),
+              userId,
+              request.roles,
+          )
+          .response { it.response() }
 
-    @DeleteMapping("/{merchantId}/members/{userId}")
-    fun disableMember(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable merchantId: Long,
-        @PathVariable userId: Long,
-    ): ResponseEntity<*> =
-        service.disableMember(principal.accountId.value, MerchantId(merchantId), userId).response {
-            mapOf("disabled" to true)
-        }
+  @DeleteMapping("/{merchantId}/members/{userId}")
+  fun disableMember(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable merchantId: Long,
+      @PathVariable userId: Long,
+  ): ResponseEntity<*> =
+      service.disableMember(principal.accountId.value, MerchantId(merchantId), userId).response {
+        mapOf("disabled" to true)
+      }
 
-    private fun Merchant.response() = MerchantResponse(id.value, name, status.name)
+  private fun Merchant.response() = MerchantResponse(id.value, name, status.name)
 
-    private fun MerchantAccountView.response() =
-        MerchantAccountResponse(
-            merchant.id.value,
-            merchant.name,
-            merchant.status.name,
-            membership.status.name,
-            membership.roles.map { it.name }.sorted(),
-        )
+  private fun MerchantAccountView.response() =
+      MerchantAccountResponse(
+          merchant.id.value,
+          merchant.name,
+          merchant.status.name,
+          membership.status.name,
+          membership.roles.map { it.name }.sorted(),
+      )
 
-    private fun MerchantMembership.response() =
-        MemberResponse(merchantId.value, userId, status.name, roles.map { it.name }.sorted())
+  private fun MerchantMembership.response() =
+      MemberResponse(merchantId.value, userId, status.name, roles.map { it.name }.sorted())
 
-    private fun <T> Result<T, BusinessError>.response(
-        successStatus: HttpStatus = HttpStatus.OK,
-        mapper: (T) -> Any,
-    ): ResponseEntity<*> =
-        fold(
-            onSuccess = { ResponseEntity.status(successStatus).body(mapper(it)) },
-            onFailure = {
-                ResponseEntity.status(it.httpCode).body(ErrorResponse(it.message, it.errorCode))
-            },
-        )
+  private fun <T> Result<T, BusinessError>.response(
+      successStatus: HttpStatus = HttpStatus.OK,
+      mapper: (T) -> Any,
+  ): ResponseEntity<*> =
+      fold(
+          onSuccess = { ResponseEntity.status(successStatus).body(mapper(it)) },
+          onFailure = {
+            ResponseEntity.status(it.httpCode).body(ErrorResponse(it.message, it.errorCode))
+          },
+      )
 }

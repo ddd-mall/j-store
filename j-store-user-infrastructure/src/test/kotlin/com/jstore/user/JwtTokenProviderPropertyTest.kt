@@ -41,97 +41,97 @@ import java.util.Date
  */
 class JwtTokenProviderPropertyTest :
     FunSpec({
-        val accessSecret = "access-secret-key-for-jwt-must-be-at-least-32-bytes!!"
-        val refreshSecret = "refresh-secret-key-for-jwt-must-be-at-least-32-bytes!"
-        val tokenProvider =
+      val accessSecret = "access-secret-key-for-jwt-must-be-at-least-32-bytes!!"
+      val refreshSecret = "refresh-secret-key-for-jwt-must-be-at-least-32-bytes!"
+      val tokenProvider =
+          JwtTokenProvider(
+              accessSecret = accessSecret,
+              refreshSecret = refreshSecret,
+              issuer = "j-store-test",
+              audience = "j-store-api-test",
+              keyId = "test-key-1",
+          )
+
+      val userIdArb: Arb<UserId> = Arb.long(1L..Long.MAX_VALUE).map { UserId(it) }
+
+      test("access token round trip preserves user session and epoch") {
+        checkAll(100, userIdArb) { userId ->
+          val token = tokenProvider.issueAccessToken(userId, "session-1", 7L)
+          val parsed = tokenProvider.parseAccessToken(token)
+          parsed.shouldNotBeNull()
+          parsed.userId shouldBe userId
+          parsed.sessionId shouldBe "session-1"
+          parsed.sessionEpoch shouldBe 7L
+        }
+      }
+
+      test("refresh token round trip preserves user session and epoch") {
+        checkAll(100, userIdArb) { userId ->
+          val token = tokenProvider.issueRefreshToken(userId, "session-2", 11L)
+          val parsed = tokenProvider.parseRefreshToken(token)
+          parsed.shouldNotBeNull()
+          parsed.userId shouldBe userId
+          parsed.sessionId shouldBe "session-2"
+          parsed.sessionEpoch shouldBe 11L
+        }
+      }
+
+      test("access and refresh tokens cannot be verified with the other token type key") {
+        val access = tokenProvider.issueAccessToken(UserId(42), "session", 1)
+        val refresh = tokenProvider.issueRefreshToken(UserId(42), "session", 1)
+
+        tokenProvider.parseRefreshToken(access) shouldBe null
+        tokenProvider.parseAccessToken(refresh) shouldBe null
+      }
+
+      test("access and refresh secrets must be different") {
+        shouldThrow<IllegalArgumentException> {
+          JwtTokenProvider(
+              accessSecret = accessSecret,
+              refreshSecret = accessSecret,
+              issuer = "j-store-test",
+              audience = "j-store-api-test",
+              keyId = "test-key-1",
+          )
+        }
+      }
+
+      test("issuer audience and key id are enforced") {
+        val token = tokenProvider.issueAccessToken(UserId(42), "session", 1)
+        val wrongBoundary =
             JwtTokenProvider(
                 accessSecret = accessSecret,
                 refreshSecret = refreshSecret,
-                issuer = "j-store-test",
-                audience = "j-store-api-test",
-                keyId = "test-key-1",
+                issuer = "other-issuer",
+                audience = "other-audience",
+                keyId = "other-key",
             )
 
-        val userIdArb: Arb<UserId> = Arb.long(1L..Long.MAX_VALUE).map { UserId(it) }
+        wrongBoundary.parseAccessToken(token) shouldBe null
+      }
 
-        test("access token round trip preserves user session and epoch") {
-            checkAll(100, userIdArb) { userId ->
-                val token = tokenProvider.issueAccessToken(userId, "session-1", 7L)
-                val parsed = tokenProvider.parseAccessToken(token)
-                parsed.shouldNotBeNull()
-                parsed.userId shouldBe userId
-                parsed.sessionId shouldBe "session-1"
-                parsed.sessionEpoch shouldBe 7L
-            }
-        }
+      test("subject and userId claim must identify the same account") {
+        val now = Instant.now()
+        val inconsistent =
+            Jwts.builder()
+                .header()
+                .keyId("test-key-1")
+                .and()
+                .id("jti")
+                .subject("43")
+                .issuer("j-store-test")
+                .audience()
+                .add("j-store-api-test")
+                .and()
+                .claim("userId", 42L)
+                .claim("sid", "session")
+                .claim("sev", 1L)
+                .claim("type", "access")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(60)))
+                .signWith(Keys.hmacShaKeyFor(accessSecret.toByteArray()), Jwts.SIG.HS256)
+                .compact()
 
-        test("refresh token round trip preserves user session and epoch") {
-            checkAll(100, userIdArb) { userId ->
-                val token = tokenProvider.issueRefreshToken(userId, "session-2", 11L)
-                val parsed = tokenProvider.parseRefreshToken(token)
-                parsed.shouldNotBeNull()
-                parsed.userId shouldBe userId
-                parsed.sessionId shouldBe "session-2"
-                parsed.sessionEpoch shouldBe 11L
-            }
-        }
-
-        test("access and refresh tokens cannot be verified with the other token type key") {
-            val access = tokenProvider.issueAccessToken(UserId(42), "session", 1)
-            val refresh = tokenProvider.issueRefreshToken(UserId(42), "session", 1)
-
-            tokenProvider.parseRefreshToken(access) shouldBe null
-            tokenProvider.parseAccessToken(refresh) shouldBe null
-        }
-
-        test("access and refresh secrets must be different") {
-            shouldThrow<IllegalArgumentException> {
-                JwtTokenProvider(
-                    accessSecret = accessSecret,
-                    refreshSecret = accessSecret,
-                    issuer = "j-store-test",
-                    audience = "j-store-api-test",
-                    keyId = "test-key-1",
-                )
-            }
-        }
-
-        test("issuer audience and key id are enforced") {
-            val token = tokenProvider.issueAccessToken(UserId(42), "session", 1)
-            val wrongBoundary =
-                JwtTokenProvider(
-                    accessSecret = accessSecret,
-                    refreshSecret = refreshSecret,
-                    issuer = "other-issuer",
-                    audience = "other-audience",
-                    keyId = "other-key",
-                )
-
-            wrongBoundary.parseAccessToken(token) shouldBe null
-        }
-
-        test("subject and userId claim must identify the same account") {
-            val now = Instant.now()
-            val inconsistent =
-                Jwts.builder()
-                    .header()
-                    .keyId("test-key-1")
-                    .and()
-                    .id("jti")
-                    .subject("43")
-                    .issuer("j-store-test")
-                    .audience()
-                    .add("j-store-api-test")
-                    .and()
-                    .claim("userId", 42L)
-                    .claim("sid", "session")
-                    .claim("sev", 1L)
-                    .claim("type", "access")
-                    .issuedAt(Date.from(now))
-                    .expiration(Date.from(now.plusSeconds(60)))
-                    .signWith(Keys.hmacShaKeyFor(accessSecret.toByteArray()), Jwts.SIG.HS256)
-                    .compact()
-
-            tokenProvider.parseAccessToken(inconsistent) shouldBe null
-        }
+        tokenProvider.parseAccessToken(inconsistent) shouldBe null
+      }
     })

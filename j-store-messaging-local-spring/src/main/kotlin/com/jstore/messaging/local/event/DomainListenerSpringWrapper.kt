@@ -28,63 +28,60 @@ class DomainListenerSpringWrapper(
     private val domainEventListener: DomainEventListener<*>,
     private val consumptionRepository: MessageConsumptionRepository,
 ) : GenericApplicationListener {
-    private val listenerEventType =
-        SpringDomainEventListenerTypeResolver.require(domainEventListener)
+  private val listenerEventType = SpringDomainEventListenerTypeResolver.require(domainEventListener)
 
-    @Suppress("UNCHECKED_CAST")
-    fun prepare(event: DomainEvent): (() -> Unit)? {
-        if (!listenerEventType.isInstance(event)) return null
-        val listener = domainEventListener as DomainEventListener<DomainEvent>
-        val action =
-            if (listener is PreparingDomainEventListener<DomainEvent>) listener.prepare(event)
-            else {
-                { listener.onDomainEvent(event) }
-            }
-        return {
-            if (consumptionRepository.tryStart(listener.listenerId(), event)) action()
+  @Suppress("UNCHECKED_CAST")
+  fun prepare(event: DomainEvent): (() -> Unit)? {
+    if (!listenerEventType.isInstance(event)) return null
+    val listener = domainEventListener as DomainEventListener<DomainEvent>
+    val action =
+        if (listener is PreparingDomainEventListener<DomainEvent>) listener.prepare(event)
+        else {
+          { listener.onDomainEvent(event) }
         }
+    return {
+      if (consumptionRepository.tryStart(listener.listenerId(), event)) action()
     }
+  }
 
-    override fun onApplicationEvent(event: ApplicationEvent) {
-        (event as? PayloadApplicationEvent<*>)?.let {
-            (it.payload as? DomainEvent)?.let { domainEvent ->
-                if (listenerEventType.isInstance(domainEvent)) {
-                    val listenerId = domainEventListener.listenerId()
-                    if (consumptionRepository.tryStart(listenerId, domainEvent)) {
-                        @Suppress("UNCHECKED_CAST")
-                        (domainEventListener as DomainEventListener<DomainEvent>).onDomainEvent(
-                            domainEvent
-                        )
-                    }
-                }
-            }
+  override fun onApplicationEvent(event: ApplicationEvent) {
+    (event as? PayloadApplicationEvent<*>)?.let {
+      (it.payload as? DomainEvent)?.let { domainEvent ->
+        if (listenerEventType.isInstance(domainEvent)) {
+          val listenerId = domainEventListener.listenerId()
+          if (consumptionRepository.tryStart(listenerId, domainEvent)) {
+            @Suppress("UNCHECKED_CAST")
+            (domainEventListener as DomainEventListener<DomainEvent>).onDomainEvent(domainEvent)
+          }
         }
+      }
+    }
+  }
+
+  override fun supportsAsyncExecution(): Boolean {
+    return false
+  }
+
+  override fun supportsEventType(eventType: ResolvableType): Boolean {
+    val isPayloadApplicationEvent = eventType.rawClass == PayloadApplicationEvent::class.java
+    if (!isPayloadApplicationEvent) {
+      return false
     }
 
-    override fun supportsAsyncExecution(): Boolean {
-        return false
-    }
+    val payloadType = eventType.generics.firstOrNull()?.resolve() ?: return false
+    return listenerEventType.isAssignableFrom(payloadType)
+  }
 
-    override fun supportsEventType(eventType: ResolvableType): Boolean {
-        val isPayloadApplicationEvent = eventType.rawClass == PayloadApplicationEvent::class.java
-        if (!isPayloadApplicationEvent) {
-            return false
-        }
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is DomainListenerSpringWrapper) return false
 
-        val payloadType = eventType.generics.firstOrNull()?.resolve() ?: return false
-        return listenerEventType.isAssignableFrom(payloadType)
-    }
+    if (domainEventListener != other.domainEventListener) return false
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is DomainListenerSpringWrapper) return false
+    return true
+  }
 
-        if (domainEventListener != other.domainEventListener) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return domainEventListener.hashCode()
-    }
+  override fun hashCode(): Int {
+    return domainEventListener.hashCode()
+  }
 }
