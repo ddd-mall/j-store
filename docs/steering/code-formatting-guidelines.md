@@ -3,7 +3,7 @@
 ## 唯一格式来源
 
 - Java、Kotlin 和 Gradle Kotlin DSL 文件只接受根项目 Spotless 配置产生的格式。
-- Kotlin 和 Gradle Kotlin DSL 由 Spotless 集成的 ktfmt Kotlin 风格进行格式化。
+- Java 使用 google-java-format 的官方默认 Google 风格；Kotlin 和 Gradle Kotlin DSL 使用 ktfmt 的官方默认风格。
 - 仓库不声明额外的人工排版规则，不根据开发者、IDE、AI 工具或提示词对 Spotless/ktfmt 的输出进行二次调整。
 - 如需改变格式，必须修改可执行的 Spotless/ktfmt 配置并统一应用；不得只修改提示词或文档示例。
 
