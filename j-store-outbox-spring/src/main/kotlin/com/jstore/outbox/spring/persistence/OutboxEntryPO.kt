@@ -17,8 +17,9 @@
 package com.jstore.outbox.spring.persistence
 
 import com.jstore.outbox.OutboxDeliveryTarget
-import com.jstore.outbox.OutboxEntryStatus
 import com.jstore.outbox.OutboxMessageKind
+import com.jstore.outbox.spring.polling.*
+import com.jstore.outbox.spring.polling.OutboxEntryStatus
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType

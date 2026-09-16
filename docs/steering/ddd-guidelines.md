@@ -29,9 +29,9 @@ Each bounded context is split across Gradle modules:
 | `j-store-common-spring` | Shared Spring integration | 通用地理地址等非消息工具 |
 | `j-store-observability-spring` | Shared observability runtime | Actuator、Tracing、Prometheus 和条件化 HTTP correlation 自动配置；不依赖业务或 Outbox 模块 |
 | `j-store-messaging-core` | Messaging ports | Framework-neutral integration contracts and transport SPI |
-| `j-store-outbox-core` | Reliable delivery core | Outbox model, repository and routing ports (no Spring/JPA) |
+| `j-store-outbox-core` | Reliable delivery core | Immutable publication intent, append/backend/sequence and routing ports (no polling state, Spring or JPA) |
 | `j-store-messaging-local-spring` | Local messaging adapter | In-process Spring domain/integration buses |
-| `j-store-outbox-spring` | Outbox runtime adapter | Spring Boot/JPA relay, persistence, scheduling and observability |
+| `j-store-outbox-spring` | Outbox runtime adapter | Shared transactional publication assembly and conditional polling runtime; polling state/repository remain implementation-owned |
 
 Dependency direction: `boot → application → domain → common-core` and `boot → infrastructure → domain`. Application modules that publish or consume integration messages may depend on `messaging-core`; only composition/infrastructure modules may depend on `outbox-spring` or concrete transport adapters. `outbox-spring → outbox-core → messaging-core` is one-way. Domain/application modules must NOT depend on infrastructure or boot modules. 每个有业务实现的有界上下文统一使用四模块形态；公共发布语言可保留独立的 `-api` 模块。
 

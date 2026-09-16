@@ -10,7 +10,7 @@ MESSAGE_SCOPE_FILES = [
     / "j-store-messaging-core/src/main/kotlin/com/jstore/messaging/IntegrationMessage.kt",
     REPO_ROOT
     / "j-store-messaging-core/src/main/kotlin/com/jstore/messaging/IntegrationMessageTransport.kt",
-    REPO_ROOT / "j-store-outbox-core/src/main/kotlin/com/jstore/outbox/OutboxEntry.kt",
+    REPO_ROOT / "j-store-outbox-core/src/main/kotlin/com/jstore/outbox/OutboxMessage.kt",
     REPO_ROOT
     / "j-store-outbox-spring/src/main/kotlin/com/jstore/outbox/spring/persistence/OutboxEntryPO.kt",
     REPO_ROOT

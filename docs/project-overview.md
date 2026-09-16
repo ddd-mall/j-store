@@ -33,9 +33,9 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 - `j-store-common-spring`: 仅保留通用 Spring 地理地址服务实现，不承载消息或 Outbox 基础设施。
 - `j-store-observability-spring`: 通用 Spring Boot 可观测性运行时，统一 Actuator、Micrometer Tracing、Prometheus 依赖和 Servlet correlation 自动配置；不依赖业务上下文、Outbox、JPA，也不强制引入 Web 运行时。
 - `j-store-messaging-core`: 框架无关的集成消息、handler、publisher、envelope 与 transport SPI。
-- `j-store-outbox-core`: 框架无关的 Outbox 记录、仓储端口、目标规划和按 `transportId` 的路由 SPI。
+- `j-store-outbox-core`: 框架无关的不可变 Outbox 消息、追加端口、backend 装配契约、顺序分配、目标规划和按 `transportId` 的路由 SPI；不包含 polling 状态或任务仓储。
 - `j-store-messaging-local-spring`: 进程内领域事件与集成消息总线的 Spring 实现。
-- `j-store-outbox-spring`: Transactional Outbox 的 Jackson/JPA、relay、调度、死信、监控和 Boot 自动配置。
+- `j-store-outbox-spring`: 共享 Jackson/事务发布装配，以及按 `jstore.outbox.mode` 条件启用的默认 polling JPA、relay、调度、死信和监控；polling 模型/仓储位于 `spring.polling`，后续独立实现通过 `OutboxBackend` 接入。
 - `j-store-integration-contracts`: 跨有界上下文的版本化集成命令/事件契约；依赖 `messaging-core`，不承载领域对象或基础设施实现。
 - `j-store-order-domain`: 纯订单/售后领域模型、仓储与 ACL 端口；只依赖 `common-core`。
 - `j-store-order-application`: 无框架的订单/售后用例编排、用例端口和集成消息 handler。

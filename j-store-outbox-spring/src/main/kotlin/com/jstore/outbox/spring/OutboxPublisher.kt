@@ -17,6 +17,7 @@
 package com.jstore.outbox.spring
 
 import com.jstore.outbox.*
+import com.jstore.outbox.spring.polling.*
 import java.time.Instant
 import java.util.UUID
 import kotlin.math.max
@@ -70,7 +71,7 @@ class OutboxPublisher(
                     ) {
                         throw OutboxLockOwnershipChangedException(entry.id, workerId)
                     }
-                    val delivery = deliveryRouter.prepare(entry)
+                    val delivery = deliveryRouter.prepare(entry.toMessage())
                     val updated = transactionOperations.executeDelivery {
                         delivery()
                         val publishedAt = Instant.now()

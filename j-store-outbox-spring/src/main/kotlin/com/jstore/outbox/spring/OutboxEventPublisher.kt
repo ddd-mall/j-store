@@ -32,15 +32,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * 基于 Outbox 模式的事件发布者实现。
  *
- * 将领域事件序列化后写入 Outbox 表（状态为 PENDING）， 替代直接内存投递，作为生产环境 DomainEventPublisher 的默认实现。
+ * 将领域事件序列化后通过实现中立的追加端口加入当前事务， 替代直接内存投递，作为生产环境 DomainEventPublisher 的默认实现。
  */
 open class OutboxEventPublisher(
-    private val outboxEntryRepository: OutboxEntryRepository,
+    private val writer: OutboxWriter,
     private val eventSerializer: EventSerializer,
     private val snowFlakSequence: SnowFlakSequence,
     private val eventTypeRegistry: EventTypeRegistry = InMemoryEventTypeRegistry(),
     private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
-    private val relaySignal: OutboxRelaySignal = NoopOutboxRelaySignal,
 ) : DomainEventPublisher {
     private val logger = LoggerFactory.getLogger(OutboxEventPublisher::class.java)
 
@@ -66,7 +65,7 @@ open class OutboxEventPublisher(
         val entries =
             preparedEvents.zip(sequenceNumbers) { prepared, sequenceNumber ->
                 val metadata = prepared.metadata
-                OutboxEntry(
+                OutboxMessage(
                     id = snowFlakSequence.nextId().toString(),
                     eventId = metadata.eventId,
                     eventType = metadata.eventName,
@@ -75,17 +74,13 @@ open class OutboxEventPublisher(
                     payload = prepared.payload,
                     aggregateType = metadata.aggregateType,
                     aggregateId = metadata.aggregateId,
-                    status = OutboxEntryStatus.PENDING,
                     createdAt = now,
-                    updatedAt = now,
                     occurredAt = metadata.occurredAt,
-                    retryCount = 0,
                     orderingKey = prepared.orderingKey,
                     sequenceNo = sequenceNumber,
                 )
             }
-        outboxEntryRepository.saveAll(entries)
-        relaySignal.signalAfterCommit()
+        writer.append(entries)
     }
 
     override fun afterPublicationCommitted(acknowledgement: () -> Unit) {

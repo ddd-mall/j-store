@@ -26,9 +26,9 @@ class LocalDomainEventDeliveryChannel(
 ) : PreparingOutboxDeliveryChannel {
     override val transportId: String = OutboxTransportIds.LOCAL_DOMAIN
 
-    override fun deliver(entry: OutboxEntry) = prepare(entry).invoke()
+    override fun deliver(entry: OutboxMessage) = prepare(entry).invoke()
 
-    override fun prepare(entry: OutboxEntry): () -> Unit {
+    override fun prepare(entry: OutboxMessage): () -> Unit {
         check(entry.transportId == transportId) {
             "LOCAL_DOMAIN channel cannot deliver transport ${entry.transportId}"
         }

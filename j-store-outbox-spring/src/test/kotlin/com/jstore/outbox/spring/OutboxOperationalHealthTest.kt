@@ -17,6 +17,7 @@
 package com.jstore.outbox.spring
 
 import com.jstore.outbox.*
+import com.jstore.outbox.spring.polling.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.shouldBeExactly
 import io.kotest.matchers.shouldBe

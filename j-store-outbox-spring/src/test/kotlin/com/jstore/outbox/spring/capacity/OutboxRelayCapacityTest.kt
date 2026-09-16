@@ -21,9 +21,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.jstore.outbox.OutboxDeliveryChannel
 import com.jstore.outbox.OutboxDeliveryRouter
-import com.jstore.outbox.OutboxEntry
-import com.jstore.outbox.OutboxEntryRepository
-import com.jstore.outbox.OutboxEntryStatus
+import com.jstore.outbox.OutboxMessage
 import com.jstore.outbox.OutboxTransportIds
 import com.jstore.outbox.spring.OutboxProperties
 import com.jstore.outbox.spring.OutboxPublisher
@@ -33,6 +31,10 @@ import com.jstore.outbox.spring.TransactionAwareOutboxRelaySignal
 import com.jstore.outbox.spring.persistence.OutboxEntryPO
 import com.jstore.outbox.spring.persistence.OutboxEntryPOJpaRepository
 import com.jstore.outbox.spring.persistence.OutboxEntryRepositoryImpl
+import com.jstore.outbox.spring.polling.*
+import com.jstore.outbox.spring.polling.OutboxEntry
+import com.jstore.outbox.spring.polling.OutboxEntryRepository
+import com.jstore.outbox.spring.polling.OutboxEntryStatus
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import jakarta.persistence.EntityManager
 import java.nio.file.Files
@@ -84,7 +86,7 @@ class OutboxRelayCapacityTest {
             object : OutboxDeliveryChannel {
                 override val transportId: String = OutboxTransportIds.LOCAL_DOMAIN
 
-                override fun deliver(entry: OutboxEntry) {
+                override fun deliver(entry: OutboxMessage) {
                     val committedNanos =
                         checkNotNull(committedAtNanos[entry.id]) {
                             "delivery observed before commit timestamp: ${entry.id}"

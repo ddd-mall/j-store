@@ -25,10 +25,12 @@ import com.jstore.outbox.IntegrationMessageSerializer
 import com.jstore.outbox.IntegrationPublicationPlanner
 import com.jstore.outbox.IntegrationRoute
 import com.jstore.outbox.OutboxDeliveryTarget
-import com.jstore.outbox.OutboxEntryRepository
 import com.jstore.outbox.OutboxMessageKind
 import com.jstore.outbox.OutboxStreamSequenceAllocator
+import com.jstore.outbox.spring.NoopOutboxRelaySignal
 import com.jstore.outbox.spring.OutboxRelaySignal
+import com.jstore.outbox.spring.polling.*
+import com.jstore.outbox.spring.polling.OutboxEntryRepository
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
@@ -56,7 +58,7 @@ class OutboxIntegrationMessagePublisherTest :
             val relaySignal = mock<OutboxRelaySignal>()
             val publisher =
                 OutboxIntegrationMessagePublisher(
-                    repository,
+                    PollingOutboxWriter(repository, relaySignal),
                     serializer,
                     SnowFlakSequence(1, 1),
                     registry,
@@ -83,46 +85,45 @@ class OutboxIntegrationMessagePublisherTest :
                             ),
                     ),
                     sequenceAllocator,
-                    relaySignal,
                 )
 
             publisher.publish(message)
 
-            val captor = argumentCaptor<com.jstore.outbox.OutboxEntry>()
-            verify(repository, times(2)).save(captor.capture())
+            val captor = argumentCaptor<List<OutboxEntry>>()
+            verify(repository).saveAll(captor.capture())
             verify(relaySignal).signalAfterCommit()
-            captor.allValues
+            captor.firstValue
                 .map { it.deliveryTarget }
                 .shouldContainExactly(
                     OutboxDeliveryTarget.BROKER,
                     OutboxDeliveryTarget.LOCAL_INTEGRATION,
                 )
-            captor.allValues.map { it.transportId }.shouldContainExactly("kafka", "local")
-            captor.allValues.map { it.logicalDestination }.distinct() shouldBe
+            captor.firstValue.map { it.transportId }.shouldContainExactly("kafka", "local")
+            captor.firstValue.map { it.logicalDestination }.distinct() shouldBe
                 listOf("inventory.commands")
-            captor.allValues
+            captor.firstValue
                 .map { it.destination }
                 .shouldContainExactly(
                     "commerce.inventory.commands.v1",
                     "inventory.commands",
                 )
-            captor.allValues.map { it.deliveryProfile }.distinct() shouldBe
+            captor.firstValue.map { it.deliveryProfile }.distinct() shouldBe
                 listOf("CHECKOUT_CRITICAL")
-            captor.allValues.map { it.acceptBefore }.distinct() shouldBe
+            captor.firstValue.map { it.acceptBefore }.distinct() shouldBe
                 listOf(message.acceptBefore)
-            captor.allValues.map { it.eventId }.distinct() shouldBe listOf(message.messageId)
-            captor.allValues.map { it.messageKind }.distinct() shouldBe
+            captor.firstValue.map { it.eventId }.distinct() shouldBe listOf(message.messageId)
+            captor.firstValue.map { it.messageKind }.distinct() shouldBe
                 listOf(OutboxMessageKind.INTEGRATION_COMMAND)
-            captor.allValues.map { it.partitionKey }.distinct() shouldBe
+            captor.firstValue.map { it.partitionKey }.distinct() shouldBe
                 listOf(message.partitionKey)
-            captor.allValues.map { it.correlationId }.distinct() shouldBe
+            captor.firstValue.map { it.correlationId }.distinct() shouldBe
                 listOf(message.correlationId)
-            captor.allValues.map { it.merchantScopeId }.distinct() shouldBe
+            captor.firstValue.map { it.merchantScopeId }.distinct() shouldBe
                 listOf(message.merchantScopeId)
-            captor.allValues.map { it.deploymentScopeId }.distinct() shouldBe
+            captor.firstValue.map { it.deploymentScopeId }.distinct() shouldBe
                 listOf(message.deploymentScopeId)
-            captor.allValues.map { it.orderingKey }.distinct() shouldBe listOf(orderingKey)
-            captor.allValues.map { it.sequenceNo }.shouldContainExactly(11, 7)
+            captor.firstValue.map { it.orderingKey }.distinct() shouldBe listOf(orderingKey)
+            captor.firstValue.map { it.sequenceNo }.shouldContainExactly(11, 7)
         }
 
         test("blank optional metadata is rejected before publication") {
@@ -133,7 +134,7 @@ class OutboxIntegrationMessagePublisherTest :
             registry.register("test.inventory.reserve", 1, TestReserveInventoryCommand::class.java)
             val publisher =
                 OutboxIntegrationMessagePublisher(
-                    repository,
+                    PollingOutboxWriter(repository, NoopOutboxRelaySignal),
                     serializer,
                     SnowFlakSequence(1, 1),
                     registry,

@@ -21,24 +21,14 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.util.HexFormat
 
-/** Outbox 条目领域模型，表示一条待发布的领域事件记录。 */
-data class OutboxEntry(
+/** Immutable publication intent, independent of extraction and delivery state. */
+data class OutboxMessage(
     val id: String,
     val eventType: String,
     val payload: String,
     val aggregateType: String,
     val aggregateId: String,
-    val status: OutboxEntryStatus,
     val createdAt: Instant,
-    val updatedAt: Instant,
-    val retryCount: Int = 0,
-    val nextAttemptAt: Instant = createdAt,
-    val lockedBy: String? = null,
-    val lockedAt: Instant? = null,
-    val lockedUntil: Instant? = null,
-    /** Monotonically increasing claim generation used to fence stale workers. */
-    val lockToken: Long = 0,
-    val lastError: String? = null,
     val eventId: String = id,
     val eventClassName: String = eventType,
     val eventVersion: Int = 1,
@@ -54,8 +44,6 @@ data class OutboxEntry(
         if (messageKind == OutboxMessageKind.DOMAIN_EVENT) "LOCAL_DOMAIN" else "STANDARD",
     /** Optional command acceptance deadline propagated end-to-end. */
     val acceptBefore: Instant? = null,
-    /** Time at which this delivery was confirmed as published. */
-    val publishedAt: Instant? = null,
     val partitionKey: String = aggregateId,
     val correlationId: String = eventId,
     val causationId: String? = null,
@@ -93,24 +81,6 @@ data class OutboxEntry(
         }
         require(orderingKey.isNotBlank()) { "Outbox ordering key must not be blank" }
         require(sequenceNo > 0) { "Outbox sequence number must be positive" }
-        require(retryCount >= 0) { "Outbox retry count must not be negative" }
-        require(lockToken >= 0) { "Outbox lock token must not be negative" }
-        require((status == OutboxEntryStatus.PUBLISHED) == (publishedAt != null)) {
-            "Only PUBLISHED outbox entries must have a publication time"
-        }
-
-        val hasCompleteLease = lockedBy != null && lockedAt != null && lockedUntil != null
-        if (status == OutboxEntryStatus.IN_PROGRESS) {
-            require(hasCompleteLease) { "IN_PROGRESS outbox entry requires a complete lease" }
-            require(lockedUntil.isAfter(lockedAt)) {
-                "Outbox lease expiry must be after its acquisition time"
-            }
-        } else {
-            require(lockedBy == null && lockedAt == null && lockedUntil == null) {
-                "Only IN_PROGRESS outbox entries may hold a lease"
-            }
-        }
-
         when (messageKind) {
             OutboxMessageKind.DOMAIN_EVENT -> {
                 require(

@@ -17,6 +17,7 @@
 package com.jstore.outbox.spring
 
 import com.jstore.outbox.*
+import com.jstore.outbox.spring.polling.*
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant

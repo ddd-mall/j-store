@@ -17,52 +17,35 @@
 package com.jstore.outbox.spring
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.jstore.common.framework.event.DomainEventListener
 import com.jstore.common.framework.event.DomainEventPublisher
-import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.common.persistent.SnowFlakSequence
-import com.jstore.messaging.IntegrationMessageHandler
 import com.jstore.messaging.IntegrationMessagePublisher
-import com.jstore.messaging.IntegrationMessageTransport
-import com.jstore.messaging.LocalIntegrationMessageBus
-import com.jstore.messaging.MessageConsumptionRepository
-import com.jstore.messaging.MessageConsumptionRetentionRepository
-import com.jstore.messaging.local.event.*
-import com.jstore.messaging.local.integration.SpringLocalIntegrationMessageBus
 import com.jstore.outbox.*
 import com.jstore.outbox.spring.messaging.*
-import com.jstore.outbox.spring.persistence.*
-import io.micrometer.core.instrument.MeterRegistry
-import jakarta.persistence.EntityManager
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.context.ApplicationContext
-import org.springframework.context.ApplicationEventPublisher
-import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories
-import org.springframework.scheduling.annotation.EnableScheduling
-import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.context.annotation.Lazy
 
 @AutoConfiguration
-@Import(OutboxJpaConfiguration::class)
-@EnableConfigurationProperties(
-    OutboxProperties::class,
-    OutboxObservabilityProperties::class,
-    MessagingProperties::class,
-)
+@Import(PollingOutboxConfiguration::class)
+@EnableConfigurationProperties(OutboxPublicationProperties::class, MessagingProperties::class)
 @ConditionalOnProperty(prefix = "jstore.outbox", name = ["enabled"], havingValue = "true")
-@EnableScheduling
 class OutboxAutoConfiguration {
+    @Bean
+    @Lazy(false)
+    fun outboxBackendSelection(
+        properties: OutboxPublicationProperties,
+        backends: List<OutboxBackend>,
+    ): OutboxBackendSelection {
+        check(backends.size == 1 && backends.single().id == properties.mode) {
+            "Expected exactly one Outbox backend for mode=${properties.mode}, found=${backends.map { it.id }}"
+        }
+        return OutboxBackendSelection(backends.single())
+    }
 
     @Bean
     fun eventTypeRegistry(): EventTypeRegistry {
@@ -72,7 +55,7 @@ class OutboxAutoConfiguration {
     @Bean
     fun springEventTypeRegistryRegistrar(
         eventTypeRegistry: EventTypeRegistry,
-        properties: OutboxProperties,
+        properties: OutboxPublicationProperties,
     ): SpringEventTypeRegistryRegistrar {
         return SpringEventTypeRegistryRegistrar(eventTypeRegistry, properties.eventTypeScanPackages)
     }
@@ -89,7 +72,7 @@ class OutboxAutoConfiguration {
     @Bean
     fun springIntegrationMessageTypeRegistryRegistrar(
         registry: IntegrationMessageTypeRegistry,
-        properties: OutboxProperties,
+        properties: OutboxPublicationProperties,
     ): SpringIntegrationMessageTypeRegistryRegistrar =
         SpringIntegrationMessageTypeRegistryRegistrar(registry, properties.eventTypeScanPackages)
 
@@ -109,40 +92,18 @@ class OutboxAutoConfiguration {
     }
 
     @Bean
-    fun outboxEntryRepository(
-        jpaRepository: OutboxEntryPOJpaRepository,
-        entityManager: EntityManager,
-    ): OutboxEntryRepository {
-        return OutboxEntryRepositoryImpl(jpaRepository, entityManager)
-    }
-
-    @Bean
-    fun outboxStreamSequenceAllocator(entityManager: EntityManager): OutboxStreamSequenceAllocator =
-        PostgresOutboxStreamSequenceAllocator(entityManager)
-
-    @Bean
-    fun messageConsumptionRepository(
-        entityManager: EntityManager
-    ): MessageConsumptionRepositoryImpl {
-        return MessageConsumptionRepositoryImpl(entityManager)
-    }
-
-    @Bean
     fun domainEventPublisher(
-        outboxEntryRepository: OutboxEntryRepository,
+        selection: OutboxBackendSelection,
         eventSerializer: EventSerializer,
         snowFlakSequence: SnowFlakSequence,
         eventTypeRegistry: EventTypeRegistry,
-        outboxStreamSequenceAllocator: OutboxStreamSequenceAllocator,
-        outboxRelaySignal: OutboxRelaySignal,
     ): DomainEventPublisher {
         return OutboxEventPublisher(
-            outboxEntryRepository,
+            selection.backend.writer,
             eventSerializer,
             snowFlakSequence,
             eventTypeRegistry,
-            outboxStreamSequenceAllocator,
-            outboxRelaySignal,
+            selection.backend.sequenceAllocator,
         )
     }
 
@@ -154,224 +115,18 @@ class OutboxAutoConfiguration {
 
     @Bean
     fun integrationMessagePublisher(
-        outboxEntryRepository: OutboxEntryRepository,
+        selection: OutboxBackendSelection,
         integrationMessageSerializer: IntegrationMessageSerializer,
         snowFlakSequence: SnowFlakSequence,
         integrationMessageTypeRegistry: IntegrationMessageTypeRegistry,
         integrationPublicationPlanner: IntegrationPublicationPlanner,
-        outboxStreamSequenceAllocator: OutboxStreamSequenceAllocator,
-        outboxRelaySignal: OutboxRelaySignal,
     ): IntegrationMessagePublisher =
         OutboxIntegrationMessagePublisher(
-            outboxEntryRepository,
+            selection.backend.writer,
             integrationMessageSerializer,
             snowFlakSequence,
             integrationMessageTypeRegistry,
             integrationPublicationPlanner,
-            outboxStreamSequenceAllocator,
-            outboxRelaySignal,
+            selection.backend.sequenceAllocator,
         )
-
-    @Bean
-    fun springDomainEventListenerRegistry(
-        applicationContext: ConfigurableApplicationContext,
-        messageConsumptionRepository: MessageConsumptionRepository,
-    ): SpringDomainEventListenerRegistry =
-        SpringDomainEventListenerRegistry(applicationContext, messageConsumptionRepository)
-
-    @Bean
-    fun localDomainEventBus(
-        registry: SpringDomainEventListenerRegistry,
-        applicationEventPublisher: ApplicationEventPublisher,
-    ): LocalDomainEventBus = SpringLocalDomainEventBus(registry, applicationEventPublisher)
-
-    @Bean
-    fun springDomainEventListenerRegistrationMachine(
-        localDomainEventBus: LocalDomainEventBus,
-        listeners: List<DomainEventListener<*>>,
-    ): SpringDomainEventListenerRegistrationMachine =
-        SpringDomainEventListenerRegistrationMachine(localDomainEventBus, listeners)
-
-    @Bean
-    fun localIntegrationMessageBus(
-        handlers: List<IntegrationMessageHandler<*>>,
-        messageConsumptionRepository: MessageConsumptionRepository,
-    ): LocalIntegrationMessageBus =
-        SpringLocalIntegrationMessageBus(handlers, messageConsumptionRepository)
-
-    @Bean
-    fun localIntegrationMessageDeliveryChannel(
-        integrationMessageSerializer: IntegrationMessageSerializer,
-        localIntegrationMessageBus: LocalIntegrationMessageBus,
-    ): OutboxDeliveryChannel =
-        LocalIntegrationMessageDeliveryChannel(
-            integrationMessageSerializer,
-            localIntegrationMessageBus,
-        )
-
-    @Bean
-    fun transportConfigurationGuard(
-        properties: MessagingProperties,
-        localChannels: List<OutboxDeliveryChannel>,
-        transports: ObjectProvider<IntegrationMessageTransport>,
-    ): TransportConfigurationGuard =
-        TransportConfigurationGuard(properties, localChannels, transports)
-
-    @Bean
-    fun localDomainEventDeliveryChannel(
-        eventSerializer: EventSerializer,
-        localDomainEventBus: LocalDomainEventBus,
-    ): OutboxDeliveryChannel = LocalDomainEventDeliveryChannel(eventSerializer, localDomainEventBus)
-
-    @Bean
-    fun outboxDeliveryRouter(
-        localChannels: List<OutboxDeliveryChannel>,
-        transports: ObjectProvider<IntegrationMessageTransport>,
-    ): OutboxDeliveryRouter =
-        OutboxDeliveryRouter(
-            localChannels +
-                transports
-                    .orderedStream()
-                    .map(::TransportIntegrationMessageDeliveryChannel)
-                    .toList()
-        )
-
-    @Bean
-    fun outboxPublisher(
-        outboxEntryRepository: OutboxEntryRepository,
-        deliveryRouter: OutboxDeliveryRouter,
-        properties: OutboxProperties,
-        outboxMonitor: OutboxMonitor,
-        transactionOperations: OutboxRelayTransactionOperations,
-    ): OutboxPublisher {
-        return OutboxPublisher(
-            outboxEntryRepository,
-            deliveryRouter,
-            properties,
-            outboxMonitor,
-            transactionOperations,
-        )
-    }
-
-    @Bean(destroyMethod = "shutdown")
-    fun outboxRelayExecutor(): ExecutorService = Executors.newSingleThreadExecutor { task ->
-        Thread(task, "jstore-outbox-relay").apply { isDaemon = true }
-    }
-
-    @Bean
-    fun outboxRelayCoordinator(
-        outboxPublisher: OutboxPublisher,
-        @Qualifier("outboxRelayExecutor") executor: ExecutorService,
-        observer: OutboxRelayExecutionObserver,
-    ): OutboxRelayCoordinator = OutboxRelayCoordinator(outboxPublisher, executor, observer)
-
-    @Bean
-    fun outboxRelayExecutionObserver(
-        outboxMonitor: OutboxMonitor,
-        schedulerExecutionState: SchedulerExecutionState,
-    ): OutboxRelayExecutionObserver =
-        MonitoringOutboxRelayExecutionObserver(outboxMonitor, schedulerExecutionState)
-
-    @Bean
-    fun outboxRelaySignal(
-        coordinatorProvider: ObjectProvider<OutboxRelayCoordinator>
-    ): OutboxRelaySignal = TransactionAwareOutboxRelaySignal {
-        coordinatorProvider.getObject().requestDrain()
-    }
-
-    @Bean
-    fun outboxCleaner(
-        outboxEntryRepository: OutboxEntryRepository,
-        properties: OutboxProperties,
-        consumptionRetentionRepository: MessageConsumptionRetentionRepository,
-    ): OutboxCleaner {
-        return OutboxCleaner(outboxEntryRepository, properties, consumptionRetentionRepository)
-    }
-
-    @Bean
-    fun outboxScheduler(
-        outboxRelayCoordinator: OutboxRelayCoordinator,
-        outboxCleaner: OutboxCleaner,
-    ): OutboxScheduler {
-        return OutboxScheduler(outboxRelayCoordinator, outboxCleaner)
-    }
-
-    @Bean fun schedulerExecutionState(): SchedulerExecutionState = SchedulerExecutionState()
-
-    @Bean
-    fun outboxOperationalHealth(
-        outboxEntryRepository: OutboxEntryRepository,
-        schedulerExecutionState: SchedulerExecutionState,
-        observabilityProperties: OutboxObservabilityProperties,
-        properties: OutboxProperties,
-        integrationPublicationPlanner: IntegrationPublicationPlanner,
-    ): OutboxOperationalHealth =
-        OutboxOperationalHealth(
-            outboxEntryRepository,
-            schedulerExecutionState,
-            observabilityProperties,
-            properties.maxRetryCount,
-            configuredTransportIds =
-                integrationPublicationPlanner.requiredTransportIds() +
-                    OutboxTransportIds.LOCAL_DOMAIN,
-        )
-
-    @Bean
-    fun outboxMonitor(
-        meterRegistryProvider: ObjectProvider<MeterRegistry>,
-        outboxEntryRepository: OutboxEntryRepository,
-        outboxOperationalHealth: OutboxOperationalHealth,
-        schedulerExecutionState: SchedulerExecutionState,
-        integrationPublicationPlanner: IntegrationPublicationPlanner,
-        observabilityProperties: OutboxObservabilityProperties,
-    ): OutboxMonitor {
-        val meterRegistry = meterRegistryProvider.getIfAvailable() ?: return NoopOutboxMonitor
-        return MicrometerOutboxMonitor(
-            meterRegistry,
-            outboxEntryRepository,
-            outboxOperationalHealth,
-            schedulerExecutionState,
-            integrationPublicationPlanner.requiredTransportIds() + OutboxTransportIds.LOCAL_DOMAIN,
-            observabilityProperties.schedulerFailureThreshold,
-        )
-    }
-
-    @Bean
-    fun outboxRelayTransactionOperations(
-        transactionManager: PlatformTransactionManager
-    ): OutboxRelayTransactionOperations {
-        return SpringOutboxRelayTransactionOperations(transactionManager)
-    }
-
-    @Bean
-    fun springDomainEventMulticasterGuard(
-        applicationContext: ApplicationContext,
-        properties: OutboxProperties,
-    ): SpringDomainEventMulticasterGuard {
-        return SpringDomainEventMulticasterGuard(
-            applicationContext,
-            properties.asyncMulticasterFailFast,
-        )
-    }
-
-    @Bean
-    fun outboxDeadLetterService(
-        outboxEntryRepository: OutboxEntryRepository,
-        outboxMonitor: OutboxMonitor,
-    ): OutboxDeadLetterService {
-        return OutboxDeadLetterService(outboxEntryRepository, outboxMonitor)
-    }
 }
-
-@Configuration(proxyBeanMethods = false)
-@ConditionalOnMissingBean(OutboxEntryPOJpaRepository::class)
-@EntityScan(
-    basePackageClasses =
-        [
-            OutboxEntryPO::class,
-            OutboxDeadLetterAuditPO::class,
-            DomainEventConsumptionPO::class,
-        ]
-)
-@EnableJpaRepositories(basePackageClasses = [OutboxEntryPOJpaRepository::class])
-internal class OutboxJpaConfiguration

@@ -24,8 +24,9 @@ import com.jstore.messaging.IntegrationMessagePublisher
 import com.jstore.messaging.IntegrationMessageTransport
 import com.jstore.outbox.IntegrationPublicationPlanner
 import com.jstore.outbox.OutboxDeliveryChannel
-import com.jstore.outbox.OutboxEntryRepository
 import com.jstore.outbox.spring.persistence.OutboxEntryPOJpaRepository
+import com.jstore.outbox.spring.polling.*
+import com.jstore.outbox.spring.polling.OutboxEntryRepository
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -157,7 +158,7 @@ class OutboxAutoConfigurationTest :
                 )
 
             val monitor =
-                OutboxAutoConfiguration()
+                PollingOutboxConfiguration()
                     .outboxMonitor(
                         beanFactory.getBeanProvider(MeterRegistry::class.java),
                         repository,

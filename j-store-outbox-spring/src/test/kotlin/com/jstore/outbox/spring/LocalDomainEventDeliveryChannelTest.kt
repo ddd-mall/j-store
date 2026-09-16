@@ -19,6 +19,7 @@ package com.jstore.outbox.spring
 import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.common.framework.event.StubDomainEvent
 import com.jstore.outbox.*
+import com.jstore.outbox.OutboxMessage
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.time.Instant
@@ -35,15 +36,13 @@ class LocalDomainEventDeliveryChannelTest :
             whenever(serializer.deserialize("{}", "order.created", 3)).thenReturn(event)
             val channel = LocalDomainEventDeliveryChannel(serializer, bus)
             val entry =
-                OutboxEntry(
+                OutboxMessage(
                     id = "entry-1",
                     eventType = "order.created",
                     payload = "{}",
                     aggregateType = "Order",
                     aggregateId = "1",
-                    status = OutboxEntryStatus.PENDING,
                     createdAt = Instant.parse("2026-08-05T00:00:00Z"),
-                    updatedAt = Instant.parse("2026-08-05T00:00:00Z"),
                     eventVersion = 3,
                     orderingKey = OutboxOrderingKeys.domain("Order", "1"),
                     sequenceNo = 1,

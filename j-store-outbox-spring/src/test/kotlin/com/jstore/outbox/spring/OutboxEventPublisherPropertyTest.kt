@@ -29,6 +29,7 @@ import com.jstore.order.domain.order.MerchantId
 import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.event.*
 import com.jstore.outbox.*
+import com.jstore.outbox.spring.polling.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -116,7 +117,7 @@ class OutboxEventPublisherPropertyTest :
 
                 val publisher =
                     OutboxEventPublisher(
-                        mockRepository,
+                        PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
                         realSerializer,
                         SnowFlakSequence(1, 1),
                         eventTypeRegistry,
