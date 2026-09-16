@@ -34,9 +34,27 @@ data class ReplaceCartSelectionCommand(
     val cartLineIds: Set<Long>,
 )
 
+enum class CartAssessmentViewStatus {
+    COMPLETE,
+    PARTIAL,
+    EMPTY,
+    STALE;
+
+    companion object {
+        fun from(assessment: CartAssessment, currentCartVersion: Long): CartAssessmentViewStatus {
+            if (assessment.sourceCartVersion != currentCartVersion) return STALE
+            return when (assessment.status) {
+                AssessmentStatus.COMPLETE -> COMPLETE
+                AssessmentStatus.PARTIAL -> PARTIAL
+                AssessmentStatus.EMPTY -> EMPTY
+            }
+        }
+    }
+}
+
 data class CartAssessmentView(
     val sourceCartVersion: Long,
-    val status: String,
+    val status: CartAssessmentViewStatus,
     val amountFen: Long,
     val currency: String,
     val lines: List<CartAssessmentLine>,
@@ -86,4 +104,8 @@ sealed interface CartCheckoutPreparationStart {
 
 fun interface CartIdentityGenerator {
     fun nextId(): Long
+}
+
+fun interface CartLimitsProvider {
+    fun current(): CartLimits
 }

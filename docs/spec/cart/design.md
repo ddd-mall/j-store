@@ -469,3 +469,18 @@ cart_assessment_line
 ### 使用 Redis 作为 Cart 唯一权威存储
 
 首期拒绝。仓库现有事务、Outbox 和聚合模式以 PostgreSQL 为 Cart 权威；普通 Cart 写入通过目标状态与版本收敛，不依赖 Redis 或永久请求历史。Redis 可在有容量证据后作为查询缓存，但不能替代持久化 Cart。
+
+## 业务字面量与类型约束
+
+数量限制由 Boot 的 `CartLimitsProperties` 提供缺省值（1..999、100 行），经应用层
+`CartLimitsProvider` 读取后显式传入领域 `CartLimits`。领域对象不提供隐式配置默认值。
+Nacos 适配器校验并原子替换整份快照；一次数量操作的检查、提交及事务重试使用相同快照。
+刷新事件原因使用 `CartRefreshReason`，JSON 值为 `ITEM_QUANTITY_SET` 或 `SELECTION_CHANGED`。
+具体刷新、降级与配置收紧语义见 [可配置限制 delta](../changes/cart-configurable-limits/delta.md)。
+
+查询响应使用应用层 `CartAssessmentViewStatus`，按来源版本和领域试算状态穷尽映射：
+同版本返回 COMPLETE/PARTIAL/EMPTY，版本不一致返回 STALE。本文中的 CURRENT 表示
+版本相同这一语义，不是 HTTP status 字段的实际枚举值。此次重构保留现有响应结构及 JSON 值。
+
+验收覆盖数量上下界、满车新增拒绝及原行可更新、两种刷新原因 JSON 往返、
+三种当前试算结果和过期结果映射。领域所有权、事务和 Checkout 协作不变；数据库数量约束保留正数不变量，业务上限由配置决定。

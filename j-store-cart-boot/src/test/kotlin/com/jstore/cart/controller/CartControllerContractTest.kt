@@ -16,8 +16,14 @@
  */
 package com.jstore.cart.controller
 
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.jstore.authentication.principal.AuthenticatedAccountId
 import com.jstore.authentication.principal.AuthenticatedPrincipal
+import com.jstore.cart.domain.BuyerId
+import com.jstore.cart.domain.CartId
+import com.jstore.cart.domain.CartRefreshReason
+import com.jstore.cart.domain.CartRefreshRequestedEvent
 import com.jstore.cart.service.*
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
@@ -64,6 +70,44 @@ class CartControllerContractTest {
                 )
                 .getAnnotation(PutMapping::class.java)
         assertArrayEquals(arrayOf("/items"), mapping.value)
+    }
+
+    @Test
+    fun `assessment response status retains its JSON values`() {
+        val mapper = ObjectMapper().findAndRegisterModules()
+        for (status in CartAssessmentViewStatus.entries) {
+            val view = CartAssessmentView(1, status, 0, "CNY", emptyList())
+            assertEquals(
+                status.name,
+                mapper.readTree(mapper.writeValueAsString(view))["status"].asText(),
+            )
+        }
+    }
+
+    @Test
+    fun `refresh event reason survives JSON round trip`() {
+        val mapper =
+            ObjectMapper()
+                .findAndRegisterModules()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        for (reason in CartRefreshReason.entries) {
+            val event =
+                CartRefreshRequestedEvent(
+                    CartId(1),
+                    BuyerId(7),
+                    1,
+                    reason,
+                )
+            val json = mapper.writeValueAsString(event)
+            assertEquals(reason.name, mapper.readTree(json)["reason"].asText())
+            assertEquals(
+                event,
+                mapper.readValue(
+                    json,
+                    CartRefreshRequestedEvent::class.java,
+                ),
+            )
+        }
     }
 
     private class CapturingCartUseCase : CartUseCase {

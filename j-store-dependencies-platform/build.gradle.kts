@@ -13,6 +13,10 @@ dependencies {
     api(platform(libs.log4j.bom))
 
     constraints {
+        api(libs.nacos.client)
+        api(libs.httpclient5)
+        api(libs.httpcore5)
+        api(libs.httpcore5.h2)
         api(libs.postgresql)
         api(libs.commons.lang3)
         api(libs.tomcat.embed.core)

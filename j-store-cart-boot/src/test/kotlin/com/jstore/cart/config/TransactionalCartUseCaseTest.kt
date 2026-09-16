@@ -45,19 +45,22 @@ import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.TransactionStatus
 
 class TransactionalCartUseCaseTest {
+    private val limits = com.jstore.cart.domain.CartLimits(1, 999, 100)
+
     @Test
     fun `resolves offer outside transaction and commits cart in a short write transaction`() {
         val transactions = RecordingCartTransactions()
         val delegate = mock<CartApplicationService>()
+        whenever(delegate.currentLimits()).thenReturn(limits)
         val command = command()
         val offer = offer()
-        whenever(delegate.inspectSetItemQuantity(command))
+        whenever(delegate.inspectSetItemQuantity(command, limits))
             .thenReturn(Success(SetCartItemQuantityStart.RequiresOffer))
         whenever(delegate.resolveOffer(command.offerId)).thenAnswer {
             assertFalse(transactions.inTransaction)
             offer
         }
-        whenever(delegate.commitSetItemQuantity(command, offer)).thenAnswer {
+        whenever(delegate.commitSetItemQuantity(command, offer, limits)).thenAnswer {
             assertTrue(transactions.inWriteTransaction)
             Success(view())
         }
@@ -66,18 +69,20 @@ class TransactionalCartUseCaseTest {
 
         assertInstanceOf(Success::class.java, result)
         assertEquals(listOf("read", "external", "write"), transactions.phases)
+        verify(delegate, times(1)).currentLimits()
     }
 
     @Test
     fun `optimistic conflict retries only the short write phase`() {
         val transactions = RecordingCartTransactions()
         val delegate = mock<CartApplicationService>()
+        whenever(delegate.currentLimits()).thenReturn(limits)
         val command = command()
         val offer = offer()
-        whenever(delegate.inspectSetItemQuantity(command))
+        whenever(delegate.inspectSetItemQuantity(command, limits))
             .thenReturn(Success(SetCartItemQuantityStart.RequiresOffer))
         whenever(delegate.resolveOffer(command.offerId)).thenReturn(offer)
-        whenever(delegate.commitSetItemQuantity(command, offer))
+        whenever(delegate.commitSetItemQuantity(command, offer, limits))
             .thenThrow(OptimisticLockingFailureException("concurrent cart update"))
             .thenReturn(Success(view()))
 
@@ -85,6 +90,8 @@ class TransactionalCartUseCaseTest {
 
         assertInstanceOf(Success::class.java, result)
         assertEquals(listOf("read", "external", "write", "write"), transactions.phases)
+        verify(delegate, times(1)).currentLimits()
+        verify(delegate, times(2)).commitSetItemQuantity(command, offer, limits)
     }
 
     @Test
@@ -113,6 +120,7 @@ class TransactionalCartUseCaseTest {
     fun `prepares checkout facts outside the cart read transaction`() {
         val transactions = RecordingCartTransactions()
         val delegate = mock<CartApplicationService>()
+        whenever(delegate.currentLimits()).thenReturn(limits)
         val cart = cart()
         val query = CartCheckoutSourceQuery(cartId = 1, buyerId = 7, expectedCartVersion = 0)
         whenever(delegate.startPrepare(query))
@@ -159,7 +167,12 @@ class TransactionalCartUseCaseTest {
         val delegate = mock<CartRefreshRequestedHandler>()
         val cart = cart()
         val event =
-            com.jstore.cart.domain.CartRefreshRequestedEvent(cart.id, cart.buyerId, 0, "test")
+            com.jstore.cart.domain.CartRefreshRequestedEvent(
+                cart.id,
+                cart.buyerId,
+                0,
+                com.jstore.cart.domain.CartRefreshReason.ITEM_QUANTITY_SET,
+            )
         whenever(delegate.start(event)).thenAnswer {
             assertTrue(tx.inTransaction)
             cart

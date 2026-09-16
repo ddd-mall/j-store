@@ -6,6 +6,7 @@ plugins {
 repositories { mavenCentral() }
 
 dependencies {
+    implementation(libs.nacos.client)
     implementation(libs.kotlin.stdlib)
     implementation(project(":j-store-cart-api"))
     implementation(project(":j-store-cart-domain"))

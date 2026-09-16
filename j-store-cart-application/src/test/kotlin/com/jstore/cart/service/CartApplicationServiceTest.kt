@@ -21,6 +21,7 @@ import com.jstore.cart.acl.OfferIdentity
 import com.jstore.cart.domain.*
 import com.jstore.common.framework.event.DomainEvent
 import com.jstore.common.framework.event.DomainEventPublisher
+import com.jstore.common.properties.Price
 import com.jstore.common.utils.Success
 import java.time.Clock
 import java.time.Instant
@@ -45,6 +46,7 @@ class CartApplicationServiceTest {
                 ids = CartIdentityGenerator { nextId++ },
                 publisher = publisher,
                 clock = Clock.fixed(Instant.parse("2026-09-04T00:00:00Z"), ZoneOffset.UTC),
+                limitsProvider = CartLimitsProvider { CartLimits(1, 999, 100) },
             )
 
         val result =
@@ -81,6 +83,7 @@ class CartApplicationServiceTest {
                 ids = CartIdentityGenerator { nextId++ },
                 publisher = publisher,
                 clock = Clock.fixed(Instant.parse("2026-09-04T00:00:00Z"), ZoneOffset.UTC),
+                limitsProvider = CartLimitsProvider { CartLimits(1, 999, 100) },
             )
         val command =
             SetCartItemQuantityCommand(
@@ -115,12 +118,110 @@ class CartApplicationServiceTest {
                 commerce,
                 CartIdentityGenerator { nextId++ },
                 publisher,
+                limitsProvider = CartLimitsProvider { CartLimits(1, 999, 100) },
             )
         service.setItemQuantity(SetCartItemQuantityCommand(7, 101, 201, 3, 0))
         val event = publisher.events.single() as CartRefreshRequestedEvent
         kotlin.test.assertFailsWith<com.jstore.common.errors.BusinessErrorException> {
             CartRefreshRequestedHandler(service, carts).onDomainEvent(event)
         }
+    }
+
+    @Test
+    fun `current assessment preserves each result and old assessment is stale`() {
+        for (status in AssessmentStatus.entries) {
+            val carts = InMemoryCartRepository()
+            val assessments = InMemoryCartAssessmentStore()
+            val publisher = RecordingPublisher()
+            var nextId = 10L
+            val service =
+                CartApplicationService(
+                    carts,
+                    assessments,
+                    FixedCommerceFacts(),
+                    CartIdentityGenerator { nextId++ },
+                    publisher,
+                    limitsProvider = CartLimitsProvider { CartLimits(1, 999, 100) },
+                )
+            val first =
+                assertIs<Success<CartView>>(
+                        service.setItemQuantity(SetCartItemQuantityCommand(7, 101, 201, 3, 0))
+                    )
+                    .value
+            assessments.save(
+                CartAssessment(
+                    CartAssessmentId(100),
+                    CartId(first.cartId),
+                    first.contentVersion,
+                    status,
+                    Price.ZERO,
+                    "CNY",
+                    Instant.EPOCH,
+                    emptyList(),
+                )
+            )
+            val current = assertIs<Success<CartView>>(service.current(7)).value
+            assertEquals(status.name, current.assessment!!.status.toString())
+            val changed =
+                assertIs<Success<CartView>>(
+                        service.replaceSelection(ReplaceCartSelectionCommand(7, 1, emptySet()))
+                    )
+                    .value
+            assertEquals("STALE", changed.assessment!!.status.toString())
+            assertEquals(1L, changed.assessment.sourceCartVersion)
+            assertEquals(
+                listOf("ITEM_QUANTITY_SET", "SELECTION_CHANGED"),
+                publisher.events.map { (it as CartRefreshRequestedEvent).reason.toString() },
+            )
+        }
+    }
+
+    @Test
+    fun `one quantity use case keeps its snapshot across offer lookup and next request sees refresh`() {
+        var latest = CartLimits(1, 2000, 10)
+        var reads = 0
+        val facts =
+            object : CartCommerceFactsService {
+                override fun findOffer(offerId: OfferId): OfferIdentity {
+                    latest = CartLimits(1, 5, 10)
+                    return OfferIdentity(
+                        offerId,
+                        SkuId(101),
+                        301,
+                        SettlementScope("CN", "ONLINE", "CNY"),
+                    )
+                }
+
+                override fun collect(lines: List<CartLine>) = emptyList<CartLineCommerceFacts>()
+            }
+        val carts = InMemoryCartRepository()
+        val publisher = RecordingPublisher()
+        var id = 10L
+        val service =
+            CartApplicationService(
+                carts,
+                InMemoryCartAssessmentStore(),
+                facts,
+                CartIdentityGenerator { id++ },
+                publisher,
+                limitsProvider =
+                    CartLimitsProvider {
+                        reads++
+                        latest
+                    },
+            )
+        assertIs<Success<CartView>>(
+            service.setItemQuantity(SetCartItemQuantityCommand(7, 101, 201, 1500, 0))
+        )
+        assertEquals(1, reads)
+        val rejected = service.setItemQuantity(SetCartItemQuantityCommand(7, 101, 201, 1500, 0))
+        assertEquals(
+            CartErrors.INVALID_QUANTITY,
+            assertIs<com.jstore.common.utils.Failure<*>>(rejected).error,
+        )
+        assertEquals(2, reads)
+        assertEquals(1, carts.saveCount)
+        assertEquals(1, publisher.events.size)
     }
 
     private class InMemoryCartRepository : CartRepository {
