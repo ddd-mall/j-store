@@ -23,6 +23,7 @@ import com.jstore.messaging.IntegrationMessageTransport
 import com.jstore.messaging.LocalIntegrationMessageBus
 import com.jstore.messaging.MessageDeliveryOrder
 import com.jstore.outbox.*
+import com.jstore.outbox.OutboxMessage
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -44,15 +45,13 @@ class IntegrationMessageDeliveryChannelsTest {
         val acceptBefore = now.plusSeconds(15)
 
         channel.deliver(
-            OutboxEntry(
+            OutboxMessage(
                 id = "entry-1",
                 eventType = "order.confirmed",
                 payload = "{}",
                 aggregateType = "orders.events",
                 aggregateId = "42",
-                status = OutboxEntryStatus.PENDING,
                 createdAt = now,
-                updatedAt = now,
                 messageKind = OutboxMessageKind.INTEGRATION_COMMAND,
                 deliveryTarget = OutboxDeliveryTarget.BROKER,
                 transportId = "kafka",
@@ -111,15 +110,13 @@ class IntegrationMessageDeliveryChannelsTest {
 
         LocalIntegrationMessageDeliveryChannel(serializer, bus)
             .deliver(
-                OutboxEntry(
+                OutboxMessage(
                     id = "entry-local",
                     eventType = message.messageName,
                     payload = "{}",
                     aggregateType = message.destination,
                     aggregateId = message.partitionKey,
-                    status = OutboxEntryStatus.PENDING,
                     createdAt = now,
-                    updatedAt = now,
                     messageKind = OutboxMessageKind.INTEGRATION_COMMAND,
                     deliveryTarget = OutboxDeliveryTarget.LOCAL_INTEGRATION,
                     transportId = "local",

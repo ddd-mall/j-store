@@ -16,10 +16,11 @@
  */
 package com.jstore.outbox.spring.persistence
 
-import com.jstore.outbox.OutboxEntry
-import com.jstore.outbox.OutboxEntryRepository
-import com.jstore.outbox.OutboxEntryStatus
 import com.jstore.outbox.spring.*
+import com.jstore.outbox.spring.polling.*
+import com.jstore.outbox.spring.polling.OutboxEntry
+import com.jstore.outbox.spring.polling.OutboxEntryRepository
+import com.jstore.outbox.spring.polling.OutboxEntryStatus
 import jakarta.persistence.EntityManager
 import java.time.Instant
 import org.springframework.transaction.annotation.Transactional

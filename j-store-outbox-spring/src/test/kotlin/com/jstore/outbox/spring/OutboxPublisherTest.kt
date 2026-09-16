@@ -19,6 +19,7 @@ package com.jstore.outbox.spring
 import com.jstore.common.framework.event.LocalDomainEventBus
 import com.jstore.common.framework.event.StubDomainEvent
 import com.jstore.outbox.*
+import com.jstore.outbox.spring.polling.*
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -95,9 +96,9 @@ class OutboxPublisherTest :
                 object : PreparingOutboxDeliveryChannel {
                     override val transportId = entry.transportId
 
-                    override fun deliver(entry: OutboxEntry) = error("must prepare")
+                    override fun deliver(entry: OutboxMessage) = error("must prepare")
 
-                    override fun prepare(entry: OutboxEntry): () -> Unit {
+                    override fun prepare(entry: OutboxMessage): () -> Unit {
                         tx.calls.contains("delivery-begin") shouldBe false
                         if (fail) error("upstream unavailable")
                         return { tx.calls.last() shouldBe "delivery-begin" }

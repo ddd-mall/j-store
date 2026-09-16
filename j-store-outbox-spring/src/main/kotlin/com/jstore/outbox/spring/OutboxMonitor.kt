@@ -17,6 +17,7 @@
 package com.jstore.outbox.spring
 
 import com.jstore.outbox.*
+import com.jstore.outbox.spring.polling.*
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tag
 import java.time.Instant

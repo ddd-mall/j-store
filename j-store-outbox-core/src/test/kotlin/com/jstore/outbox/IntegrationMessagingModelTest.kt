@@ -187,21 +187,19 @@ private fun recordingChannel(
     object : OutboxDeliveryChannel {
         override val transportId: String = transport
 
-        override fun deliver(entry: OutboxEntry) {
+        override fun deliver(entry: OutboxMessage) {
             calls += "$transport:${entry.id}"
         }
     }
 
 private fun entry(transportId: String) =
-    OutboxEntry(
+    OutboxMessage(
         id = "entry-1",
         eventType = "order.created",
         payload = "{}",
         aggregateType = "Order",
         aggregateId = "1",
-        status = OutboxEntryStatus.PENDING,
         createdAt = Instant.parse("2026-08-05T00:00:00Z"),
-        updatedAt = Instant.parse("2026-08-05T00:00:00Z"),
         messageKind = OutboxMessageKind.INTEGRATION_EVENT,
         deliveryTarget = OutboxDeliveryTarget.BROKER,
         transportId = transportId,

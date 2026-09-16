@@ -18,6 +18,7 @@ package com.jstore.outbox.spring
 
 import com.jstore.messaging.MessageConsumptionRetentionRepository
 import com.jstore.outbox.*
+import com.jstore.outbox.spring.polling.*
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import org.slf4j.LoggerFactory

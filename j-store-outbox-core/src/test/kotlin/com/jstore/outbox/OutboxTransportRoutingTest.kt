@@ -18,20 +18,11 @@ package com.jstore.outbox
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import java.time.Instant
 
 class OutboxTransportRoutingTest :
     FunSpec({
-        test("outbox repository does not expose unaudited dead-letter requeue") {
-            OutboxEntryRepository::class
-                .java
-                .methods
-                .filter { it.name == "requeueDeadLetters" }
-                .shouldBeEmpty()
-        }
-
         test("router selects the channel matching the persisted transport id") {
             val delivered = mutableListOf<String>()
             val router =
@@ -62,16 +53,16 @@ class OutboxTransportRoutingTest :
     companion object {
         private fun channel(
             transportId: String,
-            deliver: (OutboxEntry) -> Unit,
+            deliver: (OutboxMessage) -> Unit,
         ) =
             object : OutboxDeliveryChannel {
                 override val transportId: String = transportId
 
-                override fun deliver(entry: OutboxEntry) = deliver(entry)
+                override fun deliver(entry: OutboxMessage) = deliver(entry)
             }
 
         private fun entry(transportId: String) =
-            OutboxEntry(
+            OutboxMessage(
                 id = "1",
                 eventId = "event-1",
                 eventType = "test.event",
@@ -79,9 +70,7 @@ class OutboxTransportRoutingTest :
                 aggregateType = "test",
                 aggregateId = "1",
                 payload = "{}",
-                status = OutboxEntryStatus.PENDING,
                 createdAt = Instant.EPOCH,
-                updatedAt = Instant.EPOCH,
                 messageKind = OutboxMessageKind.INTEGRATION_EVENT,
                 deliveryTarget = OutboxDeliveryTarget.BROKER,
                 transportId = transportId,

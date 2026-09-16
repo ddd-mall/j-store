@@ -19,18 +19,18 @@ package com.jstore.outbox
 interface OutboxDeliveryChannel {
     val transportId: String
 
-    fun deliver(entry: OutboxEntry)
+    fun deliver(entry: OutboxMessage)
 }
 
 /** Read-only preparation outside the delivery transaction, followed by atomic local completion. */
 interface PreparingOutboxDeliveryChannel : OutboxDeliveryChannel {
-    fun prepare(entry: OutboxEntry): () -> Unit
+    fun prepare(entry: OutboxMessage): () -> Unit
 }
 
 class OutboxDeliveryRouter(private val channels: List<OutboxDeliveryChannel>) {
-    fun deliver(entry: OutboxEntry) = prepare(entry).invoke()
+    fun deliver(entry: OutboxMessage) = prepare(entry).invoke()
 
-    fun prepare(entry: OutboxEntry): () -> Unit {
+    fun prepare(entry: OutboxMessage): () -> Unit {
         val matching = channels.filter { it.transportId == entry.transportId }
         check(matching.size == 1) {
             "Expected exactly one outbox delivery channel for transportId=${entry.transportId}, found=${matching.size}"

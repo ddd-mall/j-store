@@ -28,6 +28,7 @@ import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.event.OrderCreatedEvent
 import com.jstore.order.domain.order.event.OrderItemSnapshot
 import com.jstore.outbox.*
+import com.jstore.outbox.spring.polling.*
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -107,12 +108,11 @@ class OutboxEventPublisherTest :
             val relaySignal = mock<OutboxRelaySignal>()
             val publisher =
                 OutboxEventPublisher(
-                    mockRepository,
+                    PollingOutboxWriter(mockRepository, relaySignal),
                     serializer,
                     SnowFlakSequence(1, 1),
                     eventTypeRegistry,
                     streamSequenceAllocator,
-                    relaySignal,
                 )
 
             val event =
@@ -205,7 +205,7 @@ class OutboxEventPublisherTest :
             whenever(streamSequenceAllocator.nextSequences(streams)).thenReturn(listOf(9, 10))
             val publisher =
                 OutboxEventPublisher(
-                    mockRepository,
+                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
                     JacksonEventSerializer(objectMapper),
                     SnowFlakSequence(1, 1),
                     eventTypeRegistry,
@@ -243,7 +243,7 @@ class OutboxEventPublisherTest :
             val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
             val publisher =
                 OutboxEventPublisher(
-                    mockRepository,
+                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
                     serializer,
                     SnowFlakSequence(1, 1),
                     eventTypeRegistry,
@@ -263,7 +263,7 @@ class OutboxEventPublisherTest :
             val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
             val publisher =
                 OutboxEventPublisher(
-                    mockRepository,
+                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
                     serializer,
                     SnowFlakSequence(1, 1),
                     InMemoryEventTypeRegistry(),
@@ -289,7 +289,7 @@ class OutboxEventPublisherTest :
             whenever(streamSequenceAllocator.nextSequences(any())).thenReturn(listOf(1L))
             val publisher =
                 OutboxEventPublisher(
-                    mockRepository,
+                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
                     JacksonEventSerializer(objectMapper),
                     SnowFlakSequence(1, 1),
                     eventTypeRegistry,
@@ -315,7 +315,7 @@ class OutboxEventPublisherTest :
 
             val publisher =
                 OutboxEventPublisher(
-                    mockRepository,
+                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
                     mockSerializer,
                     SnowFlakSequence(1, 1),
                     eventTypeRegistry,
@@ -344,7 +344,7 @@ class OutboxEventPublisherTest :
             val serializer = JacksonEventSerializer(objectMapper, InMemoryEventTypeRegistry())
             val publisher =
                 OutboxEventPublisher(
-                    mockRepository,
+                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
                     serializer,
                     SnowFlakSequence(1, 1),
                     InMemoryEventTypeRegistry(),

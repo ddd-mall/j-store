@@ -96,7 +96,8 @@ class DependencyManagementContractTest(unittest.TestCase):
 
         self.assertEqual("1.62.0", versions["open-telemetry"])
         self.assertEqual("2.21.5", versions["jackson"])
-        self.assertEqual("4.1.136.Final", versions["netty"])
+        # GHSA-c4c3-7fpv-j4q5 / GHSA-fccg-mwvh-qqg4: first patched 4.1 release.
+        self.assertEqual("4.1.137.Final", versions["netty"])
         self.assertEqual("2.25.5", versions["log4j"])
         self.assertEqual("10.1.59", versions["tomcat"])
         self.assertEqual("42.7.12", versions["postgresql"])

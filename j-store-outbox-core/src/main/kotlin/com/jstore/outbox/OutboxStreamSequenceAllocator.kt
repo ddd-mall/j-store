@@ -23,7 +23,11 @@ data class OutboxStreamKey(val transportId: String, val orderingKey: String) {
     }
 }
 
-/** Allocates monotonic positions in transport-specific ordering streams. */
+/**
+ * Allocates positions in transport-specific streams in the caller's business transaction.
+ * Allocation and append must commit or roll back together; rollback must not consume a position.
+ * Concurrent writers in the same stream serialize allocation; other streams remain independent.
+ */
 fun interface OutboxStreamSequenceAllocator {
     fun nextSequence(transportId: String, orderingKey: String): Long
 

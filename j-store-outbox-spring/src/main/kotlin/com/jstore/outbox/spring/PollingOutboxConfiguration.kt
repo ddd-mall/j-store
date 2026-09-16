@@ -1,0 +1,305 @@
+/*
+ * SPDX-FileCopyrightText: 2024-2026 潘少峰 (Peter Pan)
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.jstore.outbox.spring
+
+import com.jstore.common.framework.event.DomainEventListener
+import com.jstore.common.framework.event.LocalDomainEventBus
+import com.jstore.messaging.IntegrationMessageHandler
+import com.jstore.messaging.IntegrationMessageTransport
+import com.jstore.messaging.LocalIntegrationMessageBus
+import com.jstore.messaging.MessageConsumptionRepository
+import com.jstore.messaging.MessageConsumptionRetentionRepository
+import com.jstore.messaging.local.event.*
+import com.jstore.messaging.local.integration.SpringLocalIntegrationMessageBus
+import com.jstore.outbox.*
+import com.jstore.outbox.spring.messaging.*
+import com.jstore.outbox.spring.persistence.*
+import com.jstore.outbox.spring.polling.*
+import io.micrometer.core.instrument.MeterRegistry
+import jakarta.persistence.EntityManager
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.domain.EntityScan
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.ApplicationContext
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories
+import org.springframework.scheduling.annotation.EnableScheduling
+import org.springframework.transaction.PlatformTransactionManager
+
+@Configuration(proxyBeanMethods = false)
+@Import(OutboxJpaConfiguration::class)
+@EnableConfigurationProperties(OutboxProperties::class, OutboxObservabilityProperties::class)
+@ConditionalOnProperty(
+    prefix = "jstore.outbox",
+    name = ["mode"],
+    havingValue = "polling",
+    matchIfMissing = true,
+)
+@EnableScheduling
+@ConditionalOnExpression("\${jstore.outbox.enabled:false}")
+class PollingOutboxConfiguration {
+    @Bean
+    fun pollingOutboxWriter(
+        repository: OutboxEntryRepository,
+        signal: OutboxRelaySignal,
+    ): PollingOutboxWriter = PollingOutboxWriter(repository, signal)
+
+    @Bean
+    fun pollingOutboxBackend(
+        writer: PollingOutboxWriter,
+        allocator: OutboxStreamSequenceAllocator,
+    ): OutboxBackend = OutboxBackend("polling", writer, allocator)
+
+    @Bean
+    fun outboxEntryRepository(
+        jpaRepository: OutboxEntryPOJpaRepository,
+        entityManager: EntityManager,
+    ): OutboxEntryRepository {
+        return OutboxEntryRepositoryImpl(jpaRepository, entityManager)
+    }
+
+    @Bean
+    fun outboxStreamSequenceAllocator(entityManager: EntityManager): OutboxStreamSequenceAllocator =
+        PostgresOutboxStreamSequenceAllocator(entityManager)
+
+    @Bean
+    fun messageConsumptionRepository(
+        entityManager: EntityManager
+    ): MessageConsumptionRepositoryImpl {
+        return MessageConsumptionRepositoryImpl(entityManager)
+    }
+
+    @Bean
+    fun springDomainEventListenerRegistry(
+        applicationContext: ConfigurableApplicationContext,
+        messageConsumptionRepository: MessageConsumptionRepository,
+    ): SpringDomainEventListenerRegistry =
+        SpringDomainEventListenerRegistry(applicationContext, messageConsumptionRepository)
+
+    @Bean
+    fun localDomainEventBus(
+        registry: SpringDomainEventListenerRegistry,
+        applicationEventPublisher: ApplicationEventPublisher,
+    ): LocalDomainEventBus = SpringLocalDomainEventBus(registry, applicationEventPublisher)
+
+    @Bean
+    fun springDomainEventListenerRegistrationMachine(
+        localDomainEventBus: LocalDomainEventBus,
+        listeners: List<DomainEventListener<*>>,
+    ): SpringDomainEventListenerRegistrationMachine =
+        SpringDomainEventListenerRegistrationMachine(localDomainEventBus, listeners)
+
+    @Bean
+    fun localIntegrationMessageBus(
+        handlers: List<IntegrationMessageHandler<*>>,
+        messageConsumptionRepository: MessageConsumptionRepository,
+    ): LocalIntegrationMessageBus =
+        SpringLocalIntegrationMessageBus(handlers, messageConsumptionRepository)
+
+    @Bean
+    fun localIntegrationMessageDeliveryChannel(
+        integrationMessageSerializer: IntegrationMessageSerializer,
+        localIntegrationMessageBus: LocalIntegrationMessageBus,
+    ): OutboxDeliveryChannel =
+        LocalIntegrationMessageDeliveryChannel(
+            integrationMessageSerializer,
+            localIntegrationMessageBus,
+        )
+
+    @Bean
+    fun transportConfigurationGuard(
+        properties: MessagingProperties,
+        localChannels: List<OutboxDeliveryChannel>,
+        transports: ObjectProvider<IntegrationMessageTransport>,
+    ): TransportConfigurationGuard =
+        TransportConfigurationGuard(properties, localChannels, transports)
+
+    @Bean
+    fun localDomainEventDeliveryChannel(
+        eventSerializer: EventSerializer,
+        localDomainEventBus: LocalDomainEventBus,
+    ): OutboxDeliveryChannel = LocalDomainEventDeliveryChannel(eventSerializer, localDomainEventBus)
+
+    @Bean
+    fun outboxDeliveryRouter(
+        localChannels: List<OutboxDeliveryChannel>,
+        transports: ObjectProvider<IntegrationMessageTransport>,
+    ): OutboxDeliveryRouter =
+        OutboxDeliveryRouter(
+            localChannels +
+                transports
+                    .orderedStream()
+                    .map(::TransportIntegrationMessageDeliveryChannel)
+                    .toList()
+        )
+
+    @Bean
+    fun outboxPublisher(
+        outboxEntryRepository: OutboxEntryRepository,
+        deliveryRouter: OutboxDeliveryRouter,
+        properties: OutboxProperties,
+        outboxMonitor: OutboxMonitor,
+        transactionOperations: OutboxRelayTransactionOperations,
+    ): OutboxPublisher {
+        return OutboxPublisher(
+            outboxEntryRepository,
+            deliveryRouter,
+            properties,
+            outboxMonitor,
+            transactionOperations,
+        )
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    fun outboxRelayExecutor(): ExecutorService = Executors.newSingleThreadExecutor { task ->
+        Thread(task, "jstore-outbox-relay").apply { isDaemon = true }
+    }
+
+    @Bean
+    fun outboxRelayCoordinator(
+        outboxPublisher: OutboxPublisher,
+        @Qualifier("outboxRelayExecutor") executor: ExecutorService,
+        observer: OutboxRelayExecutionObserver,
+    ): OutboxRelayCoordinator = OutboxRelayCoordinator(outboxPublisher, executor, observer)
+
+    @Bean
+    fun outboxRelayExecutionObserver(
+        outboxMonitor: OutboxMonitor,
+        schedulerExecutionState: SchedulerExecutionState,
+    ): OutboxRelayExecutionObserver =
+        MonitoringOutboxRelayExecutionObserver(outboxMonitor, schedulerExecutionState)
+
+    @Bean
+    fun outboxRelaySignal(
+        coordinatorProvider: ObjectProvider<OutboxRelayCoordinator>
+    ): OutboxRelaySignal = TransactionAwareOutboxRelaySignal {
+        coordinatorProvider.getObject().requestDrain()
+    }
+
+    @Bean
+    fun outboxCleaner(
+        outboxEntryRepository: OutboxEntryRepository,
+        properties: OutboxProperties,
+        consumptionRetentionRepository: MessageConsumptionRetentionRepository,
+    ): OutboxCleaner {
+        return OutboxCleaner(outboxEntryRepository, properties, consumptionRetentionRepository)
+    }
+
+    @Bean
+    fun outboxScheduler(
+        outboxRelayCoordinator: OutboxRelayCoordinator,
+        outboxCleaner: OutboxCleaner,
+    ): OutboxScheduler {
+        return OutboxScheduler(outboxRelayCoordinator, outboxCleaner)
+    }
+
+    @Bean fun schedulerExecutionState(): SchedulerExecutionState = SchedulerExecutionState()
+
+    @Bean
+    fun outboxOperationalHealth(
+        outboxEntryRepository: OutboxEntryRepository,
+        schedulerExecutionState: SchedulerExecutionState,
+        observabilityProperties: OutboxObservabilityProperties,
+        properties: OutboxProperties,
+        integrationPublicationPlanner: IntegrationPublicationPlanner,
+    ): OutboxOperationalHealth =
+        OutboxOperationalHealth(
+            outboxEntryRepository,
+            schedulerExecutionState,
+            observabilityProperties,
+            properties.maxRetryCount,
+            configuredTransportIds =
+                integrationPublicationPlanner.requiredTransportIds() +
+                    OutboxTransportIds.LOCAL_DOMAIN,
+        )
+
+    @Bean
+    fun outboxMonitor(
+        meterRegistryProvider: ObjectProvider<MeterRegistry>,
+        outboxEntryRepository: OutboxEntryRepository,
+        outboxOperationalHealth: OutboxOperationalHealth,
+        schedulerExecutionState: SchedulerExecutionState,
+        integrationPublicationPlanner: IntegrationPublicationPlanner,
+        observabilityProperties: OutboxObservabilityProperties,
+    ): OutboxMonitor {
+        val meterRegistry = meterRegistryProvider.getIfAvailable() ?: return NoopOutboxMonitor
+        return MicrometerOutboxMonitor(
+            meterRegistry,
+            outboxEntryRepository,
+            outboxOperationalHealth,
+            schedulerExecutionState,
+            integrationPublicationPlanner.requiredTransportIds() + OutboxTransportIds.LOCAL_DOMAIN,
+            observabilityProperties.schedulerFailureThreshold,
+        )
+    }
+
+    @Bean
+    fun outboxRelayTransactionOperations(
+        transactionManager: PlatformTransactionManager
+    ): OutboxRelayTransactionOperations {
+        return SpringOutboxRelayTransactionOperations(transactionManager)
+    }
+
+    @Bean
+    fun springDomainEventMulticasterGuard(
+        applicationContext: ApplicationContext,
+        properties: OutboxProperties,
+    ): SpringDomainEventMulticasterGuard {
+        return SpringDomainEventMulticasterGuard(
+            applicationContext,
+            properties.asyncMulticasterFailFast,
+        )
+    }
+
+    @Bean
+    fun outboxDeadLetterService(
+        outboxEntryRepository: OutboxEntryRepository,
+        outboxMonitor: OutboxMonitor,
+    ): OutboxDeadLetterService {
+        return OutboxDeadLetterService(outboxEntryRepository, outboxMonitor)
+    }
+}
+
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnMissingBean(OutboxEntryPOJpaRepository::class)
+@ConditionalOnProperty(
+    prefix = "jstore.outbox",
+    name = ["mode"],
+    havingValue = "polling",
+    matchIfMissing = true,
+)
+@ConditionalOnExpression("\${jstore.outbox.enabled:false}")
+@EntityScan(
+    basePackageClasses =
+        [
+            OutboxEntryPO::class,
+            OutboxDeadLetterAuditPO::class,
+            DomainEventConsumptionPO::class,
+        ]
+)
+@EnableJpaRepositories(basePackageClasses = [OutboxEntryPOJpaRepository::class])
+internal class OutboxJpaConfiguration

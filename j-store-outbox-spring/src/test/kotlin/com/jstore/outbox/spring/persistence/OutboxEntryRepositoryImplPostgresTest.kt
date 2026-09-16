@@ -27,6 +27,7 @@ import com.jstore.messaging.MessageSequenceGapException
 import com.jstore.messaging.tryStart
 import com.jstore.outbox.*
 import com.jstore.outbox.spring.*
+import com.jstore.outbox.spring.polling.*
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import jakarta.persistence.EntityManager
 import java.time.Instant
@@ -73,8 +74,13 @@ class OutboxEntryRepositoryImplPostgresTest {
 
     @Autowired private lateinit var streamSequenceAllocator: OutboxStreamSequenceAllocator
 
+    @Autowired private lateinit var outboxWriter: OutboxWriter
+
+    @Autowired private lateinit var relayWakeups: java.util.concurrent.atomic.AtomicInteger
+
     @BeforeEach
     fun cleanDatabase() {
+        relayWakeups.set(0)
         jpaRepository.deleteAll()
         dataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
@@ -698,15 +704,33 @@ class OutboxEntryRepositoryImplPostgresTest {
             entityManager
                 .createNativeQuery("INSERT INTO outbox_tx_probe(id) VALUES ('committed')")
                 .executeUpdate()
-            repository.save(entry("committed-event"))
+            val sequence = streamSequenceAllocator.nextSequence("local-domain", "writer-stream")
+            outboxWriter.append(
+                listOf(
+                    entry("committed-event", orderingKey = "writer-stream", sequenceNo = sequence)
+                        .toMessage()
+                )
+            )
+            assertEquals(0, relayWakeups.get())
         }
+        assertEquals(1, relayWakeups.get())
 
         runCatching {
             transactions.executeWithoutResult {
                 entityManager
                     .createNativeQuery("INSERT INTO outbox_tx_probe(id) VALUES ('rolled-back')")
                     .executeUpdate()
-                repository.save(entry("rolled-back-event"))
+                val sequence = streamSequenceAllocator.nextSequence("local-domain", "writer-stream")
+                outboxWriter.append(
+                    listOf(
+                        entry(
+                                "rolled-back-event",
+                                orderingKey = "writer-stream",
+                                sequenceNo = sequence,
+                            )
+                            .toMessage()
+                    )
+                )
                 error("simulate business failure")
             }
         }
@@ -721,6 +745,24 @@ class OutboxEntryRepositoryImplPostgresTest {
         }
         assertTrue(jpaRepository.existsById("committed-event"))
         assertFalse(jpaRepository.existsById("rolled-back-event"))
+        assertEquals(1, relayWakeups.get())
+        assertEquals(
+            2L,
+            transactions.execute {
+                streamSequenceAllocator.nextSequence("local-domain", "writer-stream")
+            },
+        )
+    }
+
+    @Test
+    fun `polling writer refuses append outside a business transaction`() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+            org.springframework.transaction.IllegalTransactionStateException::class.java
+        ) {
+            outboxWriter.append(listOf(entry("no-transaction").toMessage()))
+        }
+        assertFalse(jpaRepository.existsById("no-transaction"))
+        assertEquals(0, relayWakeups.get())
     }
 
     @Test
@@ -1357,6 +1399,21 @@ class OutboxEntryRepositoryImplPostgresTest {
     @EntityScan(basePackageClasses = [OutboxEntryPO::class])
     @EnableJpaRepositories(basePackageClasses = [OutboxEntryPOJpaRepository::class])
     class TestConfig {
+        @Bean fun relayWakeups() = java.util.concurrent.atomic.AtomicInteger()
+
+        @Bean
+        fun outboxWriter(
+            repository: OutboxEntryRepository,
+            relayWakeups: java.util.concurrent.atomic.AtomicInteger,
+        ): OutboxWriter =
+            PollingOutboxWriter(
+                repository,
+                TransactionAwareOutboxRelaySignal {
+                    relayWakeups.incrementAndGet()
+                    Unit
+                },
+            )
+
         @Bean
         fun outboxEntryRepository(
             jpaRepository: OutboxEntryPOJpaRepository,
