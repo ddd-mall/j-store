@@ -135,3 +135,40 @@ docker compose --env-file .env -f docker-compose.postgres.yml down -v
 Copyright 2024-2026 潘少峰 (Peter Pan)。本项目依据 [Apache License 2.0](LICENSE) 授权。
 
 所有 Gradle JAR 产物均携带 `META-INF/LICENSE` 和 `META-INF/THIRD_PARTY.md`。正式版本的证据生成与签名标签流程见 [`docs/operations/release-evidence.md`](docs/operations/release-evidence.md)。
+
+## 购物车数量限制与 Nacos
+
+未配置时使用 `CartLimitsProperties` 的缺省值，无需复制默认值到 application 配置：
+
+| 属性 | 默认值 | 约束 |
+|---|---:|---|
+| `jstore.cart.limits.min-quantity` | 1 | 正整数 |
+| `jstore.cart.limits.max-quantity` | 999 | 不小于 min-quantity |
+| `jstore.cart.limits.max-lines` | 100 | 正整数 |
+
+本地 `application.properties` 可只覆盖所需项，例如：
+
+```properties
+jstore.cart.limits.max-quantity=1500
+jstore.cart.limits.max-lines=200
+```
+
+Nacos 默认关闭，启用 `cart-nacos` Profile 并设置 `NACOS_SERVER_ADDR` 后启用官方 Java SDK
+配置监听。例如 `--spring.profiles.active=local,cart-nacos`。通过 `NACOS_NAMESPACE`、
+`NACOS_GROUP`、`NACOS_CART_DATA_ID` 指定来源；需要认证时使用 `NACOS_USERNAME` 和
+`NACOS_PASSWORD` 环境变量，不将真实凭据提交到仓库。
+默认 namespace 为 `public`、group 为 `DEFAULT_GROUP`、data ID 为 `j-store-cart.properties`。
+客户端使用 3.2.4，默认 public namespace 应使用 Nacos 3.x 服务端。
+
+在独立的 properties 文档中填写上述 `jstore.cart.limits.*` 属性；该文档仅接受这三个键。
+远端字段优先于本地，未填写的字段回落到本地/属性缺省值。默认请求超时为 3000ms，
+可通过 `jstore.cart.nacos.timeout-ms` 调整。
+
+首次读取失败、文档缺失或初始值非法会阻止启动。运行时合法更新原子生效；非法内容、
+空文档或文档删除保留最近一次有效限制并记录告警，连接中断期间也继续使用该快照。
+一次数量请求（含事务重试）始终使用同一快照，新请求读取最新有效快照。
+降低上限不会自动删行或改数量；超过新行数上限的购物车仍可调整原行数量，新增行会被拒绝。
+默认值属于 Boot 装配策略，领域层和应用层不依赖 Spring/Nacos。
+
+本次调整修改了开发数据库基线中的数量约束（仅保留 `quantity > 0`）；已有可丢弃开发数据库
+需按项目规则重建后使用修改后的基线。本任务不自动修改已有数据库或发布 Nacos 配置。

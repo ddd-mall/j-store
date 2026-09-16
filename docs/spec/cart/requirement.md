@@ -45,7 +45,7 @@ j-store 已由 Trade / Checkout 统一承担成交快照、销售授权、库存
 
 ### CART-R1 设置绑定 Offer 的 SKU 数量
 
-1. 商品数量请求必须包含认证买家、`skuId`、`offerId`、`expectedCartVersion` 和 `1..999` 的绝对目标数量 `targetQuantity`；买家身份只能来自认证上下文。
+1. 商品数量请求必须包含认证买家、`skuId`、`offerId`、`expectedCartVersion` 和配置数量范围内的绝对目标数量 `targetQuantity`（默认 `1..999`）；买家身份只能来自认证上下文。
 2. Store / Offer 必须确认 `offerId` 当前引用该 `skuId`；客户端不能仅凭 SKU 指定价格、商户或履约节点。
 3. 商品数量设置只确认 SKU 与 Offer 的身份关系，不锁价、不锁库存，也不因暂时下架或售罄删除购买意图；是否可结算由该版本的刷新结果决定。
 4. Given 买家的活动购物车中不存在该 Offer 且当前版本等于期望版本，When 设置目标数量，Then 创建一条已选择的 Cart Line、增加 Cart 内容版本并触发刷新事件；新 Cart 的初始版本为 `0`。
@@ -127,7 +127,7 @@ j-store 已由 Trade / Checkout 统一承担成交快照、销售授权、库存
 - **事务边界**：同步 Cart UseCase 的数据库事务只覆盖本地聚合读取/保存、Assessment 条件保存和 Outbox 写入；Offer、Catalog、Inventory 等跨上下文调用必须在无数据库事务阶段执行。
 - **安全性**：买家隔离，所有价格、状态和 ATP 来自可信服务。
 - **可维护性**：Cart Intent、Assessment、外部事实采集和 Checkout 解析分别只有一个主要变化原因。
-- **性能**：一次刷新必须按去重后的批量 ID 查询上游，禁止逐行 N+1 调用；第一版最多支持 100 条活动 Cart Line。
+- **性能**：一次刷新必须按去重后的批量 ID 查询上游，禁止逐行 N+1 调用；活动 Cart Line 上限由配置提供，默认 100 条。配置注入和 Nacos 刷新规则见 [可配置限制 delta](../changes/cart-configurable-limits/delta.md)。
 - **可观测性**：记录刷新成功、失败、过期丢弃、排除原因数量和耗时；日志不得包含地址、手机号等非必要个人信息。
 
 ## 依赖与假设

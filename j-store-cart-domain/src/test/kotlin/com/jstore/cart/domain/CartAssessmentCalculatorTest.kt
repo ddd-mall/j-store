@@ -33,6 +33,7 @@ class CartAssessmentCalculatorTest {
             MerchantId(10),
             2,
             cart.settlementScope,
+            limits = CartLimits(1, 999, 100),
         )
         cart.setItemQuantity(
             1,
@@ -42,6 +43,7 @@ class CartAssessmentCalculatorTest {
             MerchantId(20),
             4,
             cart.settlementScope,
+            limits = CartLimits(1, 999, 100),
         )
         cart.setItemQuantity(
             2,
@@ -51,6 +53,7 @@ class CartAssessmentCalculatorTest {
             MerchantId(20),
             1,
             cart.settlementScope,
+            limits = CartLimits(1, 999, 100),
         )
         val facts =
             listOf(

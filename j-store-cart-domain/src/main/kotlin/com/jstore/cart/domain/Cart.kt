@@ -42,7 +42,7 @@ data class CartRefreshRequestedEvent(
     val cartId: CartId,
     val buyerId: BuyerId,
     val cartVersion: Long,
-    val reason: String,
+    val reason: CartRefreshReason,
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
@@ -70,8 +70,13 @@ class Cart(
     val lines: List<CartLine>
         get() = mutableLines.toList()
 
-    fun hasItemTarget(skuId: SkuId, offerId: OfferId, targetQuantity: Int): Boolean =
-        targetQuantity in 1..999 &&
+    fun hasItemTarget(
+        skuId: SkuId,
+        offerId: OfferId,
+        targetQuantity: Int,
+        limits: CartLimits,
+    ): Boolean =
+        limits.acceptsQuantity(targetQuantity) &&
             mutableLines.any {
                 it.skuId == skuId && it.offerId == offerId && it.quantity == targetQuantity
             }
@@ -85,8 +90,9 @@ class Cart(
         targetQuantity: Int,
         scope: SettlementScope,
         now: Instant = Instant.now(),
+        limits: CartLimits,
     ): Result<Boolean, BusinessError> {
-        if (targetQuantity !in 1..999) return Failure(CartErrors.INVALID_QUANTITY)
+        if (!limits.acceptsQuantity(targetQuantity)) return Failure(CartErrors.INVALID_QUANTITY)
         if (scope != settlementScope) return Failure(CartErrors.SCOPE_MISMATCH)
         val index = mutableLines.indexOfFirst { it.offerId == offerId }
         val existing = mutableLines.getOrNull(index)
@@ -104,7 +110,7 @@ class Cart(
                     modifiedAt = now,
                 )
         } else {
-            if (mutableLines.size >= 100) return Failure(CartErrors.LINE_LIMIT)
+            if (mutableLines.size >= limits.maxLines) return Failure(CartErrors.LINE_LIMIT)
             mutableLines.add(
                 CartLine(
                     id = lineId,
@@ -118,7 +124,7 @@ class Cart(
                 )
             )
         }
-        changed("ITEM_QUANTITY_SET", now)
+        changed(CartRefreshReason.ITEM_QUANTITY_SET, now)
         return Success(true)
     }
 
@@ -137,11 +143,11 @@ class Cart(
             if (line.selected != selected)
                 mutableLines[index] = line.copy(selected = selected, modifiedAt = now)
         }
-        changed("SELECTION_CHANGED", now)
+        changed(CartRefreshReason.SELECTION_CHANGED, now)
         return Success(true)
     }
 
-    private fun changed(reason: String, now: Instant) {
+    private fun changed(reason: CartRefreshReason, now: Instant) {
         mutableContentVersion++
         raise(CartRefreshRequestedEvent(id, buyerId, contentVersion, reason, now))
     }

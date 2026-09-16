@@ -68,6 +68,11 @@ data class SettlementScope(val market: String, val channelId: String, val curren
     }
 }
 
+enum class CartRefreshReason {
+    ITEM_QUANTITY_SET,
+    SELECTION_CHANGED,
+}
+
 enum class CartStatus {
     ACTIVE,
     EXPIRED,

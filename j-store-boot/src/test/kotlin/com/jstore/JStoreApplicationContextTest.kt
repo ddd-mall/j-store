@@ -26,6 +26,34 @@ import org.springframework.boot.builder.SpringApplicationBuilder
 
 class JStoreApplicationContextTest {
     @Test
+    fun `cart schema allows configured quantities above default but rejects nonpositive values`() {
+        EmbeddedPostgres.builder().start().use { postgres ->
+            postgres.postgresDatabase.connection.use { connection ->
+                connection.createStatement().use {
+                    it.execute("CREATE TABLE trades (id bigint PRIMARY KEY)")
+                }
+                org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(
+                    connection,
+                    org.springframework.core.io.ClassPathResource(
+                        "db/migration/V20260815__cart_context.sql"
+                    ),
+                )
+                connection.createStatement().use { sql ->
+                    sql.execute(
+                        "INSERT INTO carts VALUES (1, 1, 'ACTIVE', 'CN', 'ONLINE', 'CNY', 0, 0)"
+                    )
+                    sql.execute(
+                        "INSERT INTO cart_lines VALUES (1, 1, 1, 1, 1, 1500, true, now(), now())"
+                    )
+                    kotlin.test.assertFailsWith<java.sql.SQLException> {
+                        sql.execute("UPDATE cart_lines SET quantity = 0 WHERE id = 1")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `application registers domain and outbox repositories together`() {
         EmbeddedPostgres.builder().start().use { postgres ->
             Flyway.configure()

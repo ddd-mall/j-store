@@ -37,24 +37,29 @@ class CartApplicationService(
     private val ids: CartIdentityGenerator,
     private val publisher: DomainEventPublisher,
     private val clock: Clock = Clock.systemUTC(),
+    private val limitsProvider: CartLimitsProvider,
 ) : CartUseCase, CartCheckoutSourceQueryService {
 
     override fun setItemQuantity(
         command: SetCartItemQuantityCommand
     ): Result<CartView, BusinessError> {
-        return when (val start = inspectSetItemQuantity(command)) {
+        val limits = currentLimits()
+        return when (val start = inspectSetItemQuantity(command, limits)) {
             is Failure -> start
             is Success ->
                 when (val value = start.value) {
                     is SetCartItemQuantityStart.Completed -> Success(value.view)
                     SetCartItemQuantityStart.RequiresOffer ->
-                        commitSetItemQuantity(command, resolveOffer(command.offerId))
+                        commitSetItemQuantity(command, resolveOffer(command.offerId), limits)
                 }
         }
     }
 
+    fun currentLimits(): CartLimits = limitsProvider.current()
+
     fun inspectSetItemQuantity(
-        command: SetCartItemQuantityCommand
+        command: SetCartItemQuantityCommand,
+        limits: CartLimits,
     ): Result<SetCartItemQuantityStart, BusinessError> {
         val buyerId = BuyerId(command.buyerId)
         val existing = carts.findActiveByBuyerId(buyerId)
@@ -63,6 +68,7 @@ class CartApplicationService(
                 skuId = SkuId(command.skuId),
                 offerId = OfferId(command.offerId),
                 targetQuantity = command.targetQuantity,
+                limits = limits,
             ) == true
         ) {
             return Success(
@@ -80,6 +86,7 @@ class CartApplicationService(
     fun commitSetItemQuantity(
         command: SetCartItemQuantityCommand,
         identity: OfferIdentity?,
+        limits: CartLimits,
     ): Result<CartView, BusinessError> {
         val buyerId = BuyerId(command.buyerId)
         val existing = carts.findActiveByBuyerId(buyerId)
@@ -88,6 +95,7 @@ class CartApplicationService(
                 skuId = SkuId(command.skuId),
                 offerId = OfferId(command.offerId),
                 targetQuantity = command.targetQuantity,
+                limits = limits,
             ) == true
         ) {
             return Success(view(existing, assessments.findLatestByCart(existing.id)))
@@ -115,6 +123,7 @@ class CartApplicationService(
                     offerId = OfferId(command.offerId),
                     merchantId = MerchantId(identity.merchantId),
                     targetQuantity = command.targetQuantity,
+                    limits = limits,
                     scope = identity.settlementScope,
                     now = clock.instant(),
                 )
@@ -323,12 +332,7 @@ class CartApplicationService(
                 assessment?.let {
                     CartAssessmentView(
                         sourceCartVersion = it.sourceCartVersion,
-                        status =
-                            if (it.sourceCartVersion == cart.contentVersion) {
-                                it.status.name
-                            } else {
-                                "STALE"
-                            },
+                        status = CartAssessmentViewStatus.from(it, cart.contentVersion),
                         amountFen = it.estimatedAmount.fen,
                         currency = it.currency,
                         lines = it.lines,

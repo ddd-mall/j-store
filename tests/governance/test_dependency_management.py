@@ -22,6 +22,23 @@ class DependencyManagementContractTest(unittest.TestCase):
             if not line.lstrip().startswith("//")
         )
 
+    def test_cart_nacos_client_is_owned_by_unified_platform(self) -> None:
+        self.assertEqual("3.2.4", self.catalog["versions"].get("nacos"))
+        self.assertEqual("com.alibaba.nacos:nacos-client",
+                         self.catalog["libraries"]["nacos-client"]["module"])
+        platform = (REPO_ROOT / PLATFORM_MODULE / "build.gradle.kts").read_text()
+        self.assertIn("api(libs.nacos.client)", platform)
+        boot = (REPO_ROOT / "j-store-cart-boot/build.gradle.kts").read_text()
+        self.assertIn("implementation(libs.nacos.client)", boot)
+
+    def test_nacos_http_transport_security_constraints(self) -> None:
+        versions = self.catalog["versions"]
+        self.assertEqual("5.6.3", versions.get("httpclient5"))
+        self.assertEqual("5.4.3", versions.get("httpcore5"))
+        platform = (REPO_ROOT / PLATFORM_MODULE / "build.gradle.kts").read_text()
+        for alias in ("httpclient5", "httpcore5", "httpcore5-h2"):
+            self.assertIn("api(libs." + alias.replace("-", ".") + ")", platform)
+
     def test_external_coordinates_are_declared_through_the_catalog(self) -> None:
         direct_coordinate = re.compile(
             r'["\']([A-Za-z0-9_.-]+):([A-Za-z0-9_.-]+)(?::[^"\'$]+)?["\']'

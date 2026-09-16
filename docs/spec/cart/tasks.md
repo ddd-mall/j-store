@@ -25,7 +25,7 @@
 - 同 Offer 替换为绝对目标数量；同 SKU 不同 Offer 不合并。
 - 相同目标的陈旧版本重试 no-op；不同目标的陈旧版本请求冲突。
 - 不同商户、相同 Settlement Scope 的 Offer 可以共存；不同 market、channelId 或 currency 的 Offer 加购失败且 Cart 版本不变。
-- 非正数量、数量溢出、超过 100 行失败。
+- 数量不在配置范围或新增行超过配置容量时失败；默认数量范围 1..999、容量 100 行。
 - 原子替换 Selection、未知行失败、相同 Selection no-op、空 Selection 合法。
 - 每次实际变化记录一次带新内容版本的 `CartRefreshRequestedEvent`。
 

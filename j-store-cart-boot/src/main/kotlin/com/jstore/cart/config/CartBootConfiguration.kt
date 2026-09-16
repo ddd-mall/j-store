@@ -21,8 +21,10 @@ import com.jstore.cart.api.CartCheckoutSourceQueryService
 import com.jstore.cart.domain.CartAssessmentStore
 import com.jstore.cart.domain.CartRepository
 import com.jstore.cart.service.*
+import com.jstore.common.errors.BusinessError
 import com.jstore.common.framework.event.DomainEventPublisher
 import com.jstore.common.persistent.SnowFlakSequence
+import com.jstore.common.utils.Result
 import com.jstore.goods.api.CurrentGoodsSkuQueryService
 import com.jstore.inventory.api.InventoryAvailabilityQueryService
 import com.jstore.shop.api.OfferSnapshotQueryService
@@ -50,6 +52,7 @@ class CartBootConfiguration {
         commerce: CartCommerceFactsServiceImpl,
         sequence: SnowFlakSequence,
         publisher: DomainEventPublisher,
+        limitsProvider: CartLimitsProvider,
     ) =
         CartApplicationService(
             carts,
@@ -57,6 +60,7 @@ class CartBootConfiguration {
             commerce,
             CartIdentityGenerator(sequence::nextId),
             publisher,
+            limitsProvider = limitsProvider,
         )
 
     @Bean
@@ -102,8 +106,13 @@ class TransactionalCartUseCase(
         manager: PlatformTransactionManager,
     ) : this(delegate, SpringCartTransactionOperations(manager))
 
-    override fun setItemQuantity(command: SetCartItemQuantityCommand) =
-        when (val start = transactions.read { delegate.inspectSetItemQuantity(command) }) {
+    override fun setItemQuantity(
+        command: SetCartItemQuantityCommand
+    ): Result<CartView, BusinessError> {
+        val limits = delegate.currentLimits()
+        return when (
+            val start = transactions.read { delegate.inspectSetItemQuantity(command, limits) }
+        ) {
             is com.jstore.common.utils.Failure -> start
             is com.jstore.common.utils.Success ->
                 when (val value = start.value) {
@@ -114,11 +123,12 @@ class TransactionalCartUseCase(
                             OfferLookup(delegate.resolveOffer(command.offerId))
                         }
                         executeConvergent {
-                            delegate.commitSetItemQuantity(command, offer.identity)
+                            delegate.commitSetItemQuantity(command, offer.identity, limits)
                         }
                     }
                 }
         }
+    }
 
     override fun replaceSelection(command: ReplaceCartSelectionCommand) = executeConvergent {
         delegate.replaceSelection(command)
