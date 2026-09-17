@@ -29,28 +29,28 @@ import org.mockito.kotlin.whenever
 
 class LocalDomainEventDeliveryChannelTest :
     FunSpec({
-        test("local domain channel deserializes and synchronously publishes the domain event") {
-            val event = StubDomainEvent()
-            val serializer = mock<EventSerializer>()
-            val bus = mock<LocalDomainEventBus>()
-            whenever(serializer.deserialize("{}", "order.created", 3)).thenReturn(event)
-            val channel = LocalDomainEventDeliveryChannel(serializer, bus)
-            val entry =
-                OutboxMessage(
-                    id = "entry-1",
-                    eventType = "order.created",
-                    payload = "{}",
-                    aggregateType = "Order",
-                    aggregateId = "1",
-                    createdAt = Instant.parse("2026-08-05T00:00:00Z"),
-                    eventVersion = 3,
-                    orderingKey = OutboxOrderingKeys.domain("Order", "1"),
-                    sequenceNo = 1,
-                )
+      test("local domain channel deserializes and synchronously publishes the domain event") {
+        val event = StubDomainEvent()
+        val serializer = mock<EventSerializer>()
+        val bus = mock<LocalDomainEventBus>()
+        whenever(serializer.deserialize("{}", "order.created", 3)).thenReturn(event)
+        val channel = LocalDomainEventDeliveryChannel(serializer, bus)
+        val entry =
+            OutboxMessage(
+                id = "entry-1",
+                eventType = "order.created",
+                payload = "{}",
+                aggregateType = "Order",
+                aggregateId = "1",
+                createdAt = Instant.parse("2026-08-05T00:00:00Z"),
+                eventVersion = 3,
+                orderingKey = OutboxOrderingKeys.domain("Order", "1"),
+                sequenceNo = 1,
+            )
 
-            channel.deliver(entry)
+        channel.deliver(entry)
 
-            channel.transportId shouldBe OutboxTransportIds.LOCAL_DOMAIN
-            verify(bus).publishEvent(event)
-        }
+        channel.transportId shouldBe OutboxTransportIds.LOCAL_DOMAIN
+        verify(bus).publishEvent(event)
+      }
     })

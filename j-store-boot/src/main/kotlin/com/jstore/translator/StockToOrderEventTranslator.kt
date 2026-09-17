@@ -33,40 +33,40 @@ import org.springframework.stereotype.Component
 class StockReservedToOrderConfirmedTranslator(
     private val integrationMessagePublisher: IntegrationMessagePublisher
 ) : DomainEventListener<StockReservedEvent> {
-    override fun listenerId(): String = "translator.stock-reserved.to-order-stock-confirmed"
+  override fun listenerId(): String = "translator.stock-reserved.to-order-stock-confirmed"
 
-    override fun onDomainEvent(event: StockReservedEvent) {
-        integrationMessagePublisher.publish(
-            InventoryReservedIntegrationEvent(
-                tradeId = event.tradeId,
-                orderPlanId = event.orderPlanId,
-                authorizationIds = event.authorizationIds,
-                reservationIds = event.reservationIds,
-                sourceMessageId = event.eventId,
-                occurredAtValue = event.occurredAt,
-                reservationExpiresAt = event.reservationExpiresAt,
-            )
+  override fun onDomainEvent(event: StockReservedEvent) {
+    integrationMessagePublisher.publish(
+        InventoryReservedIntegrationEvent(
+            tradeId = event.tradeId,
+            orderPlanId = event.orderPlanId,
+            authorizationIds = event.authorizationIds,
+            reservationIds = event.reservationIds,
+            sourceMessageId = event.eventId,
+            occurredAtValue = event.occurredAt,
+            reservationExpiresAt = event.reservationExpiresAt,
         )
-    }
+    )
+  }
 }
 
 @Component
 class StockReservationFailedToOrderInsufficientTranslator(
     private val integrationMessagePublisher: IntegrationMessagePublisher
 ) : DomainEventListener<StockReservationFailedEvent> {
-    override fun listenerId(): String =
-        "translator.stock-reservation-failed.to-order-stock-insufficient"
+  override fun listenerId(): String =
+      "translator.stock-reservation-failed.to-order-stock-insufficient"
 
-    override fun onDomainEvent(event: StockReservationFailedEvent) {
-        integrationMessagePublisher.publish(
-            InventoryReservationFailedIntegrationEvent(
-                event.tradeId,
-                event.orderPlanId,
-                event.authorizationIds,
-                event.reason,
-                event.eventId,
-                event.occurredAt,
-            )
+  override fun onDomainEvent(event: StockReservationFailedEvent) {
+    integrationMessagePublisher.publish(
+        InventoryReservationFailedIntegrationEvent(
+            event.tradeId,
+            event.orderPlanId,
+            event.authorizationIds,
+            event.reason,
+            event.eventId,
+            event.occurredAt,
         )
-    }
+    )
+  }
 }

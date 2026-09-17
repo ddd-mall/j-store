@@ -17,8 +17,8 @@
 package com.jstore.user.api
 
 enum class UserProfileStatus {
-    ACTIVE,
-    DISABLED,
+  ACTIVE,
+  DISABLED,
 }
 
 data class UserProfileInfo(
@@ -27,18 +27,18 @@ data class UserProfileInfo(
     val phoneNumber: String,
     val status: UserProfileStatus,
 ) {
-    init {
-        require(userId > 0) { "userId must be positive" }
-        require(nickname.isNotBlank()) { "nickname must not be blank" }
-        require(E164_PHONE.matches(phoneNumber)) { "phoneNumber must be canonical E.164" }
-    }
+  init {
+    require(userId > 0) { "userId must be positive" }
+    require(nickname.isNotBlank()) { "nickname must not be blank" }
+    require(E164_PHONE.matches(phoneNumber)) { "phoneNumber must be canonical E.164" }
+  }
 
-    private companion object {
-        val E164_PHONE = Regex("^\\+[1-9][0-9]{7,14}$")
-    }
+  private companion object {
+    val E164_PHONE = Regex("^\\+[1-9][0-9]{7,14}$")
+  }
 }
 
 fun interface UserProfileQueryService {
-    /** Resolves an account only inside the deployment's current authentication domain. */
-    fun findInCurrentAuthenticationDomain(accountId: Long): UserProfileInfo?
+  /** Resolves an account only inside the deployment's current authentication domain. */
+  fun findInCurrentAuthenticationDomain(accountId: Long): UserProfileInfo?
 }

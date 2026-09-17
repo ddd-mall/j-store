@@ -41,101 +41,98 @@ open class OutboxEventPublisher(
     private val eventTypeRegistry: EventTypeRegistry = InMemoryEventTypeRegistry(),
     private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
 ) : DomainEventPublisher {
-    private val logger = LoggerFactory.getLogger(OutboxEventPublisher::class.java)
+  private val logger = LoggerFactory.getLogger(OutboxEventPublisher::class.java)
 
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun publishEvent(event: DomainEvent) {
-        publishEvents(listOf(event))
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun publishEvent(event: DomainEvent) {
+    publishEvents(listOf(event))
+  }
+
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun publishEvents(events: List<DomainEvent>) {
+    if (events.isEmpty()) return
+
+    val preparedEvents = events.map(::prepare)
+    val streams = preparedEvents.map {
+      OutboxStreamKey(OutboxTransportIds.LOCAL_DOMAIN, it.orderingKey)
     }
-
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun publishEvents(events: List<DomainEvent>) {
-        if (events.isEmpty()) return
-
-        val preparedEvents = events.map(::prepare)
-        val streams = preparedEvents.map {
-            OutboxStreamKey(OutboxTransportIds.LOCAL_DOMAIN, it.orderingKey)
+    val sequenceNumbers = streamSequenceAllocator.nextSequences(streams)
+    check(sequenceNumbers.size == preparedEvents.size) {
+      "Outbox stream allocator returned ${sequenceNumbers.size} sequences " +
+          "for ${preparedEvents.size} domain events"
+    }
+    val now = Instant.now()
+    val entries =
+        preparedEvents.zip(sequenceNumbers) { prepared, sequenceNumber ->
+          val metadata = prepared.metadata
+          OutboxMessage(
+              id = snowFlakSequence.nextId().toString(),
+              eventId = metadata.eventId,
+              eventType = metadata.eventName,
+              eventClassName = prepared.eventClassName,
+              eventVersion = metadata.eventVersion,
+              payload = prepared.payload,
+              aggregateType = metadata.aggregateType,
+              aggregateId = metadata.aggregateId,
+              createdAt = now,
+              occurredAt = metadata.occurredAt,
+              orderingKey = prepared.orderingKey,
+              sequenceNo = sequenceNumber,
+          )
         }
-        val sequenceNumbers = streamSequenceAllocator.nextSequences(streams)
-        check(sequenceNumbers.size == preparedEvents.size) {
-            "Outbox stream allocator returned ${sequenceNumbers.size} sequences " +
-                "for ${preparedEvents.size} domain events"
-        }
-        val now = Instant.now()
-        val entries =
-            preparedEvents.zip(sequenceNumbers) { prepared, sequenceNumber ->
-                val metadata = prepared.metadata
-                OutboxMessage(
-                    id = snowFlakSequence.nextId().toString(),
-                    eventId = metadata.eventId,
-                    eventType = metadata.eventName,
-                    eventClassName = prepared.eventClassName,
-                    eventVersion = metadata.eventVersion,
-                    payload = prepared.payload,
-                    aggregateType = metadata.aggregateType,
-                    aggregateId = metadata.aggregateId,
-                    createdAt = now,
-                    occurredAt = metadata.occurredAt,
-                    orderingKey = prepared.orderingKey,
-                    sequenceNo = sequenceNumber,
-                )
+    writer.append(entries)
+  }
+
+  override fun afterPublicationCommitted(acknowledgement: () -> Unit) {
+    check(TransactionSynchronizationManager.isSynchronizationActive()) {
+      "Outbox event acknowledgement requires active transaction synchronization"
+    }
+    TransactionSynchronizationManager.registerSynchronization(
+        object : TransactionSynchronization {
+          override fun afterCommit() {
+            try {
+              acknowledgement()
+            } catch (failure: RuntimeException) {
+              logger.error(
+                  "Aggregate domain events could not be acknowledged after commit",
+                  failure,
+              )
             }
-        writer.append(entries)
-    }
-
-    override fun afterPublicationCommitted(acknowledgement: () -> Unit) {
-        check(TransactionSynchronizationManager.isSynchronizationActive()) {
-            "Outbox event acknowledgement requires active transaction synchronization"
+          }
         }
-        TransactionSynchronizationManager.registerSynchronization(
-            object : TransactionSynchronization {
-                override fun afterCommit() {
-                    try {
-                        acknowledgement()
-                    } catch (failure: RuntimeException) {
-                        logger.error(
-                            "Aggregate domain events could not be acknowledged after commit",
-                            failure,
-                        )
-                    }
-                }
-            }
-        )
-    }
-
-    private fun prepare(event: DomainEvent): PreparedDomainEvent {
-        val metadata = event.metadata
-        val eventType =
-            event::class.java.getAnnotation(DomainEventType::class.java)
-                ?: throw IllegalArgumentException(
-                    "Outbox DomainEvent must be annotated with @DomainEventType: ${event::class.java.name}"
-                )
-        require(
-            eventType.name == metadata.eventName && eventType.version == metadata.eventVersion
-        ) {
-            "DomainEvent metadata must match @DomainEventType: class=${event::class.java.name}, " +
-                "metadata=${metadata.eventName}@${metadata.eventVersion}, " +
-                "annotation=${eventType.name}@${eventType.version}"
-        }
-        val registeredEventClass =
-            eventTypeRegistry.resolve(metadata.eventName, metadata.eventVersion)
-        require(registeredEventClass == event::class.java) {
-            "DomainEvent class must match startup registered @DomainEventType: " +
-                "eventName=${metadata.eventName}, eventVersion=${metadata.eventVersion}, " +
-                "registeredClass=${registeredEventClass.name}, publishingClass=${event::class.java.name}"
-        }
-        return PreparedDomainEvent(
-            metadata = metadata,
-            eventClassName = event::class.java.name,
-            payload = eventSerializer.serialize(event),
-            orderingKey = OutboxOrderingKeys.domain(metadata.aggregateType, metadata.aggregateId),
-        )
-    }
-
-    private data class PreparedDomainEvent(
-        val metadata: DomainEventMetadata,
-        val eventClassName: String,
-        val payload: String,
-        val orderingKey: String,
     )
+  }
+
+  private fun prepare(event: DomainEvent): PreparedDomainEvent {
+    val metadata = event.metadata
+    val eventType =
+        event::class.java.getAnnotation(DomainEventType::class.java)
+            ?: throw IllegalArgumentException(
+                "Outbox DomainEvent must be annotated with @DomainEventType: ${event::class.java.name}"
+            )
+    require(eventType.name == metadata.eventName && eventType.version == metadata.eventVersion) {
+      "DomainEvent metadata must match @DomainEventType: class=${event::class.java.name}, " +
+          "metadata=${metadata.eventName}@${metadata.eventVersion}, " +
+          "annotation=${eventType.name}@${eventType.version}"
+    }
+    val registeredEventClass = eventTypeRegistry.resolve(metadata.eventName, metadata.eventVersion)
+    require(registeredEventClass == event::class.java) {
+      "DomainEvent class must match startup registered @DomainEventType: " +
+          "eventName=${metadata.eventName}, eventVersion=${metadata.eventVersion}, " +
+          "registeredClass=${registeredEventClass.name}, publishingClass=${event::class.java.name}"
+    }
+    return PreparedDomainEvent(
+        metadata = metadata,
+        eventClassName = event::class.java.name,
+        payload = eventSerializer.serialize(event),
+        orderingKey = OutboxOrderingKeys.domain(metadata.aggregateType, metadata.aggregateId),
+    )
+  }
+
+  private data class PreparedDomainEvent(
+      val metadata: DomainEventMetadata,
+      val eventClassName: String,
+      val payload: String,
+      val orderingKey: String,
+  )
 }

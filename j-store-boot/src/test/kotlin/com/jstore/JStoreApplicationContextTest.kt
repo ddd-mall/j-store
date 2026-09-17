@@ -25,41 +25,39 @@ import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
 
 class JStoreApplicationContextTest {
-    @Test
-    fun `application registers domain and outbox repositories together`() {
-        EmbeddedPostgres.builder().start().use { postgres ->
-            Flyway.configure()
-                .dataSource(postgres.postgresDatabase)
-                .locations("classpath:db/migration")
-                .schemas("develop")
-                .defaultSchema("develop")
-                .load()
-                .migrate()
+  @Test
+  fun `application registers domain and outbox repositories together`() {
+    EmbeddedPostgres.builder().start().use { postgres ->
+      Flyway.configure()
+          .dataSource(postgres.postgresDatabase)
+          .locations("classpath:db/migration")
+          .schemas("develop")
+          .defaultSchema("develop")
+          .load()
+          .migrate()
 
-            SpringApplicationBuilder(JStoreOrderBootApplication::class.java)
-                .web(WebApplicationType.NONE)
-                .run(
-                    "--spring.main.lazy-initialization=true",
-                    "--spring.flyway.enabled=false",
-                    "--spring.datasource.url=${postgres.getJdbcUrl("postgres", "postgres")}&currentSchema=develop",
-                    "--spring.datasource.username=postgres",
-                    "--spring.datasource.password=",
-                    "--jwt.access-secret=test-access-secret-with-at-least-32-bytes",
-                    "--jwt.refresh-secret=test-refresh-secret-with-at-least-32-bytes",
-                    "--jwt.issuer=j-store-test",
-                    "--jwt.audience=j-store-test-clients",
-                    "--jwt.key-id=test-key",
-                    "--account.phone-verification.hmac-secret=test-phone-hmac-secret-with-at-least-32-bytes",
-                    "--jstore.outbox.enabled=true",
-                )
-                .use { context ->
-                    val orderRepositoryType =
-                        Class.forName(
-                            "com.jstore.order.domain.order.persistence.OrderPOJpaRepository"
-                        )
-                    assertThat(context.getBeansOfType(orderRepositoryType)).hasSize(1)
-                    assertThat(context.getBean(OutboxEntryPOJpaRepository::class.java)).isNotNull
-                }
-        }
+      SpringApplicationBuilder(JStoreOrderBootApplication::class.java)
+          .web(WebApplicationType.NONE)
+          .run(
+              "--spring.main.lazy-initialization=true",
+              "--spring.flyway.enabled=false",
+              "--spring.datasource.url=${postgres.getJdbcUrl("postgres", "postgres")}&currentSchema=develop",
+              "--spring.datasource.username=postgres",
+              "--spring.datasource.password=",
+              "--jwt.access-secret=test-access-secret-with-at-least-32-bytes",
+              "--jwt.refresh-secret=test-refresh-secret-with-at-least-32-bytes",
+              "--jwt.issuer=j-store-test",
+              "--jwt.audience=j-store-test-clients",
+              "--jwt.key-id=test-key",
+              "--account.phone-verification.hmac-secret=test-phone-hmac-secret-with-at-least-32-bytes",
+              "--jstore.outbox.enabled=true",
+          )
+          .use { context ->
+            val orderRepositoryType =
+                Class.forName("com.jstore.order.domain.order.persistence.OrderPOJpaRepository")
+            assertThat(context.getBeansOfType(orderRepositoryType)).hasSize(1)
+            assertThat(context.getBean(OutboxEntryPOJpaRepository::class.java)).isNotNull
+          }
     }
+  }
 }

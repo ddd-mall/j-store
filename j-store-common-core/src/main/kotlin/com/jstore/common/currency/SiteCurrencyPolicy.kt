@@ -21,27 +21,25 @@ class SiteCurrencyPolicy(
     defaultCurrency: String,
     allowedCurrencies: Set<String>,
 ) {
-    val defaultCurrency: String = defaultCurrency.trim()
-    val allowedCurrencies: Set<String> = allowedCurrencies.mapTo(linkedSetOf()) { it.trim() }
+  val defaultCurrency: String = defaultCurrency.trim()
+  val allowedCurrencies: Set<String> = allowedCurrencies.mapTo(linkedSetOf()) { it.trim() }
 
-    init {
-        require(CurrencyCode.isValid(this.defaultCurrency)) {
-            "site default currency must be a valid ISO 4217 code"
-        }
-        require(this.allowedCurrencies.isNotEmpty()) { "site allowed currencies must not be empty" }
-        require(this.allowedCurrencies.all(CurrencyCode::isValid)) {
-            "site allowed currencies must be valid ISO 4217 codes"
-        }
-        require(this.defaultCurrency in this.allowedCurrencies) {
-            "site default currency must be allowed"
-        }
+  init {
+    require(CurrencyCode.isValid(this.defaultCurrency)) {
+      "site default currency must be a valid ISO 4217 code"
     }
+    require(this.allowedCurrencies.isNotEmpty()) { "site allowed currencies must not be empty" }
+    require(this.allowedCurrencies.all(CurrencyCode::isValid)) {
+      "site allowed currencies must be valid ISO 4217 codes"
+    }
+    require(this.defaultCurrency in this.allowedCurrencies) {
+      "site default currency must be allowed"
+    }
+  }
 
-    /**
-     * Returns the selected site currency, or null when an explicit value is invalid/unsupported.
-     */
-    fun select(requestedCurrency: String?): String? {
-        val selected = requestedCurrency ?: defaultCurrency
-        return selected.takeIf { CurrencyCode.isValid(it) && it in allowedCurrencies }
-    }
+  /** Returns the selected site currency, or null when an explicit value is invalid/unsupported. */
+  fun select(requestedCurrency: String?): String? {
+    val selected = requestedCurrency ?: defaultCurrency
+    return selected.takeIf { CurrencyCode.isValid(it) && it in allowedCurrencies }
+  }
 }

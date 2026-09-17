@@ -26,34 +26,34 @@ class TransactionalMerchantUseCase(
     private val delegate: MerchantUseCase,
     transactionManager: PlatformTransactionManager,
 ) : MerchantUseCase {
-    private val write = TransactionTemplate(transactionManager)
-    private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+  private val write = TransactionTemplate(transactionManager)
+  private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun create(creatorUserId: Long, name: String) = tx {
-        delegate.create(creatorUserId, name)
-    }
+  override fun create(creatorUserId: Long, name: String) = tx {
+    delegate.create(creatorUserId, name)
+  }
 
-    override fun listForUser(userId: Long) = query { delegate.listForUser(userId) }
+  override fun listForUser(userId: Long) = query { delegate.listForUser(userId) }
 
-    override fun addMember(
-        actorUserId: Long,
-        merchantId: MerchantId,
-        userId: Long,
-        roles: Set<MerchantRole>,
-    ) = tx { delegate.addMember(actorUserId, merchantId, userId, roles) }
+  override fun addMember(
+      actorUserId: Long,
+      merchantId: MerchantId,
+      userId: Long,
+      roles: Set<MerchantRole>,
+  ) = tx { delegate.addMember(actorUserId, merchantId, userId, roles) }
 
-    override fun changeMemberRoles(
-        actorUserId: Long,
-        merchantId: MerchantId,
-        memberUserId: Long,
-        roles: Set<MerchantRole>,
-    ) = tx { delegate.changeMemberRoles(actorUserId, merchantId, memberUserId, roles) }
+  override fun changeMemberRoles(
+      actorUserId: Long,
+      merchantId: MerchantId,
+      memberUserId: Long,
+      roles: Set<MerchantRole>,
+  ) = tx { delegate.changeMemberRoles(actorUserId, merchantId, memberUserId, roles) }
 
-    override fun disableMember(actorUserId: Long, merchantId: MerchantId, memberUserId: Long) = tx {
-        delegate.disableMember(actorUserId, merchantId, memberUserId)
-    }
+  override fun disableMember(actorUserId: Long, merchantId: MerchantId, memberUserId: Long) = tx {
+    delegate.disableMember(actorUserId, merchantId, memberUserId)
+  }
 
-    private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
+  private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 
-    private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
+  private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
 }

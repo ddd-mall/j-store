@@ -30,8 +30,8 @@ data class UserAccountForcedOfflineEvent(
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
-    override val eventName = "user.account-forced-offline"
-    override val eventVersion = 1
-    override val aggregateType = "UserAccount"
-    override val aggregateId = userId.value.toString()
+  override val eventName = "user.account-forced-offline"
+  override val eventVersion = 1
+  override val aggregateType = "UserAccount"
+  override val aggregateId = userId.value.toString()
 }

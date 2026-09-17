@@ -27,72 +27,72 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.web.client.RestClient
 
 class UserProfileClientAutoConfigurationTest {
-    private val runner =
-        ApplicationContextRunner()
-            .withConfiguration(
-                AutoConfigurations.of(
-                    RestClientAutoConfiguration::class.java,
-                    UserProfileClientAutoConfiguration::class.java,
-                )
-            )
+  private val runner =
+      ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  RestClientAutoConfiguration::class.java,
+                  UserProfileClientAutoConfiguration::class.java,
+              )
+          )
 
-    @Test
-    fun `local mode does not create a remote query service`() {
-        runner.run { context ->
-            assertThat(context).doesNotHaveBean(UserProfileQueryService::class.java)
+  @Test
+  fun `local mode does not create a remote query service`() {
+    runner.run { context ->
+      assertThat(context).doesNotHaveBean(UserProfileQueryService::class.java)
+    }
+  }
+
+  @Test
+  fun `remote mode creates the HTTP query service when configuration is complete`() {
+    runner
+        .withPropertyValues(
+            "jstore.user-query.mode=remote",
+            "jstore.user-query.remote.base-url=http://user-service",
+            "jstore.user-query.remote.token=${"a".repeat(32)}",
+        )
+        .run { context ->
+          assertThat(context).hasSingleBean(UserProfileQueryService::class.java)
+          assertThat(context).hasSingleBean(HttpUserProfileQueryService::class.java)
         }
-    }
+  }
 
-    @Test
-    fun `remote mode creates the HTTP query service when configuration is complete`() {
-        runner
-            .withPropertyValues(
-                "jstore.user-query.mode=remote",
-                "jstore.user-query.remote.base-url=http://user-service",
-                "jstore.user-query.remote.token=${"a".repeat(32)}",
-            )
-            .run { context ->
-                assertThat(context).hasSingleBean(UserProfileQueryService::class.java)
-                assertThat(context).hasSingleBean(HttpUserProfileQueryService::class.java)
-            }
-    }
+  @Test
+  fun `remote mode fails fast when service credentials are absent`() {
+    runner
+        .withPropertyValues(
+            "jstore.user-query.mode=remote",
+            "jstore.user-query.remote.base-url=http://user-service",
+        )
+        .run { context -> assertThat(context).hasFailed() }
+  }
 
-    @Test
-    fun `remote mode fails fast when service credentials are absent`() {
-        runner
-            .withPropertyValues(
-                "jstore.user-query.mode=remote",
-                "jstore.user-query.remote.base-url=http://user-service",
-            )
-            .run { context -> assertThat(context).hasFailed() }
-    }
+  @Test
+  fun `remote client retains interceptors from the Spring managed builder`() {
+    val intercepted = AtomicBoolean(false)
+    val managedBuilder =
+        RestClient.builder().requestInterceptor { request, body, execution ->
+          intercepted.set(true)
+          execution.execute(request, body)
+        }
 
-    @Test
-    fun `remote client retains interceptors from the Spring managed builder`() {
-        val intercepted = AtomicBoolean(false)
-        val managedBuilder =
-            RestClient.builder().requestInterceptor { request, body, execution ->
-                intercepted.set(true)
-                execution.execute(request, body)
-            }
-
-        runner
-            .withBean(RestClient.Builder::class.java, { managedBuilder })
-            .withPropertyValues(
-                "jstore.user-query.mode=remote",
-                "jstore.user-query.remote.base-url=http://127.0.0.1:1",
-                "jstore.user-query.remote.token=${"a".repeat(32)}",
-                "jstore.user-query.remote.connect-timeout=100ms",
-                "jstore.user-query.remote.read-timeout=100ms",
-            )
-            .run { context ->
-                assertThatThrownBy {
-                        context
-                            .getBean(UserProfileQueryService::class.java)
-                            .findInCurrentAuthenticationDomain(42)
-                    }
-                    .isInstanceOf(UserProfileDependencyException::class.java)
-                assertThat(intercepted).isTrue()
-            }
-    }
+    runner
+        .withBean(RestClient.Builder::class.java, { managedBuilder })
+        .withPropertyValues(
+            "jstore.user-query.mode=remote",
+            "jstore.user-query.remote.base-url=http://127.0.0.1:1",
+            "jstore.user-query.remote.token=${"a".repeat(32)}",
+            "jstore.user-query.remote.connect-timeout=100ms",
+            "jstore.user-query.remote.read-timeout=100ms",
+        )
+        .run { context ->
+          assertThatThrownBy {
+                context
+                    .getBean(UserProfileQueryService::class.java)
+                    .findInCurrentAuthenticationDomain(42)
+              }
+              .isInstanceOf(UserProfileDependencyException::class.java)
+          assertThat(intercepted).isTrue()
+        }
+  }
 }

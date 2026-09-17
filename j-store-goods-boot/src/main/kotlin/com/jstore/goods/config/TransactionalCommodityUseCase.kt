@@ -32,34 +32,34 @@ class TransactionalCommodityUseCase(
     private val snapshotQueries: GoodsSnapshotQueryService,
     transactionManager: PlatformTransactionManager,
 ) : CommodityUseCase, GoodsSnapshotQueryService {
-    private val write = TransactionTemplate(transactionManager)
-    private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+  private val write = TransactionTemplate(transactionManager)
+  private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun createOrUpdate(cmd: CommodityCreateCmd) = tx { delegate.createOrUpdate(cmd) }
+  override fun createOrUpdate(cmd: CommodityCreateCmd) = tx { delegate.createOrUpdate(cmd) }
 
-    override fun addSku(cmd: SkuCreateCmd) = tx { delegate.addSku(cmd) }
+  override fun addSku(cmd: SkuCreateCmd) = tx { delegate.addSku(cmd) }
 
-    override fun updateSku(cmd: SkuUpdateCmd) = tx { delegate.updateSku(cmd) }
+  override fun updateSku(cmd: SkuUpdateCmd) = tx { delegate.updateSku(cmd) }
 
-    override fun removeSku(cmd: SkuRemoveCmd) = tx { delegate.removeSku(cmd) }
+  override fun removeSku(cmd: SkuRemoveCmd) = tx { delegate.removeSku(cmd) }
 
-    override fun publish(spuId: SpuId) = tx { delegate.publish(spuId) }
+  override fun publish(spuId: SpuId) = tx { delegate.publish(spuId) }
 
-    override fun archive(spuId: SpuId) = tx { delegate.archive(spuId) }
+  override fun archive(spuId: SpuId) = tx { delegate.archive(spuId) }
 
-    override fun getDraft(spuId: SpuId) = tx { delegate.getDraft(spuId) }
+  override fun getDraft(spuId: SpuId) = tx { delegate.getDraft(spuId) }
 
-    override fun publishDraft(draftSpuId: SpuId) = tx { delegate.publishDraft(draftSpuId) }
+  override fun publishDraft(draftSpuId: SpuId) = tx { delegate.publishDraft(draftSpuId) }
 
-    override fun discardDraft(draftSpuId: SpuId) = tx { delegate.discardDraft(draftSpuId) }
+  override fun discardDraft(draftSpuId: SpuId) = tx { delegate.discardDraft(draftSpuId) }
 
-    override fun saveGoodsStyle(cmd: GoodsStyleSaveCmd) = tx { delegate.saveGoodsStyle(cmd) }
+  override fun saveGoodsStyle(cmd: GoodsStyleSaveCmd) = tx { delegate.saveGoodsStyle(cmd) }
 
-    override fun queryLatestSnapshots(spuIds: List<Long>) = query {
-        snapshotQueries.queryLatestSnapshots(spuIds)
-    }
+  override fun queryLatestSnapshots(spuIds: List<Long>) = query {
+    snapshotQueries.queryLatestSnapshots(spuIds)
+  }
 
-    private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
+  private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 
-    private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
+  private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
 }

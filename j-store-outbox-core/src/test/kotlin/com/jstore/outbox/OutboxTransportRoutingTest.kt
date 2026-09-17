@@ -23,59 +23,59 @@ import java.time.Instant
 
 class OutboxTransportRoutingTest :
     FunSpec({
-        test("router selects the channel matching the persisted transport id") {
-            val delivered = mutableListOf<String>()
-            val router =
-                OutboxDeliveryRouter(
-                    listOf(
-                        channel("local") { delivered += it.transportId },
-                        channel("kafka") { delivered += it.transportId },
-                    )
+      test("router selects the channel matching the persisted transport id") {
+        val delivered = mutableListOf<String>()
+        val router =
+            OutboxDeliveryRouter(
+                listOf(
+                    channel("local") { delivered += it.transportId },
+                    channel("kafka") { delivered += it.transportId },
                 )
-
-            router.deliver(entry("kafka"))
-
-            delivered shouldBe listOf("kafka")
-        }
-
-        test("router rejects a missing transport") {
-            val router = OutboxDeliveryRouter(listOf(channel("local") {}))
-
-            shouldThrow<IllegalStateException> { router.deliver(entry("rabbitmq")) }
-        }
-
-        test("router rejects duplicate transport implementations") {
-            val router = OutboxDeliveryRouter(listOf(channel("kafka") {}, channel("kafka") {}))
-
-            shouldThrow<IllegalStateException> { router.deliver(entry("kafka")) }
-        }
-    }) {
-    companion object {
-        private fun channel(
-            transportId: String,
-            deliver: (OutboxMessage) -> Unit,
-        ) =
-            object : OutboxDeliveryChannel {
-                override val transportId: String = transportId
-
-                override fun deliver(entry: OutboxMessage) = deliver(entry)
-            }
-
-        private fun entry(transportId: String) =
-            OutboxMessage(
-                id = "1",
-                eventId = "event-1",
-                eventType = "test.event",
-                eventVersion = 1,
-                aggregateType = "test",
-                aggregateId = "1",
-                payload = "{}",
-                createdAt = Instant.EPOCH,
-                messageKind = OutboxMessageKind.INTEGRATION_EVENT,
-                deliveryTarget = OutboxDeliveryTarget.BROKER,
-                transportId = transportId,
-                orderingKey = "4:test:1:1",
-                sequenceNo = 1,
             )
-    }
+
+        router.deliver(entry("kafka"))
+
+        delivered shouldBe listOf("kafka")
+      }
+
+      test("router rejects a missing transport") {
+        val router = OutboxDeliveryRouter(listOf(channel("local") {}))
+
+        shouldThrow<IllegalStateException> { router.deliver(entry("rabbitmq")) }
+      }
+
+      test("router rejects duplicate transport implementations") {
+        val router = OutboxDeliveryRouter(listOf(channel("kafka") {}, channel("kafka") {}))
+
+        shouldThrow<IllegalStateException> { router.deliver(entry("kafka")) }
+      }
+    }) {
+  companion object {
+    private fun channel(
+        transportId: String,
+        deliver: (OutboxMessage) -> Unit,
+    ) =
+        object : OutboxDeliveryChannel {
+          override val transportId: String = transportId
+
+          override fun deliver(entry: OutboxMessage) = deliver(entry)
+        }
+
+    private fun entry(transportId: String) =
+        OutboxMessage(
+            id = "1",
+            eventId = "event-1",
+            eventType = "test.event",
+            eventVersion = 1,
+            aggregateType = "test",
+            aggregateId = "1",
+            payload = "{}",
+            createdAt = Instant.EPOCH,
+            messageKind = OutboxMessageKind.INTEGRATION_EVENT,
+            deliveryTarget = OutboxDeliveryTarget.BROKER,
+            transportId = transportId,
+            orderingKey = "4:test:1:1",
+            sequenceNo = 1,
+        )
+  }
 }

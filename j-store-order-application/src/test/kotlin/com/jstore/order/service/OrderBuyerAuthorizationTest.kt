@@ -33,49 +33,49 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class OrderBuyerAuthorizationTest {
-    private val factory = mock<OrderFactory>()
-    private val repository = mock<OrderRepository>()
-    private val publisher = mock<DomainEventPublisher>()
-    private val users = mock<UserService>()
-    private val service = OrderService(factory, repository, publisher, users)
-    private val anotherBuyersOrder = testOrder()
+  private val factory = mock<OrderFactory>()
+  private val repository = mock<OrderRepository>()
+  private val publisher = mock<DomainEventPublisher>()
+  private val users = mock<UserService>()
+  private val service = OrderService(factory, repository, publisher, users)
+  private val anotherBuyersOrder = testOrder()
 
-    @Test
-    fun `same numeric buyer id from another authentication domain cannot read order`() {
-        whenever(repository.findById(anotherBuyersOrder.id)).thenReturn(anotherBuyersOrder)
+  @Test
+  fun `same numeric buyer id from another authentication domain cannot read order`() {
+    whenever(repository.findById(anotherBuyersOrder.id)).thenReturn(anotherBuyersOrder)
 
-        val result =
-            service.getOrderById(
-                "issuer-b",
-                anotherBuyersOrder.buyerInfo.uid,
-                anotherBuyersOrder.id,
-            )
+    val result =
+        service.getOrderById(
+            "issuer-b",
+            anotherBuyersOrder.buyerInfo.uid,
+            anotherBuyersOrder.id,
+        )
 
-        assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
-    }
+    assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
+  }
 
-    @Test
-    fun `buyer cannot read another buyers order`() {
-        whenever(repository.findById(anotherBuyersOrder.id)).thenReturn(anotherBuyersOrder)
+  @Test
+  fun `buyer cannot read another buyers order`() {
+    whenever(repository.findById(anotherBuyersOrder.id)).thenReturn(anotherBuyersOrder)
 
-        val result = service.getOrderById("issuer-a", 42, anotherBuyersOrder.id)
+    val result = service.getOrderById("issuer-a", 42, anotherBuyersOrder.id)
 
-        assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
-    }
+    assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
+  }
 
-    @Test
-    fun `buyer cannot cancel another buyers order`() {
-        whenever(repository.findById(anotherBuyersOrder.id)).thenReturn(anotherBuyersOrder)
-        val command =
-            OrderCancelCMD(
-                anotherBuyersOrder.id,
-                CancellationCategory.BUYER_CANCELLED,
-                "not mine",
-            )
+  @Test
+  fun `buyer cannot cancel another buyers order`() {
+    whenever(repository.findById(anotherBuyersOrder.id)).thenReturn(anotherBuyersOrder)
+    val command =
+        OrderCancelCMD(
+            anotherBuyersOrder.id,
+            CancellationCategory.BUYER_CANCELLED,
+            "not mine",
+        )
 
-        val result = service.cancelOrder("issuer-a", 42, command)
+    val result = service.cancelOrder("issuer-a", 42, command)
 
-        assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
-        verify(repository, never()).save(anotherBuyersOrder)
-    }
+    assertEquals(Failure(OrderErrors.ORDER_NOT_FOUND), result)
+    verify(repository, never()).save(anotherBuyersOrder)
+  }
 }

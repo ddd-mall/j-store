@@ -23,29 +23,29 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class BrandTest {
-    @Test
-    fun `brand id must be positive`() {
-        assertFailsWith<IllegalArgumentException> { BrandId(0) }
-        assertFailsWith<IllegalArgumentException> { BrandId(-1) }
-    }
+  @Test
+  fun `brand id must be positive`() {
+    assertFailsWith<IllegalArgumentException> { BrandId(0) }
+    assertFailsWith<IllegalArgumentException> { BrandId(-1) }
+  }
 
-    @Test
-    fun `brand owns its localized name and activation lifecycle`() {
-        val brand =
-            Brand(
-                id = BrandId(1),
-                merchantId = MerchantId(7),
-                name = LocalizedText.of("zh-CN" to "旧名称"),
-            )
+  @Test
+  fun `brand owns its localized name and activation lifecycle`() {
+    val brand =
+        Brand(
+            id = BrandId(1),
+            merchantId = MerchantId(7),
+            name = LocalizedText.of("zh-CN" to "旧名称"),
+        )
 
-        brand.rename(LocalizedText.of("zh-CN" to "新名称", "en-US" to "New Name"))
-        brand.deactivate()
+    brand.rename(LocalizedText.of("zh-CN" to "新名称", "en-US" to "New Name"))
+    brand.deactivate()
 
-        assertEquals("新名称", brand.name["zh-CN"])
-        assertEquals("new name", brand.normalizedName)
-        assertEquals(BrandStatus.INACTIVE, brand.status)
+    assertEquals("新名称", brand.name["zh-CN"])
+    assertEquals("new name", brand.normalizedName)
+    assertEquals(BrandStatus.INACTIVE, brand.status)
 
-        brand.activate()
-        assertEquals(BrandStatus.ACTIVE, brand.status)
-    }
+    brand.activate()
+    assertEquals(BrandStatus.ACTIVE, brand.status)
+  }
 }

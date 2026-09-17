@@ -31,131 +31,131 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class OfferAuthorizationServiceTest {
-    private val now = Instant.parse("2026-08-05T00:00:00Z")
+  private val now = Instant.parse("2026-08-05T00:00:00Z")
 
-    @Test
-    fun `authorization is durable idempotent and freezes fulfillment policy`() {
-        val offer = activeOffer()
-        val authorizations = FakeAuthorizations()
-        val published = mutableListOf<DomainEvent>()
-        val service = service(offer, authorizations, published)
+  @Test
+  fun `authorization is durable idempotent and freezes fulfillment policy`() {
+    val offer = activeOffer()
+    val authorizations = FakeAuthorizations()
+    val published = mutableListOf<DomainEvent>()
+    val service = service(offer, authorizations, published)
 
-        val first = assertIs<Success<List<SaleAuthorization>>>(service.authorize(command()))
-        assertEquals("TRADE-100-PLAN-1001-OFFER-1", first.value.single().id.value)
-        assertEquals("CN-NORTH-1", first.value.single().fulfillmentPolicy.preferredNodeId.value)
-        assertEquals(1, authorizations.values.size)
-        assertEquals(1, published.filterIsInstance<SaleAuthorizedEvent>().size)
+    val first = assertIs<Success<List<SaleAuthorization>>>(service.authorize(command()))
+    assertEquals("TRADE-100-PLAN-1001-OFFER-1", first.value.single().id.value)
+    assertEquals("CN-NORTH-1", first.value.single().fulfillmentPolicy.preferredNodeId.value)
+    assertEquals(1, authorizations.values.size)
+    assertEquals(1, published.filterIsInstance<SaleAuthorizedEvent>().size)
 
-        assertIs<Success<*>>(service.authorize(command()))
-        assertEquals(1, authorizations.values.size)
-        assertEquals(1, published.filterIsInstance<SaleAuthorizedEvent>().size)
-    }
+    assertIs<Success<*>>(service.authorize(command()))
+    assertEquals(1, authorizations.values.size)
+    assertEquals(1, published.filterIsInstance<SaleAuthorizedEvent>().size)
+  }
 
-    @Test
-    fun `suspended offer rejects new authorization without persisting a token`() {
-        val offer = activeOffer().also { it.suspend() }
-        val authorizations = FakeAuthorizations()
+  @Test
+  fun `suspended offer rejects new authorization without persisting a token`() {
+    val offer = activeOffer().also { it.suspend() }
+    val authorizations = FakeAuthorizations()
 
-        assertIs<Failure<*>>(service(offer, authorizations, mutableListOf()).authorize(command()))
-        assertEquals(0, authorizations.values.size)
-    }
+    assertIs<Failure<*>>(service(offer, authorizations, mutableListOf()).authorize(command()))
+    assertEquals(0, authorizations.values.size)
+  }
 
-    @Test
-    fun `offer snapshot uses the configured site currency`() {
-        val offer = activeOffer()
-        val offers =
-            object : SalesOfferRepository {
-                override fun findAllByIds(ids: List<SalesOfferId>) = listOf(offer)
+  @Test
+  fun `offer snapshot uses the configured site currency`() {
+    val offer = activeOffer()
+    val offers =
+        object : SalesOfferRepository {
+          override fun findAllByIds(ids: List<SalesOfferId>) = listOf(offer)
 
-                override fun save(aggregate: SalesOffer) = aggregate
+          override fun save(aggregate: SalesOffer) = aggregate
 
-                override fun findById(id: SalesOfferId) = offer.takeIf { it.id == id }
+          override fun findById(id: SalesOfferId) = offer.takeIf { it.id == id }
+        }
+    val stores =
+        object : StoreRepository {
+          override fun save(aggregate: Store) = aggregate
+
+          override fun findById(id: StoreId) =
+              Store(StoreId(2), MerchantId(7), "旗舰店", StoreStatus.ACTIVE).takeIf {
+                it.id == id
+              }
+        }
+
+    val snapshot =
+        OfferSnapshotQueryServiceImpl(offers, stores, "JPY") { now }
+            .queryOffers(listOf(offer.id.value))
+            .single()
+
+    assertEquals("JPY", snapshot.currency)
+  }
+
+  private fun service(
+      offer: SalesOffer,
+      authorizations: FakeAuthorizations,
+      published: MutableList<DomainEvent>,
+  ) =
+      OfferAuthorizationService(
+          StoreGuard {
+            listOf(Store(StoreId(2), MerchantId(7), "旗舰店", StoreStatus.ACTIVE))
+          },
+          SalesOfferGuard { ids -> ids.filter { it == offer.id }.map { offer } },
+          authorizations,
+          object : DomainEventPublisher {
+            override fun publishEvent(event: DomainEvent) {
+              published.add(event)
             }
-        val stores =
-            object : StoreRepository {
-                override fun save(aggregate: Store) = aggregate
+          },
+      )
 
-                override fun findById(id: StoreId) =
-                    Store(StoreId(2), MerchantId(7), "旗舰店", StoreStatus.ACTIVE).takeIf {
-                        it.id == id
-                    }
-            }
+  private fun command() =
+      AuthorizeSaleCommand(
+          tradeId = 100,
+          orderPlanId = 1001,
+          merchantId = 7,
+          items =
+              listOf(
+                  ContractSaleItem(
+                      offerId = 1,
+                      storeId = 2,
+                      spuId = 10,
+                      skuId = 11,
+                      quantity = 2,
+                      catalogSnapshotVersion = 3,
+                      offerVersion = 1,
+                      fulfillmentNodeId = "CN-NORTH-1",
+                      channelId = "ONLINE",
+                      unitPriceFen = 3_900,
+                  )
+              ),
+          sourceMessageId = "order-created-100",
+          occurredAtValue = now,
+      )
 
-        val snapshot =
-            OfferSnapshotQueryServiceImpl(offers, stores, "JPY") { now }
-                .queryOffers(listOf(offer.id.value))
-                .single()
-
-        assertEquals("JPY", snapshot.currency)
-    }
-
-    private fun service(
-        offer: SalesOffer,
-        authorizations: FakeAuthorizations,
-        published: MutableList<DomainEvent>,
-    ) =
-        OfferAuthorizationService(
-            StoreGuard {
-                listOf(Store(StoreId(2), MerchantId(7), "旗舰店", StoreStatus.ACTIVE))
-            },
-            SalesOfferGuard { ids -> ids.filter { it == offer.id }.map { offer } },
-            authorizations,
-            object : DomainEventPublisher {
-                override fun publishEvent(event: DomainEvent) {
-                    published.add(event)
-                }
-            },
-        )
-
-    private fun command() =
-        AuthorizeSaleCommand(
-            tradeId = 100,
-            orderPlanId = 1001,
-            merchantId = 7,
-            items =
-                listOf(
-                    ContractSaleItem(
-                        offerId = 1,
-                        storeId = 2,
-                        spuId = 10,
-                        skuId = 11,
-                        quantity = 2,
-                        catalogSnapshotVersion = 3,
-                        offerVersion = 1,
-                        fulfillmentNodeId = "CN-NORTH-1",
-                        channelId = "ONLINE",
-                        unitPriceFen = 3_900,
-                    )
-                ),
-            sourceMessageId = "order-created-100",
-            occurredAtValue = now,
-        )
-
-    private fun activeOffer() =
-        SalesOffer(
-            SalesOfferId(1),
-            StoreId(2),
-            MerchantId(7),
-            SkuId(11),
-            Channel("ONLINE", "CN"),
-            Price.ofFen(3_900),
-            OfferStatus.ACTIVE,
-            EffectivePeriod(now.minusSeconds(60), now.plusSeconds(3_600)),
-            PurchaseLimit(5),
-            FulfillmentPolicy(FulfillmentNodeId("CN-NORTH-1"), false),
-            1,
-        )
+  private fun activeOffer() =
+      SalesOffer(
+          SalesOfferId(1),
+          StoreId(2),
+          MerchantId(7),
+          SkuId(11),
+          Channel("ONLINE", "CN"),
+          Price.ofFen(3_900),
+          OfferStatus.ACTIVE,
+          EffectivePeriod(now.minusSeconds(60), now.plusSeconds(3_600)),
+          PurchaseLimit(5),
+          FulfillmentPolicy(FulfillmentNodeId("CN-NORTH-1"), false),
+          1,
+      )
 }
 
 private class FakeAuthorizations : SaleAuthorizationRepository {
-    val values = linkedMapOf<SaleAuthorizationId, SaleAuthorization>()
+  val values = linkedMapOf<SaleAuthorizationId, SaleAuthorization>()
 
-    override fun save(aggregate: SaleAuthorization): SaleAuthorization = aggregate.also {
-        values[it.id] = it
-    }
+  override fun save(aggregate: SaleAuthorization): SaleAuthorization = aggregate.also {
+    values[it.id] = it
+  }
 
-    override fun findById(id: SaleAuthorizationId): SaleAuthorization? = values[id]
+  override fun findById(id: SaleAuthorizationId): SaleAuthorization? = values[id]
 
-    override fun findByOrderPlanId(orderPlanId: Long): List<SaleAuthorization> =
-        values.values.filter { it.orderPlanId == orderPlanId }
+  override fun findByOrderPlanId(orderPlanId: Long): List<SaleAuthorization> =
+      values.values.filter { it.orderPlanId == orderPlanId }
 }

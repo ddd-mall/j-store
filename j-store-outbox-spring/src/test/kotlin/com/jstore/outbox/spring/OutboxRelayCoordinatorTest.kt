@@ -30,141 +30,141 @@ import org.mockito.kotlin.whenever
 
 class OutboxRelayCoordinatorTest :
     FunSpec({
-        test("many concurrent signals enqueue only one relay task") {
-            val executor = ManualExecutor()
-            val publisher = mock<OutboxPublisher>()
-            whenever(publisher.drainAndPublish()).thenReturn(OutboxDrainResult(0, false))
-            val coordinator = OutboxRelayCoordinator(publisher, executor)
+      test("many concurrent signals enqueue only one relay task") {
+        val executor = ManualExecutor()
+        val publisher = mock<OutboxPublisher>()
+        whenever(publisher.drainAndPublish()).thenReturn(OutboxDrainResult(0, false))
+        val coordinator = OutboxRelayCoordinator(publisher, executor)
 
-            val callers = Executors.newFixedThreadPool(16)
-            try {
-                callers.invokeAll(
-                    List(100) {
-                        java.util.concurrent.Callable {
-                            repeat(100) { coordinator.requestDrain() }
-                        }
-                    }
-                )
-            } finally {
-                callers.shutdown()
-            }
-
-            executor.tasks shouldHaveSize 1
-            executor.runNext()
-            verify(publisher).drainAndPublish()
-            executor.tasks shouldHaveSize 0
+        val callers = Executors.newFixedThreadPool(16)
+        try {
+          callers.invokeAll(
+              List(100) {
+                java.util.concurrent.Callable {
+                  repeat(100) { coordinator.requestDrain() }
+                }
+              }
+          )
+        } finally {
+          callers.shutdown()
         }
 
-        test("signal received during drain is handled without overlapping drain") {
-            val executor = ManualExecutor()
-            val publisher = mock<OutboxPublisher>()
-            lateinit var coordinator: OutboxRelayCoordinator
-            var active = 0
-            var maxActive = 0
-            var calls = 0
-            whenever(publisher.drainAndPublish()).thenAnswer {
-                active++
-                maxActive = maxOf(maxActive, active)
-                calls++
-                if (calls == 1) coordinator.requestDrain()
-                active--
-                OutboxDrainResult(0, false)
-            }
-            coordinator = OutboxRelayCoordinator(publisher, executor)
+        executor.tasks shouldHaveSize 1
+        executor.runNext()
+        verify(publisher).drainAndPublish()
+        executor.tasks shouldHaveSize 0
+      }
 
-            coordinator.requestDrain()
-            executor.runNext()
-
-            calls shouldBe 2
-            maxActive shouldBe 1
-            executor.tasks shouldHaveSize 0
+      test("signal received during drain is handled without overlapping drain") {
+        val executor = ManualExecutor()
+        val publisher = mock<OutboxPublisher>()
+        lateinit var coordinator: OutboxRelayCoordinator
+        var active = 0
+        var maxActive = 0
+        var calls = 0
+        whenever(publisher.drainAndPublish()).thenAnswer {
+          active++
+          maxActive = maxOf(maxActive, active)
+          calls++
+          if (calls == 1) coordinator.requestDrain()
+          active--
+          OutboxDrainResult(0, false)
         }
+        coordinator = OutboxRelayCoordinator(publisher, executor)
 
-        test("exhausted drain budget yields before scheduling continuation") {
-            val executor = ManualExecutor()
-            val publisher = mock<OutboxPublisher>()
-            whenever(publisher.drainAndPublish())
-                .thenReturn(OutboxDrainResult(2, true), OutboxDrainResult(0, false))
-            val coordinator = OutboxRelayCoordinator(publisher, executor)
+        coordinator.requestDrain()
+        executor.runNext()
 
-            coordinator.requestDrain()
-            executor.runNext()
+        calls shouldBe 2
+        maxActive shouldBe 1
+        executor.tasks shouldHaveSize 0
+      }
 
-            executor.tasks shouldHaveSize 1
-            verify(publisher).drainAndPublish()
+      test("exhausted drain budget yields before scheduling continuation") {
+        val executor = ManualExecutor()
+        val publisher = mock<OutboxPublisher>()
+        whenever(publisher.drainAndPublish())
+            .thenReturn(OutboxDrainResult(2, true), OutboxDrainResult(0, false))
+        val coordinator = OutboxRelayCoordinator(publisher, executor)
 
-            executor.runNext()
-            verify(publisher, times(2)).drainAndPublish()
-            executor.tasks shouldHaveSize 0
-        }
+        coordinator.requestDrain()
+        executor.runNext()
 
-        test("executor rejection leaves coordinator recoverable") {
-            val publisher = mock<OutboxPublisher>()
-            val executor = RejectOnceExecutor()
-            whenever(publisher.drainAndPublish()).thenReturn(OutboxDrainResult(0, false))
-            val coordinator = OutboxRelayCoordinator(publisher, executor)
+        executor.tasks shouldHaveSize 1
+        verify(publisher).drainAndPublish()
 
-            coordinator.requestDrain()
-            coordinator.requestDrain()
+        executor.runNext()
+        verify(publisher, times(2)).drainAndPublish()
+        executor.tasks shouldHaveSize 0
+      }
 
-            executor.acceptedTasks shouldHaveSize 1
-            executor.acceptedTasks.single().run()
-            verify(publisher).drainAndPublish()
-        }
+      test("executor rejection leaves coordinator recoverable") {
+        val publisher = mock<OutboxPublisher>()
+        val executor = RejectOnceExecutor()
+        whenever(publisher.drainAndPublish()).thenReturn(OutboxDrainResult(0, false))
+        val coordinator = OutboxRelayCoordinator(publisher, executor)
 
-        test("actual drain outcome is reported to operational observer") {
-            val executor = ManualExecutor()
-            val publisher = mock<OutboxPublisher>()
-            val observer = mock<OutboxRelayExecutionObserver>()
-            whenever(publisher.drainAndPublish())
-                .thenReturn(OutboxDrainResult(0, false))
-                .thenThrow(IllegalStateException("database unavailable"))
-            val coordinator = OutboxRelayCoordinator(publisher, executor, observer)
+        coordinator.requestDrain()
+        coordinator.requestDrain()
 
-            coordinator.requestDrain()
-            executor.runNext()
-            coordinator.requestDrain()
-            executor.runNext()
+        executor.acceptedTasks shouldHaveSize 1
+        executor.acceptedTasks.single().run()
+        verify(publisher).drainAndPublish()
+      }
 
-            verify(observer).recordSuccess()
-            verify(observer).recordFailure()
-        }
+      test("actual drain outcome is reported to operational observer") {
+        val executor = ManualExecutor()
+        val publisher = mock<OutboxPublisher>()
+        val observer = mock<OutboxRelayExecutionObserver>()
+        whenever(publisher.drainAndPublish())
+            .thenReturn(OutboxDrainResult(0, false))
+            .thenThrow(IllegalStateException("database unavailable"))
+        val coordinator = OutboxRelayCoordinator(publisher, executor, observer)
 
-        test("executor rejection is reported as a failed drain") {
-            val observer = mock<OutboxRelayExecutionObserver>()
-            val coordinator =
-                OutboxRelayCoordinator(
-                    mock(),
-                    Executor { throw RejectedExecutionException() },
-                    observer,
-                )
+        coordinator.requestDrain()
+        executor.runNext()
+        coordinator.requestDrain()
+        executor.runNext()
 
-            coordinator.requestDrain()
+        verify(observer).recordSuccess()
+        verify(observer).recordFailure()
+      }
 
-            verify(observer, never()).recordSuccess()
-            verify(observer).recordFailure()
-        }
+      test("executor rejection is reported as a failed drain") {
+        val observer = mock<OutboxRelayExecutionObserver>()
+        val coordinator =
+            OutboxRelayCoordinator(
+                mock(),
+                Executor { throw RejectedExecutionException() },
+                observer,
+            )
+
+        coordinator.requestDrain()
+
+        verify(observer, never()).recordSuccess()
+        verify(observer).recordFailure()
+      }
     })
 
 private class ManualExecutor : Executor {
-    val tasks = ArrayDeque<Runnable>()
+  val tasks = ArrayDeque<Runnable>()
 
-    override fun execute(command: Runnable) {
-        tasks.addLast(command)
-    }
+  override fun execute(command: Runnable) {
+    tasks.addLast(command)
+  }
 
-    fun runNext() = tasks.removeFirst().run()
+  fun runNext() = tasks.removeFirst().run()
 }
 
 private class RejectOnceExecutor : Executor {
-    private var rejected = false
-    val acceptedTasks = mutableListOf<Runnable>()
+  private var rejected = false
+  val acceptedTasks = mutableListOf<Runnable>()
 
-    override fun execute(command: Runnable) {
-        if (!rejected) {
-            rejected = true
-            throw RejectedExecutionException("busy")
-        }
-        acceptedTasks += command
+  override fun execute(command: Runnable) {
+    if (!rejected) {
+      rejected = true
+      throw RejectedExecutionException("busy")
     }
+    acceptedTasks += command
+  }
 }

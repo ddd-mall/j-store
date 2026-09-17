@@ -42,35 +42,35 @@ class InternalUserProfileController(
     private val profileReader: UserProfileReader,
     @param:Value($$"${jstore.user-query.server.token:}") private val internalToken: String,
 ) {
-    init {
-        require(internalToken.length >= 32) {
-            "jstore.user-query.server.token must contain at least 32 characters"
-        }
+  init {
+    require(internalToken.length >= 32) {
+      "jstore.user-query.server.token must contain at least 32 characters"
     }
+  }
 
-    @SkipLogin
-    @GetMapping("/{userId}/profile")
-    fun findProfile(
-        @PathVariable userId: Long,
-        @RequestHeader(HttpHeaders.AUTHORIZATION, required = false) authorization: String?,
-    ): ResponseEntity<UserProfileInfo> {
-        if (!hasValidBearerToken(authorization)) {
-            return ResponseEntity.status(401).build()
-        }
-        val profile = profileReader.findById(userId) ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(profile)
+  @SkipLogin
+  @GetMapping("/{userId}/profile")
+  fun findProfile(
+      @PathVariable userId: Long,
+      @RequestHeader(HttpHeaders.AUTHORIZATION, required = false) authorization: String?,
+  ): ResponseEntity<UserProfileInfo> {
+    if (!hasValidBearerToken(authorization)) {
+      return ResponseEntity.status(401).build()
     }
+    val profile = profileReader.findById(userId) ?: return ResponseEntity.notFound().build()
+    return ResponseEntity.ok(profile)
+  }
 
-    private fun hasValidBearerToken(authorization: String?): Boolean {
-        val presented =
-            authorization?.takeIf { it.startsWith(BEARER_PREFIX) }?.substring(7) ?: return false
-        return MessageDigest.isEqual(
-            internalToken.toByteArray(StandardCharsets.UTF_8),
-            presented.toByteArray(StandardCharsets.UTF_8),
-        )
-    }
+  private fun hasValidBearerToken(authorization: String?): Boolean {
+    val presented =
+        authorization?.takeIf { it.startsWith(BEARER_PREFIX) }?.substring(7) ?: return false
+    return MessageDigest.isEqual(
+        internalToken.toByteArray(StandardCharsets.UTF_8),
+        presented.toByteArray(StandardCharsets.UTF_8),
+    )
+  }
 
-    private companion object {
-        const val BEARER_PREFIX = "Bearer "
-    }
+  private companion object {
+    const val BEARER_PREFIX = "Bearer "
+  }
 }

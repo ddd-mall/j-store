@@ -37,70 +37,70 @@ import org.mockito.kotlin.verify
 import org.springframework.http.HttpStatus
 
 class PaymentControllerMerchantAuthorizationTest {
-    @Test
-    fun `finance member can access payment while numerically equal non-member cannot`() {
-        val service = mock(MerchantPaymentUseCase::class.java)
-        val order = PaymentOrderImpl(PaymentOrderId(1), 9, 70, Price.ofFen(100), "CNY")
-        `when`(service.get(900, 9)).thenReturn(Success(order))
-        `when`(service.get(70, 9)).thenReturn(Failure(PaymentErrors.ORDER_NOT_FOUND))
-        val controller =
-            PaymentController(
-                service,
-                SiteCurrencyPolicy("CNY", setOf("CNY")),
-            )
-
-        assertEquals(HttpStatus.OK, controller.get(principal(900), 9).statusCode)
-        assertEquals(HttpStatus.NOT_FOUND, controller.get(principal(70), 9).statusCode)
-    }
-
-    @Test
-    fun `capture uses site default and rejects currencies outside the site policy`() {
-        val service = mock(MerchantPaymentUseCase::class.java)
-        `when`(
-                service.capture(
-                    eq(900L),
-                    eq(PaymentCaptureCommand(9, "txn-1", Price.ofFen(100), "JPY")),
-                )
-            )
-            .thenReturn(Success(true))
-
-        val controller =
-            PaymentController(
-                service,
-                SiteCurrencyPolicy("JPY", setOf("JPY", "USD")),
-            )
-
-        assertEquals(
-            HttpStatus.OK,
-            controller
-                .capture(
-                    principal(900),
-                    9,
-                    PaymentController.CaptureRequest("txn-1", 100),
-                )
-                .statusCode,
+  @Test
+  fun `finance member can access payment while numerically equal non-member cannot`() {
+    val service = mock(MerchantPaymentUseCase::class.java)
+    val order = PaymentOrderImpl(PaymentOrderId(1), 9, 70, Price.ofFen(100), "CNY")
+    `when`(service.get(900, 9)).thenReturn(Success(order))
+    `when`(service.get(70, 9)).thenReturn(Failure(PaymentErrors.ORDER_NOT_FOUND))
+    val controller =
+        PaymentController(
+            service,
+            SiteCurrencyPolicy("CNY", setOf("CNY")),
         )
-        assertEquals(
-            HttpStatus.BAD_REQUEST,
-            controller
-                .capture(
-                    principal(900),
-                    9,
-                    PaymentController.CaptureRequest("txn-2", 100, "CNY"),
-                )
-                .statusCode,
-        )
-        verify(service)
-            .capture(
+
+    assertEquals(HttpStatus.OK, controller.get(principal(900), 9).statusCode)
+    assertEquals(HttpStatus.NOT_FOUND, controller.get(principal(70), 9).statusCode)
+  }
+
+  @Test
+  fun `capture uses site default and rejects currencies outside the site policy`() {
+    val service = mock(MerchantPaymentUseCase::class.java)
+    `when`(
+            service.capture(
                 eq(900L),
                 eq(PaymentCaptureCommand(9, "txn-1", Price.ofFen(100), "JPY")),
             )
-        verify(service, never())
+        )
+        .thenReturn(Success(true))
+
+    val controller =
+        PaymentController(
+            service,
+            SiteCurrencyPolicy("JPY", setOf("JPY", "USD")),
+        )
+
+    assertEquals(
+        HttpStatus.OK,
+        controller
             .capture(
-                eq(900L),
-                eq(PaymentCaptureCommand(9, "txn-2", Price.ofFen(100), "CNY")),
+                principal(900),
+                9,
+                PaymentController.CaptureRequest("txn-1", 100),
             )
-    }
+            .statusCode,
+    )
+    assertEquals(
+        HttpStatus.BAD_REQUEST,
+        controller
+            .capture(
+                principal(900),
+                9,
+                PaymentController.CaptureRequest("txn-2", 100, "CNY"),
+            )
+            .statusCode,
+    )
+    verify(service)
+        .capture(
+            eq(900L),
+            eq(PaymentCaptureCommand(9, "txn-1", Price.ofFen(100), "JPY")),
+        )
+    verify(service, never())
+        .capture(
+            eq(900L),
+            eq(PaymentCaptureCommand(9, "txn-2", Price.ofFen(100), "CNY")),
+        )
+  }
 }
 
 private fun principal(accountId: Long) =

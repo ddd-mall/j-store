@@ -45,81 +45,81 @@ import org.mockito.Mockito.`when`
 import org.springframework.web.bind.annotation.PostMapping
 
 class OrderControllerStatusContractTest {
-    @Test
-    fun `order public boundary does not expose a creation endpoint`() {
-        val publicPosts =
-            OrderController::class.java.declaredMethods.filter {
-                it.getAnnotation(PostMapping::class.java) != null
-            }
+  @Test
+  fun `order public boundary does not expose a creation endpoint`() {
+    val publicPosts =
+        OrderController::class.java.declaredMethods.filter {
+          it.getAnnotation(PostMapping::class.java) != null
+        }
 
-        assertFalse(publicPosts.any { it.name == "createOrder" })
-        assertFalse(OrderUseCase::class.java.methods.any { it.name == "createOrder" })
-    }
+    assertFalse(publicPosts.any { it.name == "createOrder" })
+    assertFalse(OrderUseCase::class.java.methods.any { it.name == "createOrder" })
+  }
 
-    @Test
-    fun `single order response exposes three dimensions and refund summary`() {
-        val service = mock(OrderUseCase::class.java)
-        val order = mock(Order::class.java)
-        val now = LocalDateTime.of(2026, 1, 1, 0, 0)
-        `when`(order.id).thenReturn(OrderId(1))
-        `when`(order.merchantId).thenReturn(MerchantId(7))
-        `when`(order.buyerInfo).thenReturn(UserInfo("issuer-a", 2, null, null))
-        `when`(order.tradeStatus).thenReturn(TradeStatus.ACTIVE)
-        `when`(order.paymentStatus).thenReturn(PaymentStatus.PARTIALLY_REFUNDED)
-        `when`(order.fulfillmentStatus).thenReturn(FulfillmentStatus.DELIVERED)
-        `when`(order.commitmentStatus).thenReturn(CommitmentStatus.CONFIRMED)
-        `when`(order.amountSnapshot)
-            .thenReturn(OrderAmountSnapshot.singleCurrency("CNY", Price.ofFen(100)))
-        `when`(order.paidAmount).thenReturn(Price.ofFen(100))
-        `when`(order.refundedAmount).thenReturn(Price.ofFen(50))
-        val item = mock(OrderItem::class.java)
-        `when`(item.id).thenReturn(OrderItemId(10))
-        `when`(item.skuId).thenReturn(11)
-        `when`(item.spuId).thenReturn(12)
-        `when`(item.offerId).thenReturn(13)
-        `when`(item.storeId).thenReturn(14)
-        `when`(item.offerVersion).thenReturn(2)
-        `when`(item.fulfillmentNodeId).thenReturn("CN-NORTH-1")
-        `when`(item.channelId).thenReturn("ONLINE")
-        `when`(item.goodsName).thenReturn("商品")
-        `when`(item.skuDescription).thenReturn("规格")
-        `when`(item.quantity).thenReturn(1)
-        `when`(item.unitPrice).thenReturn(Price.ofFen(100))
-        `when`(item.status).thenReturn(OrderItemStatus.CANCELED)
-        `when`(item.refundedQuantity).thenReturn(1)
-        `when`(item.refundedAmount).thenReturn(Price.ofFen(50))
-        `when`(order.items).thenReturn(listOf(item))
-        `when`(order.createTime).thenReturn(now)
-        `when`(order.updateTime).thenReturn(now)
-        `when`(service.getOrderById("issuer-a", 2, OrderId(1))).thenReturn(Success(order))
+  @Test
+  fun `single order response exposes three dimensions and refund summary`() {
+    val service = mock(OrderUseCase::class.java)
+    val order = mock(Order::class.java)
+    val now = LocalDateTime.of(2026, 1, 1, 0, 0)
+    `when`(order.id).thenReturn(OrderId(1))
+    `when`(order.merchantId).thenReturn(MerchantId(7))
+    `when`(order.buyerInfo).thenReturn(UserInfo("issuer-a", 2, null, null))
+    `when`(order.tradeStatus).thenReturn(TradeStatus.ACTIVE)
+    `when`(order.paymentStatus).thenReturn(PaymentStatus.PARTIALLY_REFUNDED)
+    `when`(order.fulfillmentStatus).thenReturn(FulfillmentStatus.DELIVERED)
+    `when`(order.commitmentStatus).thenReturn(CommitmentStatus.CONFIRMED)
+    `when`(order.amountSnapshot)
+        .thenReturn(OrderAmountSnapshot.singleCurrency("CNY", Price.ofFen(100)))
+    `when`(order.paidAmount).thenReturn(Price.ofFen(100))
+    `when`(order.refundedAmount).thenReturn(Price.ofFen(50))
+    val item = mock(OrderItem::class.java)
+    `when`(item.id).thenReturn(OrderItemId(10))
+    `when`(item.skuId).thenReturn(11)
+    `when`(item.spuId).thenReturn(12)
+    `when`(item.offerId).thenReturn(13)
+    `when`(item.storeId).thenReturn(14)
+    `when`(item.offerVersion).thenReturn(2)
+    `when`(item.fulfillmentNodeId).thenReturn("CN-NORTH-1")
+    `when`(item.channelId).thenReturn("ONLINE")
+    `when`(item.goodsName).thenReturn("商品")
+    `when`(item.skuDescription).thenReturn("规格")
+    `when`(item.quantity).thenReturn(1)
+    `when`(item.unitPrice).thenReturn(Price.ofFen(100))
+    `when`(item.status).thenReturn(OrderItemStatus.CANCELED)
+    `when`(item.refundedQuantity).thenReturn(1)
+    `when`(item.refundedAmount).thenReturn(Price.ofFen(50))
+    `when`(order.items).thenReturn(listOf(item))
+    `when`(order.createTime).thenReturn(now)
+    `when`(order.updateTime).thenReturn(now)
+    `when`(service.getOrderById("issuer-a", 2, OrderId(1))).thenReturn(Success(order))
 
-        val principal = AuthenticatedPrincipal("issuer-a", AuthenticatedAccountId(2))
-        val body = OrderController(service).getOrder(principal, 1).body
-        val json =
-            jacksonObjectMapper()
-                .findAndRegisterModules()
-                .valueToTree<com.fasterxml.jackson.databind.JsonNode>(body)
-        assertEquals("ACTIVE", json["tradeStatus"].asText())
-        assertEquals("PARTIALLY_REFUNDED", json["paymentStatus"].asText())
-        assertEquals("DELIVERED", json["fulfillmentStatus"].asText())
-        assertEquals("CONFIRMED", json["commitmentStatus"].asText())
-        assertFalse(json.has("afterSaleStatus"))
-        assertEquals(50, json["refundedAmount"].asLong())
-        assertEquals(100, json["payableAmount"].asLong())
-        assertFalse(json.has("status"))
-        assertFalse(json.has("buyerPhone"))
-        assertFalse(json.has("buyerName"))
-        assertEquals("CANCELED", json["items"][0]["status"].asText())
+    val principal = AuthenticatedPrincipal("issuer-a", AuthenticatedAccountId(2))
+    val body = OrderController(service).getOrder(principal, 1).body
+    val json =
+        jacksonObjectMapper()
+            .findAndRegisterModules()
+            .valueToTree<com.fasterxml.jackson.databind.JsonNode>(body)
+    assertEquals("ACTIVE", json["tradeStatus"].asText())
+    assertEquals("PARTIALLY_REFUNDED", json["paymentStatus"].asText())
+    assertEquals("DELIVERED", json["fulfillmentStatus"].asText())
+    assertEquals("CONFIRMED", json["commitmentStatus"].asText())
+    assertFalse(json.has("afterSaleStatus"))
+    assertEquals(50, json["refundedAmount"].asLong())
+    assertEquals(100, json["payableAmount"].asLong())
+    assertFalse(json.has("status"))
+    assertFalse(json.has("buyerPhone"))
+    assertFalse(json.has("buyerName"))
+    assertEquals("CANCELED", json["items"][0]["status"].asText())
 
-        `when`(service.pageListByUserId("issuer-a", 2, 1, 10))
-            .thenReturn(SortedPage(1, 1, listOf(order)))
-        val pageJson =
-            jacksonObjectMapper()
-                .findAndRegisterModules()
-                .valueToTree<com.fasterxml.jackson.databind.JsonNode>(
-                    OrderController(service).listMyOrders(principal, 1, 10).body
-                )
-        assertTrue(pageJson["records"][0].has("tradeStatus"))
-        assertFalse(pageJson["records"][0].has("status"))
-    }
+    `when`(service.pageListByUserId("issuer-a", 2, 1, 10))
+        .thenReturn(SortedPage(1, 1, listOf(order)))
+    val pageJson =
+        jacksonObjectMapper()
+            .findAndRegisterModules()
+            .valueToTree<com.fasterxml.jackson.databind.JsonNode>(
+                OrderController(service).listMyOrders(principal, 1, 10).body
+            )
+    assertTrue(pageJson["records"][0].has("tradeStatus"))
+    assertFalse(pageJson["records"][0].has("status"))
+  }
 }

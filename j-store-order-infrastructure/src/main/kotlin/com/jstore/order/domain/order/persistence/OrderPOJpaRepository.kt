@@ -25,20 +25,20 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
 interface OrderPOJpaRepository : JpaRepository<OrderPO, Long> {
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select o from OrderPO o where o.id = :id")
-    fun findByIdForUpdate(@Param("id") id: Long): OrderPO?
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select o from OrderPO o where o.id = :id")
+  fun findByIdForUpdate(@Param("id") id: Long): OrderPO?
 
-    fun findByBuyerAuthenticationDomainAndBuyerUid(
-        buyerAuthenticationDomain: String,
-        buyerUid: Long,
-    ): List<OrderPO>
+  fun findByBuyerAuthenticationDomainAndBuyerUid(
+      buyerAuthenticationDomain: String,
+      buyerUid: Long,
+  ): List<OrderPO>
 
-    fun findByBuyerAuthenticationDomainAndBuyerUid(
-        buyerAuthenticationDomain: String,
-        buyerUid: Long,
-        pageable: Pageable,
-    ): Page<OrderPO>
+  fun findByBuyerAuthenticationDomainAndBuyerUid(
+      buyerAuthenticationDomain: String,
+      buyerUid: Long,
+      pageable: Pageable,
+  ): Page<OrderPO>
 
-    fun findBySourceOrderPlanId(sourceOrderPlanId: Long): OrderPO?
+  fun findBySourceOrderPlanId(sourceOrderPlanId: Long): OrderPO?
 }

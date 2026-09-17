@@ -19,5 +19,5 @@ package com.jstore.payment.domain.payment
 import com.jstore.common.framework.AggregateRepository
 
 interface TradePaymentRepository : AggregateRepository<TradePaymentId, TradePayment> {
-    fun findByInstallment(settlementPlanId: Long, installmentId: String): TradePayment?
+  fun findByInstallment(settlementPlanId: Long, installmentId: String): TradePayment?
 }

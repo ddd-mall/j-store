@@ -25,8 +25,8 @@ class TransactionalProductTypeUseCase(
     private val delegate: ProductTypeUseCase,
     transactionManager: PlatformTransactionManager,
 ) : ProductTypeUseCase {
-    private val write = TransactionTemplate(transactionManager)
+  private val write = TransactionTemplate(transactionManager)
 
-    override fun save(command: ProductTypeSaveCommand) =
-        requireNotNull(write.execute { delegate.save(command) })
+  override fun save(command: ProductTypeSaveCommand) =
+      requireNotNull(write.execute { delegate.save(command) })
 }

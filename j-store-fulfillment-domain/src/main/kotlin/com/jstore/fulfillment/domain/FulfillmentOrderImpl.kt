@@ -36,66 +36,62 @@ class FulfillmentOrderImpl(
     private var _carrierCode: String? = null,
     private var _trackingNumber: String? = null,
 ) : EventRecordingAggregateRoot<FulfillmentOrderId>(), FulfillmentOrder {
-    private val _items = items.toList()
-    override val status: FulfillmentOrderStatus
-        get() = _status
+  private val _items = items.toList()
+  override val status: FulfillmentOrderStatus
+    get() = _status
 
-    override val items: List<FulfillmentItem>
-        get() = _items.toList()
+  override val items: List<FulfillmentItem>
+    get() = _items.toList()
 
-    override val carrierCode: String?
-        get() = _carrierCode
+  override val carrierCode: String?
+    get() = _carrierCode
 
-    override val trackingNumber: String?
-        get() = _trackingNumber
+  override val trackingNumber: String?
+    get() = _trackingNumber
 
-    init {
-        require(orderId > 0 && merchantId > 0 && _items.isNotEmpty())
-        require(_items.map { it.orderItemId }.toSet().size == _items.size)
+  init {
+    require(orderId > 0 && merchantId > 0 && _items.isNotEmpty())
+    require(_items.map { it.orderItemId }.toSet().size == _items.size)
+  }
+
+  override fun prepare(occurredAt: Instant): Result<Boolean, BusinessError> {
+    if (_status == FulfillmentOrderStatus.READY) return Success(false)
+    if (_status != FulfillmentOrderStatus.PENDING) return Failure(FulfillmentErrors.INVALID_STATE)
+    _status = FulfillmentOrderStatus.READY
+    raise(FulfillmentPreparedEvent(id, orderId, occurredAt))
+    return Success(true)
+  }
+
+  override fun dispatch(
+      carrierCode: String,
+      trackingNumber: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError> {
+    val normalizedCarrier = carrierCode.trim().uppercase()
+    val normalizedTracking = trackingNumber.trim()
+    if (normalizedCarrier.isBlank() || normalizedTracking.isBlank()) {
+      return Failure(FulfillmentErrors.SHIPPING_REFERENCE_INVALID)
     }
-
-    override fun prepare(occurredAt: Instant): Result<Boolean, BusinessError> {
-        if (_status == FulfillmentOrderStatus.READY) return Success(false)
-        if (_status != FulfillmentOrderStatus.PENDING)
-            return Failure(FulfillmentErrors.INVALID_STATE)
-        _status = FulfillmentOrderStatus.READY
-        raise(FulfillmentPreparedEvent(id, orderId, occurredAt))
-        return Success(true)
+    if (_status in setOf(FulfillmentOrderStatus.SHIPPED, FulfillmentOrderStatus.DELIVERED)) {
+      return if (_carrierCode == normalizedCarrier && _trackingNumber == normalizedTracking) {
+        Success(false)
+      } else {
+        Failure(FulfillmentErrors.SHIPPING_REFERENCE_CONFLICT)
+      }
     }
+    if (_status != FulfillmentOrderStatus.READY) return Failure(FulfillmentErrors.INVALID_STATE)
+    _carrierCode = normalizedCarrier
+    _trackingNumber = normalizedTracking
+    _status = FulfillmentOrderStatus.SHIPPED
+    raise(ShipmentDispatchedEvent(id, orderId, normalizedCarrier, normalizedTracking, occurredAt))
+    return Success(true)
+  }
 
-    override fun dispatch(
-        carrierCode: String,
-        trackingNumber: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError> {
-        val normalizedCarrier = carrierCode.trim().uppercase()
-        val normalizedTracking = trackingNumber.trim()
-        if (normalizedCarrier.isBlank() || normalizedTracking.isBlank()) {
-            return Failure(FulfillmentErrors.SHIPPING_REFERENCE_INVALID)
-        }
-        if (_status in setOf(FulfillmentOrderStatus.SHIPPED, FulfillmentOrderStatus.DELIVERED)) {
-            return if (_carrierCode == normalizedCarrier && _trackingNumber == normalizedTracking) {
-                Success(false)
-            } else {
-                Failure(FulfillmentErrors.SHIPPING_REFERENCE_CONFLICT)
-            }
-        }
-        if (_status != FulfillmentOrderStatus.READY) return Failure(FulfillmentErrors.INVALID_STATE)
-        _carrierCode = normalizedCarrier
-        _trackingNumber = normalizedTracking
-        _status = FulfillmentOrderStatus.SHIPPED
-        raise(
-            ShipmentDispatchedEvent(id, orderId, normalizedCarrier, normalizedTracking, occurredAt)
-        )
-        return Success(true)
-    }
-
-    override fun deliver(occurredAt: Instant): Result<Boolean, BusinessError> {
-        if (_status == FulfillmentOrderStatus.DELIVERED) return Success(false)
-        if (_status != FulfillmentOrderStatus.SHIPPED)
-            return Failure(FulfillmentErrors.INVALID_STATE)
-        _status = FulfillmentOrderStatus.DELIVERED
-        raise(ShipmentDeliveredEvent(id, orderId, occurredAt))
-        return Success(true)
-    }
+  override fun deliver(occurredAt: Instant): Result<Boolean, BusinessError> {
+    if (_status == FulfillmentOrderStatus.DELIVERED) return Success(false)
+    if (_status != FulfillmentOrderStatus.SHIPPED) return Failure(FulfillmentErrors.INVALID_STATE)
+    _status = FulfillmentOrderStatus.DELIVERED
+    raise(ShipmentDeliveredEvent(id, orderId, occurredAt))
+    return Success(true)
+  }
 }

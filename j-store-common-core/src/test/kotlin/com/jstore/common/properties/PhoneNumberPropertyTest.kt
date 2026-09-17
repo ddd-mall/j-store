@@ -32,58 +32,58 @@ import io.kotest.property.checkAll
 class PhoneNumberPropertyTest :
     FunSpec({
 
-        // Generator for valid Chinese mobile national numbers starting with 13x
-        val cnMobileArb: Arb<String> =
-            Arb.int(0..99999999).map { num -> "13${num.toString().padStart(9, '0')}" }
+      // Generator for valid Chinese mobile national numbers starting with 13x
+      val cnMobileArb: Arb<String> =
+          Arb.int(0..99999999).map { num -> "13${num.toString().padStart(9, '0')}" }
 
-        test(
-            "valid CN mobile numbers in E.164 are accepted and split into calling code + national number"
-        ) {
-            checkAll(100, cnMobileArb) { national ->
-                val phone = PhoneNumber("+86$national")
-                phone.countryCallingCode shouldBe 86
-                phone.nationalNumber shouldBe national
-                phone.value shouldBe "+86$national"
-            }
+      test(
+          "valid CN mobile numbers in E.164 are accepted and split into calling code + national number"
+      ) {
+        checkAll(100, cnMobileArb) { national ->
+          val phone = PhoneNumber("+86$national")
+          phone.countryCallingCode shouldBe 86
+          phone.nationalNumber shouldBe national
+          phone.value shouldBe "+86$national"
         }
+      }
 
-        test("valid numbers from multiple regions are accepted with correct calling code") {
-            val samples =
-                listOf(
-                    "+14155552671" to 1, // US
-                    "+818012345678" to 81, // JP
-                    "+447911123456" to 44, // GB
-                    "+82212345678" to 82, // KR
-                )
-            samples.forEach { (value, expectedCallingCode) ->
-                val phone = PhoneNumber(value)
-                phone.countryCallingCode shouldBe expectedCallingCode
-                phone.value shouldBe value
-            }
+      test("valid numbers from multiple regions are accepted with correct calling code") {
+        val samples =
+            listOf(
+                "+14155552671" to 1, // US
+                "+818012345678" to 81, // JP
+                "+447911123456" to 44, // GB
+                "+82212345678" to 82, // KR
+            )
+        samples.forEach { (value, expectedCallingCode) ->
+          val phone = PhoneNumber(value)
+          phone.countryCallingCode shouldBe expectedCallingCode
+          phone.value shouldBe value
         }
+      }
 
-        test("numbers without leading '+' are rejected") {
-            checkAll(100, cnMobileArb) { national ->
-                shouldThrow<IllegalArgumentException> { PhoneNumber(national) }
-                shouldThrow<IllegalArgumentException> { PhoneNumber("86$national") }
-            }
+      test("numbers without leading '+' are rejected") {
+        checkAll(100, cnMobileArb) { national ->
+          shouldThrow<IllegalArgumentException> { PhoneNumber(national) }
+          shouldThrow<IllegalArgumentException> { PhoneNumber("86$national") }
         }
+      }
 
-        test("non-canonical E.164 with separators is rejected") {
-            shouldThrow<IllegalArgumentException> { PhoneNumber("+86 138 0013 8000") }
-            shouldThrow<IllegalArgumentException> { PhoneNumber("+86-13800138000") }
-        }
+      test("non-canonical E.164 with separators is rejected") {
+        shouldThrow<IllegalArgumentException> { PhoneNumber("+86 138 0013 8000") }
+        shouldThrow<IllegalArgumentException> { PhoneNumber("+86-13800138000") }
+      }
 
-        test("structurally parseable but region-invalid numbers are rejected") {
-            // 国内号码位数不足的中国号码
-            shouldThrow<IllegalArgumentException> { PhoneNumber("+861380013800") }
-            // 中国不存在 12 开头的手机号段
-            shouldThrow<IllegalArgumentException> { PhoneNumber("+8612800138000") }
-        }
+      test("structurally parseable but region-invalid numbers are rejected") {
+        // 国内号码位数不足的中国号码
+        shouldThrow<IllegalArgumentException> { PhoneNumber("+861380013800") }
+        // 中国不存在 12 开头的手机号段
+        shouldThrow<IllegalArgumentException> { PhoneNumber("+8612800138000") }
+      }
 
-        test("of() composes the same value object as the E.164 constructor") {
-            checkAll(100, cnMobileArb) { national ->
-                PhoneNumber.of(86, national) shouldBe PhoneNumber("+86$national")
-            }
+      test("of() composes the same value object as the E.164 constructor") {
+        checkAll(100, cnMobileArb) { national ->
+          PhoneNumber.of(86, national) shouldBe PhoneNumber("+86$national")
         }
+      }
     })

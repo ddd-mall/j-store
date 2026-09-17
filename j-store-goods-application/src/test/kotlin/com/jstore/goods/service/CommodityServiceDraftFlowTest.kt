@@ -34,340 +34,340 @@ import org.mockito.kotlin.*
 
 class CommodityServiceDraftFlowTest :
     FunSpec({
-        lateinit var spuFactory: SpuFactory
-        lateinit var spuRepository: SpuRepository
-        lateinit var domainEventPublisher: DomainEventPublisher
-        lateinit var snapshotFactory: SpuSnapshotFactory
-        lateinit var snapshotRepository: SpuSnapshotRepository
-        lateinit var goodsStyleRepository: GoodsStyleRepository
-        lateinit var goodsStyleFactory: GoodsStyleFactory
-        lateinit var service: CommodityService
+      lateinit var spuFactory: SpuFactory
+      lateinit var spuRepository: SpuRepository
+      lateinit var domainEventPublisher: DomainEventPublisher
+      lateinit var snapshotFactory: SpuSnapshotFactory
+      lateinit var snapshotRepository: SpuSnapshotRepository
+      lateinit var goodsStyleRepository: GoodsStyleRepository
+      lateinit var goodsStyleFactory: GoodsStyleFactory
+      lateinit var service: CommodityService
 
-        beforeEach {
-            spuFactory = mock()
-            spuRepository = mock()
-            domainEventPublisher = mock()
-            snapshotFactory = mock()
-            snapshotRepository = mock()
-            goodsStyleRepository = mock()
-            goodsStyleFactory = mock()
-            service =
-                CommodityService(
-                    spuFactory = spuFactory,
-                    spuRepository = spuRepository,
-                    domainEventPublisher = domainEventPublisher,
-                    snapshotFactory = snapshotFactory,
-                    snapshotRepository = snapshotRepository,
-                    goodsStyleRepository = goodsStyleRepository,
-                    goodsStyleFactory = goodsStyleFactory,
-                    brandRepository = mock(),
-                )
-        }
-
-        val sourceSpuId = SpuId(100L)
-        val draftSpuId = SpuId(200L)
-
-        fun createSku(id: Long, name: String = "sku-$id"): Sku =
-            SkuImpl(
-                id = SkuId(id),
-                skuName = name,
-                attributes = listOf(Attribute("color", "red")),
+      beforeEach {
+        spuFactory = mock()
+        spuRepository = mock()
+        domainEventPublisher = mock()
+        snapshotFactory = mock()
+        snapshotRepository = mock()
+        goodsStyleRepository = mock()
+        goodsStyleFactory = mock()
+        service =
+            CommodityService(
+                spuFactory = spuFactory,
+                spuRepository = spuRepository,
+                domainEventPublisher = domainEventPublisher,
+                snapshotFactory = snapshotFactory,
+                snapshotRepository = snapshotRepository,
+                goodsStyleRepository = goodsStyleRepository,
+                goodsStyleFactory = goodsStyleFactory,
+                brandRepository = mock(),
             )
+      }
 
-        fun createOnSaleSpu(
-            id: SpuId = sourceSpuId,
-            name: String = "在售商品",
-            version: Long = 1L,
-        ): SpuImpl =
-            SpuImpl(
-                id = id,
-                name = name,
-                description = "商品描述",
-                _status = CommodityStatus.PUBLISHED,
-                _skus = mutableListOf(createSku(1L)),
-                _version = version,
-            )
+      val sourceSpuId = SpuId(100L)
+      val draftSpuId = SpuId(200L)
 
-        fun createDraftSpu(
-            id: SpuId = draftSpuId,
-            sourceId: SpuId = sourceSpuId,
-            name: String = "草稿商品",
-        ): SpuImpl =
+      fun createSku(id: Long, name: String = "sku-$id"): Sku =
+          SkuImpl(
+              id = SkuId(id),
+              skuName = name,
+              attributes = listOf(Attribute("color", "red")),
+          )
+
+      fun createOnSaleSpu(
+          id: SpuId = sourceSpuId,
+          name: String = "在售商品",
+          version: Long = 1L,
+      ): SpuImpl =
+          SpuImpl(
+              id = id,
+              name = name,
+              description = "商品描述",
+              _status = CommodityStatus.PUBLISHED,
+              _skus = mutableListOf(createSku(1L)),
+              _version = version,
+          )
+
+      fun createDraftSpu(
+          id: SpuId = draftSpuId,
+          sourceId: SpuId = sourceSpuId,
+          name: String = "草稿商品",
+      ): SpuImpl =
+          SpuImpl(
+              id = id,
+              name = name,
+              description = "草稿描述",
+              _status = CommodityStatus.DRAFT,
+              _skus = mutableListOf(createSku(2L, "draft-sku")),
+              _version = 1L,
+              sourceSpuId = sourceId,
+          )
+
+      // ==================== editOnSale 测试 ====================
+
+      test("editOnSale - SPU 不存在时返回 SPU_NOT_FOUND") {
+        whenever(spuRepository.findById(sourceSpuId)).thenReturn(null)
+
+        val result = service.getDraft(sourceSpuId)
+
+        result.shouldBeInstanceOf<Failure<BusinessError>>()
+        result.error shouldBe CommodityErrors.SPU_NOT_FOUND
+      }
+
+      test("editOnSale - 非 PUBLISHED 状态返回 ONLY_PUBLISHED_NEEDS_DRAFT") {
+        val draftSpu =
             SpuImpl(
-                id = id,
-                name = name,
-                description = "草稿描述",
+                id = sourceSpuId,
+                name = "草稿",
+                description = "",
                 _status = CommodityStatus.DRAFT,
-                _skus = mutableListOf(createSku(2L, "draft-sku")),
-                _version = 1L,
-                sourceSpuId = sourceId,
+                _skus = mutableListOf(createSku(1L)),
+            )
+        whenever(spuRepository.findById(sourceSpuId)).thenReturn(draftSpu)
+
+        val result = service.getDraft(sourceSpuId)
+
+        result.shouldBeInstanceOf<Failure<BusinessError>>()
+        result.error shouldBe CommodityErrors.ONLY_PUBLISHED_NEEDS_DRAFT
+      }
+
+      test("editOnSale - 已有草稿时幂等返回已有草稿") {
+        val source = createOnSaleSpu()
+        val existingDraft = createDraftSpu()
+        whenever(spuRepository.findById(sourceSpuId)).thenReturn(source)
+        whenever(spuRepository.findDraftBySourceSpuId(sourceSpuId)).thenReturn(existingDraft)
+
+        val result = service.getDraft(sourceSpuId)
+
+        result.shouldBeInstanceOf<Success<Spu>>()
+        result.value shouldBe existingDraft
+        verify(spuFactory, never()).createDraftCopy(any())
+        verify(spuRepository, never()).save(any())
+      }
+
+      test("editOnSale - 无草稿时创建新草稿副本") {
+        val source = createOnSaleSpu()
+        val newDraft = createDraftSpu()
+        whenever(spuRepository.findById(sourceSpuId)).thenReturn(source)
+        whenever(spuRepository.findDraftBySourceSpuId(sourceSpuId)).thenReturn(null)
+        whenever(spuFactory.createDraftCopy(source)).thenReturn(Success(newDraft))
+        whenever(spuRepository.save(newDraft)).thenReturn(newDraft)
+
+        val result = service.getDraft(sourceSpuId)
+
+        result.shouldBeInstanceOf<Success<Spu>>()
+        result.value shouldBe newDraft
+        verify(spuFactory).createDraftCopy(source)
+        verify(spuRepository).save(newDraft)
+      }
+
+      // ==================== publishDraft 测试 ====================
+
+      test("publishDraft - SPU 不存在时返回 SPU_NOT_FOUND") {
+        whenever(spuRepository.findById(draftSpuId)).thenReturn(null)
+
+        val result = service.publishDraft(draftSpuId)
+
+        result.shouldBeInstanceOf<Failure<BusinessError>>()
+        result.error shouldBe CommodityErrors.SPU_NOT_FOUND
+      }
+
+      test("publishDraft - 非草稿副本返回 NOT_A_DRAFT_COPY") {
+        val nonDraft =
+            SpuImpl(
+                id = draftSpuId,
+                name = "普通商品",
+                description = "",
+                _status = CommodityStatus.DRAFT,
+                _skus = mutableListOf(createSku(1L)),
+                sourceSpuId = null,
+            )
+        whenever(spuRepository.findById(draftSpuId)).thenReturn(nonDraft)
+
+        val result = service.publishDraft(draftSpuId)
+
+        result.shouldBeInstanceOf<Failure<BusinessError>>()
+        result.error shouldBe CommodityErrors.NOT_A_DRAFT_COPY
+      }
+
+      test("publishDraft - 完整流程：合并、快照、删除草稿") {
+        val source = createOnSaleSpu(version = 5L)
+        val draft = createDraftSpu()
+        val snapshot =
+            SpuSnapshot(
+                id = SpuSnapshotId(999L),
+                merchantId = MerchantId(1),
+                spuId = sourceSpuId,
+                snapshotVersion = 6L,
+                spuName = draft.name,
+                description = draft.description,
+                skuSnapshots = emptyList(),
+                createdAt = LocalDateTime.now(),
             )
 
-        // ==================== editOnSale 测试 ====================
+        whenever(spuRepository.findById(draftSpuId)).thenReturn(draft)
+        whenever(spuRepository.findById(sourceSpuId)).thenReturn(source)
+        whenever(snapshotFactory.createSnapshot(source)).thenReturn(snapshot)
+        whenever(spuRepository.save(source)).thenReturn(source)
+        whenever(snapshotRepository.save(snapshot)).thenReturn(snapshot)
 
-        test("editOnSale - SPU 不存在时返回 SPU_NOT_FOUND") {
-            whenever(spuRepository.findById(sourceSpuId)).thenReturn(null)
+        val result = service.publishDraft(draftSpuId)
 
-            val result = service.getDraft(sourceSpuId)
+        result.shouldBeInstanceOf<Success<SpuSnapshot>>()
+        result.value shouldBe snapshot
 
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.SPU_NOT_FOUND
-        }
+        // 验证合并后源商品数据已更新
+        source.name shouldBe draft.name
+        source.description shouldBe draft.description
+        source.version shouldBe 6L // 5 + 1
 
-        test("editOnSale - 非 PUBLISHED 状态返回 ONLY_PUBLISHED_NEEDS_DRAFT") {
-            val draftSpu =
-                SpuImpl(
-                    id = sourceSpuId,
-                    name = "草稿",
-                    description = "",
-                    _status = CommodityStatus.DRAFT,
-                    _skus = mutableListOf(createSku(1L)),
-                )
-            whenever(spuRepository.findById(sourceSpuId)).thenReturn(draftSpu)
+        // 验证持久化操作
+        verify(spuRepository).save(source)
+        verify(snapshotRepository).save(snapshot)
+        verify(spuRepository).delete(draft)
+      }
 
-            val result = service.getDraft(sourceSpuId)
+      // ==================== discardDraft 测试 ====================
 
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.ONLY_PUBLISHED_NEEDS_DRAFT
-        }
+      test("discardDraft - SPU 不存在时返回 SPU_NOT_FOUND") {
+        whenever(spuRepository.findById(draftSpuId)).thenReturn(null)
 
-        test("editOnSale - 已有草稿时幂等返回已有草稿") {
-            val source = createOnSaleSpu()
-            val existingDraft = createDraftSpu()
-            whenever(spuRepository.findById(sourceSpuId)).thenReturn(source)
-            whenever(spuRepository.findDraftBySourceSpuId(sourceSpuId)).thenReturn(existingDraft)
+        val result = service.discardDraft(draftSpuId)
 
-            val result = service.getDraft(sourceSpuId)
+        result.shouldBeInstanceOf<Failure<BusinessError>>()
+        result.error shouldBe CommodityErrors.SPU_NOT_FOUND
+      }
 
-            result.shouldBeInstanceOf<Success<Spu>>()
-            result.value shouldBe existingDraft
-            verify(spuFactory, never()).createDraftCopy(any())
-            verify(spuRepository, never()).save(any())
-        }
+      test("discardDraft - 非草稿副本返回 NOT_A_DRAFT_COPY") {
+        val nonDraft =
+            SpuImpl(
+                id = draftSpuId,
+                name = "普通商品",
+                description = "",
+                _status = CommodityStatus.DRAFT,
+                _skus = mutableListOf(createSku(1L)),
+                sourceSpuId = null,
+            )
+        whenever(spuRepository.findById(draftSpuId)).thenReturn(nonDraft)
 
-        test("editOnSale - 无草稿时创建新草稿副本") {
-            val source = createOnSaleSpu()
-            val newDraft = createDraftSpu()
-            whenever(spuRepository.findById(sourceSpuId)).thenReturn(source)
-            whenever(spuRepository.findDraftBySourceSpuId(sourceSpuId)).thenReturn(null)
-            whenever(spuFactory.createDraftCopy(source)).thenReturn(Success(newDraft))
-            whenever(spuRepository.save(newDraft)).thenReturn(newDraft)
+        val result = service.discardDraft(draftSpuId)
 
-            val result = service.getDraft(sourceSpuId)
+        result.shouldBeInstanceOf<Failure<BusinessError>>()
+        result.error shouldBe CommodityErrors.NOT_A_DRAFT_COPY
+      }
 
-            result.shouldBeInstanceOf<Success<Spu>>()
-            result.value shouldBe newDraft
-            verify(spuFactory).createDraftCopy(source)
-            verify(spuRepository).save(newDraft)
-        }
+      test("discardDraft - 完整流程：删除草稿，源商品不受影响") {
+        val source = createOnSaleSpu(version = 3L)
+        val draft = createDraftSpu()
 
-        // ==================== publishDraft 测试 ====================
+        // 记录源商品原始状态
+        val originalName = source.name
+        val originalDescription = source.description
+        val originalSkus = source.skus.toList()
+        val originalVersion = source.version
+        val originalStatus = source.status
 
-        test("publishDraft - SPU 不存在时返回 SPU_NOT_FOUND") {
-            whenever(spuRepository.findById(draftSpuId)).thenReturn(null)
+        whenever(spuRepository.findById(draftSpuId)).thenReturn(draft)
 
-            val result = service.publishDraft(draftSpuId)
+        val result = service.discardDraft(draftSpuId)
 
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.SPU_NOT_FOUND
-        }
+        result.shouldBeInstanceOf<Success<Unit>>()
+        verify(spuRepository).delete(draft)
 
-        test("publishDraft - 非草稿副本返回 NOT_A_DRAFT_COPY") {
-            val nonDraft =
-                SpuImpl(
-                    id = draftSpuId,
-                    name = "普通商品",
-                    description = "",
-                    _status = CommodityStatus.DRAFT,
-                    _skus = mutableListOf(createSku(1L)),
-                    sourceSpuId = null,
-                )
-            whenever(spuRepository.findById(draftSpuId)).thenReturn(nonDraft)
+        // 验证源商品完全不受影响
+        source.name shouldBe originalName
+        source.description shouldBe originalDescription
+        source.skus shouldBe originalSkus
+        source.version shouldBe originalVersion
+        source.status shouldBe originalStatus
+      }
 
-            val result = service.publishDraft(draftSpuId)
+      // ==================== createOrUpdate PUBLISHED 拦截测试 ====================
 
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.NOT_A_DRAFT_COPY
-        }
+      test("createOrUpdate - PUBLISHED 商品直接编辑被拦截") {
+        val cmd =
+            CommodityCreateCmd(
+                spuId = sourceSpuId,
+                merchantId = 1,
+                spuName = "新名称",
+                description = "新描述",
+            )
+        val onSaleSpu = createOnSaleSpu()
+        whenever(spuRepository.findById(sourceSpuId)).thenReturn(onSaleSpu)
 
-        test("publishDraft - 完整流程：合并、快照、删除草稿") {
-            val source = createOnSaleSpu(version = 5L)
-            val draft = createDraftSpu()
-            val snapshot =
-                SpuSnapshot(
-                    id = SpuSnapshotId(999L),
-                    merchantId = MerchantId(1),
-                    spuId = sourceSpuId,
-                    snapshotVersion = 6L,
-                    spuName = draft.name,
-                    description = draft.description,
-                    skuSnapshots = emptyList(),
-                    createdAt = LocalDateTime.now(),
-                )
+        val result = service.createOrUpdate(cmd)
 
-            whenever(spuRepository.findById(draftSpuId)).thenReturn(draft)
-            whenever(spuRepository.findById(sourceSpuId)).thenReturn(source)
-            whenever(snapshotFactory.createSnapshot(source)).thenReturn(snapshot)
-            whenever(spuRepository.save(source)).thenReturn(source)
-            whenever(snapshotRepository.save(snapshot)).thenReturn(snapshot)
+        result.shouldBeInstanceOf<Failure<BusinessError>>()
+        result.error shouldBe CommodityErrors.PUBLISHED_DIRECT_EDIT_REJECTED
+        verify(spuFactory, never()).update(any(), any())
+        verify(spuRepository, never()).save(any())
+      }
 
-            val result = service.publishDraft(draftSpuId)
+      test("createOrUpdate - DRAFT 商品允许直接编辑") {
+        val cmd =
+            CommodityCreateCmd(
+                spuId = sourceSpuId,
+                merchantId = 1,
+                spuName = "更新名称",
+                description = "更新描述",
+            )
+        val draftSpu =
+            SpuImpl(
+                id = sourceSpuId,
+                name = "旧名称",
+                description = "旧描述",
+                _status = CommodityStatus.DRAFT,
+                _skus = mutableListOf(createSku(1L)),
+            )
+        val updatedSpu =
+            SpuImpl(
+                id = sourceSpuId,
+                name = cmd.spuName,
+                description = cmd.description,
+                _status = CommodityStatus.DRAFT,
+                _skus = mutableListOf(createSku(1L)),
+            )
+        whenever(spuRepository.findById(sourceSpuId)).thenReturn(draftSpu)
+        whenever(spuFactory.update(cmd, draftSpu)).thenReturn(updatedSpu)
+        whenever(spuRepository.save(updatedSpu)).thenReturn(updatedSpu)
 
-            result.shouldBeInstanceOf<Success<SpuSnapshot>>()
-            result.value shouldBe snapshot
+        val result = service.createOrUpdate(cmd)
 
-            // 验证合并后源商品数据已更新
-            source.name shouldBe draft.name
-            source.description shouldBe draft.description
-            source.version shouldBe 6L // 5 + 1
+        result.shouldBeInstanceOf<Success<Spu>>()
+        result.value shouldBe updatedSpu
+      }
 
-            // 验证持久化操作
-            verify(spuRepository).save(source)
-            verify(snapshotRepository).save(snapshot)
-            verify(spuRepository).delete(draft)
-        }
+      test("createOrUpdate - ARCHIVED 商品允许直接编辑") {
+        val cmd =
+            CommodityCreateCmd(
+                spuId = sourceSpuId,
+                merchantId = 1,
+                spuName = "更新名称",
+                description = "更新描述",
+            )
+        val offSaleSpu =
+            SpuImpl(
+                id = sourceSpuId,
+                name = "旧名称",
+                description = "旧描述",
+                _status = CommodityStatus.ARCHIVED,
+                _skus = mutableListOf(createSku(1L)),
+            )
+        val updatedSpu =
+            SpuImpl(
+                id = sourceSpuId,
+                name = cmd.spuName,
+                description = cmd.description,
+                _status = CommodityStatus.ARCHIVED,
+                _skus = mutableListOf(createSku(1L)),
+            )
+        whenever(spuRepository.findById(sourceSpuId)).thenReturn(offSaleSpu)
+        whenever(spuFactory.update(cmd, offSaleSpu)).thenReturn(updatedSpu)
+        whenever(spuRepository.save(updatedSpu)).thenReturn(updatedSpu)
 
-        // ==================== discardDraft 测试 ====================
+        val result = service.createOrUpdate(cmd)
 
-        test("discardDraft - SPU 不存在时返回 SPU_NOT_FOUND") {
-            whenever(spuRepository.findById(draftSpuId)).thenReturn(null)
-
-            val result = service.discardDraft(draftSpuId)
-
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.SPU_NOT_FOUND
-        }
-
-        test("discardDraft - 非草稿副本返回 NOT_A_DRAFT_COPY") {
-            val nonDraft =
-                SpuImpl(
-                    id = draftSpuId,
-                    name = "普通商品",
-                    description = "",
-                    _status = CommodityStatus.DRAFT,
-                    _skus = mutableListOf(createSku(1L)),
-                    sourceSpuId = null,
-                )
-            whenever(spuRepository.findById(draftSpuId)).thenReturn(nonDraft)
-
-            val result = service.discardDraft(draftSpuId)
-
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.NOT_A_DRAFT_COPY
-        }
-
-        test("discardDraft - 完整流程：删除草稿，源商品不受影响") {
-            val source = createOnSaleSpu(version = 3L)
-            val draft = createDraftSpu()
-
-            // 记录源商品原始状态
-            val originalName = source.name
-            val originalDescription = source.description
-            val originalSkus = source.skus.toList()
-            val originalVersion = source.version
-            val originalStatus = source.status
-
-            whenever(spuRepository.findById(draftSpuId)).thenReturn(draft)
-
-            val result = service.discardDraft(draftSpuId)
-
-            result.shouldBeInstanceOf<Success<Unit>>()
-            verify(spuRepository).delete(draft)
-
-            // 验证源商品完全不受影响
-            source.name shouldBe originalName
-            source.description shouldBe originalDescription
-            source.skus shouldBe originalSkus
-            source.version shouldBe originalVersion
-            source.status shouldBe originalStatus
-        }
-
-        // ==================== createOrUpdate PUBLISHED 拦截测试 ====================
-
-        test("createOrUpdate - PUBLISHED 商品直接编辑被拦截") {
-            val cmd =
-                CommodityCreateCmd(
-                    spuId = sourceSpuId,
-                    merchantId = 1,
-                    spuName = "新名称",
-                    description = "新描述",
-                )
-            val onSaleSpu = createOnSaleSpu()
-            whenever(spuRepository.findById(sourceSpuId)).thenReturn(onSaleSpu)
-
-            val result = service.createOrUpdate(cmd)
-
-            result.shouldBeInstanceOf<Failure<BusinessError>>()
-            result.error shouldBe CommodityErrors.PUBLISHED_DIRECT_EDIT_REJECTED
-            verify(spuFactory, never()).update(any(), any())
-            verify(spuRepository, never()).save(any())
-        }
-
-        test("createOrUpdate - DRAFT 商品允许直接编辑") {
-            val cmd =
-                CommodityCreateCmd(
-                    spuId = sourceSpuId,
-                    merchantId = 1,
-                    spuName = "更新名称",
-                    description = "更新描述",
-                )
-            val draftSpu =
-                SpuImpl(
-                    id = sourceSpuId,
-                    name = "旧名称",
-                    description = "旧描述",
-                    _status = CommodityStatus.DRAFT,
-                    _skus = mutableListOf(createSku(1L)),
-                )
-            val updatedSpu =
-                SpuImpl(
-                    id = sourceSpuId,
-                    name = cmd.spuName,
-                    description = cmd.description,
-                    _status = CommodityStatus.DRAFT,
-                    _skus = mutableListOf(createSku(1L)),
-                )
-            whenever(spuRepository.findById(sourceSpuId)).thenReturn(draftSpu)
-            whenever(spuFactory.update(cmd, draftSpu)).thenReturn(updatedSpu)
-            whenever(spuRepository.save(updatedSpu)).thenReturn(updatedSpu)
-
-            val result = service.createOrUpdate(cmd)
-
-            result.shouldBeInstanceOf<Success<Spu>>()
-            result.value shouldBe updatedSpu
-        }
-
-        test("createOrUpdate - ARCHIVED 商品允许直接编辑") {
-            val cmd =
-                CommodityCreateCmd(
-                    spuId = sourceSpuId,
-                    merchantId = 1,
-                    spuName = "更新名称",
-                    description = "更新描述",
-                )
-            val offSaleSpu =
-                SpuImpl(
-                    id = sourceSpuId,
-                    name = "旧名称",
-                    description = "旧描述",
-                    _status = CommodityStatus.ARCHIVED,
-                    _skus = mutableListOf(createSku(1L)),
-                )
-            val updatedSpu =
-                SpuImpl(
-                    id = sourceSpuId,
-                    name = cmd.spuName,
-                    description = cmd.description,
-                    _status = CommodityStatus.ARCHIVED,
-                    _skus = mutableListOf(createSku(1L)),
-                )
-            whenever(spuRepository.findById(sourceSpuId)).thenReturn(offSaleSpu)
-            whenever(spuFactory.update(cmd, offSaleSpu)).thenReturn(updatedSpu)
-            whenever(spuRepository.save(updatedSpu)).thenReturn(updatedSpu)
-
-            val result = service.createOrUpdate(cmd)
-
-            result.shouldBeInstanceOf<Success<Spu>>()
-            result.value shouldBe updatedSpu
-        }
+        result.shouldBeInstanceOf<Success<Spu>>()
+        result.value shouldBe updatedSpu
+      }
     })

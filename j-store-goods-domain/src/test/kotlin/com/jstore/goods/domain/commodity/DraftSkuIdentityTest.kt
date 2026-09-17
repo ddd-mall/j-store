@@ -27,57 +27,57 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 
 class DraftSkuIdentityTest {
-    @Test
-    fun `draft copy cannot be published as an independent product`() {
-        val source = publishedSpu(SkuImpl(SkuId(101), "红色", emptyList()))
-        val draft =
-            assertIs<Success<Spu>>(SpuFactoryImpl(SnowFlakSequence()).createDraftCopy(source)).value
+  @Test
+  fun `draft copy cannot be published as an independent product`() {
+    val source = publishedSpu(SkuImpl(SkuId(101), "红色", emptyList()))
+    val draft =
+        assertIs<Success<Spu>>(SpuFactoryImpl(SnowFlakSequence()).createDraftCopy(source)).value
 
-        assertIs<Failure<*>>(draft.publish())
-    }
+    assertIs<Failure<*>>(draft.publish())
+  }
 
-    @Test
-    fun `draft owns distinct sku identities and remembers their published sources`() {
-        val sourceSku =
-            SkuImpl(
-                id = SkuId(101),
-                skuName = "红色 / XL",
-                attributes = listOf(Attribute("color", "red"), Attribute("size", "XL")),
-            )
-        val source = publishedSpu(sourceSku)
-
-        val draft =
-            assertIs<Success<Spu>>(SpuFactoryImpl(SnowFlakSequence()).createDraftCopy(source)).value
-
-        assertNotEquals(sourceSku.id, draft.skus.single().id)
-        assertEquals(sourceSku.id, draft.skus.single().sourceSkuId)
-        assertEquals(sourceSku.skuName, draft.skus.single().skuName)
-        assertEquals(sourceSku.attributes, draft.skus.single().attributes)
-    }
-
-    @Test
-    fun `publishing a draft restores existing sku ids and keeps new sku ids`() {
-        val source = publishedSpu(SkuImpl(SkuId(101), "红色", listOf(Attribute("color", "red"))))
-        val draft =
-            assertIs<Success<Spu>>(SpuFactoryImpl(SnowFlakSequence()).createDraftCopy(source)).value
-        val newSku = SkuImpl(SkuId(902), "蓝色", listOf(Attribute("color", "blue")))
-        assertIs<Success<Unit>>(draft.addSku(newSku))
-
-        assertIs<Success<Unit>>(source.mergeFromDraft(draft))
-
-        assertEquals(listOf(SkuId(101), SkuId(902)), source.skus.map { it.id })
-        source.skus.forEach { assertNull(it.sourceSkuId) }
-        val event = assertIs<CommodityPublishedEvent>(source.pendingDomainEvents().single())
-        assertEquals(source.version, event.snapshotVersion)
-    }
-
-    private fun publishedSpu(vararg skus: Sku): Spu =
-        SpuImpl(
-            id = SpuId(1),
-            merchantId = MerchantId(7),
-            name = "T恤",
-            _status = CommodityStatus.PUBLISHED,
-            _skus = skus.toMutableList(),
-            _version = 3,
+  @Test
+  fun `draft owns distinct sku identities and remembers their published sources`() {
+    val sourceSku =
+        SkuImpl(
+            id = SkuId(101),
+            skuName = "红色 / XL",
+            attributes = listOf(Attribute("color", "red"), Attribute("size", "XL")),
         )
+    val source = publishedSpu(sourceSku)
+
+    val draft =
+        assertIs<Success<Spu>>(SpuFactoryImpl(SnowFlakSequence()).createDraftCopy(source)).value
+
+    assertNotEquals(sourceSku.id, draft.skus.single().id)
+    assertEquals(sourceSku.id, draft.skus.single().sourceSkuId)
+    assertEquals(sourceSku.skuName, draft.skus.single().skuName)
+    assertEquals(sourceSku.attributes, draft.skus.single().attributes)
+  }
+
+  @Test
+  fun `publishing a draft restores existing sku ids and keeps new sku ids`() {
+    val source = publishedSpu(SkuImpl(SkuId(101), "红色", listOf(Attribute("color", "red"))))
+    val draft =
+        assertIs<Success<Spu>>(SpuFactoryImpl(SnowFlakSequence()).createDraftCopy(source)).value
+    val newSku = SkuImpl(SkuId(902), "蓝色", listOf(Attribute("color", "blue")))
+    assertIs<Success<Unit>>(draft.addSku(newSku))
+
+    assertIs<Success<Unit>>(source.mergeFromDraft(draft))
+
+    assertEquals(listOf(SkuId(101), SkuId(902)), source.skus.map { it.id })
+    source.skus.forEach { assertNull(it.sourceSkuId) }
+    val event = assertIs<CommodityPublishedEvent>(source.pendingDomainEvents().single())
+    assertEquals(source.version, event.snapshotVersion)
+  }
+
+  private fun publishedSpu(vararg skus: Sku): Spu =
+      SpuImpl(
+          id = SpuId(1),
+          merchantId = MerchantId(7),
+          name = "T恤",
+          _status = CommodityStatus.PUBLISHED,
+          _skus = skus.toMutableList(),
+          _version = 3,
+      )
 }

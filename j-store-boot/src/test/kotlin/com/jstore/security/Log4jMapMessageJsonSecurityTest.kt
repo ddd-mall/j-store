@@ -23,30 +23,30 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.message.MapMessage
 
 class Log4jMapMessageJsonSecurityTest {
-    private val mapper = ObjectMapper()
+  private val mapper = ObjectMapper()
 
-    @Test
-    fun `map message encodes finite and non-finite floating point values as valid JSON`() {
-        val values = listOf(1.25, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)
+  @Test
+  fun `map message encodes finite and non-finite floating point values as valid JSON`() {
+    val values = listOf(1.25, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)
 
-        values.forEach { value ->
-            val json = NumericMapMessage().with("value", value).toJson()
-            val parsed = mapper.readTree(json)
+    values.forEach { value ->
+      val json = NumericMapMessage().with("value", value).toJson()
+      val parsed = mapper.readTree(json)
 
-            if (value.isFinite()) assertEquals(value, parsed["value"].doubleValue())
-            else assertEquals(value.toString(), parsed["value"].textValue())
-        }
+      if (value.isFinite()) assertEquals(value, parsed["value"].doubleValue())
+      else assertEquals(value.toString(), parsed["value"].textValue())
     }
+  }
 
-    @Test
-    fun `log4j api remains bridged to slf4j`() {
-        assertEquals(
-            "org.apache.logging.slf4j.SLF4JLoggerContextFactory",
-            LogManager.getFactory().javaClass.name,
-        )
-    }
+  @Test
+  fun `log4j api remains bridged to slf4j`() {
+    assertEquals(
+        "org.apache.logging.slf4j.SLF4JLoggerContextFactory",
+        LogManager.getFactory().javaClass.name,
+    )
+  }
 }
 
 private class NumericMapMessage : MapMessage<NumericMapMessage, Double>() {
-    fun toJson(): String = StringBuilder().also(::asJson).toString()
+  fun toJson(): String = StringBuilder().also(::asJson).toString()
 }

@@ -21,9 +21,9 @@ import com.jstore.common.properties.Id
 import com.jstore.goods.domain.content.LocalizedText
 
 data class CategoryId(override val value: Long) : Id<Long>(value) {
-    init {
-        require(value != 0L) { "category id must not be zero" }
-    }
+  init {
+    require(value != 0L) { "category id must not be zero" }
+  }
 }
 
 data class Category(
@@ -31,7 +31,7 @@ data class Category(
     val name: LocalizedText,
     val parentId: CategoryId? = null,
 ) : Entity<CategoryId> {
-    init {
-        require(parentId != id) { "category cannot be its own parent" }
-    }
+  init {
+    require(parentId != id) { "category cannot be its own parent" }
+  }
 }

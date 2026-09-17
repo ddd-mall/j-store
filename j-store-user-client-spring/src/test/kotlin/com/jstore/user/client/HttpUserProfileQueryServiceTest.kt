@@ -34,129 +34,129 @@ import org.springframework.test.web.client.response.MockRestResponseCreators.wit
 import org.springframework.web.client.RestClient
 
 class HttpUserProfileQueryServiceTest {
-    private val token = "a".repeat(32)
-    private val builder = RestClient.builder().baseUrl("http://user-service")
-    private val server = MockRestServiceServer.bindTo(builder).build()
-    private val service =
-        HttpUserProfileQueryService(
-            builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer $token").build()
+  private val token = "a".repeat(32)
+  private val builder = RestClient.builder().baseUrl("http://user-service")
+  private val server = MockRestServiceServer.bindTo(builder).build()
+  private val service =
+      HttpUserProfileQueryService(
+          builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer $token").build()
+      )
+
+  @Test
+  fun `successful response maps the complete profile and sends service credential`() {
+    server
+        .expect(once(), requestTo("http://user-service/internal/api/users/42/profile"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer $token"))
+        .andRespond(
+            withSuccess(
+                """{"userId":42,"nickname":"buyer","phoneNumber":"+8613800138000","status":"ACTIVE"}""",
+                MediaType.APPLICATION_JSON,
+            )
         )
 
-    @Test
-    fun `successful response maps the complete profile and sends service credential`() {
-        server
-            .expect(once(), requestTo("http://user-service/internal/api/users/42/profile"))
-            .andExpect(method(HttpMethod.GET))
-            .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer $token"))
-            .andRespond(
-                withSuccess(
-                    """{"userId":42,"nickname":"buyer","phoneNumber":"+8613800138000","status":"ACTIVE"}""",
-                    MediaType.APPLICATION_JSON,
-                )
+    val profile = service.findInCurrentAuthenticationDomain(42)!!
+
+    assertEquals("buyer", profile.nickname)
+    assertEquals("+8613800138000", profile.phoneNumber)
+    assertEquals(UserProfileStatus.ACTIVE, profile.status)
+    server.verify()
+  }
+
+  @Test
+  fun `not found is the only HTTP failure mapped to missing user`() {
+    server
+        .expect(requestTo("http://user-service/internal/api/users/404/profile"))
+        .andRespond(withStatus(org.springframework.http.HttpStatus.NOT_FOUND))
+
+    assertNull(service.findInCurrentAuthenticationDomain(404))
+    server.verify()
+  }
+
+  @Test
+  fun `unauthorized response is propagated as a dependency failure`() {
+    server
+        .expect(requestTo("http://user-service/internal/api/users/42/profile"))
+        .andRespond(withStatus(org.springframework.http.HttpStatus.UNAUTHORIZED))
+
+    assertFailsWith<UserProfileDependencyException> {
+      service.findInCurrentAuthenticationDomain(42)
+    }
+    server.verify()
+  }
+
+  @Test
+  fun `server error is propagated as a dependency failure`() {
+    server
+        .expect(requestTo("http://user-service/internal/api/users/42/profile"))
+        .andRespond(withStatus(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE))
+
+    assertFailsWith<UserProfileDependencyException> {
+      service.findInCurrentAuthenticationDomain(42)
+    }
+    server.verify()
+  }
+
+  @Test
+  fun `empty response is propagated as a dependency failure`() {
+    server
+        .expect(requestTo("http://user-service/internal/api/users/42/profile"))
+        .andRespond(withSuccess())
+
+    assertFailsWith<UserProfileDependencyException> {
+      service.findInCurrentAuthenticationDomain(42)
+    }
+    server.verify()
+  }
+
+  @Test
+  fun `invalid profile response is propagated as a dependency failure`() {
+    server
+        .expect(requestTo("http://user-service/internal/api/users/42/profile"))
+        .andRespond(
+            withSuccess(
+                """{"userId":42,"nickname":"","phoneNumber":"+8613800138000","status":"ACTIVE"}""",
+                MediaType.APPLICATION_JSON,
             )
+        )
 
-        val profile = service.findInCurrentAuthenticationDomain(42)!!
-
-        assertEquals("buyer", profile.nickname)
-        assertEquals("+8613800138000", profile.phoneNumber)
-        assertEquals(UserProfileStatus.ACTIVE, profile.status)
-        server.verify()
+    assertFailsWith<UserProfileDependencyException> {
+      service.findInCurrentAuthenticationDomain(42)
     }
+    server.verify()
+  }
 
-    @Test
-    fun `not found is the only HTTP failure mapped to missing user`() {
-        server
-            .expect(requestTo("http://user-service/internal/api/users/404/profile"))
-            .andRespond(withStatus(org.springframework.http.HttpStatus.NOT_FOUND))
-
-        assertNull(service.findInCurrentAuthenticationDomain(404))
-        server.verify()
-    }
-
-    @Test
-    fun `unauthorized response is propagated as a dependency failure`() {
-        server
-            .expect(requestTo("http://user-service/internal/api/users/42/profile"))
-            .andRespond(withStatus(org.springframework.http.HttpStatus.UNAUTHORIZED))
-
-        assertFailsWith<UserProfileDependencyException> {
-            service.findInCurrentAuthenticationDomain(42)
-        }
-        server.verify()
-    }
-
-    @Test
-    fun `server error is propagated as a dependency failure`() {
-        server
-            .expect(requestTo("http://user-service/internal/api/users/42/profile"))
-            .andRespond(withStatus(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE))
-
-        assertFailsWith<UserProfileDependencyException> {
-            service.findInCurrentAuthenticationDomain(42)
-        }
-        server.verify()
-    }
-
-    @Test
-    fun `empty response is propagated as a dependency failure`() {
-        server
-            .expect(requestTo("http://user-service/internal/api/users/42/profile"))
-            .andRespond(withSuccess())
-
-        assertFailsWith<UserProfileDependencyException> {
-            service.findInCurrentAuthenticationDomain(42)
-        }
-        server.verify()
-    }
-
-    @Test
-    fun `invalid profile response is propagated as a dependency failure`() {
-        server
-            .expect(requestTo("http://user-service/internal/api/users/42/profile"))
-            .andRespond(
-                withSuccess(
-                    """{"userId":42,"nickname":"","phoneNumber":"+8613800138000","status":"ACTIVE"}""",
-                    MediaType.APPLICATION_JSON,
-                )
+  @Test
+  fun `invalid verified phone response is propagated as a dependency failure`() {
+    server
+        .expect(requestTo("http://user-service/internal/api/users/42/profile"))
+        .andRespond(
+            withSuccess(
+                """{"userId":42,"nickname":"buyer","phoneNumber":"not-a-phone","status":"ACTIVE"}""",
+                MediaType.APPLICATION_JSON,
             )
+        )
 
-        assertFailsWith<UserProfileDependencyException> {
-            service.findInCurrentAuthenticationDomain(42)
-        }
-        server.verify()
+    assertFailsWith<UserProfileDependencyException> {
+      service.findInCurrentAuthenticationDomain(42)
     }
+    server.verify()
+  }
 
-    @Test
-    fun `invalid verified phone response is propagated as a dependency failure`() {
-        server
-            .expect(requestTo("http://user-service/internal/api/users/42/profile"))
-            .andRespond(
-                withSuccess(
-                    """{"userId":42,"nickname":"buyer","phoneNumber":"not-a-phone","status":"ACTIVE"}""",
-                    MediaType.APPLICATION_JSON,
-                )
+  @Test
+  fun `profile for a different user is rejected as a dependency failure`() {
+    server
+        .expect(requestTo("http://user-service/internal/api/users/42/profile"))
+        .andRespond(
+            withSuccess(
+                """{"userId":7,"nickname":"other","phoneNumber":"+8613900139000","status":"ACTIVE"}""",
+                MediaType.APPLICATION_JSON,
             )
+        )
 
-        assertFailsWith<UserProfileDependencyException> {
-            service.findInCurrentAuthenticationDomain(42)
-        }
-        server.verify()
+    assertFailsWith<UserProfileDependencyException> {
+      service.findInCurrentAuthenticationDomain(42)
     }
-
-    @Test
-    fun `profile for a different user is rejected as a dependency failure`() {
-        server
-            .expect(requestTo("http://user-service/internal/api/users/42/profile"))
-            .andRespond(
-                withSuccess(
-                    """{"userId":7,"nickname":"other","phoneNumber":"+8613900139000","status":"ACTIVE"}""",
-                    MediaType.APPLICATION_JSON,
-                )
-            )
-
-        assertFailsWith<UserProfileDependencyException> {
-            service.findInCurrentAuthenticationDomain(42)
-        }
-        server.verify()
-    }
+    server.verify()
+  }
 }

@@ -20,20 +20,20 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class OutboxStreamSequenceAllocatorTest {
-    @Test
-    fun `default batch allocation preserves input order through single allocations`() {
-        val calls = mutableListOf<OutboxStreamKey>()
-        val allocator = OutboxStreamSequenceAllocator { transportId, orderingKey ->
-            calls += OutboxStreamKey(transportId, orderingKey)
-            calls.size.toLong()
-        }
-        val streams =
-            listOf(
-                OutboxStreamKey("local-domain", "order-1"),
-                OutboxStreamKey("local-domain", "order-2"),
-            )
-
-        assertEquals(listOf(1L, 2L), allocator.nextSequences(streams))
-        assertEquals(streams, calls)
+  @Test
+  fun `default batch allocation preserves input order through single allocations`() {
+    val calls = mutableListOf<OutboxStreamKey>()
+    val allocator = OutboxStreamSequenceAllocator { transportId, orderingKey ->
+      calls += OutboxStreamKey(transportId, orderingKey)
+      calls.size.toLong()
     }
+    val streams =
+        listOf(
+            OutboxStreamKey("local-domain", "order-1"),
+            OutboxStreamKey("local-domain", "order-2"),
+        )
+
+    assertEquals(listOf(1L, 2L), allocator.nextSequences(streams))
+    assertEquals(streams, calls)
+  }
 }

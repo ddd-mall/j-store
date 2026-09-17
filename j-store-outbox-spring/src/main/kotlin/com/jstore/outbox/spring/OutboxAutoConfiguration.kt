@@ -35,98 +35,98 @@ import org.springframework.context.annotation.Lazy
 @EnableConfigurationProperties(OutboxPublicationProperties::class, MessagingProperties::class)
 @ConditionalOnProperty(prefix = "jstore.outbox", name = ["enabled"], havingValue = "true")
 class OutboxAutoConfiguration {
-    @Bean
-    @Lazy(false)
-    fun outboxBackendSelection(
-        properties: OutboxPublicationProperties,
-        backends: List<OutboxBackend>,
-    ): OutboxBackendSelection {
-        check(backends.size == 1 && backends.single().id == properties.mode) {
-            "Expected exactly one Outbox backend for mode=${properties.mode}, found=${backends.map { it.id }}"
-        }
-        return OutboxBackendSelection(backends.single())
+  @Bean
+  @Lazy(false)
+  fun outboxBackendSelection(
+      properties: OutboxPublicationProperties,
+      backends: List<OutboxBackend>,
+  ): OutboxBackendSelection {
+    check(backends.size == 1 && backends.single().id == properties.mode) {
+      "Expected exactly one Outbox backend for mode=${properties.mode}, found=${backends.map { it.id }}"
     }
+    return OutboxBackendSelection(backends.single())
+  }
 
-    @Bean
-    fun eventTypeRegistry(): EventTypeRegistry {
-        return InMemoryEventTypeRegistry()
-    }
+  @Bean
+  fun eventTypeRegistry(): EventTypeRegistry {
+    return InMemoryEventTypeRegistry()
+  }
 
-    @Bean
-    fun springEventTypeRegistryRegistrar(
-        eventTypeRegistry: EventTypeRegistry,
-        properties: OutboxPublicationProperties,
-    ): SpringEventTypeRegistryRegistrar {
-        return SpringEventTypeRegistryRegistrar(eventTypeRegistry, properties.eventTypeScanPackages)
-    }
+  @Bean
+  fun springEventTypeRegistryRegistrar(
+      eventTypeRegistry: EventTypeRegistry,
+      properties: OutboxPublicationProperties,
+  ): SpringEventTypeRegistryRegistrar {
+    return SpringEventTypeRegistryRegistrar(eventTypeRegistry, properties.eventTypeScanPackages)
+  }
 
-    @Bean
-    fun eventUpcasterRegistry(upcasters: ObjectProvider<EventUpcaster>): EventUpcasterRegistry {
-        return InMemoryEventUpcasterRegistry(upcasters)
-    }
+  @Bean
+  fun eventUpcasterRegistry(upcasters: ObjectProvider<EventUpcaster>): EventUpcasterRegistry {
+    return InMemoryEventUpcasterRegistry(upcasters)
+  }
 
-    @Bean
-    fun integrationMessageTypeRegistry(): IntegrationMessageTypeRegistry =
-        InMemoryIntegrationMessageTypeRegistry()
+  @Bean
+  fun integrationMessageTypeRegistry(): IntegrationMessageTypeRegistry =
+      InMemoryIntegrationMessageTypeRegistry()
 
-    @Bean
-    fun springIntegrationMessageTypeRegistryRegistrar(
-        registry: IntegrationMessageTypeRegistry,
-        properties: OutboxPublicationProperties,
-    ): SpringIntegrationMessageTypeRegistryRegistrar =
-        SpringIntegrationMessageTypeRegistryRegistrar(registry, properties.eventTypeScanPackages)
+  @Bean
+  fun springIntegrationMessageTypeRegistryRegistrar(
+      registry: IntegrationMessageTypeRegistry,
+      properties: OutboxPublicationProperties,
+  ): SpringIntegrationMessageTypeRegistryRegistrar =
+      SpringIntegrationMessageTypeRegistryRegistrar(registry, properties.eventTypeScanPackages)
 
-    @Bean
-    fun integrationMessageSerializer(
-        objectMapper: ObjectMapper,
-        registry: IntegrationMessageTypeRegistry,
-    ): IntegrationMessageSerializer = JacksonIntegrationMessageSerializer(objectMapper, registry)
+  @Bean
+  fun integrationMessageSerializer(
+      objectMapper: ObjectMapper,
+      registry: IntegrationMessageTypeRegistry,
+  ): IntegrationMessageSerializer = JacksonIntegrationMessageSerializer(objectMapper, registry)
 
-    @Bean
-    fun eventSerializer(
-        objectMapper: ObjectMapper,
-        eventTypeRegistry: EventTypeRegistry,
-        eventUpcasterRegistry: EventUpcasterRegistry,
-    ): EventSerializer {
-        return JacksonEventSerializer(objectMapper, eventTypeRegistry, eventUpcasterRegistry)
-    }
+  @Bean
+  fun eventSerializer(
+      objectMapper: ObjectMapper,
+      eventTypeRegistry: EventTypeRegistry,
+      eventUpcasterRegistry: EventUpcasterRegistry,
+  ): EventSerializer {
+    return JacksonEventSerializer(objectMapper, eventTypeRegistry, eventUpcasterRegistry)
+  }
 
-    @Bean
-    fun domainEventPublisher(
-        selection: OutboxBackendSelection,
-        eventSerializer: EventSerializer,
-        snowFlakSequence: SnowFlakSequence,
-        eventTypeRegistry: EventTypeRegistry,
-    ): DomainEventPublisher {
-        return OutboxEventPublisher(
-            selection.backend.writer,
-            eventSerializer,
-            snowFlakSequence,
-            eventTypeRegistry,
-            selection.backend.sequenceAllocator,
-        )
-    }
+  @Bean
+  fun domainEventPublisher(
+      selection: OutboxBackendSelection,
+      eventSerializer: EventSerializer,
+      snowFlakSequence: SnowFlakSequence,
+      eventTypeRegistry: EventTypeRegistry,
+  ): DomainEventPublisher {
+    return OutboxEventPublisher(
+        selection.backend.writer,
+        eventSerializer,
+        snowFlakSequence,
+        eventTypeRegistry,
+        selection.backend.sequenceAllocator,
+    )
+  }
 
-    @Bean
-    fun integrationPublicationPlanner(
-        properties: MessagingProperties
-    ): IntegrationPublicationPlanner =
-        IntegrationPublicationPlanner(properties.targets, properties.integrationRoutes())
+  @Bean
+  fun integrationPublicationPlanner(
+      properties: MessagingProperties
+  ): IntegrationPublicationPlanner =
+      IntegrationPublicationPlanner(properties.targets, properties.integrationRoutes())
 
-    @Bean
-    fun integrationMessagePublisher(
-        selection: OutboxBackendSelection,
-        integrationMessageSerializer: IntegrationMessageSerializer,
-        snowFlakSequence: SnowFlakSequence,
-        integrationMessageTypeRegistry: IntegrationMessageTypeRegistry,
-        integrationPublicationPlanner: IntegrationPublicationPlanner,
-    ): IntegrationMessagePublisher =
-        OutboxIntegrationMessagePublisher(
-            selection.backend.writer,
-            integrationMessageSerializer,
-            snowFlakSequence,
-            integrationMessageTypeRegistry,
-            integrationPublicationPlanner,
-            selection.backend.sequenceAllocator,
-        )
+  @Bean
+  fun integrationMessagePublisher(
+      selection: OutboxBackendSelection,
+      integrationMessageSerializer: IntegrationMessageSerializer,
+      snowFlakSequence: SnowFlakSequence,
+      integrationMessageTypeRegistry: IntegrationMessageTypeRegistry,
+      integrationPublicationPlanner: IntegrationPublicationPlanner,
+  ): IntegrationMessagePublisher =
+      OutboxIntegrationMessagePublisher(
+          selection.backend.writer,
+          integrationMessageSerializer,
+          snowFlakSequence,
+          integrationMessageTypeRegistry,
+          integrationPublicationPlanner,
+          selection.backend.sequenceAllocator,
+      )
 }

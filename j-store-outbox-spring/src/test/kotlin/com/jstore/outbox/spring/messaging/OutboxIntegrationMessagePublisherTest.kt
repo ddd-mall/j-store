@@ -26,6 +26,7 @@ import com.jstore.outbox.IntegrationPublicationPlanner
 import com.jstore.outbox.IntegrationRoute
 import com.jstore.outbox.OutboxDeliveryTarget
 import com.jstore.outbox.OutboxMessageKind
+import com.jstore.outbox.OutboxOrderingKeys
 import com.jstore.outbox.OutboxStreamSequenceAllocator
 import com.jstore.outbox.spring.NoopOutboxRelaySignal
 import com.jstore.outbox.spring.OutboxRelaySignal
@@ -45,114 +46,110 @@ import org.mockito.kotlin.whenever
 
 class OutboxIntegrationMessagePublisherTest :
     FunSpec({
-        test("multiple targets persist independently retryable publications") {
-            val repository = mock<OutboxEntryRepository>()
-            val serializer = mock<IntegrationMessageSerializer>()
-            val sequenceAllocator = mock<OutboxStreamSequenceAllocator>()
-            val registry = InMemoryIntegrationMessageTypeRegistry()
-            registry.register("test.inventory.reserve", 1, TestReserveInventoryCommand::class.java)
-            whenever(serializer.serialize(message)).thenReturn("{\"orderId\":42}")
-            val orderingKey = "57d0d731fe2cefe49a264ba7e12c17ae2b8de8fae70f4703504532a64e200f47"
-            whenever(sequenceAllocator.nextSequence("local", orderingKey)).thenReturn(7)
-            whenever(sequenceAllocator.nextSequence("kafka", orderingKey)).thenReturn(11)
-            val relaySignal = mock<OutboxRelaySignal>()
-            val publisher =
-                OutboxIntegrationMessagePublisher(
-                    PollingOutboxWriter(repository, relaySignal),
-                    serializer,
-                    SnowFlakSequence(1, 1),
-                    registry,
-                    IntegrationPublicationPlanner(
-                        defaultTargets = listOf("local"),
-                        routes =
-                            listOf(
-                                IntegrationRoute(
-                                    logicalDestination = "inventory.commands",
-                                    deliveries =
-                                        listOf(
-                                            IntegrationDeliveryRoute(
-                                                transportId = "kafka",
-                                                destination = "commerce.inventory.commands.v1",
-                                                deliveryProfile = "CHECKOUT_CRITICAL",
-                                            ),
-                                            IntegrationDeliveryRoute(
-                                                transportId = "local",
-                                                destination = "inventory.commands",
-                                                deliveryProfile = "CHECKOUT_CRITICAL",
-                                            ),
+      test("multiple targets persist independently retryable publications") {
+        val repository = mock<OutboxEntryRepository>()
+        val serializer = mock<IntegrationMessageSerializer>()
+        val sequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+        val registry = InMemoryIntegrationMessageTypeRegistry()
+        registry.register("test.inventory.reserve", 1, TestReserveInventoryCommand::class.java)
+        whenever(serializer.serialize(message)).thenReturn("{\"orderId\":42}")
+        val orderingKey = OutboxOrderingKeys.integration("inventory.commands", "42")
+        whenever(sequenceAllocator.nextSequence("local", orderingKey)).thenReturn(7)
+        whenever(sequenceAllocator.nextSequence("kafka", orderingKey)).thenReturn(11)
+        val relaySignal = mock<OutboxRelaySignal>()
+        val publisher =
+            OutboxIntegrationMessagePublisher(
+                PollingOutboxWriter(repository, relaySignal),
+                serializer,
+                SnowFlakSequence(1, 1),
+                registry,
+                IntegrationPublicationPlanner(
+                    defaultTargets = listOf("local"),
+                    routes =
+                        listOf(
+                            IntegrationRoute(
+                                logicalDestination = "inventory.commands",
+                                deliveries =
+                                    listOf(
+                                        IntegrationDeliveryRoute(
+                                            transportId = "kafka",
+                                            destination = "commerce.inventory.commands.v1",
+                                            deliveryProfile = "CHECKOUT_CRITICAL",
                                         ),
-                                )
-                            ),
-                    ),
-                    sequenceAllocator,
-                )
+                                        IntegrationDeliveryRoute(
+                                            transportId = "local",
+                                            destination = "inventory.commands",
+                                            deliveryProfile = "CHECKOUT_CRITICAL",
+                                        ),
+                                    ),
+                            )
+                        ),
+                ),
+                sequenceAllocator,
+            )
 
-            publisher.publish(message)
+        publisher.publish(message)
 
-            val captor = argumentCaptor<List<OutboxEntry>>()
-            verify(repository).saveAll(captor.capture())
-            verify(relaySignal).signalAfterCommit()
-            captor.firstValue
-                .map { it.deliveryTarget }
-                .shouldContainExactly(
-                    OutboxDeliveryTarget.BROKER,
-                    OutboxDeliveryTarget.LOCAL_INTEGRATION,
-                )
-            captor.firstValue.map { it.transportId }.shouldContainExactly("kafka", "local")
-            captor.firstValue.map { it.logicalDestination }.distinct() shouldBe
-                listOf("inventory.commands")
-            captor.firstValue
-                .map { it.destination }
-                .shouldContainExactly(
-                    "commerce.inventory.commands.v1",
-                    "inventory.commands",
-                )
-            captor.firstValue.map { it.deliveryProfile }.distinct() shouldBe
-                listOf("CHECKOUT_CRITICAL")
-            captor.firstValue.map { it.acceptBefore }.distinct() shouldBe
-                listOf(message.acceptBefore)
-            captor.firstValue.map { it.eventId }.distinct() shouldBe listOf(message.messageId)
-            captor.firstValue.map { it.messageKind }.distinct() shouldBe
-                listOf(OutboxMessageKind.INTEGRATION_COMMAND)
-            captor.firstValue.map { it.partitionKey }.distinct() shouldBe
-                listOf(message.partitionKey)
-            captor.firstValue.map { it.correlationId }.distinct() shouldBe
-                listOf(message.correlationId)
-            captor.firstValue.map { it.merchantScopeId }.distinct() shouldBe
-                listOf(message.merchantScopeId)
-            captor.firstValue.map { it.deploymentScopeId }.distinct() shouldBe
-                listOf(message.deploymentScopeId)
-            captor.firstValue.map { it.orderingKey }.distinct() shouldBe listOf(orderingKey)
-            captor.firstValue.map { it.sequenceNo }.shouldContainExactly(11, 7)
-        }
+        val captor = argumentCaptor<List<OutboxEntry>>()
+        verify(repository).saveAll(captor.capture())
+        verify(relaySignal).signalAfterCommit()
+        captor.firstValue
+            .map { it.deliveryTarget }
+            .shouldContainExactly(
+                OutboxDeliveryTarget.BROKER,
+                OutboxDeliveryTarget.LOCAL_INTEGRATION,
+            )
+        captor.firstValue.map { it.transportId }.shouldContainExactly("kafka", "local")
+        captor.firstValue.map { it.logicalDestination }.distinct() shouldBe
+            listOf("inventory.commands")
+        captor.firstValue
+            .map { it.destination }
+            .shouldContainExactly(
+                "commerce.inventory.commands.v1",
+                "inventory.commands",
+            )
+        captor.firstValue.map { it.deliveryProfile }.distinct() shouldBe listOf("CHECKOUT_CRITICAL")
+        captor.firstValue.map { it.acceptBefore }.distinct() shouldBe listOf(message.acceptBefore)
+        captor.firstValue.map { it.eventId }.distinct() shouldBe listOf(message.messageId)
+        captor.firstValue.map { it.messageKind }.distinct() shouldBe
+            listOf(OutboxMessageKind.INTEGRATION_COMMAND)
+        captor.firstValue.map { it.partitionKey }.distinct() shouldBe listOf(message.partitionKey)
+        captor.firstValue.map { it.correlationId }.distinct() shouldBe listOf(message.correlationId)
+        captor.firstValue.map { it.merchantScopeId }.distinct() shouldBe
+            listOf(message.merchantScopeId)
+        captor.firstValue.map { it.deploymentScopeId }.distinct() shouldBe
+            listOf(message.deploymentScopeId)
+        captor.firstValue.map { it.orderingKey }.distinct() shouldBe listOf(orderingKey)
+        captor.firstValue.map { it.sequenceNo }.shouldContainExactly(11, 7)
+      }
 
-        test("blank optional metadata is rejected before publication") {
-            val repository = mock<OutboxEntryRepository>()
-            val serializer = mock<IntegrationMessageSerializer>()
-            val sequenceAllocator = mock<OutboxStreamSequenceAllocator>()
-            val registry = InMemoryIntegrationMessageTypeRegistry()
-            registry.register("test.inventory.reserve", 1, TestReserveInventoryCommand::class.java)
-            val publisher =
-                OutboxIntegrationMessagePublisher(
-                    PollingOutboxWriter(repository, NoopOutboxRelaySignal),
-                    serializer,
-                    SnowFlakSequence(1, 1),
-                    registry,
-                    IntegrationPublicationPlanner(defaultTargets = listOf("local")),
-                    sequenceAllocator,
-                )
+      test("blank optional metadata is rejected before publication") {
+        val repository = mock<OutboxEntryRepository>()
+        val serializer = mock<IntegrationMessageSerializer>()
+        val sequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+        val registry = InMemoryIntegrationMessageTypeRegistry()
+        registry.register("test.inventory.reserve", 1, TestReserveInventoryCommand::class.java)
+        val publisher =
+            OutboxIntegrationMessagePublisher(
+                PollingOutboxWriter(repository, NoopOutboxRelaySignal),
+                serializer,
+                SnowFlakSequence(1, 1),
+                registry,
+                IntegrationPublicationPlanner(defaultTargets = listOf("local")),
+                sequenceAllocator,
+            )
 
-            listOf(
-                    message.copy(causationId = " "),
-                    message.copy(merchantScopeId = " "),
-                    message.copy(deploymentScopeId = " "),
-                )
-                .forEach { invalidMessage ->
-                    shouldThrow<IllegalArgumentException> { publisher.publish(invalidMessage) }
-                }
+        listOf(
+                message.copy(causationId = " "),
+                message.copy(merchantScopeId = " "),
+                message.copy(deploymentScopeId = " "),
+            )
+            .forEach { invalidMessage ->
+              shouldThrow<IllegalArgumentException> { publisher.publish(invalidMessage) }
+            }
 
-            verifyNoInteractions(repository, serializer, sequenceAllocator)
-        }
+        verifyNoInteractions(repository, serializer, sequenceAllocator)
+      }
     })
 
 @IntegrationMessageType(name = "test.inventory.reserve", version = 1)
@@ -164,12 +161,12 @@ data class TestReserveInventoryCommand(
     override val deploymentScopeId: String = "site-jp",
     override val acceptBefore: Instant = occurredAt.plusSeconds(10),
 ) : IntegrationCommand {
-    override val messageId: String = "message-1"
-    override val messageName: String = "test.inventory.reserve"
-    override val messageVersion: Int = 1
-    override val partitionKey: String = orderId.toString()
-    override val correlationId: String = "checkout-42"
-    override val destination: String = "inventory.commands"
+  override val messageId: String = "message-1"
+  override val messageName: String = "test.inventory.reserve"
+  override val messageVersion: Int = 1
+  override val partitionKey: String = orderId.toString()
+  override val correlationId: String = "checkout-42"
+  override val destination: String = "inventory.commands"
 }
 
 val message =

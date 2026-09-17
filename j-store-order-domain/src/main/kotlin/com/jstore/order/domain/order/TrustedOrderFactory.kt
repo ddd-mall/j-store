@@ -61,89 +61,89 @@ data class TrustedOrderDraft(
 )
 
 fun interface TrustedOrderFactory {
-    fun create(draft: TrustedOrderDraft): Result<Order, com.jstore.common.errors.BusinessError>
+  fun create(draft: TrustedOrderDraft): Result<Order, com.jstore.common.errors.BusinessError>
 }
 
 class TrustedOrderFactoryImpl(private val sequence: SnowFlakSequence) : TrustedOrderFactory {
-    override fun create(
-        draft: TrustedOrderDraft
-    ): Result<Order, com.jstore.common.errors.BusinessError> {
-        if (
-            draft.tradeId <= 0 ||
-                draft.orderPlanId <= 0 ||
-                draft.planDigest.isBlank() ||
-                draft.merchantId <= 0 ||
-                draft.buyerAuthenticationDomain.isBlank() ||
-                draft.buyerId <= 0 ||
-                draft.buyerName.isBlank() ||
-                draft.items.isEmpty() ||
-                draft.currency.isBlank()
+  override fun create(
+      draft: TrustedOrderDraft
+  ): Result<Order, com.jstore.common.errors.BusinessError> {
+    if (
+        draft.tradeId <= 0 ||
+            draft.orderPlanId <= 0 ||
+            draft.planDigest.isBlank() ||
+            draft.merchantId <= 0 ||
+            draft.buyerAuthenticationDomain.isBlank() ||
+            draft.buyerId <= 0 ||
+            draft.buyerName.isBlank() ||
+            draft.items.isEmpty() ||
+            draft.currency.isBlank()
+    )
+        return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
+
+    val items =
+        draft.items.map {
+          OrderItemImpl(
+              id = OrderItemId(sequence.nextId()),
+              spuId = it.spuId,
+              skuId = it.skuId,
+              offerId = it.offerId,
+              storeId = it.storeId,
+              offerVersion = it.offerVersion,
+              fulfillmentNodeId = it.fulfillmentNodeId,
+              channelId = it.channelId,
+              goodsName = it.goodsName,
+              skuDescription = it.skuDescription,
+              quantity = it.quantity,
+              unitPrice = it.unitPrice,
+              snapshotVersion = it.catalogSnapshotVersion,
+          )
+        }
+    val subtotal = Price.sumOf(items.map { it.purchasedAmount })
+    if (subtotal != draft.payableAmount) return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
+
+    val order =
+        OrderImpl(
+            id = OrderId(sequence.nextId()),
+            merchantId = MerchantId(draft.merchantId),
+            buyerInfo =
+                UserInfo(
+                    draft.buyerAuthenticationDomain,
+                    draft.buyerId,
+                    draft.buyerPhone?.let(::PhoneNumber),
+                    draft.buyerName,
+                ),
+            _items = items.toMutableList(),
+            recipientInfo =
+                RecipientInfo(
+                    draft.recipientName,
+                    ContractInfo(
+                        draft.recipientEmail,
+                        draft.recipientPhone?.let(::PhoneNumber),
+                    ),
+                    draft.shippingAddress,
+                    draft.detailAddress,
+                    draft.postalCode,
+                    draft.customsFields,
+                ),
+            _tradeStatus = TradeStatus.ACTIVE,
+            _paymentStatus = PaymentStatus.UNPAID,
+            _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
+            _commitmentStatus = CommitmentStatus.CONFIRMED,
+            amountSnapshot =
+                OrderAmountSnapshot(
+                    draft.currency,
+                    subtotal,
+                    Price.ZERO,
+                    Price.ZERO,
+                    Price.ZERO,
+                    draft.payableAmount,
+                ),
+            sourceTradeId = draft.tradeId,
+            sourceOrderPlanId = draft.orderPlanId,
+            sourcePlanDigest = draft.planDigest,
         )
-            return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
-
-        val items =
-            draft.items.map {
-                OrderItemImpl(
-                    id = OrderItemId(sequence.nextId()),
-                    spuId = it.spuId,
-                    skuId = it.skuId,
-                    offerId = it.offerId,
-                    storeId = it.storeId,
-                    offerVersion = it.offerVersion,
-                    fulfillmentNodeId = it.fulfillmentNodeId,
-                    channelId = it.channelId,
-                    goodsName = it.goodsName,
-                    skuDescription = it.skuDescription,
-                    quantity = it.quantity,
-                    unitPrice = it.unitPrice,
-                    snapshotVersion = it.catalogSnapshotVersion,
-                )
-            }
-        val subtotal = Price.sumOf(items.map { it.purchasedAmount })
-        if (subtotal != draft.payableAmount) return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
-
-        val order =
-            OrderImpl(
-                id = OrderId(sequence.nextId()),
-                merchantId = MerchantId(draft.merchantId),
-                buyerInfo =
-                    UserInfo(
-                        draft.buyerAuthenticationDomain,
-                        draft.buyerId,
-                        draft.buyerPhone?.let(::PhoneNumber),
-                        draft.buyerName,
-                    ),
-                _items = items.toMutableList(),
-                recipientInfo =
-                    RecipientInfo(
-                        draft.recipientName,
-                        ContractInfo(
-                            draft.recipientEmail,
-                            draft.recipientPhone?.let(::PhoneNumber),
-                        ),
-                        draft.shippingAddress,
-                        draft.detailAddress,
-                        draft.postalCode,
-                        draft.customsFields,
-                    ),
-                _tradeStatus = TradeStatus.ACTIVE,
-                _paymentStatus = PaymentStatus.UNPAID,
-                _fulfillmentStatus = FulfillmentStatus.UNFULFILLED,
-                _commitmentStatus = CommitmentStatus.CONFIRMED,
-                amountSnapshot =
-                    OrderAmountSnapshot(
-                        draft.currency,
-                        subtotal,
-                        Price.ZERO,
-                        Price.ZERO,
-                        Price.ZERO,
-                        draft.payableAmount,
-                    ),
-                sourceTradeId = draft.tradeId,
-                sourceOrderPlanId = draft.orderPlanId,
-                sourcePlanDigest = draft.planDigest,
-            )
-        order.recordCreated()
-        return Success(order)
-    }
+    order.recordCreated()
+    return Success(order)
+  }
 }

@@ -17,10 +17,10 @@
 package com.jstore.outbox
 
 data class OutboxStreamKey(val transportId: String, val orderingKey: String) {
-    init {
-        require(transportId.isNotBlank()) { "transportId must not be blank" }
-        require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
-    }
+  init {
+    require(transportId.isNotBlank()) { "transportId must not be blank" }
+    require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
+  }
 }
 
 /**
@@ -29,14 +29,14 @@ data class OutboxStreamKey(val transportId: String, val orderingKey: String) {
  * Concurrent writers in the same stream serialize allocation; other streams remain independent.
  */
 fun interface OutboxStreamSequenceAllocator {
-    fun nextSequence(transportId: String, orderingKey: String): Long
+  fun nextSequence(transportId: String, orderingKey: String): Long
 
-    /**
-     * Allocates one position for every stream occurrence while preserving input order.
-     *
-     * Implementations may override this method to reserve consecutive ranges per unique stream.
-     */
-    fun nextSequences(streams: List<OutboxStreamKey>): List<Long> = streams.map {
-        nextSequence(it.transportId, it.orderingKey)
-    }
+  /**
+   * Allocates one position for every stream occurrence while preserving input order.
+   *
+   * Implementations may override this method to reserve consecutive ranges per unique stream.
+   */
+  fun nextSequences(streams: List<OutboxStreamKey>): List<Long> = streams.map {
+    nextSequence(it.transportId, it.orderingKey)
+  }
 }

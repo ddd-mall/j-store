@@ -25,35 +25,35 @@ class SpringDomainEventListenerRegistry(
     private val consumptionRepository: MessageConsumptionRepository,
 ) : DomainEventListenerRegistry {
 
-    private val registeredListeners: MutableSet<DomainEventListener<*>> = mutableSetOf()
+  private val registeredListeners: MutableSet<DomainEventListener<*>> = mutableSetOf()
 
-    override fun register(listener: DomainEventListener<*>) {
-        SpringDomainEventListenerTypeResolver.require(listener)
-        applicationContext.addApplicationListener(
-            DomainListenerSpringWrapper(listener, consumptionRepository)
+  override fun register(listener: DomainEventListener<*>) {
+    SpringDomainEventListenerTypeResolver.require(listener)
+    applicationContext.addApplicationListener(
+        DomainListenerSpringWrapper(listener, consumptionRepository)
+    )
+    registeredListeners.add(listener)
+  }
+
+  override fun unregister(listener: DomainEventListener<*>) {
+    applicationContext.removeApplicationListener(
+        DomainListenerSpringWrapper(
+            listener,
+            consumptionRepository,
         )
-        registeredListeners.add(listener)
-    }
+    )
+    registeredListeners.remove(listener)
+  }
 
-    override fun unregister(listener: DomainEventListener<*>) {
-        applicationContext.removeApplicationListener(
-            DomainListenerSpringWrapper(
-                listener,
-                consumptionRepository,
-            )
-        )
-        registeredListeners.remove(listener)
-    }
+  fun prepare(event: DomainEvent): () -> Unit {
+    val actions =
+        registeredListeners.filterIsInstance<PreparingDomainEventListener<*>>().mapNotNull {
+          DomainListenerSpringWrapper(it, consumptionRepository).prepare(event)
+        }
+    return { actions.forEach { it() } }
+  }
 
-    fun prepare(event: DomainEvent): () -> Unit {
-        val actions =
-            registeredListeners.filterIsInstance<PreparingDomainEventListener<*>>().mapNotNull {
-                DomainListenerSpringWrapper(it, consumptionRepository).prepare(event)
-            }
-        return { actions.forEach { it() } }
-    }
-
-    override fun getListeners(): List<DomainEventListener<*>> {
-        return registeredListeners.toList()
-    }
+  override fun getListeners(): List<DomainEventListener<*>> {
+    return registeredListeners.toList()
+  }
 }

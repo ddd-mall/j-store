@@ -43,90 +43,90 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 class CommodityServiceBrandValidationTest {
-    private val brandRepository = mock<BrandRepository>()
-    private val spuRepository = mock<SpuRepository>()
-    private val service =
-        CommodityService(
-            spuFactory = mock<SpuFactory>(),
-            spuRepository = spuRepository,
-            domainEventPublisher = mock<DomainEventPublisher>(),
-            snapshotFactory = mock<SpuSnapshotFactory>(),
-            snapshotRepository = mock<SpuSnapshotRepository>(),
-            goodsStyleRepository = mock<GoodsStyleRepository>(),
-            goodsStyleFactory = mock<GoodsStyleFactory>(),
-            brandRepository = brandRepository,
-        )
+  private val brandRepository = mock<BrandRepository>()
+  private val spuRepository = mock<SpuRepository>()
+  private val service =
+      CommodityService(
+          spuFactory = mock<SpuFactory>(),
+          spuRepository = spuRepository,
+          domainEventPublisher = mock<DomainEventPublisher>(),
+          snapshotFactory = mock<SpuSnapshotFactory>(),
+          snapshotRepository = mock<SpuSnapshotRepository>(),
+          goodsStyleRepository = mock<GoodsStyleRepository>(),
+          goodsStyleFactory = mock<GoodsStyleFactory>(),
+          brandRepository = brandRepository,
+      )
 
-    @Test
-    fun `save rejects a missing brand reference`() {
-        val result = service.createOrUpdate(command(BrandId(9)))
+  @Test
+  fun `save rejects a missing brand reference`() {
+    val result = service.createOrUpdate(command(BrandId(9)))
 
-        assertEquals(BrandErrors.NOT_FOUND, assertIs<Failure<*>>(result).error)
-    }
+    assertEquals(BrandErrors.NOT_FOUND, assertIs<Failure<*>>(result).error)
+  }
 
-    @Test
-    fun `save rejects a brand owned by another merchant`() {
-        whenever(brandRepository.findById(BrandId(9)))
-            .thenReturn(
-                Brand(
-                    BrandId(9),
-                    MerchantId(8),
-                    LocalizedText.of("zh-CN" to "其他商户品牌"),
-                )
-            )
-
-        val result = service.createOrUpdate(command(BrandId(9)))
-
-        assertEquals(BrandErrors.MERCHANT_MISMATCH, assertIs<Failure<*>>(result).error)
-    }
-
-    @Test
-    fun `save rejects an inactive brand`() {
-        val brand =
+  @Test
+  fun `save rejects a brand owned by another merchant`() {
+    whenever(brandRepository.findById(BrandId(9)))
+        .thenReturn(
             Brand(
                 BrandId(9),
-                MerchantId(7),
-                LocalizedText.of("zh-CN" to "停用品牌"),
+                MerchantId(8),
+                LocalizedText.of("zh-CN" to "其他商户品牌"),
             )
-        brand.deactivate()
-        whenever(brandRepository.findById(brand.id)).thenReturn(brand)
-
-        val result = service.createOrUpdate(command(brand.id))
-
-        assertEquals(BrandErrors.INACTIVE, assertIs<Failure<*>>(result).error)
-    }
-
-    @Test
-    fun `publish rejects a brand that became inactive after draft save`() {
-        val brand =
-            Brand(
-                BrandId(9),
-                MerchantId(7),
-                LocalizedText.of("zh-CN" to "停用品牌"),
-            )
-        brand.deactivate()
-        val draft =
-            SpuImpl(
-                id = SpuId(1),
-                merchantId = MerchantId(7),
-                name = "商品",
-                brandId = brand.id,
-                _status = CommodityStatus.DRAFT,
-                _skus = mutableListOf(SkuImpl(SkuId(2), "默认规格", emptyList())),
-            )
-        whenever(brandRepository.findById(brand.id)).thenReturn(brand)
-        whenever(spuRepository.findById(draft.id)).thenReturn(draft)
-
-        val result = service.publish(draft.id)
-
-        assertEquals(BrandErrors.INACTIVE, assertIs<Failure<*>>(result).error)
-    }
-
-    private fun command(brandId: BrandId) =
-        CommodityCreateCmd(
-            spuId = null,
-            merchantId = 7,
-            spuName = "商品",
-            brandId = brandId,
         )
+
+    val result = service.createOrUpdate(command(BrandId(9)))
+
+    assertEquals(BrandErrors.MERCHANT_MISMATCH, assertIs<Failure<*>>(result).error)
+  }
+
+  @Test
+  fun `save rejects an inactive brand`() {
+    val brand =
+        Brand(
+            BrandId(9),
+            MerchantId(7),
+            LocalizedText.of("zh-CN" to "停用品牌"),
+        )
+    brand.deactivate()
+    whenever(brandRepository.findById(brand.id)).thenReturn(brand)
+
+    val result = service.createOrUpdate(command(brand.id))
+
+    assertEquals(BrandErrors.INACTIVE, assertIs<Failure<*>>(result).error)
+  }
+
+  @Test
+  fun `publish rejects a brand that became inactive after draft save`() {
+    val brand =
+        Brand(
+            BrandId(9),
+            MerchantId(7),
+            LocalizedText.of("zh-CN" to "停用品牌"),
+        )
+    brand.deactivate()
+    val draft =
+        SpuImpl(
+            id = SpuId(1),
+            merchantId = MerchantId(7),
+            name = "商品",
+            brandId = brand.id,
+            _status = CommodityStatus.DRAFT,
+            _skus = mutableListOf(SkuImpl(SkuId(2), "默认规格", emptyList())),
+        )
+    whenever(brandRepository.findById(brand.id)).thenReturn(brand)
+    whenever(spuRepository.findById(draft.id)).thenReturn(draft)
+
+    val result = service.publish(draft.id)
+
+    assertEquals(BrandErrors.INACTIVE, assertIs<Failure<*>>(result).error)
+  }
+
+  private fun command(brandId: BrandId) =
+      CommodityCreateCmd(
+          spuId = null,
+          merchantId = 7,
+          spuName = "商品",
+          brandId = brandId,
+      )
 }

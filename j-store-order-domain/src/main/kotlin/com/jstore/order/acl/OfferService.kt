@@ -19,7 +19,7 @@ package com.jstore.order.acl
 import com.jstore.common.properties.Price
 
 fun interface OfferService {
-    fun queryOffers(offerIds: List<Long>): List<OfferInfo>
+  fun queryOffers(offerIds: List<Long>): List<OfferInfo>
 }
 
 data class OfferInfo(

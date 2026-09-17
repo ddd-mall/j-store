@@ -28,76 +28,76 @@ import org.junit.jupiter.api.Test
 import org.springframework.web.bind.annotation.PutMapping
 
 class CartControllerContractTest {
-    @Test
-    fun `quantity endpoint maps authenticated buyer and absolute target command`() {
-        val useCase = CapturingCartUseCase()
-        val controller = CartController(useCase)
+  @Test
+  fun `quantity endpoint maps authenticated buyer and absolute target command`() {
+    val useCase = CapturingCartUseCase()
+    val controller = CartController(useCase)
 
-        controller.setItemQuantity(
-            user = AuthenticatedPrincipal("local", AuthenticatedAccountId(7)),
-            request =
-                CartController.SetItemQuantityRequest(
-                    skuId = 101,
-                    offerId = 201,
-                    targetQuantity = 3,
-                    expectedCartVersion = 12,
-                ),
-        )
-
-        assertEquals(
-            SetCartItemQuantityCommand(
-                buyerId = 7,
+    controller.setItemQuantity(
+        user = AuthenticatedPrincipal("local", AuthenticatedAccountId(7)),
+        request =
+            CartController.SetItemQuantityRequest(
                 skuId = 101,
                 offerId = 201,
                 targetQuantity = 3,
                 expectedCartVersion = 12,
             ),
-            useCase.quantityCommand,
-        )
-        val mapping =
-            CartController::class
-                .java
-                .getDeclaredMethod(
-                    "setItemQuantity",
-                    AuthenticatedPrincipal::class.java,
-                    CartController.SetItemQuantityRequest::class.java,
-                )
-                .getAnnotation(PutMapping::class.java)
-        assertArrayEquals(arrayOf("/items"), mapping.value)
-    }
+    )
 
-    private class CapturingCartUseCase : CartUseCase {
-        var quantityCommand: SetCartItemQuantityCommand? = null
-        var quantityCalls = 0
-
-        override fun setItemQuantity(
-            command: SetCartItemQuantityCommand
-        ): Result<CartView, BusinessError> {
-            quantityCalls++
-            quantityCommand = command
-            return Success(view())
-        }
-
-        override fun replaceSelection(
-            command: ReplaceCartSelectionCommand
-        ): Result<CartView, BusinessError> = Success(view())
-
-        override fun refresh(
-            buyerId: Long,
-            expectedVersion: Long,
-        ): Result<CartView, BusinessError> = Success(view())
-
-        override fun current(buyerId: Long): Result<CartView, BusinessError> = Success(view())
-
-        private fun view() =
-            CartView(
-                cartId = 1,
-                contentVersion = 1,
-                market = "CN",
-                channelId = "ONLINE",
-                currency = "CNY",
-                lines = emptyList(),
-                assessment = null,
+    assertEquals(
+        SetCartItemQuantityCommand(
+            buyerId = 7,
+            skuId = 101,
+            offerId = 201,
+            targetQuantity = 3,
+            expectedCartVersion = 12,
+        ),
+        useCase.quantityCommand,
+    )
+    val mapping =
+        CartController::class
+            .java
+            .getDeclaredMethod(
+                "setItemQuantity",
+                AuthenticatedPrincipal::class.java,
+                CartController.SetItemQuantityRequest::class.java,
             )
+            .getAnnotation(PutMapping::class.java)
+    assertArrayEquals(arrayOf("/items"), mapping.value)
+  }
+
+  private class CapturingCartUseCase : CartUseCase {
+    var quantityCommand: SetCartItemQuantityCommand? = null
+    var quantityCalls = 0
+
+    override fun setItemQuantity(
+        command: SetCartItemQuantityCommand
+    ): Result<CartView, BusinessError> {
+      quantityCalls++
+      quantityCommand = command
+      return Success(view())
     }
+
+    override fun replaceSelection(
+        command: ReplaceCartSelectionCommand
+    ): Result<CartView, BusinessError> = Success(view())
+
+    override fun refresh(
+        buyerId: Long,
+        expectedVersion: Long,
+    ): Result<CartView, BusinessError> = Success(view())
+
+    override fun current(buyerId: Long): Result<CartView, BusinessError> = Success(view())
+
+    private fun view() =
+        CartView(
+            cartId = 1,
+            contentVersion = 1,
+            market = "CN",
+            channelId = "ONLINE",
+            currency = "CNY",
+            lines = emptyList(),
+            assessment = null,
+        )
+  }
 }

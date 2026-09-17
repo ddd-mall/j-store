@@ -27,66 +27,66 @@ class LocalIntegrationMessageDeliveryChannel(
     private val serializer: IntegrationMessageSerializer,
     private val bus: LocalIntegrationMessageBus,
 ) : OutboxDeliveryChannel {
-    override val transportId: String = OutboxTransportIds.LOCAL
+  override val transportId: String = OutboxTransportIds.LOCAL
 
-    override fun deliver(entry: OutboxMessage) {
-        check(entry.transportId == transportId) {
-            "LOCAL integration channel cannot deliver transport ${entry.transportId}"
-        }
-        requireIntegration(entry)
-        bus.publish(
-            serializer.deserialize(entry.payload, entry.eventType, entry.eventVersion),
-            MessageDeliveryOrder(entry.transportId, entry.orderingKey, entry.sequenceNo),
-        )
+  override fun deliver(entry: OutboxMessage) {
+    check(entry.transportId == transportId) {
+      "LOCAL integration channel cannot deliver transport ${entry.transportId}"
     }
+    requireIntegration(entry)
+    bus.publish(
+        serializer.deserialize(entry.payload, entry.eventType, entry.eventVersion),
+        MessageDeliveryOrder(entry.transportId, entry.orderingKey, entry.sequenceNo),
+    )
+  }
 }
 
 class TransportIntegrationMessageDeliveryChannel(
     private val transport: IntegrationMessageTransport
 ) : OutboxDeliveryChannel {
-    override val transportId: String = transport.transportId
+  override val transportId: String = transport.transportId
 
-    override fun deliver(entry: OutboxMessage) {
-        check(entry.transportId == transportId) {
-            "Transport channel $transportId cannot deliver transport ${entry.transportId}"
-        }
-        requireIntegration(entry)
-        transport.publish(
-            IntegrationMessageEnvelope(
-                transportId = entry.transportId,
-                messageId = entry.eventId,
-                messageName = entry.eventType,
-                messageVersion = entry.eventVersion,
-                messageKind =
-                    when (entry.messageKind) {
-                        OutboxMessageKind.INTEGRATION_EVENT -> IntegrationMessageKind.EVENT
-                        OutboxMessageKind.INTEGRATION_COMMAND -> IntegrationMessageKind.COMMAND
-                        OutboxMessageKind.DOMAIN_EVENT ->
-                            error("Domain event cannot use broker transport")
-                    },
-                destination = entry.destination,
-                logicalDestination = entry.logicalDestination,
-                deliveryProfile = entry.deliveryProfile,
-                acceptBefore = entry.acceptBefore,
-                partitionKey = entry.partitionKey,
-                correlationId = entry.correlationId,
-                causationId = entry.causationId,
-                merchantScopeId = entry.merchantScopeId,
-                deploymentScopeId = entry.deploymentScopeId,
-                occurredAt = entry.occurredAt,
-                payload = entry.payload,
-                orderingKey = entry.orderingKey,
-                sequenceNo = entry.sequenceNo,
-            )
-        )
+  override fun deliver(entry: OutboxMessage) {
+    check(entry.transportId == transportId) {
+      "Transport channel $transportId cannot deliver transport ${entry.transportId}"
     }
+    requireIntegration(entry)
+    transport.publish(
+        IntegrationMessageEnvelope(
+            transportId = entry.transportId,
+            messageId = entry.eventId,
+            messageName = entry.eventType,
+            messageVersion = entry.eventVersion,
+            messageKind =
+                when (entry.messageKind) {
+                  OutboxMessageKind.INTEGRATION_EVENT -> IntegrationMessageKind.EVENT
+                  OutboxMessageKind.INTEGRATION_COMMAND -> IntegrationMessageKind.COMMAND
+                  OutboxMessageKind.DOMAIN_EVENT ->
+                      error("Domain event cannot use broker transport")
+                },
+            destination = entry.destination,
+            logicalDestination = entry.logicalDestination,
+            deliveryProfile = entry.deliveryProfile,
+            acceptBefore = entry.acceptBefore,
+            partitionKey = entry.partitionKey,
+            correlationId = entry.correlationId,
+            causationId = entry.causationId,
+            merchantScopeId = entry.merchantScopeId,
+            deploymentScopeId = entry.deploymentScopeId,
+            occurredAt = entry.occurredAt,
+            payload = entry.payload,
+            orderingKey = entry.orderingKey,
+            sequenceNo = entry.sequenceNo,
+        )
+    )
+  }
 }
 
 private fun requireIntegration(entry: OutboxMessage) {
-    check(
-        entry.messageKind == OutboxMessageKind.INTEGRATION_EVENT ||
-            entry.messageKind == OutboxMessageKind.INTEGRATION_COMMAND
-    ) {
-        "Integration delivery channel cannot deliver ${entry.messageKind}"
-    }
+  check(
+      entry.messageKind == OutboxMessageKind.INTEGRATION_EVENT ||
+          entry.messageKind == OutboxMessageKind.INTEGRATION_COMMAND
+  ) {
+    "Integration delivery channel cannot deliver ${entry.messageKind}"
+  }
 }

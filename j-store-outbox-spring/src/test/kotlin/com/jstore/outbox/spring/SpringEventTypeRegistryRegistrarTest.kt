@@ -29,36 +29,36 @@ data class ScannedEvent(
     override val occurredAt: Instant = Instant.parse("2026-01-01T00:00:00Z"),
     override val eventId: String = "scanned-event",
 ) : DomainEvent {
-    override val eventName: String = "test.scanned-event"
-    override val eventVersion: Int = 7
-    override val aggregateType: String = "Test"
-    override val aggregateId: String = "scanned"
+  override val eventName: String = "test.scanned-event"
+  override val eventVersion: Int = 7
+  override val aggregateType: String = "Test"
+  override val aggregateId: String = "scanned"
 }
 
 class SpringEventTypeRegistryRegistrarTest :
     FunSpec({
-        test("registrar scans domain event types and registers stable annotated name") {
-            val registry = InMemoryEventTypeRegistry()
-            val registrar =
-                SpringEventTypeRegistryRegistrar(
-                    registry,
-                    listOf("com.jstore.outbox"),
-                )
+      test("registrar scans domain event types and registers stable annotated name") {
+        val registry = InMemoryEventTypeRegistry()
+        val registrar =
+            SpringEventTypeRegistryRegistrar(
+                registry,
+                listOf("com.jstore.outbox"),
+            )
 
-            registrar.afterSingletonsInstantiated()
+        registrar.afterSingletonsInstantiated()
 
-            registry.resolve("test.scanned-event", 7) shouldBe ScannedEvent::class.java
+        registry.resolve("test.scanned-event", 7) shouldBe ScannedEvent::class.java
+      }
+
+      test("registrar fails fast when annotated class is not a domain event") {
+        val registrar =
+            SpringEventTypeRegistryRegistrar(
+                InMemoryEventTypeRegistry(),
+                listOf("org.example.jstore.invalidtype"),
+            )
+
+        shouldThrow<IllegalArgumentException> {
+          registrar.afterSingletonsInstantiated()
         }
-
-        test("registrar fails fast when annotated class is not a domain event") {
-            val registrar =
-                SpringEventTypeRegistryRegistrar(
-                    InMemoryEventTypeRegistry(),
-                    listOf("org.example.jstore.invalidtype"),
-                )
-
-            shouldThrow<IllegalArgumentException> {
-                registrar.afterSingletonsInstantiated()
-            }
-        }
+      }
     })

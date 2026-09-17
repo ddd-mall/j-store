@@ -17,9 +17,9 @@
 package com.jstore.order.domain.order
 
 enum class TradeStatus {
-    CREATED,
-    ACTIVE,
-    CANCELLATION_PENDING,
-    CLOSED,
-    COMPLETED,
+  CREATED,
+  ACTIVE,
+  CANCELLATION_PENDING,
+  CLOSED,
+  COMPLETED,
 }

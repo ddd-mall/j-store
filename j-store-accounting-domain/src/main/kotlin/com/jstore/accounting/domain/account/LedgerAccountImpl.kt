@@ -31,20 +31,20 @@ class LedgerAccountImpl(
     private var _status: LedgerAccountStatus,
 ) : EventRecordingAggregateRoot<LedgerAccountId>(), LedgerAccount {
 
-    init {
-        require(name.isNotBlank()) { "账务账户名称不能为空" }
-    }
+  init {
+    require(name.isNotBlank()) { "账务账户名称不能为空" }
+  }
 
-    override val status: LedgerAccountStatus
-        get() = _status
+  override val status: LedgerAccountStatus
+    get() = _status
 
-    override fun deactivate(): Result<Unit, BusinessError> {
-        _status = LedgerAccountStatus.INACTIVE
-        return Success(Unit)
-    }
+  override fun deactivate(): Result<Unit, BusinessError> {
+    _status = LedgerAccountStatus.INACTIVE
+    return Success(Unit)
+  }
 
-    override fun activate(): Result<Unit, BusinessError> {
-        _status = LedgerAccountStatus.ACTIVE
-        return Success(Unit)
-    }
+  override fun activate(): Result<Unit, BusinessError> {
+    _status = LedgerAccountStatus.ACTIVE
+    return Success(Unit)
+  }
 }

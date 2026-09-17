@@ -28,76 +28,76 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RedisAccountSecurityIntegrationTest {
-    private val phone = PhoneNumber("+8613800138000")
-    private val otherPhone = PhoneNumber("+8613900139000")
+  private val phone = PhoneNumber("+8613800138000")
+  private val otherPhone = PhoneNumber("+8613900139000")
 
-    @Test
-    fun `challenge is rate limited phone bound one time and stored as HMAC only`() =
-        EmbeddedRedisTestFixture.withRedis { template ->
-            val gateway =
-                RedisPhoneVerificationGateway(template, "hmac-secret-at-least-thirty-two-bytes")
-            val issued = requireNotNull(gateway.createChallenge(phone))
-
-            assertNull(gateway.createChallenge(phone))
-            val stored =
-                template.opsForValue().get("phone_verification:${issued.challenge.challengeId}")
-            assertEquals(64, stored?.length)
-            assertNotEquals(issued.code, stored)
-            assertFalse(stored.orEmpty().contains(issued.code))
-
-            assertFalse(
-                gateway.consumeChallenge(
-                    otherPhone,
-                    PhoneVerificationProof(issued.challenge.challengeId, issued.code),
-                )
-            )
-            assertFalse(
-                gateway.consumeChallenge(
-                    phone,
-                    PhoneVerificationProof(issued.challenge.challengeId, issued.code),
-                )
-            )
-
-            template.delete("phone_verification_rate:${phone.value}")
-            val second = requireNotNull(gateway.createChallenge(phone))
-            val proof = PhoneVerificationProof(second.challenge.challengeId, second.code)
-            assertTrue(gateway.consumeChallenge(phone, proof))
-            assertFalse(gateway.consumeChallenge(phone, proof))
-        }
-
-    @Test
-    fun `expired challenge cannot be consumed`() = EmbeddedRedisTestFixture.withRedis { template ->
+  @Test
+  fun `challenge is rate limited phone bound one time and stored as HMAC only`() =
+      EmbeddedRedisTestFixture.withRedis { template ->
         val gateway =
-            RedisPhoneVerificationGateway(
-                template,
-                "hmac-secret-at-least-thirty-two-bytes",
-                challengeTtlSeconds = 1,
-                sendIntervalSeconds = 1,
-            )
+            RedisPhoneVerificationGateway(template, "hmac-secret-at-least-thirty-two-bytes")
         val issued = requireNotNull(gateway.createChallenge(phone))
-        Thread.sleep(1100)
 
+        assertNull(gateway.createChallenge(phone))
+        val stored =
+            template.opsForValue().get("phone_verification:${issued.challenge.challengeId}")
+        assertEquals(64, stored?.length)
+        assertNotEquals(issued.code, stored)
+        assertFalse(stored.orEmpty().contains(issued.code))
+
+        assertFalse(
+            gateway.consumeChallenge(
+                otherPhone,
+                PhoneVerificationProof(issued.challenge.challengeId, issued.code),
+            )
+        )
         assertFalse(
             gateway.consumeChallenge(
                 phone,
                 PhoneVerificationProof(issued.challenge.challengeId, issued.code),
             )
         )
-    }
 
-    @Test
-    fun `login failures are shared and success reset removes the block`() =
-        EmbeddedRedisTestFixture.withRedis { template ->
-            val first = RedisLoginAttemptGuard(template)
-            val second = RedisLoginAttemptGuard(template)
+        template.delete("phone_verification_rate:${phone.value}")
+        val second = requireNotNull(gateway.createChallenge(phone))
+        val proof = PhoneVerificationProof(second.challenge.challengeId, second.code)
+        assertTrue(gateway.consumeChallenge(phone, proof))
+        assertFalse(gateway.consumeChallenge(phone, proof))
+      }
 
-            repeat(5) { first.recordFailure(phone) }
-            assertFalse(second.isAllowed(phone))
+  @Test
+  fun `expired challenge cannot be consumed`() = EmbeddedRedisTestFixture.withRedis { template ->
+    val gateway =
+        RedisPhoneVerificationGateway(
+            template,
+            "hmac-secret-at-least-thirty-two-bytes",
+            challengeTtlSeconds = 1,
+            sendIntervalSeconds = 1,
+        )
+    val issued = requireNotNull(gateway.createChallenge(phone))
+    Thread.sleep(1100)
 
-            second.reset(phone)
-            assertTrue(first.isAllowed(phone))
+    assertFalse(
+        gateway.consumeChallenge(
+            phone,
+            PhoneVerificationProof(issued.challenge.challengeId, issued.code),
+        )
+    )
+  }
 
-            template.opsForValue().set("login_failures:${phone.value}", "corrupt")
-            assertFalse(first.isAllowed(phone))
-        }
+  @Test
+  fun `login failures are shared and success reset removes the block`() =
+      EmbeddedRedisTestFixture.withRedis { template ->
+        val first = RedisLoginAttemptGuard(template)
+        val second = RedisLoginAttemptGuard(template)
+
+        repeat(5) { first.recordFailure(phone) }
+        assertFalse(second.isAllowed(phone))
+
+        second.reset(phone)
+        assertTrue(first.isAllowed(phone))
+
+        template.opsForValue().set("login_failures:${phone.value}", "corrupt")
+        assertFalse(first.isAllowed(phone))
+      }
 }

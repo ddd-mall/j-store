@@ -44,125 +44,125 @@ import org.mockito.kotlin.*
  */
 class CreateOrUpdateStatusGuardPropertyTest :
     FunSpec({
-        lateinit var spuFactory: SpuFactory
-        lateinit var spuRepository: SpuRepository
-        lateinit var domainEventPublisher: DomainEventPublisher
-        lateinit var snapshotFactory: SpuSnapshotFactory
-        lateinit var snapshotRepository: SpuSnapshotRepository
-        lateinit var goodsStyleRepository: GoodsStyleRepository
-        lateinit var goodsStyleFactory: GoodsStyleFactory
-        lateinit var service: CommodityService
+      lateinit var spuFactory: SpuFactory
+      lateinit var spuRepository: SpuRepository
+      lateinit var domainEventPublisher: DomainEventPublisher
+      lateinit var snapshotFactory: SpuSnapshotFactory
+      lateinit var snapshotRepository: SpuSnapshotRepository
+      lateinit var goodsStyleRepository: GoodsStyleRepository
+      lateinit var goodsStyleFactory: GoodsStyleFactory
+      lateinit var service: CommodityService
 
-        beforeEach {
-            spuFactory = mock()
-            spuRepository = mock()
-            domainEventPublisher = mock()
-            snapshotFactory = mock()
-            snapshotRepository = mock()
-            goodsStyleRepository = mock()
-            goodsStyleFactory = mock()
-            service =
-                CommodityService(
-                    spuFactory = spuFactory,
-                    spuRepository = spuRepository,
-                    domainEventPublisher = domainEventPublisher,
-                    snapshotFactory = snapshotFactory,
-                    snapshotRepository = snapshotRepository,
-                    goodsStyleRepository = goodsStyleRepository,
-                    goodsStyleFactory = goodsStyleFactory,
-                    brandRepository = mock(),
-                )
-        }
-
-        // Generator for a non-blank spuName
-        val spuNameArb: Arb<String> = Arb.string(1..50).filter { it.isNotBlank() }
-
-        // Generator for CommodityCreateCmd with a non-null spuId (update scenario)
-        val cmdArb: Arb<CommodityCreateCmd> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE),
-                spuNameArb,
-                Arb.string(0..100),
-            ) { spuIdVal, name, description ->
-                CommodityCreateCmd(
-                    spuId = SpuId(spuIdVal),
-                    merchantId = 1,
-                    spuName = name,
-                    description = description,
-                )
-            }
-
-        // Generator for a non-empty list of SKUs
-        val skuListArb: Arb<List<Sku>> =
-            Arb.list(
-                Arb.bind(
-                    Arb.long(1L..Long.MAX_VALUE),
-                    Arb.string(1..20),
-                    Arb.long(1L..999999L),
-                    Arb.string(1..10),
-                ) { skuIdVal, skuName, priceFen, attrValue ->
-                    SkuImpl(
-                        id = SkuId(skuIdVal),
-                        skuName = skuName,
-                        attributes = listOf(Attribute("variant", attrValue)),
-                    )
-                },
-                1..5,
+      beforeEach {
+        spuFactory = mock()
+        spuRepository = mock()
+        domainEventPublisher = mock()
+        snapshotFactory = mock()
+        snapshotRepository = mock()
+        goodsStyleRepository = mock()
+        goodsStyleFactory = mock()
+        service =
+            CommodityService(
+                spuFactory = spuFactory,
+                spuRepository = spuRepository,
+                domainEventPublisher = domainEventPublisher,
+                snapshotFactory = snapshotFactory,
+                snapshotRepository = snapshotRepository,
+                goodsStyleRepository = goodsStyleRepository,
+                goodsStyleFactory = goodsStyleFactory,
+                brandRepository = mock(),
             )
+      }
 
-        test("createOrUpdate should return Failure for PUBLISHED SPU") {
-            checkAll(100, cmdArb, skuListArb) { cmd, skus ->
-                val spuId = cmd.spuId!!
-                val onSaleSpu: Spu =
-                    SpuImpl(
-                        id = spuId,
-                        name = "existing",
-                        description = "desc",
-                        _status = CommodityStatus.PUBLISHED,
-                        _skus = skus.toMutableList(),
-                    )
-                whenever(spuRepository.findById(spuId)).thenReturn(onSaleSpu)
+      // Generator for a non-blank spuName
+      val spuNameArb: Arb<String> = Arb.string(1..50).filter { it.isNotBlank() }
 
-                val result = service.createOrUpdate(cmd)
-
-                result.shouldBeInstanceOf<Failure<BusinessError>>()
-                result.error shouldBe CommodityErrors.PUBLISHED_DIRECT_EDIT_REJECTED
-            }
-        }
-
-        // Editable statuses: DRAFT and ARCHIVED
-        val editableStatusArb: Arb<CommodityStatus> =
-            Arb.of(
-                CommodityStatus.DRAFT,
-                CommodityStatus.ARCHIVED,
+      // Generator for CommodityCreateCmd with a non-null spuId (update scenario)
+      val cmdArb: Arb<CommodityCreateCmd> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE),
+              spuNameArb,
+              Arb.string(0..100),
+          ) { spuIdVal, name, description ->
+            CommodityCreateCmd(
+                spuId = SpuId(spuIdVal),
+                merchantId = 1,
+                spuName = name,
+                description = description,
             )
+          }
 
-        test("createOrUpdate should succeed for DRAFT or ARCHIVED SPU") {
-            checkAll(100, cmdArb, skuListArb, editableStatusArb) { cmd, skus, status ->
-                val spuId = cmd.spuId!!
-                val existingSpu: Spu =
-                    SpuImpl(
-                        id = spuId,
-                        name = "existing",
-                        description = "desc",
-                        _status = status,
-                        _skus = skus.toMutableList(),
-                    )
-                val updatedSpu: Spu =
-                    SpuImpl(
-                        id = spuId,
-                        name = cmd.spuName,
-                        description = cmd.description,
-                        _status = status,
-                        _skus = skus.toMutableList(),
-                    )
-                whenever(spuRepository.findById(spuId)).thenReturn(existingSpu)
-                whenever(spuFactory.update(cmd, existingSpu)).thenReturn(updatedSpu)
-                whenever(spuRepository.save(updatedSpu)).thenReturn(updatedSpu)
+      // Generator for a non-empty list of SKUs
+      val skuListArb: Arb<List<Sku>> =
+          Arb.list(
+              Arb.bind(
+                  Arb.long(1L..Long.MAX_VALUE),
+                  Arb.string(1..20),
+                  Arb.long(1L..999999L),
+                  Arb.string(1..10),
+              ) { skuIdVal, skuName, priceFen, attrValue ->
+                SkuImpl(
+                    id = SkuId(skuIdVal),
+                    skuName = skuName,
+                    attributes = listOf(Attribute("variant", attrValue)),
+                )
+              },
+              1..5,
+          )
 
-                val result = service.createOrUpdate(cmd)
+      test("createOrUpdate should return Failure for PUBLISHED SPU") {
+        checkAll(100, cmdArb, skuListArb) { cmd, skus ->
+          val spuId = cmd.spuId!!
+          val onSaleSpu: Spu =
+              SpuImpl(
+                  id = spuId,
+                  name = "existing",
+                  description = "desc",
+                  _status = CommodityStatus.PUBLISHED,
+                  _skus = skus.toMutableList(),
+              )
+          whenever(spuRepository.findById(spuId)).thenReturn(onSaleSpu)
 
-                result.shouldBeInstanceOf<Success<Spu>>()
-            }
+          val result = service.createOrUpdate(cmd)
+
+          result.shouldBeInstanceOf<Failure<BusinessError>>()
+          result.error shouldBe CommodityErrors.PUBLISHED_DIRECT_EDIT_REJECTED
         }
+      }
+
+      // Editable statuses: DRAFT and ARCHIVED
+      val editableStatusArb: Arb<CommodityStatus> =
+          Arb.of(
+              CommodityStatus.DRAFT,
+              CommodityStatus.ARCHIVED,
+          )
+
+      test("createOrUpdate should succeed for DRAFT or ARCHIVED SPU") {
+        checkAll(100, cmdArb, skuListArb, editableStatusArb) { cmd, skus, status ->
+          val spuId = cmd.spuId!!
+          val existingSpu: Spu =
+              SpuImpl(
+                  id = spuId,
+                  name = "existing",
+                  description = "desc",
+                  _status = status,
+                  _skus = skus.toMutableList(),
+              )
+          val updatedSpu: Spu =
+              SpuImpl(
+                  id = spuId,
+                  name = cmd.spuName,
+                  description = cmd.description,
+                  _status = status,
+                  _skus = skus.toMutableList(),
+              )
+          whenever(spuRepository.findById(spuId)).thenReturn(existingSpu)
+          whenever(spuFactory.update(cmd, existingSpu)).thenReturn(updatedSpu)
+          whenever(spuRepository.save(updatedSpu)).thenReturn(updatedSpu)
+
+          val result = service.createOrUpdate(cmd)
+
+          result.shouldBeInstanceOf<Success<Spu>>()
+        }
+      }
     })

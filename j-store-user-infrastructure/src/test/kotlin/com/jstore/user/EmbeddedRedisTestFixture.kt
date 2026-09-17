@@ -22,29 +22,29 @@ import org.springframework.data.redis.core.StringRedisTemplate
 import redis.embedded.RedisServer
 
 internal object EmbeddedRedisTestFixture {
-    fun <T> withRedis(block: (StringRedisTemplate) -> T): T {
-        val port = ServerSocket(0).use { it.localPort }
-        val server =
-            RedisServer.newRedisServer()
-                .port(port)
-                .setting("bind 127.0.0.1")
-                .setting("save \"\"")
-                .setting("appendonly no")
-                .build()
-        server.start()
-        val connectionFactory = LettuceConnectionFactory("127.0.0.1", port)
-        try {
-            connectionFactory.afterPropertiesSet()
-            connectionFactory.start()
-            val template = StringRedisTemplate(connectionFactory)
-            template.afterPropertiesSet()
-            check(template.connectionFactory?.connection?.ping() == "PONG") {
-                "Embedded Redis did not become ready"
-            }
-            return block(template)
-        } finally {
-            connectionFactory.destroy()
-            server.stop()
-        }
+  fun <T> withRedis(block: (StringRedisTemplate) -> T): T {
+    val port = ServerSocket(0).use { it.localPort }
+    val server =
+        RedisServer.newRedisServer()
+            .port(port)
+            .setting("bind 127.0.0.1")
+            .setting("save \"\"")
+            .setting("appendonly no")
+            .build()
+    server.start()
+    val connectionFactory = LettuceConnectionFactory("127.0.0.1", port)
+    try {
+      connectionFactory.afterPropertiesSet()
+      connectionFactory.start()
+      val template = StringRedisTemplate(connectionFactory)
+      template.afterPropertiesSet()
+      check(template.connectionFactory?.connection?.ping() == "PONG") {
+        "Embedded Redis did not become ready"
+      }
+      return block(template)
+    } finally {
+      connectionFactory.destroy()
+      server.stop()
     }
+  }
 }

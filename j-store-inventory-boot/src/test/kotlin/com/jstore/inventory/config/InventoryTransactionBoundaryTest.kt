@@ -37,63 +37,62 @@ import org.springframework.transaction.support.DefaultTransactionStatus
 import org.springframework.transaction.support.TransactionSynchronizationManager
 
 class InventoryTransactionBoundaryTest {
-    @Test
-    fun `reserve handler publishes its outcome inside a transaction`() {
-        val transactionManager = RecordingTransactionManager()
-        val publisher =
-            object : DomainEventPublisher {
-                override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
-                    assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
-                }
-            }
-        val service =
-            InventoryBootConfiguration()
-                .inventoryService(
-                    StockPositionGuard { emptyList() },
-                    EmptyPositions,
-                    EmptyReservations,
-                )
-        val handler =
-            InventoryBootConfiguration()
-                .reserveInventoryHandler(service, publisher, transactionManager)
-
-        handler.handle(ReserveInventoryCommand(1, 11, emptyList(), "source", 2, Instant.EPOCH))
-
-        assertEquals(1, transactionManager.commits)
-    }
-
-    private object EmptyPositions : StockPositionRepository {
-        override fun save(aggregate: StockPosition) = aggregate
-
-        override fun findById(id: StockPositionId): StockPosition? = null
-
-        override fun findBySkuAndNode(
-            skuId: SkuId,
-            nodeId: FulfillmentNodeId,
-        ): StockPosition? = null
-    }
-
-    private object EmptyReservations : StockReservationRepository {
-        override fun save(aggregate: StockReservation) = aggregate
-
-        override fun findById(id: StockReservationId): StockReservation? = null
-
-        override fun findByBusinessKey(businessKey: String): StockReservation? = null
-
-        override fun findByOrderPlanId(orderPlanId: Long): List<StockReservation> = emptyList()
-    }
-
-    private class RecordingTransactionManager : AbstractPlatformTransactionManager() {
-        var commits = 0
-
-        override fun doGetTransaction() = Any()
-
-        override fun doBegin(transaction: Any, definition: TransactionDefinition) = Unit
-
-        override fun doCommit(status: DefaultTransactionStatus) {
-            commits++
+  @Test
+  fun `reserve handler publishes its outcome inside a transaction`() {
+    val transactionManager = RecordingTransactionManager()
+    val publisher =
+        object : DomainEventPublisher {
+          override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+          }
         }
+    val service =
+        InventoryBootConfiguration()
+            .inventoryService(
+                StockPositionGuard { emptyList() },
+                EmptyPositions,
+                EmptyReservations,
+            )
+    val handler =
+        InventoryBootConfiguration().reserveInventoryHandler(service, publisher, transactionManager)
 
-        override fun doRollback(status: DefaultTransactionStatus) = Unit
+    handler.handle(ReserveInventoryCommand(1, 11, emptyList(), "source", 2, Instant.EPOCH))
+
+    assertEquals(1, transactionManager.commits)
+  }
+
+  private object EmptyPositions : StockPositionRepository {
+    override fun save(aggregate: StockPosition) = aggregate
+
+    override fun findById(id: StockPositionId): StockPosition? = null
+
+    override fun findBySkuAndNode(
+        skuId: SkuId,
+        nodeId: FulfillmentNodeId,
+    ): StockPosition? = null
+  }
+
+  private object EmptyReservations : StockReservationRepository {
+    override fun save(aggregate: StockReservation) = aggregate
+
+    override fun findById(id: StockReservationId): StockReservation? = null
+
+    override fun findByBusinessKey(businessKey: String): StockReservation? = null
+
+    override fun findByOrderPlanId(orderPlanId: Long): List<StockReservation> = emptyList()
+  }
+
+  private class RecordingTransactionManager : AbstractPlatformTransactionManager() {
+    var commits = 0
+
+    override fun doGetTransaction() = Any()
+
+    override fun doBegin(transaction: Any, definition: TransactionDefinition) = Unit
+
+    override fun doCommit(status: DefaultTransactionStatus) {
+      commits++
     }
+
+    override fun doRollback(status: DefaultTransactionStatus) = Unit
+  }
 }

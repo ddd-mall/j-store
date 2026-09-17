@@ -46,5 +46,5 @@ import org.springframework.scheduling.annotation.EnableScheduling
 class JStoreOrderBootApplication
 
 fun main(args: Array<String>) {
-    SpringApplication.run(JStoreOrderBootApplication::class.java, *args)
+  SpringApplication.run(JStoreOrderBootApplication::class.java, *args)
 }

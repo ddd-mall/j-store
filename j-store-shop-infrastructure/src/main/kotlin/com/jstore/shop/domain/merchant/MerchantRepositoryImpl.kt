@@ -25,31 +25,31 @@ import org.springframework.transaction.annotation.Transactional
 @Repository
 class MerchantRepositoryImpl(private val jpaRepository: MerchantPOJpaRepository) :
     MerchantRepository {
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(aggregate: Merchant): Merchant =
-        Converter.toDomain(jpaRepository.save(Converter.toPO(aggregate)))
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun save(aggregate: Merchant): Merchant =
+      Converter.toDomain(jpaRepository.save(Converter.toPO(aggregate)))
 
-    @Transactional(readOnly = true)
-    override fun findById(id: MerchantId): Merchant? =
-        jpaRepository.findById(id.value).orElse(null)?.let(Converter::toDomain)
+  @Transactional(readOnly = true)
+  override fun findById(id: MerchantId): Merchant? =
+      jpaRepository.findById(id.value).orElse(null)?.let(Converter::toDomain)
 
-    internal object Converter {
-        fun toPO(merchant: Merchant) =
-            MerchantPO(
-                id = merchant.id.value,
-                name = merchant.name,
-                status = merchant.status,
-                createTime = merchant.createTime,
-                updateTime = merchant.updateTime,
-            )
+  internal object Converter {
+    fun toPO(merchant: Merchant) =
+        MerchantPO(
+            id = merchant.id.value,
+            name = merchant.name,
+            status = merchant.status,
+            createTime = merchant.createTime,
+            updateTime = merchant.updateTime,
+        )
 
-        fun toDomain(po: MerchantPO) =
-            Merchant(
-                id = MerchantId(po.id),
-                name = po.name,
-                status = po.status,
-                createTime = po.createTime,
-                updateTime = po.updateTime,
-            )
-    }
+    fun toDomain(po: MerchantPO) =
+        Merchant(
+            id = MerchantId(po.id),
+            name = po.name,
+            status = po.status,
+            createTime = po.createTime,
+            updateTime = po.updateTime,
+        )
+  }
 }

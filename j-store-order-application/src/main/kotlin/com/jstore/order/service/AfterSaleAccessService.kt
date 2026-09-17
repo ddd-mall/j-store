@@ -32,106 +32,105 @@ import com.jstore.shop.api.MerchantAuthorizationQuery
 import com.jstore.shop.api.MerchantCapability
 
 interface AfterSaleAccessUseCase {
-    fun get(
-        authenticationDomain: String,
-        accountId: Long,
-        id: AfterSaleId,
-    ): Result<AfterSale, BusinessError>
+  fun get(
+      authenticationDomain: String,
+      accountId: Long,
+      id: AfterSaleId,
+  ): Result<AfterSale, BusinessError>
 
-    fun list(
-        authenticationDomain: String,
-        accountId: Long,
-        orderId: OrderId,
-    ): Result<List<AfterSale>, BusinessError>
+  fun list(
+      authenticationDomain: String,
+      accountId: Long,
+      orderId: OrderId,
+  ): Result<List<AfterSale>, BusinessError>
 
-    fun approve(accountId: Long, id: AfterSaleId, key: String): Result<AfterSale, BusinessError>
+  fun approve(accountId: Long, id: AfterSaleId, key: String): Result<AfterSale, BusinessError>
 
-    fun reject(
-        accountId: Long,
-        id: AfterSaleId,
-        reason: String,
-        key: String,
-    ): Result<AfterSale, BusinessError>
+  fun reject(
+      accountId: Long,
+      id: AfterSaleId,
+      reason: String,
+      key: String,
+  ): Result<AfterSale, BusinessError>
 
-    fun receiveReturn(accountId: Long, id: AfterSaleId): Result<AfterSale, BusinessError>
+  fun receiveReturn(accountId: Long, id: AfterSaleId): Result<AfterSale, BusinessError>
 
-    fun retryRefund(accountId: Long, id: AfterSaleId): Result<AfterSale, BusinessError>
+  fun retryRefund(accountId: Long, id: AfterSaleId): Result<AfterSale, BusinessError>
 }
 
 class AfterSaleAccessService(
     private val afterSales: AfterSaleUseCase,
     private val authorization: MerchantAuthorizationQuery,
 ) : AfterSaleAccessUseCase {
-    override fun get(authenticationDomain: String, accountId: Long, id: AfterSaleId) =
-        afterSales.findById(id).visibleTo(authenticationDomain, accountId)
+  override fun get(authenticationDomain: String, accountId: Long, id: AfterSaleId) =
+      afterSales.findById(id).visibleTo(authenticationDomain, accountId)
 
-    override fun list(
-        authenticationDomain: String,
-        accountId: Long,
-        orderId: OrderId,
-    ): Result<List<AfterSale>, BusinessError> =
-        when (val result = afterSales.listByOrderForAccess(orderId)) {
-            is Failure -> result
-            is Success ->
-                if (canRead(authenticationDomain, accountId, result.value))
-                    Success(result.value.afterSales)
-                else Failure(AfterSaleErrors.NOT_FOUND)
-        }
+  override fun list(
+      authenticationDomain: String,
+      accountId: Long,
+      orderId: OrderId,
+  ): Result<List<AfterSale>, BusinessError> =
+      when (val result = afterSales.listByOrderForAccess(orderId)) {
+        is Failure -> result
+        is Success ->
+            if (canRead(authenticationDomain, accountId, result.value))
+                Success(result.value.afterSales)
+            else Failure(AfterSaleErrors.NOT_FOUND)
+      }
 
-    override fun approve(accountId: Long, id: AfterSaleId, key: String) =
-        manage(accountId, id) { afterSales.approve(AfterSaleApproveCMD(id, it.merchantId, key)) }
+  override fun approve(accountId: Long, id: AfterSaleId, key: String) =
+      manage(accountId, id) { afterSales.approve(AfterSaleApproveCMD(id, it.merchantId, key)) }
 
-    override fun reject(accountId: Long, id: AfterSaleId, reason: String, key: String) =
-        manage(accountId, id) {
-            afterSales.reject(AfterSaleRejectCMD(id, it.merchantId, reason, key))
-        }
+  override fun reject(accountId: Long, id: AfterSaleId, reason: String, key: String) =
+      manage(accountId, id) {
+        afterSales.reject(AfterSaleRejectCMD(id, it.merchantId, reason, key))
+      }
 
-    override fun receiveReturn(accountId: Long, id: AfterSaleId) =
-        manage(accountId, id) {
-            afterSales.receiveReturn(AfterSaleReceiveReturnCMD(id, it.merchantId))
-        }
+  override fun receiveReturn(accountId: Long, id: AfterSaleId) =
+      manage(accountId, id) {
+        afterSales.receiveReturn(AfterSaleReceiveReturnCMD(id, it.merchantId))
+      }
 
-    override fun retryRefund(accountId: Long, id: AfterSaleId) =
-        manage(accountId, id) { afterSales.retryRefund(AfterSaleRetryRefundCMD(id, it.merchantId)) }
+  override fun retryRefund(accountId: Long, id: AfterSaleId) =
+      manage(accountId, id) { afterSales.retryRefund(AfterSaleRetryRefundCMD(id, it.merchantId)) }
 
-    private fun manage(
-        accountId: Long,
-        id: AfterSaleId,
-        operation: (AfterSale) -> Result<AfterSale, BusinessError>,
-    ): Result<AfterSale, BusinessError> =
-        when (val result = afterSales.findById(id)) {
-            is Failure -> result
-            is Success ->
-                if (
-                    authorization.isAllowed(
-                        accountId,
-                        result.value.merchantId.value,
-                        MerchantCapability.AFTER_SALE_MANAGE,
-                    )
+  private fun manage(
+      accountId: Long,
+      id: AfterSaleId,
+      operation: (AfterSale) -> Result<AfterSale, BusinessError>,
+  ): Result<AfterSale, BusinessError> =
+      when (val result = afterSales.findById(id)) {
+        is Failure -> result
+        is Success ->
+            if (
+                authorization.isAllowed(
+                    accountId,
+                    result.value.merchantId.value,
+                    MerchantCapability.AFTER_SALE_MANAGE,
                 )
-                    operation(result.value)
-                else Failure(AfterSaleErrors.NOT_FOUND)
-        }
-
-    private fun Result<AfterSale, BusinessError>.visibleTo(
-        authenticationDomain: String,
-        accountId: Long,
-    ): Result<AfterSale, BusinessError> =
-        when (this) {
-            is Failure -> this
-            is Success -> {
-                val access = afterSales.listByOrderForAccess(value.orderId)
-                if (access is Success && canRead(authenticationDomain, accountId, access.value))
-                    this
-                else Failure(AfterSaleErrors.NOT_FOUND)
-            }
-        }
-
-    private fun canRead(domain: String, accountId: Long, access: AfterSaleOrderAccess): Boolean =
-        (access.buyerAuthenticationDomain == domain && access.buyerId == accountId) ||
-            authorization.isAllowed(
-                accountId,
-                access.merchantId.value,
-                MerchantCapability.AFTER_SALE_READ,
             )
+                operation(result.value)
+            else Failure(AfterSaleErrors.NOT_FOUND)
+      }
+
+  private fun Result<AfterSale, BusinessError>.visibleTo(
+      authenticationDomain: String,
+      accountId: Long,
+  ): Result<AfterSale, BusinessError> =
+      when (this) {
+        is Failure -> this
+        is Success -> {
+          val access = afterSales.listByOrderForAccess(value.orderId)
+          if (access is Success && canRead(authenticationDomain, accountId, access.value)) this
+          else Failure(AfterSaleErrors.NOT_FOUND)
+        }
+      }
+
+  private fun canRead(domain: String, accountId: Long, access: AfterSaleOrderAccess): Boolean =
+      (access.buyerAuthenticationDomain == domain && access.buyerId == accountId) ||
+          authorization.isAllowed(
+              accountId,
+              access.merchantId.value,
+              MerchantCapability.AFTER_SALE_READ,
+          )
 }

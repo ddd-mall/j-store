@@ -19,8 +19,8 @@ package com.jstore.messaging
 import java.time.Instant
 
 enum class IntegrationMessageKind {
-    EVENT,
-    COMMAND,
+  EVENT,
+  COMMAND,
 }
 
 data class IntegrationMessageEnvelope(
@@ -43,24 +43,24 @@ data class IntegrationMessageEnvelope(
     val orderingKey: String,
     val sequenceNo: Long,
 ) {
-    init {
-        require(transportId.isNotBlank()) { "transportId must not be blank" }
-        require(destination.isNotBlank()) { "destination must not be blank" }
-        require(logicalDestination.isNotBlank()) { "logicalDestination must not be blank" }
-        require(deliveryProfile.isNotBlank()) { "deliveryProfile must not be blank" }
-        require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
-        require(sequenceNo > 0) { "sequenceNo must be positive" }
-    }
+  init {
+    require(transportId.isNotBlank()) { "transportId must not be blank" }
+    require(destination.isNotBlank()) { "destination must not be blank" }
+    require(logicalDestination.isNotBlank()) { "logicalDestination must not be blank" }
+    require(deliveryProfile.isNotBlank()) { "deliveryProfile must not be blank" }
+    require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
+    require(sequenceNo > 0) { "sequenceNo must be positive" }
+  }
 }
 
 /** SPI implemented by a concrete Kafka, AMQP, or cloud messaging adapter. */
 interface IntegrationMessageTransport {
-    val transportId: String
+  val transportId: String
 
-    /**
-     * Returns only after the broker has acknowledged accepting the message. Implementations must
-     * use [IntegrationMessageEnvelope.orderingKey] as their partition or routing key when the
-     * target supports ordered partitions.
-     */
-    fun publish(envelope: IntegrationMessageEnvelope)
+  /**
+   * Returns only after the broker has acknowledged accepting the message. Implementations must use
+   * [IntegrationMessageEnvelope.orderingKey] as their partition or routing key when the target
+   * supports ordered partitions.
+   */
+  fun publish(envelope: IntegrationMessageEnvelope)
 }

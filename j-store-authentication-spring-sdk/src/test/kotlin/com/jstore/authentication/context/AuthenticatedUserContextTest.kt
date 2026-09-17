@@ -24,23 +24,23 @@ import io.kotest.matchers.string.shouldNotBeEmpty
 // **Validates: Requirements 5.4**
 class AuthenticatedPrincipalContextTest :
     FunSpec({
-        beforeEach {
-            AuthenticatedPrincipalContext.clear()
-        }
+      beforeEach {
+        AuthenticatedPrincipalContext.clear()
+      }
 
-        afterEach {
-            AuthenticatedPrincipalContext.clear()
-        }
+      afterEach {
+        AuthenticatedPrincipalContext.clear()
+      }
 
-        test("getCurrentUserId() throws AuthenticationException when no user is set") {
-            val exception =
-                shouldThrow<AuthenticationException> {
-                    AuthenticatedPrincipalContext.getCurrent()
-                }
-            exception.message.shouldNotBeEmpty()
-        }
+      test("getCurrentUserId() throws AuthenticationException when no user is set") {
+        val exception =
+            shouldThrow<AuthenticationException> {
+              AuthenticatedPrincipalContext.getCurrent()
+            }
+        exception.message.shouldNotBeEmpty()
+      }
 
-        test("getCurrentUserIdOrNull() returns null when no user is set") {
-            AuthenticatedPrincipalContext.getCurrentOrNull().shouldBeNull()
-        }
+      test("getCurrentUserIdOrNull() returns null when no user is set") {
+        AuthenticatedPrincipalContext.getCurrentOrNull().shouldBeNull()
+      }
     })

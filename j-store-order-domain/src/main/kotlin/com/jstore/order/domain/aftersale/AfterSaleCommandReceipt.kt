@@ -22,15 +22,15 @@ import com.jstore.order.domain.order.OrderItemId
 import java.time.LocalDateTime
 
 enum class AfterSaleCommandType {
-    CREATE,
-    APPROVE,
-    REJECT,
-    CANCEL,
+  CREATE,
+  APPROVE,
+  REJECT,
+  CANCEL,
 }
 
 enum class AllocationAction {
-    APPROVE,
-    RELEASE,
+  APPROVE,
+  RELEASE,
 }
 
 data class RefundCapacityCeiling(

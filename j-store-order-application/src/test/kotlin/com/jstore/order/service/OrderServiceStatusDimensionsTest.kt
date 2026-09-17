@@ -46,95 +46,90 @@ import org.mockito.Mockito.`when`
 
 class OrderServiceStatusDimensionsTest :
     FunSpec({
-        test("order factory failure is propagated without persistence or publication") {
-            val factory = mock(OrderFactory::class.java)
-            val repository = mock(OrderRepository::class.java)
-            val publisher = mock(DomainEventPublisher::class.java)
-            val users = mock(UserService::class.java)
-            val command = validCreateCommand()
-            val buyer =
-                UserInfo("issuer-a", command.buyerUid, PhoneNumber("+8613800138000"), "buyer")
-            val error = OrderErrors.CORRESPONDING_GOODS_NOT_FOUND
-            `when`(users.findUserInfo(command.buyerUid)).thenReturn(buyer)
-            `when`(factory.create(command, buyer)).thenReturn(Failure(error))
+      test("order factory failure is propagated without persistence or publication") {
+        val factory = mock(OrderFactory::class.java)
+        val repository = mock(OrderRepository::class.java)
+        val publisher = mock(DomainEventPublisher::class.java)
+        val users = mock(UserService::class.java)
+        val command = validCreateCommand()
+        val buyer = UserInfo("issuer-a", command.buyerUid, PhoneNumber("+8613800138000"), "buyer")
+        val error = OrderErrors.CORRESPONDING_GOODS_NOT_FOUND
+        `when`(users.findUserInfo(command.buyerUid)).thenReturn(buyer)
+        `when`(factory.create(command, buyer)).thenReturn(Failure(error))
 
-            OrderService(factory, repository, publisher, users).createOrder(command) shouldBe
-                Failure(error)
+        OrderService(factory, repository, publisher, users).createOrder(command) shouldBe
+            Failure(error)
 
-            verifyNoInteractions(repository, publisher)
-        }
+        verifyNoInteractions(repository, publisher)
+      }
 
-        test("domain failure is propagated and aggregate is not saved") {
-            val factory = mock(OrderFactory::class.java)
-            val repository = mock(OrderRepository::class.java)
-            val publisher = mock(DomainEventPublisher::class.java)
-            val order = mock(Order::class.java)
-            val id = OrderId(1)
-            `when`(repository.findById(id)).thenReturn(order)
-            `when`(order.confirmTradeCommitment()).thenReturn(Failure(OrderErrors.ILLEGAL_STATE))
+      test("domain failure is propagated and aggregate is not saved") {
+        val factory = mock(OrderFactory::class.java)
+        val repository = mock(OrderRepository::class.java)
+        val publisher = mock(DomainEventPublisher::class.java)
+        val order = mock(Order::class.java)
+        val id = OrderId(1)
+        `when`(repository.findById(id)).thenReturn(order)
+        `when`(order.confirmTradeCommitment()).thenReturn(Failure(OrderErrors.ILLEGAL_STATE))
 
-            OrderService(factory, repository, publisher, mock(UserService::class.java))
-                .confirmTradeCommitment(id)
-                .shouldBeInstanceOf<Failure<*>>()
-            verify(repository, never()).save(order)
-        }
+        OrderService(factory, repository, publisher, mock(UserService::class.java))
+            .confirmTradeCommitment(id)
+            .shouldBeInstanceOf<Failure<*>>()
+        verify(repository, never()).save(order)
+      }
 
-        test("trade commitment persists order and publishes payment creation gate event") {
-            val factory = mock(OrderFactory::class.java)
-            val repository = mock(OrderRepository::class.java)
-            val order =
-                testOrder(
-                    trade = TradeStatus.CREATED,
-                    commitment = com.jstore.order.domain.order.CommitmentStatus.PENDING_OFFER,
-                )
-            val published = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
-            val publisher =
-                object : DomainEventPublisher {
-                    override fun publishEvent(
-                        event: com.jstore.common.framework.event.DomainEvent
-                    ) {
-                        published += event
-                    }
-                }
-            `when`(repository.findById(order.id)).thenReturn(order)
-            `when`(repository.save(order)).thenReturn(order)
+      test("trade commitment persists order and publishes payment creation gate event") {
+        val factory = mock(OrderFactory::class.java)
+        val repository = mock(OrderRepository::class.java)
+        val order =
+            testOrder(
+                trade = TradeStatus.CREATED,
+                commitment = com.jstore.order.domain.order.CommitmentStatus.PENDING_OFFER,
+            )
+        val published = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
+        val publisher =
+            object : DomainEventPublisher {
+              override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
+                published += event
+              }
+            }
+        `when`(repository.findById(order.id)).thenReturn(order)
+        `when`(repository.save(order)).thenReturn(order)
 
-            OrderService(factory, repository, publisher, mock(UserService::class.java))
-                .confirmTradeCommitment(order.id) shouldBe Success(Unit)
+        OrderService(factory, repository, publisher, mock(UserService::class.java))
+            .confirmTradeCommitment(order.id) shouldBe Success(Unit)
 
-            verify(repository).save(order)
-            published.single().shouldBeInstanceOf<OrderTradeCommittedEvent>()
-            order.pendingDomainEvents().size shouldBe 0
-        }
+        verify(repository).save(order)
+        published.single().shouldBeInstanceOf<OrderTradeCommittedEvent>()
+        order.pendingDomainEvents().size shouldBe 0
+      }
 
-        test("completing an order persists and publishes OrderCompletedEvent") {
-            val factory = mock(OrderFactory::class.java)
-            val repository = mock(OrderRepository::class.java)
-            val order =
-                testOrder(
-                    trade = TradeStatus.ACTIVE,
-                    payment = PaymentStatus.PAID,
-                    fulfillment = FulfillmentStatus.DELIVERED,
-                    itemStatuses = listOf(OrderItemStatus.SHIPPING_FINISHED),
-                )
-            val published = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
-            val publisher =
-                object : DomainEventPublisher {
-                    override fun publishEvent(
-                        event: com.jstore.common.framework.event.DomainEvent
-                    ) {
-                        published += event
-                    }
-                }
-            `when`(repository.findById(order.id)).thenReturn(order)
-            `when`(repository.save(order)).thenReturn(order)
+      test("completing an order persists and publishes OrderCompletedEvent") {
+        val factory = mock(OrderFactory::class.java)
+        val repository = mock(OrderRepository::class.java)
+        val order =
+            testOrder(
+                trade = TradeStatus.ACTIVE,
+                payment = PaymentStatus.PAID,
+                fulfillment = FulfillmentStatus.DELIVERED,
+                itemStatuses = listOf(OrderItemStatus.SHIPPING_FINISHED),
+            )
+        val published = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
+        val publisher =
+            object : DomainEventPublisher {
+              override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
+                published += event
+              }
+            }
+        `when`(repository.findById(order.id)).thenReturn(order)
+        `when`(repository.save(order)).thenReturn(order)
 
-            OrderService(factory, repository, publisher, mock(UserService::class.java))
-                .completeOrder(order.id) shouldBe Success(Unit)
+        OrderService(factory, repository, publisher, mock(UserService::class.java))
+            .completeOrder(order.id) shouldBe Success(Unit)
 
-            published.single().shouldBeInstanceOf<OrderCompletedEvent>()
-            order.pendingDomainEvents().size shouldBe 0
-        }
+        published.single().shouldBeInstanceOf<OrderCompletedEvent>()
+        order.pendingDomainEvents().size shouldBe 0
+      }
     })
 
 private fun validCreateCommand() =

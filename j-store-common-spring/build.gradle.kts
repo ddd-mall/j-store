@@ -1,29 +1,29 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.plugin.spring)
-    alias(libs.plugins.kotlin.plugin.jpa)
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.kotlin.plugin.spring)
+  alias(libs.plugins.kotlin.plugin.jpa)
 }
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 dependencies {
-    testImplementation(kotlin("test"))
-    implementation(project(":j-store-common-core"))
-    implementation(libs.fastexcel)
-    implementation(libs.spring.context)
+  testImplementation(kotlin("test"))
+  implementation(project(":j-store-common-core"))
+  implementation(libs.fastexcel)
+  implementation(libs.spring.context)
 
-    // Test dependencies
-    testImplementation(libs.kotest.runner.junit5)
-    testImplementation(libs.kotest.assertions.core)
-    testImplementation(libs.kotest.property)
+  // Test dependencies
+  testImplementation(libs.kotest.runner.junit5)
+  testImplementation(libs.kotest.assertions.core)
+  testImplementation(libs.kotest.property)
 }
 
 tasks.test {
-    useJUnitPlatform()
+  useJUnitPlatform()
 }
 
 kotlin {
-    jvmToolchain(25)
+  jvmToolchain(25)
 }

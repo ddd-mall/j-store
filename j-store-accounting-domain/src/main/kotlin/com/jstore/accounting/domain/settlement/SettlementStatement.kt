@@ -33,16 +33,16 @@ data class SettlementPeriod(
     val startDate: LocalDate,
     val endDate: LocalDate,
 ) {
-    init {
-        require(!startDate.isAfter(endDate)) { "结算周期开始日期不能晚于结束日期" }
-    }
+  init {
+    require(!startDate.isAfter(endDate)) { "结算周期开始日期不能晚于结束日期" }
+  }
 }
 
 enum class SettlementStatementStatus {
-    DRAFT,
-    CONFIRMED,
-    PAID,
-    CANCELLED,
+  DRAFT,
+  CONFIRMED,
+  PAID,
+  CANCELLED,
 }
 
 data class SettlementLine(
@@ -53,25 +53,25 @@ data class SettlementLine(
     val commissionAmount: Price,
     val netAmount: Price,
 ) {
-    init {
-        require(orderId.isNotBlank()) { "结算订单ID不能为空" }
-    }
+  init {
+    require(orderId.isNotBlank()) { "结算订单ID不能为空" }
+  }
 }
 
 interface SettlementStatement : AggregateRoot<SettlementStatementId>, RecordsDomainEvents {
-    override val id: SettlementStatementId
-    val statementNo: String
-    val merchantId: String
-    val period: SettlementPeriod
-    val status: SettlementStatementStatus
-    val lines: List<SettlementLine>
-    val payableAmount: Price
-    val confirmedAt: Instant?
-    val paidAt: Instant?
+  override val id: SettlementStatementId
+  val statementNo: String
+  val merchantId: String
+  val period: SettlementPeriod
+  val status: SettlementStatementStatus
+  val lines: List<SettlementLine>
+  val payableAmount: Price
+  val confirmedAt: Instant?
+  val paidAt: Instant?
 
-    fun addLine(line: SettlementLine): Result<Unit, BusinessError>
+  fun addLine(line: SettlementLine): Result<Unit, BusinessError>
 
-    fun confirm(): Result<Unit, BusinessError>
+  fun confirm(): Result<Unit, BusinessError>
 
-    fun markPaid(paidAt: Instant): Result<Unit, BusinessError>
+  fun markPaid(paidAt: Instant): Result<Unit, BusinessError>
 }

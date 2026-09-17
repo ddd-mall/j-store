@@ -35,74 +35,74 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class PaymentApplicationServiceTest {
-    @Test
-    fun `capture persists aggregate and publishes its domain event`() {
-        val payment =
-            PaymentOrderImpl(
-                PaymentOrderId(1),
-                orderId = 9,
-                merchantId = 7,
-                payableAmount = Price.ofFen(100),
-                currency = "CNY",
-            )
-        val repository = FakeRepository(payment)
-        val published = mutableListOf<DomainEvent>()
-        val service =
-            PaymentApplicationService(
-                repository,
-                SnowFlakSequence(1, 1),
-                object : DomainEventPublisher {
-                    override fun publishEvent(event: DomainEvent) {
-                        published += event
-                    }
-                },
-            )
+  @Test
+  fun `capture persists aggregate and publishes its domain event`() {
+    val payment =
+        PaymentOrderImpl(
+            PaymentOrderId(1),
+            orderId = 9,
+            merchantId = 7,
+            payableAmount = Price.ofFen(100),
+            currency = "CNY",
+        )
+    val repository = FakeRepository(payment)
+    val published = mutableListOf<DomainEvent>()
+    val service =
+        PaymentApplicationService(
+            repository,
+            SnowFlakSequence(1, 1),
+            object : DomainEventPublisher {
+              override fun publishEvent(event: DomainEvent) {
+                published += event
+              }
+            },
+        )
 
-        val result =
-            service.capture(
-                PaymentCaptureCommand(9, "provider-1", Price.ofFen(100), "CNY"),
-                Instant.EPOCH,
-            )
+    val result =
+        service.capture(
+            PaymentCaptureCommand(9, "provider-1", Price.ofFen(100), "CNY"),
+            Instant.EPOCH,
+        )
 
-        assertEquals(true, assertIs<Success<Boolean>>(result).value)
-        assertEquals(1, repository.saveCount)
-        assertIs<PaymentCapturedEvent>(published.single())
+    assertEquals(true, assertIs<Success<Boolean>>(result).value)
+    assertEquals(1, repository.saveCount)
+    assertIs<PaymentCapturedEvent>(published.single())
+  }
+
+  @Test
+  fun `capture propagates not found as a business failure`() {
+    val service =
+        PaymentApplicationService(
+            FakeRepository(null),
+            SnowFlakSequence(1, 1),
+            object : DomainEventPublisher {
+              override fun publishEvent(event: DomainEvent) = Unit
+            },
+        )
+
+    val result =
+        service.capture(
+            PaymentCaptureCommand(9, "provider-1", Price.ofFen(100), "CNY"),
+            Instant.EPOCH,
+        )
+
+    assertEquals(PaymentErrors.ORDER_NOT_FOUND, assertIs<Failure<*>>(result).error)
+  }
+
+  private class FakeRepository(initial: PaymentOrder?) : PaymentOrderRepository {
+    private var payment = initial
+    var saveCount = 0
+      private set
+
+    override fun save(aggregate: PaymentOrder): PaymentOrder = aggregate.also {
+      payment = it
+      saveCount++
     }
 
-    @Test
-    fun `capture propagates not found as a business failure`() {
-        val service =
-            PaymentApplicationService(
-                FakeRepository(null),
-                SnowFlakSequence(1, 1),
-                object : DomainEventPublisher {
-                    override fun publishEvent(event: DomainEvent) = Unit
-                },
-            )
+    override fun findById(id: PaymentOrderId) = payment?.takeIf { it.id == id }
 
-        val result =
-            service.capture(
-                PaymentCaptureCommand(9, "provider-1", Price.ofFen(100), "CNY"),
-                Instant.EPOCH,
-            )
+    override fun findByOrderId(orderId: Long) = payment?.takeIf { it.orderId == orderId }
 
-        assertEquals(PaymentErrors.ORDER_NOT_FOUND, assertIs<Failure<*>>(result).error)
-    }
-
-    private class FakeRepository(initial: PaymentOrder?) : PaymentOrderRepository {
-        private var payment = initial
-        var saveCount = 0
-            private set
-
-        override fun save(aggregate: PaymentOrder): PaymentOrder = aggregate.also {
-            payment = it
-            saveCount++
-        }
-
-        override fun findById(id: PaymentOrderId) = payment?.takeIf { it.id == id }
-
-        override fun findByOrderId(orderId: Long) = payment?.takeIf { it.orderId == orderId }
-
-        override fun findByRefundId(refundId: PaymentRefundId): PaymentOrder? = null
-    }
+    override fun findByRefundId(refundId: PaymentRefundId): PaymentOrder? = null
+  }
 }

@@ -17,9 +17,9 @@
 package com.jstore.common.query
 
 interface Page<T> {
-    val currentPage: Int
-    val totalElements: Int
-    val records: List<T>
+  val currentPage: Int
+  val totalElements: Int
+  val records: List<T>
 }
 
 data class SortedPage<T>(

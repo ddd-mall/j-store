@@ -23,36 +23,36 @@ import com.jstore.payment.domain.payment.PaymentRefundId
 import java.time.Instant
 
 interface PaymentUseCase {
-    fun createForOrder(request: PaymentOrderRequest): Result<PaymentOrder, BusinessError>
+  fun createForOrder(request: PaymentOrderRequest): Result<PaymentOrder, BusinessError>
 
-    fun getByOrderId(orderId: Long): Result<PaymentOrder, BusinessError>
+  fun getByOrderId(orderId: Long): Result<PaymentOrder, BusinessError>
 
-    fun getByRefundId(refundId: PaymentRefundId): Result<PaymentOrder, BusinessError>
+  fun getByRefundId(refundId: PaymentRefundId): Result<PaymentOrder, BusinessError>
 
-    fun capture(
-        command: PaymentCaptureCommand,
-        occurredAt: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError>
+  fun capture(
+      command: PaymentCaptureCommand,
+      occurredAt: Instant = Instant.now(),
+  ): Result<Boolean, BusinessError>
 
-    fun requestRefund(
-        request: PaymentRefundRequest,
-        occurredAt: Instant = Instant.now(),
-    ): Result<PaymentRefundId, BusinessError>
+  fun requestRefund(
+      request: PaymentRefundRequest,
+      occurredAt: Instant = Instant.now(),
+  ): Result<PaymentRefundId, BusinessError>
 
-    fun retryRefund(
-        refundId: PaymentRefundId,
-        occurredAt: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError>
+  fun retryRefund(
+      refundId: PaymentRefundId,
+      occurredAt: Instant = Instant.now(),
+  ): Result<Boolean, BusinessError>
 
-    fun markRefundSucceeded(
-        refundId: PaymentRefundId,
-        providerRefundId: String,
-        occurredAt: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError>
+  fun markRefundSucceeded(
+      refundId: PaymentRefundId,
+      providerRefundId: String,
+      occurredAt: Instant = Instant.now(),
+  ): Result<Boolean, BusinessError>
 
-    fun markRefundFailed(
-        refundId: PaymentRefundId,
-        reason: String,
-        occurredAt: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError>
+  fun markRefundFailed(
+      refundId: PaymentRefundId,
+      reason: String,
+      occurredAt: Instant = Instant.now(),
+  ): Result<Boolean, BusinessError>
 }

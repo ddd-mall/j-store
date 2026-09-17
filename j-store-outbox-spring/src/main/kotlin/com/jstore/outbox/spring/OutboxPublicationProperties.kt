@@ -26,10 +26,10 @@ data class OutboxPublicationProperties(
     val mode: String = "polling",
     val eventTypeScanPackages: List<String> = listOf("com.jstore"),
 ) {
-    init {
-        require(mode.isNotBlank()) { "jstore.outbox.mode must not be blank" }
-        require(eventTypeScanPackages.isNotEmpty()) { "Event type scan packages must not be empty" }
-    }
+  init {
+    require(mode.isNotBlank()) { "jstore.outbox.mode must not be blank" }
+    require(eventTypeScanPackages.isNotEmpty()) { "Event type scan packages must not be empty" }
+  }
 }
 
 /** Validated single owner; deliberately does not use @Primary to hide duplicate backends. */

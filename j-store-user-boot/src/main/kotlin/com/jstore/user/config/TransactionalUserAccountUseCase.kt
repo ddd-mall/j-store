@@ -42,75 +42,73 @@ class TransactionalUserAccountUseCase(
     private val tokenStore: TokenStore,
     transactionManager: PlatformTransactionManager,
 ) : UserAccountUseCase {
-    private val write = TransactionTemplate(transactionManager)
-    private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+  private val write = TransactionTemplate(transactionManager)
+  private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun requestPhoneVerification(phoneNumber: PhoneNumber) =
-        delegate.requestPhoneVerification(phoneNumber)
+  override fun requestPhoneVerification(phoneNumber: PhoneNumber) =
+      delegate.requestPhoneVerification(phoneNumber)
 
-    override fun register(cmd: UserRegisterCMD, verificationProof: PhoneVerificationProof) = tx {
-        delegate.register(cmd, verificationProof)
-    }
+  override fun register(cmd: UserRegisterCMD, verificationProof: PhoneVerificationProof) = tx {
+    delegate.register(cmd, verificationProof)
+  }
 
-    override fun login(phoneNumber: PhoneNumber, rawPassword: String) =
-        tx { delegate.login(phoneNumber, rawPassword) }
-            .also { result ->
-                if (result is Success) {
-                    tokenProvider.parseRefreshToken(result.value.refreshToken)?.let { claims ->
-                        tokenStore.storeRefreshSession(
-                            userId = claims.userId,
-                            sessionId = claims.sessionId,
-                            refreshTokenDigest =
-                                RefreshTokenDigest.sha256(result.value.refreshToken),
-                            sessionEpoch = claims.sessionEpoch,
-                            ttlSeconds = REFRESH_TOKEN_TTL_SECONDS,
-                        )
-                    }
-                }
+  override fun login(phoneNumber: PhoneNumber, rawPassword: String) =
+      tx { delegate.login(phoneNumber, rawPassword) }
+          .also { result ->
+            if (result is Success) {
+              tokenProvider.parseRefreshToken(result.value.refreshToken)?.let { claims ->
+                tokenStore.storeRefreshSession(
+                    userId = claims.userId,
+                    sessionId = claims.sessionId,
+                    refreshTokenDigest = RefreshTokenDigest.sha256(result.value.refreshToken),
+                    sessionEpoch = claims.sessionEpoch,
+                    ttlSeconds = REFRESH_TOKEN_TTL_SECONDS,
+                )
+              }
             }
+          }
 
-    // 刷新令牌是 Redis 主导的外部状态交换，不伪装成数据库原子事务。
-    override fun refreshToken(refreshToken: String) = delegate.refreshToken(refreshToken)
+  // 刷新令牌是 Redis 主导的外部状态交换，不伪装成数据库原子事务。
+  override fun refreshToken(refreshToken: String) = delegate.refreshToken(refreshToken)
 
-    override fun logout(userId: UserId, accessToken: String) = delegate.logout(userId, accessToken)
+  override fun logout(userId: UserId, accessToken: String) = delegate.logout(userId, accessToken)
 
-    override fun findById(userId: UserId) = query { delegate.findById(userId) }
+  override fun findById(userId: UserId) = query { delegate.findById(userId) }
 
-    override fun changeNickname(userId: UserId, newNickname: Nickname) = tx {
-        delegate.changeNickname(userId, newNickname)
+  override fun changeNickname(userId: UserId, newNickname: Nickname) = tx {
+    delegate.changeNickname(userId, newNickname)
+  }
+
+  override fun changePassword(userId: UserId, oldPassword: String, newPassword: String) =
+      txAndRevokeAllSessions(userId) {
+        delegate.changePassword(userId, oldPassword, newPassword)
+      }
+
+  override fun disable(userId: UserId) = txAndRevokeAllSessions(userId) { delegate.disable(userId) }
+
+  override fun enable(userId: UserId) = tx { delegate.enable(userId) }
+
+  override fun forceOffline(userId: UserId) =
+      txAndRevokeAllSessions(userId) { delegate.forceOffline(userId) }
+
+  /**
+   * Revocation happens before the database commit so a Redis failure rolls back the account change.
+   * If the later database commit fails, the conservative result is an extra logout.
+   */
+  private fun <T> txAndRevokeAllSessions(
+      userId: UserId,
+      block: () -> Result<T, BusinessError>,
+  ): Result<T, BusinessError> = tx {
+    block().also { result ->
+      if (result is Success) tokenStore.revokeAllSessions(userId)
     }
+  }
 
-    override fun changePassword(userId: UserId, oldPassword: String, newPassword: String) =
-        txAndRevokeAllSessions(userId) {
-            delegate.changePassword(userId, oldPassword, newPassword)
-        }
+  private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 
-    override fun disable(userId: UserId) =
-        txAndRevokeAllSessions(userId) { delegate.disable(userId) }
+  private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
 
-    override fun enable(userId: UserId) = tx { delegate.enable(userId) }
-
-    override fun forceOffline(userId: UserId) =
-        txAndRevokeAllSessions(userId) { delegate.forceOffline(userId) }
-
-    /**
-     * Revocation happens before the database commit so a Redis failure rolls back the account
-     * change. If the later database commit fails, the conservative result is an extra logout.
-     */
-    private fun <T> txAndRevokeAllSessions(
-        userId: UserId,
-        block: () -> Result<T, BusinessError>,
-    ): Result<T, BusinessError> = tx {
-        block().also { result ->
-            if (result is Success) tokenStore.revokeAllSessions(userId)
-        }
-    }
-
-    private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
-
-    private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
-
-    private companion object {
-        const val REFRESH_TOKEN_TTL_SECONDS = 604800L
-    }
+  private companion object {
+    const val REFRESH_TOKEN_TTL_SECONDS = 604800L
+  }
 }

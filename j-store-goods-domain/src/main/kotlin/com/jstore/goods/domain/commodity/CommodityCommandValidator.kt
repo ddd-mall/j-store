@@ -25,19 +25,17 @@ import com.jstore.goods.domain.commodity.comand.CommodityCreateCmd
 import com.jstore.goods.domain.commodity.comand.GoodsStyleSaveCmd
 
 object CommodityCommandValidator {
-    fun validate(command: CommodityCreateCmd): Result<Boolean, BusinessError> {
-        if (command.merchantId <= 0)
-            return Failure(CommonBusinessError.INVALID_PARAM.msg("商户ID必须为正数"))
-        if (command.spuName.isBlank())
-            return Failure(CommonBusinessError.INVALID_PARAM.msg("商品名称不能为空"))
-        return Success(true)
-    }
+  fun validate(command: CommodityCreateCmd): Result<Boolean, BusinessError> {
+    if (command.merchantId <= 0) return Failure(CommonBusinessError.INVALID_PARAM.msg("商户ID必须为正数"))
+    if (command.spuName.isBlank()) return Failure(CommonBusinessError.INVALID_PARAM.msg("商品名称不能为空"))
+    return Success(true)
+  }
 
-    fun validate(command: GoodsStyleSaveCmd): Result<Boolean, BusinessError> {
-        if (command.mainImages.size != command.mainImages.distinct().size)
-            return Failure(CommodityErrors.DUPLICATE_IMAGE_KEY)
-        if (command.skuImages.values.any { it.size != it.distinct().size })
-            return Failure(CommodityErrors.DUPLICATE_IMAGE_KEY)
-        return Success(true)
-    }
+  fun validate(command: GoodsStyleSaveCmd): Result<Boolean, BusinessError> {
+    if (command.mainImages.size != command.mainImages.distinct().size)
+        return Failure(CommodityErrors.DUPLICATE_IMAGE_KEY)
+    if (command.skuImages.values.any { it.size != it.distinct().size })
+        return Failure(CommodityErrors.DUPLICATE_IMAGE_KEY)
+    return Success(true)
+  }
 }

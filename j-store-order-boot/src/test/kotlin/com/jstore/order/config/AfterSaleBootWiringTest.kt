@@ -26,22 +26,22 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 
 class AfterSaleBootWiringTest {
-    @Test
-    fun `configuration exposes after-sale factory and application service`() {
-        val configuration = OrderBootConfiguration()
-        val sequence = configuration.snowFlakSequence()
-        val factory = configuration.afterSaleFactory(sequence)
-        val repository = mock(AfterSaleRepository::class.java)
-        val orders = mock(OrderRepository::class.java)
-        assertNotNull(
-            configuration.afterSaleApplicationService(
-                factory,
-                repository,
-                mock(RefundCapacityRepository::class.java),
-                mock(AfterSaleCommandReceiptStore::class.java),
-                orders,
-                mock(DomainEventPublisher::class.java),
-            )
+  @Test
+  fun `configuration exposes after-sale factory and application service`() {
+    val configuration = OrderBootConfiguration()
+    val sequence = configuration.snowFlakSequence()
+    val factory = configuration.afterSaleFactory(sequence)
+    val repository = mock(AfterSaleRepository::class.java)
+    val orders = mock(OrderRepository::class.java)
+    assertNotNull(
+        configuration.afterSaleApplicationService(
+            factory,
+            repository,
+            mock(RefundCapacityRepository::class.java),
+            mock(AfterSaleCommandReceiptStore::class.java),
+            orders,
+            mock(DomainEventPublisher::class.java),
         )
-    }
+    )
+  }
 }

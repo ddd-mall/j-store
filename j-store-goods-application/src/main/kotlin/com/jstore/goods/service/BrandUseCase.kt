@@ -32,9 +32,9 @@ data class BrandSaveCommand(
 data class BrandStatusCommand(val id: BrandId, val merchantId: MerchantId)
 
 interface BrandUseCase {
-    fun save(command: BrandSaveCommand): Result<Brand, BusinessError>
+  fun save(command: BrandSaveCommand): Result<Brand, BusinessError>
 
-    fun activate(command: BrandStatusCommand): Result<Brand, BusinessError>
+  fun activate(command: BrandStatusCommand): Result<Brand, BusinessError>
 
-    fun deactivate(command: BrandStatusCommand): Result<Brand, BusinessError>
+  fun deactivate(command: BrandStatusCommand): Result<Brand, BusinessError>
 }

@@ -42,9 +42,9 @@ sealed class AfterSaleDomainEvent(
     override val eventVersion: Int,
 ) : DomainEvent {
 
-    override val aggregateType = "AfterSale"
-    override val aggregateId
-        get() = afterSaleId.value.toString()
+  override val aggregateType = "AfterSale"
+  override val aggregateId
+    get() = afterSaleId.value.toString()
 }
 
 @DomainEventType(name = "after-sale.requested", version = 1)

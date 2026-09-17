@@ -27,63 +27,63 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 class TransactionAwareOutboxRelaySignalTest :
     FunSpec({
-        afterTest {
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.clearSynchronization()
-            }
-            TransactionSynchronizationManager.clear()
+      afterTest {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+          TransactionSynchronizationManager.clearSynchronization()
         }
+        TransactionSynchronizationManager.clear()
+      }
 
-        test("requests relay only after transaction commit") {
-            val trigger = mock<OutboxRelayTrigger>()
-            val signal = TransactionAwareOutboxRelaySignal(trigger)
-            TransactionSynchronizationManager.initSynchronization()
+      test("requests relay only after transaction commit") {
+        val trigger = mock<OutboxRelayTrigger>()
+        val signal = TransactionAwareOutboxRelaySignal(trigger)
+        TransactionSynchronizationManager.initSynchronization()
 
-            signal.signalAfterCommit()
+        signal.signalAfterCommit()
 
-            verify(trigger, never()).requestDrain()
-            TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
-            verify(trigger).requestDrain()
+        verify(trigger, never()).requestDrain()
+        TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
+        verify(trigger).requestDrain()
+      }
+
+      test("rollback does not request relay") {
+        val trigger = mock<OutboxRelayTrigger>()
+        val signal = TransactionAwareOutboxRelaySignal(trigger)
+        TransactionSynchronizationManager.initSynchronization()
+
+        signal.signalAfterCommit()
+
+        TransactionSynchronizationManager.getSynchronizations().forEach {
+          it.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
         }
+        verify(trigger, never()).requestDrain()
+      }
 
-        test("rollback does not request relay") {
-            val trigger = mock<OutboxRelayTrigger>()
-            val signal = TransactionAwareOutboxRelaySignal(trigger)
-            TransactionSynchronizationManager.initSynchronization()
+      test("multiple publications in one transaction register one wake-up") {
+        val trigger = mock<OutboxRelayTrigger>()
+        val signal = TransactionAwareOutboxRelaySignal(trigger)
+        TransactionSynchronizationManager.initSynchronization()
 
-            signal.signalAfterCommit()
+        repeat(20) { signal.signalAfterCommit() }
+        TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
 
-            TransactionSynchronizationManager.getSynchronizations().forEach {
-                it.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
-            }
-            verify(trigger, never()).requestDrain()
+        verify(trigger).requestDrain()
+      }
+
+      test("relay wake-up failure does not escape the after-commit callback") {
+        val signal = TransactionAwareOutboxRelaySignal {
+          throw IllegalStateException("executor unavailable")
         }
+        TransactionSynchronizationManager.initSynchronization()
 
-        test("multiple publications in one transaction register one wake-up") {
-            val trigger = mock<OutboxRelayTrigger>()
-            val signal = TransactionAwareOutboxRelaySignal(trigger)
-            TransactionSynchronizationManager.initSynchronization()
+        signal.signalAfterCommit()
 
-            repeat(20) { signal.signalAfterCommit() }
-            TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
+        TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
+      }
 
-            verify(trigger).requestDrain()
-        }
+      test("requires transaction synchronization") {
+        val signal = TransactionAwareOutboxRelaySignal(mock())
 
-        test("relay wake-up failure does not escape the after-commit callback") {
-            val signal = TransactionAwareOutboxRelaySignal {
-                throw IllegalStateException("executor unavailable")
-            }
-            TransactionSynchronizationManager.initSynchronization()
-
-            signal.signalAfterCommit()
-
-            TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
-        }
-
-        test("requires transaction synchronization") {
-            val signal = TransactionAwareOutboxRelaySignal(mock())
-
-            shouldThrow<IllegalStateException> { signal.signalAfterCommit() }
-        }
+        shouldThrow<IllegalStateException> { signal.signalAfterCommit() }
+      }
     })

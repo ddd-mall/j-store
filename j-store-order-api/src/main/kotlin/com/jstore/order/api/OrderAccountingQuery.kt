@@ -26,5 +26,5 @@ data class OrderAccountingSnapshot(
 )
 
 fun interface OrderAccountingQuery {
-    fun find(orderId: Long): OrderAccountingSnapshot?
+  fun find(orderId: Long): OrderAccountingSnapshot?
 }

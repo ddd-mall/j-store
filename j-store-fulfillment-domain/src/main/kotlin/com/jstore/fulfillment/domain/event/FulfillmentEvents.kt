@@ -31,9 +31,9 @@ sealed class FulfillmentEvent(
     override val eventVersion: Int,
 ) : DomainEvent {
 
-    override val aggregateType: String = "FulfillmentOrder"
-    override val aggregateId: String
-        get() = fulfillmentId.value.toString()
+  override val aggregateType: String = "FulfillmentOrder"
+  override val aggregateId: String
+    get() = fulfillmentId.value.toString()
 }
 
 @DomainEventType(name = "fulfillment.prepared", version = 1)

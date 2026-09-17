@@ -22,7 +22,7 @@ interface MerchantRepository : AggregateRepository<MerchantId, Merchant>
 
 interface MerchantMembershipRepository :
     AggregateRepository<MerchantMembershipId, MerchantMembership> {
-    fun findByMerchantAndUser(merchantId: MerchantId, userId: Long): MerchantMembership?
+  fun findByMerchantAndUser(merchantId: MerchantId, userId: Long): MerchantMembership?
 
-    fun findByUser(userId: Long): List<MerchantMembership>
+  fun findByUser(userId: Long): List<MerchantMembership>
 }

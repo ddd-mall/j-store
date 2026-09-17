@@ -46,11 +46,11 @@ data class CartRefreshRequestedEvent(
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
-    override val eventName = "cart.refresh-requested"
-    override val eventVersion = 1
-    override val aggregateType = "Cart"
-    override val aggregateId
-        get() = cartId.value.toString()
+  override val eventName = "cart.refresh-requested"
+  override val eventVersion = 1
+  override val aggregateType = "Cart"
+  override val aggregateId
+    get() = cartId.value.toString()
 }
 
 class Cart(
@@ -62,92 +62,91 @@ class Cart(
     contentVersion: Long,
     val persistenceVersion: Long = 0,
 ) : EventRecordingAggregateRoot<CartId>() {
-    private val mutableLines = lines.toMutableList()
-    private var mutableContentVersion: Long = contentVersion
-    val contentVersion: Long
-        get() = mutableContentVersion
+  private val mutableLines = lines.toMutableList()
+  private var mutableContentVersion: Long = contentVersion
+  val contentVersion: Long
+    get() = mutableContentVersion
 
-    val lines: List<CartLine>
-        get() = mutableLines.toList()
+  val lines: List<CartLine>
+    get() = mutableLines.toList()
 
-    fun hasItemTarget(skuId: SkuId, offerId: OfferId, targetQuantity: Int): Boolean =
-        targetQuantity in 1..999 &&
-            mutableLines.any {
-                it.skuId == skuId && it.offerId == offerId && it.quantity == targetQuantity
-            }
+  fun hasItemTarget(skuId: SkuId, offerId: OfferId, targetQuantity: Int): Boolean =
+      targetQuantity in 1..999 &&
+          mutableLines.any {
+            it.skuId == skuId && it.offerId == offerId && it.quantity == targetQuantity
+          }
 
-    fun setItemQuantity(
-        expectedVersion: Long,
-        lineId: CartLineId,
-        skuId: SkuId,
-        offerId: OfferId,
-        merchantId: MerchantId,
-        targetQuantity: Int,
-        scope: SettlementScope,
-        now: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError> {
-        if (targetQuantity !in 1..999) return Failure(CartErrors.INVALID_QUANTITY)
-        if (scope != settlementScope) return Failure(CartErrors.SCOPE_MISMATCH)
-        val index = mutableLines.indexOfFirst { it.offerId == offerId }
-        val existing = mutableLines.getOrNull(index)
-        if (existing != null) {
-            if (existing.skuId != skuId || existing.merchantId != merchantId)
-                return Failure(CartErrors.OFFER_MISMATCH)
-            if (existing.quantity == targetQuantity) return Success(false)
-        }
-        if (contentVersion != expectedVersion) return Failure(CartErrors.VERSION_CONFLICT)
-
-        if (existing != null) {
-            mutableLines[index] =
-                existing.copy(
-                    quantity = targetQuantity,
-                    modifiedAt = now,
-                )
-        } else {
-            if (mutableLines.size >= 100) return Failure(CartErrors.LINE_LIMIT)
-            mutableLines.add(
-                CartLine(
-                    id = lineId,
-                    skuId = skuId,
-                    offerId = offerId,
-                    merchantId = merchantId,
-                    quantity = targetQuantity,
-                    selected = true,
-                    addedAt = now,
-                    modifiedAt = now,
-                )
-            )
-        }
-        changed("ITEM_QUANTITY_SET", now)
-        return Success(true)
+  fun setItemQuantity(
+      expectedVersion: Long,
+      lineId: CartLineId,
+      skuId: SkuId,
+      offerId: OfferId,
+      merchantId: MerchantId,
+      targetQuantity: Int,
+      scope: SettlementScope,
+      now: Instant = Instant.now(),
+  ): Result<Boolean, BusinessError> {
+    if (targetQuantity !in 1..999) return Failure(CartErrors.INVALID_QUANTITY)
+    if (scope != settlementScope) return Failure(CartErrors.SCOPE_MISMATCH)
+    val index = mutableLines.indexOfFirst { it.offerId == offerId }
+    val existing = mutableLines.getOrNull(index)
+    if (existing != null) {
+      if (existing.skuId != skuId || existing.merchantId != merchantId)
+          return Failure(CartErrors.OFFER_MISMATCH)
+      if (existing.quantity == targetQuantity) return Success(false)
     }
+    if (contentVersion != expectedVersion) return Failure(CartErrors.VERSION_CONFLICT)
 
-    fun replaceSelection(
-        expectedVersion: Long,
-        ids: Set<CartLineId>,
-        now: Instant = Instant.now(),
-    ): Result<Boolean, BusinessError> {
-        if (!mutableLines.map { it.id }.containsAll(ids))
-            return Failure(CartErrors.UNKNOWN_SELECTION)
-        if (mutableLines.all { it.selected == (it.id in ids) }) return Success(false)
-        if (contentVersion != expectedVersion) return Failure(CartErrors.VERSION_CONFLICT)
-        mutableLines.indices.forEach { index ->
-            val line = mutableLines[index]
-            val selected = line.id in ids
-            if (line.selected != selected)
-                mutableLines[index] = line.copy(selected = selected, modifiedAt = now)
-        }
-        changed("SELECTION_CHANGED", now)
-        return Success(true)
+    if (existing != null) {
+      mutableLines[index] =
+          existing.copy(
+              quantity = targetQuantity,
+              modifiedAt = now,
+          )
+    } else {
+      if (mutableLines.size >= 100) return Failure(CartErrors.LINE_LIMIT)
+      mutableLines.add(
+          CartLine(
+              id = lineId,
+              skuId = skuId,
+              offerId = offerId,
+              merchantId = merchantId,
+              quantity = targetQuantity,
+              selected = true,
+              addedAt = now,
+              modifiedAt = now,
+          )
+      )
     }
+    changed("ITEM_QUANTITY_SET", now)
+    return Success(true)
+  }
 
-    private fun changed(reason: String, now: Instant) {
-        mutableContentVersion++
-        raise(CartRefreshRequestedEvent(id, buyerId, contentVersion, reason, now))
+  fun replaceSelection(
+      expectedVersion: Long,
+      ids: Set<CartLineId>,
+      now: Instant = Instant.now(),
+  ): Result<Boolean, BusinessError> {
+    if (!mutableLines.map { it.id }.containsAll(ids)) return Failure(CartErrors.UNKNOWN_SELECTION)
+    if (mutableLines.all { it.selected == (it.id in ids) }) return Success(false)
+    if (contentVersion != expectedVersion) return Failure(CartErrors.VERSION_CONFLICT)
+    mutableLines.indices.forEach { index ->
+      val line = mutableLines[index]
+      val selected = line.id in ids
+      if (line.selected != selected)
+          mutableLines[index] = line.copy(selected = selected, modifiedAt = now)
     }
+    changed("SELECTION_CHANGED", now)
+    return Success(true)
+  }
 
-    companion object {
-        fun create(id: CartId, buyerId: BuyerId, scope: SettlementScope) =
-            Cart(id, buyerId, scope, CartStatus.ACTIVE, emptyList(), 0)
-    }
+  private fun changed(reason: String, now: Instant) {
+    mutableContentVersion++
+    raise(CartRefreshRequestedEvent(id, buyerId, contentVersion, reason, now))
+  }
+
+  companion object {
+    fun create(id: CartId, buyerId: BuyerId, scope: SettlementScope) =
+        Cart(id, buyerId, scope, CartStatus.ACTIVE, emptyList(), 0)
+  }
 }

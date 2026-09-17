@@ -23,80 +23,78 @@ import kotlin.test.*
 import org.mockito.kotlin.*
 
 class PollingOutboxWriterTest {
-    @Test
-    fun `polling repository does not expose unaudited dead-letter requeue`() {
-        assertTrue(
-            OutboxEntryRepository::class.java.methods.none { it.name == "requeueDeadLetters" }
-        )
-    }
+  @Test
+  fun `polling repository does not expose unaudited dead-letter requeue`() {
+    assertTrue(OutboxEntryRepository::class.java.methods.none { it.name == "requeueDeadLetters" })
+  }
 
-    @Test
-    fun `append preserves full immutable intent and initializes polling state`() {
-        val repository = mock<OutboxEntryRepository>()
-        val signal = mock<OutboxRelaySignal>()
-        val writer = PollingOutboxWriter(repository, signal)
-        val first = message()
-        val second = first.copy(id = "second", sequenceNo = 2)
-        writer.append(listOf(first, second))
-        val entries = argumentCaptor<List<OutboxEntry>>()
-        inOrder(repository, signal) {
-            verify(repository).saveAll(entries.capture())
-            verify(signal).signalAfterCommit()
-        }
-        assertEquals(listOf(first, second), entries.firstValue.map { it.toMessage() })
-        entries.firstValue.forEach {
-            assertEquals(OutboxEntryStatus.PENDING, it.status)
-            assertEquals(0, it.retryCount)
-            assertEquals(0L, it.lockToken)
-            assertNull(it.publishedAt)
-            assertNull(it.lockedBy)
-        }
+  @Test
+  fun `append preserves full immutable intent and initializes polling state`() {
+    val repository = mock<OutboxEntryRepository>()
+    val signal = mock<OutboxRelaySignal>()
+    val writer = PollingOutboxWriter(repository, signal)
+    val first = message()
+    val second = first.copy(id = "second", sequenceNo = 2)
+    writer.append(listOf(first, second))
+    val entries = argumentCaptor<List<OutboxEntry>>()
+    inOrder(repository, signal) {
+      verify(repository).saveAll(entries.capture())
+      verify(signal).signalAfterCommit()
     }
-
-    @Test
-    fun `failure propagates without a relay hint`() {
-        val repository = mock<OutboxEntryRepository>()
-        val signal = mock<OutboxRelaySignal>()
-        whenever(repository.saveAll(any())).thenThrow(IllegalStateException("storage unavailable"))
-        assertFailsWith<IllegalStateException> {
-            PollingOutboxWriter(repository, signal).append(listOf(message()))
-        }
-        verifyNoInteractions(signal)
+    assertEquals(listOf(first, second), entries.firstValue.map { it.toMessage() })
+    entries.firstValue.forEach {
+      assertEquals(OutboxEntryStatus.PENDING, it.status)
+      assertEquals(0, it.retryCount)
+      assertEquals(0L, it.lockToken)
+      assertNull(it.publishedAt)
+      assertNull(it.lockedBy)
     }
+  }
 
-    @Test
-    fun `empty append has no persistence or wakeup`() {
-        val repository = mock<OutboxEntryRepository>()
-        val signal = mock<OutboxRelaySignal>()
-        PollingOutboxWriter(repository, signal).append(emptyList())
-        verifyNoInteractions(repository, signal)
+  @Test
+  fun `failure propagates without a relay hint`() {
+    val repository = mock<OutboxEntryRepository>()
+    val signal = mock<OutboxRelaySignal>()
+    whenever(repository.saveAll(any())).thenThrow(IllegalStateException("storage unavailable"))
+    assertFailsWith<IllegalStateException> {
+      PollingOutboxWriter(repository, signal).append(listOf(message()))
     }
+    verifyNoInteractions(signal)
+  }
 
-    private fun message() =
-        OutboxMessage(
-            id = "entry",
-            eventId = "message",
-            eventType = "inventory.reserve",
-            eventClassName = "Reserve",
-            eventVersion = 3,
-            payload = "{\"quantity\":2}",
-            aggregateType = "inventory.commands",
-            aggregateId = "42",
-            createdAt = Instant.EPOCH,
-            occurredAt = Instant.EPOCH,
-            messageKind = OutboxMessageKind.INTEGRATION_COMMAND,
-            deliveryTarget = OutboxDeliveryTarget.BROKER,
-            transportId = "kafka",
-            destination = "inventory-v3",
-            logicalDestination = "inventory.commands",
-            deliveryProfile = "CRITICAL",
-            acceptBefore = Instant.EPOCH.plusSeconds(30),
-            partitionKey = "42",
-            correlationId = "checkout",
-            causationId = "authorized",
-            merchantScopeId = "merchant",
-            deploymentScopeId = "site",
-            orderingKey = "stream",
-            sequenceNo = 1,
-        )
+  @Test
+  fun `empty append has no persistence or wakeup`() {
+    val repository = mock<OutboxEntryRepository>()
+    val signal = mock<OutboxRelaySignal>()
+    PollingOutboxWriter(repository, signal).append(emptyList())
+    verifyNoInteractions(repository, signal)
+  }
+
+  private fun message() =
+      OutboxMessage(
+          id = "entry",
+          eventId = "message",
+          eventType = "inventory.reserve",
+          eventClassName = "Reserve",
+          eventVersion = 3,
+          payload = "{\"quantity\":2}",
+          aggregateType = "inventory.commands",
+          aggregateId = "42",
+          createdAt = Instant.EPOCH,
+          occurredAt = Instant.EPOCH,
+          messageKind = OutboxMessageKind.INTEGRATION_COMMAND,
+          deliveryTarget = OutboxDeliveryTarget.BROKER,
+          transportId = "kafka",
+          destination = "inventory-v3",
+          logicalDestination = "inventory.commands",
+          deliveryProfile = "CRITICAL",
+          acceptBefore = Instant.EPOCH.plusSeconds(30),
+          partitionKey = "42",
+          correlationId = "checkout",
+          causationId = "authorized",
+          merchantScopeId = "merchant",
+          deploymentScopeId = "site",
+          orderingKey = "stream",
+          sequenceNo = 1,
+      )
 }

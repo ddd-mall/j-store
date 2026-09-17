@@ -26,16 +26,16 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.method.support.ModelAndViewContainer
 
 class CurrentPrincipalArgumentResolver : HandlerMethodArgumentResolver {
-    override fun supportsParameter(parameter: MethodParameter): Boolean =
-        parameter.hasParameterAnnotation(CurrentPrincipal::class.java) &&
-            parameter.parameterType == AuthenticatedPrincipal::class.java
+  override fun supportsParameter(parameter: MethodParameter): Boolean =
+      parameter.hasParameterAnnotation(CurrentPrincipal::class.java) &&
+          parameter.parameterType == AuthenticatedPrincipal::class.java
 
-    override fun resolveArgument(
-        parameter: MethodParameter,
-        mavContainer: ModelAndViewContainer?,
-        webRequest: NativeWebRequest,
-        binderFactory: WebDataBinderFactory?,
-    ): AuthenticatedPrincipal? =
-        if (parameter.isOptional) AuthenticatedPrincipalContext.getCurrentOrNull()
-        else AuthenticatedPrincipalContext.getCurrent()
+  override fun resolveArgument(
+      parameter: MethodParameter,
+      mavContainer: ModelAndViewContainer?,
+      webRequest: NativeWebRequest,
+      binderFactory: WebDataBinderFactory?,
+  ): AuthenticatedPrincipal? =
+      if (parameter.isOptional) AuthenticatedPrincipalContext.getCurrentOrNull()
+      else AuthenticatedPrincipalContext.getCurrent()
 }

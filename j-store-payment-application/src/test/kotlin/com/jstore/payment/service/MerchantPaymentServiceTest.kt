@@ -33,87 +33,82 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class MerchantPaymentServiceTest {
-    private val payment =
-        PaymentOrderImpl(
-            PaymentOrderId(1),
-            orderId = 9,
-            merchantId = 7,
-            payableAmount = Price.ofFen(100),
-            currency = "JPY",
-        )
+  private val payment =
+      PaymentOrderImpl(
+          PaymentOrderId(1),
+          orderId = 9,
+          merchantId = 7,
+          payableAmount = Price.ofFen(100),
+          currency = "JPY",
+      )
 
-    @Test
-    fun `unauthorized payment is hidden as not found`() {
-        val payments = StubPaymentUseCase(payment)
-        val service = MerchantPaymentService(payments) { _, _, _ -> false }
+  @Test
+  fun `unauthorized payment is hidden as not found`() {
+    val payments = StubPaymentUseCase(payment)
+    val service = MerchantPaymentService(payments) { _, _, _ -> false }
 
-        val result = service.get(accountId = 3, orderId = 9)
+    val result = service.get(accountId = 3, orderId = 9)
 
-        assertEquals(PaymentErrors.ORDER_NOT_FOUND, assertIs<Failure<*>>(result).error)
-    }
+    assertEquals(PaymentErrors.ORDER_NOT_FOUND, assertIs<Failure<*>>(result).error)
+  }
 
-    @Test
-    fun `authorized capture delegates only after manage authorization`() {
-        val payments = StubPaymentUseCase(payment)
-        val service =
-            MerchantPaymentService(payments) { accountId, merchantId, capability ->
-                accountId == 3L &&
-                    merchantId == 7L &&
-                    capability == MerchantCapability.PAYMENT_MANAGE
-            }
-        val command = PaymentCaptureCommand(9, "provider-1", Price.ofFen(100), "JPY")
-
-        val result = service.capture(accountId = 3, command)
-
-        assertEquals(true, assertIs<Success<Boolean>>(result).value)
-        assertEquals(1, payments.captureCalls)
-    }
-
-    private class StubPaymentUseCase(private val payment: PaymentOrder) : PaymentUseCase {
-        var captureCalls = 0
-            private set
-
-        override fun getByOrderId(orderId: Long): Result<PaymentOrder, BusinessError> =
-            Success(payment)
-
-        override fun capture(
-            command: PaymentCaptureCommand,
-            occurredAt: Instant,
-        ): Result<Boolean, BusinessError> {
-            captureCalls++
-            return Success(true)
+  @Test
+  fun `authorized capture delegates only after manage authorization`() {
+    val payments = StubPaymentUseCase(payment)
+    val service =
+        MerchantPaymentService(payments) { accountId, merchantId, capability ->
+          accountId == 3L && merchantId == 7L && capability == MerchantCapability.PAYMENT_MANAGE
         }
+    val command = PaymentCaptureCommand(9, "provider-1", Price.ofFen(100), "JPY")
 
-        override fun createForOrder(
-            request: PaymentOrderRequest
-        ): Result<PaymentOrder, BusinessError> = unsupported()
+    val result = service.capture(accountId = 3, command)
 
-        override fun getByRefundId(refundId: PaymentRefundId): Result<PaymentOrder, BusinessError> =
-            unsupported()
+    assertEquals(true, assertIs<Success<Boolean>>(result).value)
+    assertEquals(1, payments.captureCalls)
+  }
 
-        override fun requestRefund(
-            request: PaymentRefundRequest,
-            occurredAt: Instant,
-        ): Result<PaymentRefundId, BusinessError> = unsupported()
+  private class StubPaymentUseCase(private val payment: PaymentOrder) : PaymentUseCase {
+    var captureCalls = 0
+      private set
 
-        override fun retryRefund(
-            refundId: PaymentRefundId,
-            occurredAt: Instant,
-        ): Result<Boolean, BusinessError> = unsupported()
+    override fun getByOrderId(orderId: Long): Result<PaymentOrder, BusinessError> = Success(payment)
 
-        override fun markRefundSucceeded(
-            refundId: PaymentRefundId,
-            providerRefundId: String,
-            occurredAt: Instant,
-        ): Result<Boolean, BusinessError> = unsupported()
-
-        override fun markRefundFailed(
-            refundId: PaymentRefundId,
-            reason: String,
-            occurredAt: Instant,
-        ): Result<Boolean, BusinessError> = unsupported()
-
-        private fun <T> unsupported(): Result<T, BusinessError> =
-            throw UnsupportedOperationException()
+    override fun capture(
+        command: PaymentCaptureCommand,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> {
+      captureCalls++
+      return Success(true)
     }
+
+    override fun createForOrder(request: PaymentOrderRequest): Result<PaymentOrder, BusinessError> =
+        unsupported()
+
+    override fun getByRefundId(refundId: PaymentRefundId): Result<PaymentOrder, BusinessError> =
+        unsupported()
+
+    override fun requestRefund(
+        request: PaymentRefundRequest,
+        occurredAt: Instant,
+    ): Result<PaymentRefundId, BusinessError> = unsupported()
+
+    override fun retryRefund(
+        refundId: PaymentRefundId,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> = unsupported()
+
+    override fun markRefundSucceeded(
+        refundId: PaymentRefundId,
+        providerRefundId: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> = unsupported()
+
+    override fun markRefundFailed(
+        refundId: PaymentRefundId,
+        reason: String,
+        occurredAt: Instant,
+    ): Result<Boolean, BusinessError> = unsupported()
+
+    private fun <T> unsupported(): Result<T, BusinessError> = throw UnsupportedOperationException()
+  }
 }

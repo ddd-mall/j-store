@@ -37,37 +37,37 @@ class StockReservation(
     status: StockReservationStatus = StockReservationStatus.RESERVED,
     val persistenceVersion: Long = 0,
 ) : EventRecordingAggregateRoot<StockReservationId>() {
-    private var _status = status
+  private var _status = status
 
-    val status: StockReservationStatus
-        get() = _status
+  val status: StockReservationStatus
+    get() = _status
 
-    init {
-        require(
-            businessKey.isNotBlank() &&
-                tradeId > 0 &&
-                orderPlanId > 0 &&
-                saleAuthorizationId.isNotBlank() &&
-                quantity > 0
-        )
+  init {
+    require(
+        businessKey.isNotBlank() &&
+            tradeId > 0 &&
+            orderPlanId > 0 &&
+            saleAuthorizationId.isNotBlank() &&
+            quantity > 0
+    )
+  }
+
+  fun confirm(): Result<Boolean, BusinessError> {
+    if (_status == StockReservationStatus.CONFIRMED) return Success(false)
+    if (_status != StockReservationStatus.RESERVED) {
+      return Failure(InventoryErrors.ILLEGAL_RESERVATION_STATE)
     }
+    _status = StockReservationStatus.CONFIRMED
+    return Success(true)
+  }
 
-    fun confirm(): Result<Boolean, BusinessError> {
-        if (_status == StockReservationStatus.CONFIRMED) return Success(false)
-        if (_status != StockReservationStatus.RESERVED) {
-            return Failure(InventoryErrors.ILLEGAL_RESERVATION_STATE)
-        }
-        _status = StockReservationStatus.CONFIRMED
-        return Success(true)
+  fun release(now: Instant = Instant.now()): Result<Boolean, BusinessError> {
+    if (_status == StockReservationStatus.RELEASED) return Success(false)
+    if (_status != StockReservationStatus.RESERVED) {
+      return Failure(InventoryErrors.ILLEGAL_RESERVATION_STATE)
     }
-
-    fun release(now: Instant = Instant.now()): Result<Boolean, BusinessError> {
-        if (_status == StockReservationStatus.RELEASED) return Success(false)
-        if (_status != StockReservationStatus.RESERVED) {
-            return Failure(InventoryErrors.ILLEGAL_RESERVATION_STATE)
-        }
-        _status = StockReservationStatus.RELEASED
-        raise(StockReservationReleasedEvent(id, tradeId, orderPlanId, now))
-        return Success(true)
-    }
+    _status = StockReservationStatus.RELEASED
+    raise(StockReservationReleasedEvent(id, tradeId, orderPlanId, now))
+    return Success(true)
+  }
 }

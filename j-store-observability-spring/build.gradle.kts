@@ -1,29 +1,29 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.plugin.spring)
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.kotlin.plugin.spring)
 }
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 dependencies {
-    api(libs.spring.boot.starter.actuator)
-    api(libs.micrometer.tracing.bridge.otel)
-    runtimeOnly(libs.micrometer.registry.prometheus)
+  api(libs.spring.boot.starter.actuator)
+  api(libs.micrometer.tracing.bridge.otel)
+  runtimeOnly(libs.micrometer.registry.prometheus)
 
-    compileOnly(libs.spring.boot.starter.web)
+  compileOnly(libs.spring.boot.starter.web)
 
-    testImplementation(kotlin("test"))
-    testImplementation(libs.spring.boot.starter.test)
-    testImplementation(libs.spring.boot.starter.web)
-    testRuntimeOnly(libs.junit.platform.launcher)
+  testImplementation(kotlin("test"))
+  testImplementation(libs.spring.boot.starter.test)
+  testImplementation(libs.spring.boot.starter.web)
+  testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.test {
-    useJUnitPlatform()
+  useJUnitPlatform()
 }
 
 kotlin {
-    jvmToolchain(25)
+  jvmToolchain(25)
 }

@@ -20,8 +20,8 @@ import java.util.Currency
 
 /** ISO 4217 alphabetic currency code validation shared by monetary domain snapshots. */
 object CurrencyCode {
-    fun isValid(value: String): Boolean =
-        value.length == 3 &&
-            value.all { it in 'A'..'Z' } &&
-            runCatching { Currency.getInstance(value) }.isSuccess
+  fun isValid(value: String): Boolean =
+      value.length == 3 &&
+          value.all { it in 'A'..'Z' } &&
+          runCatching { Currency.getInstance(value) }.isSuccess
 }

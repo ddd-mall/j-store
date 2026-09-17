@@ -28,53 +28,52 @@ import java.time.Instant
 
 class PaymentOrderTest :
     FunSpec({
-        fun payment() = PaymentOrderImpl(PaymentOrderId(1), 10, 20, Price.ofFen(1_000), "CNY")
+      fun payment() = PaymentOrderImpl(PaymentOrderId(1), 10, 20, Price.ofFen(1_000), "CNY")
 
-        test("capture requires the frozen full amount and is idempotent by provider transaction") {
-            val payment = payment()
-            (payment.capture("txn-1", Price.ofFen(900), "CNY", Instant.EPOCH) is Failure) shouldBe
-                true
-            payment.status shouldBe PaymentOrderStatus.PENDING
+      test("capture requires the frozen full amount and is idempotent by provider transaction") {
+        val payment = payment()
+        (payment.capture("txn-1", Price.ofFen(900), "CNY", Instant.EPOCH) is Failure) shouldBe true
+        payment.status shouldBe PaymentOrderStatus.PENDING
 
-            (payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH) as Success)
-                .value shouldBe true
-            payment.status shouldBe PaymentOrderStatus.CAPTURED
-            payment.pendingDomainEvents().single()::class shouldBe PaymentCapturedEvent::class
-            (payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH) as Success)
-                .value shouldBe false
+        (payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH) as Success)
+            .value shouldBe true
+        payment.status shouldBe PaymentOrderStatus.CAPTURED
+        payment.pendingDomainEvents().single()::class shouldBe PaymentCapturedEvent::class
+        (payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH) as Success)
+            .value shouldBe false
+      }
+
+      test("payment accepts real ISO currencies and rejects invented codes") {
+        listOf("CNY", "JPY", "USD").forEach { currency ->
+          PaymentOrderImpl(PaymentOrderId(1), 10, 20, Price.ofFen(1_000), currency)
+              .currency shouldBe currency
         }
-
-        test("payment accepts real ISO currencies and rejects invented codes") {
-            listOf("CNY", "JPY", "USD").forEach { currency ->
-                PaymentOrderImpl(PaymentOrderId(1), 10, 20, Price.ofFen(1_000), currency)
-                    .currency shouldBe currency
-            }
-            shouldThrow<IllegalArgumentException> {
-                PaymentOrderImpl(PaymentOrderId(1), 10, 20, Price.ofFen(1_000), "ZZZ")
-            }
+        shouldThrow<IllegalArgumentException> {
+          PaymentOrderImpl(PaymentOrderId(1), 10, 20, Price.ofFen(1_000), "ZZZ")
         }
+      }
 
-        test("refund success is separate from refund request and updates payment status") {
-            val payment = payment()
-            payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH)
-            payment.acknowledgeDomainEvents(
-                payment.pendingDomainEvents().mapTo(linkedSetOf()) { it.eventId }
+      test("refund success is separate from refund request and updates payment status") {
+        val payment = payment()
+        payment.capture("txn-1", Price.ofFen(1_000), "CNY", Instant.EPOCH)
+        payment.acknowledgeDomainEvents(
+            payment.pendingDomainEvents().mapTo(linkedSetOf()) { it.eventId }
+        )
+        val refund =
+            PaymentRefund(
+                PaymentRefundId(2),
+                30,
+                listOf(PaymentRefundItem(40, 50, 1, Price.ofFen(400))),
+                Price.ofFen(400),
+                requestedAt = Instant.EPOCH,
             )
-            val refund =
-                PaymentRefund(
-                    PaymentRefundId(2),
-                    30,
-                    listOf(PaymentRefundItem(40, 50, 1, Price.ofFen(400))),
-                    Price.ofFen(400),
-                    requestedAt = Instant.EPOCH,
-                )
 
-            payment.requestRefund(refund, Instant.EPOCH)
-            payment.status shouldBe PaymentOrderStatus.CAPTURED
-            payment.markRefundSucceeded(refund.id, "provider-refund-1", Instant.EPOCH)
+        payment.requestRefund(refund, Instant.EPOCH)
+        payment.status shouldBe PaymentOrderStatus.CAPTURED
+        payment.markRefundSucceeded(refund.id, "provider-refund-1", Instant.EPOCH)
 
-            payment.status shouldBe PaymentOrderStatus.PARTIALLY_REFUNDED
-            payment.refunds.single().status shouldBe PaymentRefundStatus.SUCCEEDED
-            payment.pendingDomainEvents().last()::class shouldBe PaymentRefundSucceededEvent::class
-        }
+        payment.status shouldBe PaymentOrderStatus.PARTIALLY_REFUNDED
+        payment.refunds.single().status shouldBe PaymentRefundStatus.SUCCEEDED
+        payment.pendingDomainEvents().last()::class shouldBe PaymentRefundSucceededEvent::class
+      }
     })

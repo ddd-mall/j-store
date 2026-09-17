@@ -39,175 +39,172 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 class TradeOrderCreationIdempotencyTest {
-    @Test
-    fun `same trade plan returns original order without rebuilding it`() {
-        val sequence = mock<SnowFlakSequence>()
-        whenever(sequence.nextId()).thenReturn(101, 1001)
-        val repository = InMemoryTradeOrderRepository()
-        val service = service(repository, TrustedOrderFactoryImpl(sequence))
-        val command = command()
+  @Test
+  fun `same trade plan returns original order without rebuilding it`() {
+    val sequence = mock<SnowFlakSequence>()
+    whenever(sequence.nextId()).thenReturn(101, 1001)
+    val repository = InMemoryTradeOrderRepository()
+    val service = service(repository, TrustedOrderFactoryImpl(sequence))
+    val command = command()
 
-        val first = assertIs<Success<Order>>(service.createOrder(command)).value
-        val duplicate = assertIs<Success<Order>>(service.createOrder(command)).value
+    val first = assertIs<Success<Order>>(service.createOrder(command)).value
+    val duplicate = assertIs<Success<Order>>(service.createOrder(command)).value
 
-        assertEquals(1001, first.id.value)
-        assertEquals(first.id, duplicate.id)
-        assertEquals(1, repository.additions)
-        assertEquals(9001, first.sourceTradeId)
-        assertEquals(9101, first.sourceOrderPlanId)
-    }
+    assertEquals(1001, first.id.value)
+    assertEquals(first.id, duplicate.id)
+    assertEquals(1, repository.additions)
+    assertEquals(9001, first.sourceTradeId)
+    assertEquals(9101, first.sourceOrderPlanId)
+  }
 
-    @Test
-    fun `same order plan with a different source digest is rejected`() {
-        val sequence = mock<SnowFlakSequence>()
-        whenever(sequence.nextId()).thenReturn(101, 1001)
-        val repository = InMemoryTradeOrderRepository()
-        val service = service(repository, TrustedOrderFactoryImpl(sequence))
-        assertIs<Success<Order>>(service.createOrder(command()))
+  @Test
+  fun `same order plan with a different source digest is rejected`() {
+    val sequence = mock<SnowFlakSequence>()
+    whenever(sequence.nextId()).thenReturn(101, 1001)
+    val repository = InMemoryTradeOrderRepository()
+    val service = service(repository, TrustedOrderFactoryImpl(sequence))
+    assertIs<Success<Order>>(service.createOrder(command()))
 
-        val conflict = service.createOrder(command().copy(planDigest = "v1:changed"))
+    val conflict = service.createOrder(command().copy(planDigest = "v1:changed"))
 
-        assertEquals(
-            "Order.TradePlan.Conflict",
-            assertIs<Failure<*>>(conflict)
-                .error
-                .let { it as com.jstore.common.errors.BusinessError }
-                .errorCode,
-        )
-        assertEquals(1, repository.additions)
-    }
+    assertEquals(
+        "Order.TradePlan.Conflict",
+        assertIs<Failure<*>>(conflict)
+            .error
+            .let { it as com.jstore.common.errors.BusinessError }
+            .errorCode,
+    )
+    assertEquals(1, repository.additions)
+  }
 
-    @Test
-    fun `trade compensation closes order without publishing buyer cancellation`() {
-        val sequence = mock<SnowFlakSequence>()
-        whenever(sequence.nextId()).thenReturn(101, 1001)
-        val repository = InMemoryTradeOrderRepository()
-        val events = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
-        val service =
-            service(
-                repository,
-                TrustedOrderFactoryImpl(sequence),
-                object : DomainEventPublisher {
-                    override fun publishEvent(
-                        event: com.jstore.common.framework.event.DomainEvent
-                    ) {
-                        events += event
-                    }
-                },
-            )
-        assertIs<Success<Order>>(service.createOrder(command()))
-
-        assertIs<Success<Unit>>(service.cancelOrder(9001, 9101, "trade compensation"))
-
-        assertEquals(1, events.filterIsInstance<OrderCancelledByTradeEvent>().size)
-        assertEquals(0, events.filterIsInstance<OrderCancelledEvent>().size)
-        assertEquals(TradeStatus.CLOSED, repository.findBySourceOrderPlanId(9101)?.tradeStatus)
-    }
-
-    @Test
-    fun `trade compensation cannot cancel an order owned by another trade`() {
-        val sequence = mock<SnowFlakSequence>()
-        whenever(sequence.nextId()).thenReturn(101, 1001)
-        val repository = InMemoryTradeOrderRepository()
-        val service = service(repository, TrustedOrderFactoryImpl(sequence))
-        assertIs<Success<Order>>(service.createOrder(command()))
-
-        assertIs<Failure<*>>(service.cancelOrder(9002, 9101, "wrong trade"))
-        assertEquals(TradeStatus.ACTIVE, repository.findBySourceOrderPlanId(9101)?.tradeStatus)
-    }
-
-    private fun service(
-        repository: OrderRepository,
-        factory: TrustedOrderFactory,
-        publisher: DomainEventPublisher =
-            object : DomainEventPublisher {
-                override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) =
-                    Unit
-            },
-    ) =
-        OrderService(
-            mock(),
+  @Test
+  fun `trade compensation closes order without publishing buyer cancellation`() {
+    val sequence = mock<SnowFlakSequence>()
+    whenever(sequence.nextId()).thenReturn(101, 1001)
+    val repository = InMemoryTradeOrderRepository()
+    val events = mutableListOf<com.jstore.common.framework.event.DomainEvent>()
+    val service =
+        service(
             repository,
-            publisher,
-            mock<UserService>(),
-            factory,
+            TrustedOrderFactoryImpl(sequence),
+            object : DomainEventPublisher {
+              override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
+                events += event
+              }
+            },
         )
+    assertIs<Success<Order>>(service.createOrder(command()))
 
-    private fun command() =
-        CreateOrderFromTradeCommand(
-            tradeId = 9001,
-            orderPlanId = 9101,
-            planDigest = "v1:plan",
-            merchantId = 7,
-            buyerAuthenticationDomain = "issuer-a",
-            buyerId = 42,
-            buyerName = "张三",
-            buyerPhone = "+8613800138000",
-            recipientName = "张三",
-            recipientPhone = "+8613800138000",
-            recipientEmail = null,
-            shippingAddress =
-                I18nGeoAddress(
-                    CountryCode.CN,
-                    listOf(
-                        AddressComponent(
-                            "110105",
-                            DivisionLevel(3, "district"),
-                            mapOf(Locale.CHINA to "朝阳区"),
-                            Locale.CHINA,
-                        )
-                    ),
-                ),
-            detailAddress = "示例路 1 号",
-            postalCode = null,
-            customsFields = emptyMap(),
-            items =
-                listOf(
-                    CreateOrderFromTradeItem(
-                        201,
-                        101,
-                        11,
-                        71,
-                        1,
-                        "NODE-1",
-                        "WEB",
-                        "商品",
-                        "规格",
-                        1,
-                        Price.ofFen(1000),
-                        1,
-                    )
-                ),
-            payableAmount = Price.ofFen(1000),
-            currency = "CNY",
-        )
+    assertIs<Success<Unit>>(service.cancelOrder(9001, 9101, "trade compensation"))
+
+    assertEquals(1, events.filterIsInstance<OrderCancelledByTradeEvent>().size)
+    assertEquals(0, events.filterIsInstance<OrderCancelledEvent>().size)
+    assertEquals(TradeStatus.CLOSED, repository.findBySourceOrderPlanId(9101)?.tradeStatus)
+  }
+
+  @Test
+  fun `trade compensation cannot cancel an order owned by another trade`() {
+    val sequence = mock<SnowFlakSequence>()
+    whenever(sequence.nextId()).thenReturn(101, 1001)
+    val repository = InMemoryTradeOrderRepository()
+    val service = service(repository, TrustedOrderFactoryImpl(sequence))
+    assertIs<Success<Order>>(service.createOrder(command()))
+
+    assertIs<Failure<*>>(service.cancelOrder(9002, 9101, "wrong trade"))
+    assertEquals(TradeStatus.ACTIVE, repository.findBySourceOrderPlanId(9101)?.tradeStatus)
+  }
+
+  private fun service(
+      repository: OrderRepository,
+      factory: TrustedOrderFactory,
+      publisher: DomainEventPublisher =
+          object : DomainEventPublisher {
+            override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) = Unit
+          },
+  ) =
+      OrderService(
+          mock(),
+          repository,
+          publisher,
+          mock<UserService>(),
+          factory,
+      )
+
+  private fun command() =
+      CreateOrderFromTradeCommand(
+          tradeId = 9001,
+          orderPlanId = 9101,
+          planDigest = "v1:plan",
+          merchantId = 7,
+          buyerAuthenticationDomain = "issuer-a",
+          buyerId = 42,
+          buyerName = "张三",
+          buyerPhone = "+8613800138000",
+          recipientName = "张三",
+          recipientPhone = "+8613800138000",
+          recipientEmail = null,
+          shippingAddress =
+              I18nGeoAddress(
+                  CountryCode.CN,
+                  listOf(
+                      AddressComponent(
+                          "110105",
+                          DivisionLevel(3, "district"),
+                          mapOf(Locale.CHINA to "朝阳区"),
+                          Locale.CHINA,
+                      )
+                  ),
+              ),
+          detailAddress = "示例路 1 号",
+          postalCode = null,
+          customsFields = emptyMap(),
+          items =
+              listOf(
+                  CreateOrderFromTradeItem(
+                      201,
+                      101,
+                      11,
+                      71,
+                      1,
+                      "NODE-1",
+                      "WEB",
+                      "商品",
+                      "规格",
+                      1,
+                      Price.ofFen(1000),
+                      1,
+                  )
+              ),
+          payableAmount = Price.ofFen(1000),
+          currency = "CNY",
+      )
 }
 
 private class InMemoryTradeOrderRepository : OrderRepository {
-    private val values = linkedMapOf<OrderId, Order>()
-    var additions = 0
+  private val values = linkedMapOf<OrderId, Order>()
+  var additions = 0
 
-    override fun add(order: Order) {
-        additions++
-        values[order.id] = order
-    }
+  override fun add(order: Order) {
+    additions++
+    values[order.id] = order
+  }
 
-    override fun save(entity: Order): Order = entity.also { values[it.id] = it }
+  override fun save(entity: Order): Order = entity.also { values[it.id] = it }
 
-    override fun findById(id: OrderId): Order? = values[id]
+  override fun findById(id: OrderId): Order? = values[id]
 
-    override fun findByBuyerUserId(authenticationDomain: String, uid: Long): List<Order> =
-        values.values.filter {
-            it.buyerInfo.authenticationDomain == authenticationDomain && it.buyerInfo.uid == uid
-        }
+  override fun findByBuyerUserId(authenticationDomain: String, uid: Long): List<Order> =
+      values.values.filter {
+        it.buyerInfo.authenticationDomain == authenticationDomain && it.buyerInfo.uid == uid
+      }
 
-    override fun findBySourceOrderPlanId(orderPlanId: Long): Order? =
-        values.values.singleOrNull { it.sourceOrderPlanId == orderPlanId }
+  override fun findBySourceOrderPlanId(orderPlanId: Long): Order? =
+      values.values.singleOrNull { it.sourceOrderPlanId == orderPlanId }
 
-    override fun pageListByUserId(
-        authenticationDomain: String,
-        uid: Long,
-        currentPage: Int,
-        pageSize: Int,
-    ): Page<Order> = SortedPage(currentPage, 0, emptyList())
+  override fun pageListByUserId(
+      authenticationDomain: String,
+      uid: Long,
+      currentPage: Int,
+      pageSize: Int,
+  ): Page<Order> = SortedPage(currentPage, 0, emptyList())
 }

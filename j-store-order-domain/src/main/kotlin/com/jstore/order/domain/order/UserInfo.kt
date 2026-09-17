@@ -25,8 +25,8 @@ data class UserInfo(
     val phoneNumber: PhoneNumber?, // ✅ 改为 val（不可变）
     val userName: String?, // ✅ 改为 val（不可变）
 ) {
-    init {
-        require(authenticationDomain.isNotBlank()) { "认证域不能为空" }
-        require(uid > 0) { "用户ID必须大于0" }
-    }
+  init {
+    require(authenticationDomain.isNotBlank()) { "认证域不能为空" }
+    require(uid > 0) { "用户ID必须大于0" }
+  }
 }
