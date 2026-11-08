@@ -41,3 +41,5 @@
 PR #73 首轮 quality、dependency-license-audit 和 dependency-vulnerability-scan 均在下载 Action 阶段失败，日志为 `Unable to resolve action backend/gradle, repository not found`。目录替换误将外部 `gradle/actions/setup-gradle` 坐标添加了本地 `backend/` 前缀；本地 Gradle 门禁无法发现远程 Action 解析错误。
 
 已修复 quality、security 和 release-evidence 工作流中的全部四处引用，保留原有 SHA 固定版本。新增 YAML 解析回归检查，确保远程 Action 不使用本地目录前缀、Gradle Action 保留正确发布者；测试先复现失败，修复后 4 项目录契约通过。远端门禁以修复提交对应的 Actions 结果为准，不能用此前本地通过代替。
+
+修复提交 c90b1f7d 的远端许可证、漏洞扫描、静态分析和密钥扫描通过。Qodana 随后暴露 Gradle 导入根仍为 `/data/project` 的错误：`onlyDirectory` 只限制分析范围，未指定构建导入根。依据官方 JVM monorepo 配置补充 `rootJavaProjects: ["./backend"]`，保留仓库根上下文和 PR 增量分析。新增配置回归测试先失败后通过；该修复的最终远端结果以 Actions 为准。

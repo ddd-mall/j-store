@@ -9,6 +9,8 @@
 #################################################################################
 version: "1.0"
 onlyDirectory: backend
+rootJavaProjects:
+  - "./backend"
 
 #Specify inspection profile for code analysis
 profile:

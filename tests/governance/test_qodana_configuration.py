@@ -3,10 +3,18 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class QodanaConfigurationContractTest(unittest.TestCase):
+    def test_qodana_imports_the_backend_gradle_build_from_the_vcs_root(self) -> None:
+        configuration = yaml.safe_load((REPO_ROOT / "qodana.yaml").read_text())
+        self.assertEqual(["./backend"], configuration["rootJavaProjects"])
+        for project in configuration["rootJavaProjects"]:
+            self.assertTrue((REPO_ROOT / project / "settings.gradle.kts").is_file())
+
     def test_pull_requests_only_analyze_changed_files(self) -> None:
         workflow = (
             REPO_ROOT / ".github/workflows/qodana_code_quality.yml"
