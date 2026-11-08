@@ -33,8 +33,8 @@ data class PhysicalStockChangedEvent(
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
-    override val eventName = "warehouse.physical-stock-changed"
-    override val eventVersion = 1
-    override val aggregateType = "PhysicalStock"
-    override val aggregateId = stockId.value
+  override val eventName = "warehouse.physical-stock-changed"
+  override val eventVersion = 1
+  override val aggregateType = "PhysicalStock"
+  override val aggregateId = stockId.value
 }

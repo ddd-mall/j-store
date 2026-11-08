@@ -27,20 +27,20 @@ class TransactionalCartRefreshRequestedHandler(
     private val delegate: CartRefreshRequestedHandler,
     private val transactions: CartTransactionOperations,
 ) : PreparingDomainEventListener<CartRefreshRequestedEvent> {
-    override fun listenerId() = delegate.listenerId()
+  override fun listenerId() = delegate.listenerId()
 
-    override fun prepare(event: CartRefreshRequestedEvent): () -> Unit {
-        check(!TransactionSynchronizationManager.isActualTransactionActive()) {
-            "Cart refresh preparation must run before the delivery transaction"
-        }
-        val start = transactions.read { Optional.ofNullable(delegate.start(event)) }
-        if (start.isEmpty) return {}
-        val cart = start.get()
-        val facts = transactions.withoutTransaction { delegate.collect(cart) }
-        return { delegate.complete(cart, facts) }
+  override fun prepare(event: CartRefreshRequestedEvent): () -> Unit {
+    check(!TransactionSynchronizationManager.isActualTransactionActive()) {
+      "Cart refresh preparation must run before the delivery transaction"
     }
+    val start = transactions.read { Optional.ofNullable(delegate.start(event)) }
+    if (start.isEmpty) return {}
+    val cart = start.get()
+    val facts = transactions.withoutTransaction { delegate.collect(cart) }
+    return { delegate.complete(cart, facts) }
+  }
 
-    override fun onDomainEvent(event: CartRefreshRequestedEvent) {
-        error("Cart refresh requires prepared Outbox delivery")
-    }
+  override fun onDomainEvent(event: CartRefreshRequestedEvent) {
+    error("Cart refresh requires prepared Outbox delivery")
+  }
 }

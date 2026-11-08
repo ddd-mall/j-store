@@ -31,162 +31,162 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
 
 class AfterSaleApplicationServiceTest {
-    private val factory = mock(AfterSaleFactory::class.java)
-    private val afterSales = mock(AfterSaleRepository::class.java)
-    private val capacities = mock(RefundCapacityRepository::class.java)
-    private val receipts = mock(AfterSaleCommandReceiptStore::class.java)
-    private val orders = mock(OrderRepository::class.java)
-    private val publisher = mock(DomainEventPublisher::class.java)
-    private val service =
-        AfterSaleApplicationService(factory, afterSales, capacities, receipts, orders, publisher)
+  private val factory = mock(AfterSaleFactory::class.java)
+  private val afterSales = mock(AfterSaleRepository::class.java)
+  private val capacities = mock(RefundCapacityRepository::class.java)
+  private val receipts = mock(AfterSaleCommandReceiptStore::class.java)
+  private val orders = mock(OrderRepository::class.java)
+  private val publisher = mock(DomainEventPublisher::class.java)
+  private val service =
+      AfterSaleApplicationService(factory, afterSales, capacities, receipts, orders, publisher)
 
-    @Test
-    fun `create rejects a non-owner before resolving merchant or saving`() {
-        val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.PAID)
-        `when`(orders.findById(OrderId(1))).thenReturn(order)
+  @Test
+  fun `create rejects a non-owner before resolving merchant or saving`() {
+    val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.PAID)
+    `when`(orders.findById(OrderId(1))).thenReturn(order)
 
-        val result = service.create("issuer-a", command(applicant = 99))
+    val result = service.create("issuer-a", command(applicant = 99))
 
-        assertEquals(AfterSaleErrors.APPLICANT_FORBIDDEN, assertIs<Failure<*>>(result).error)
-        verifyNoInteractions(factory)
-    }
+    assertEquals(AfterSaleErrors.APPLICANT_FORBIDDEN, assertIs<Failure<*>>(result).error)
+    verifyNoInteractions(factory)
+  }
 
-    @Test
-    fun `create propagates factory failure without reserving capacity`() {
-        val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.UNPAID)
-        `when`(orders.findById(OrderId(1))).thenReturn(order)
-        val sequence = mock(com.jstore.common.persistent.SnowFlakSequence::class.java)
-        val concreteService =
-            AfterSaleApplicationService(
-                AfterSaleFactoryImpl(sequence),
-                afterSales,
-                capacities,
-                receipts,
-                orders,
-                publisher,
-            )
-
-        val result = concreteService.create("issuer-a", command())
-
-        assertEquals(AfterSaleErrors.ORDER_NOT_ELIGIBLE, assertIs<Failure<*>>(result).error)
-    }
-
-    @Test
-    fun `same command receipt returns stored aggregate without loading order`() {
-        val aggregate = mock(AfterSale::class.java)
-        val receipt =
-            AfterSaleCommandReceipt(
-                1,
-                AfterSaleCommandType.CREATE,
-                "issuer-a:key",
-                commandHash(command()),
-                AfterSaleId(8),
-                AfterSaleStatus.REQUESTED,
-                java.time.LocalDateTime.MIN,
-            )
-        `when`(receipts.find(1, AfterSaleCommandType.CREATE, "issuer-a:key")).thenReturn(receipt)
-        `when`(afterSales.findById(AfterSaleId(8))).thenReturn(aggregate)
-
-        val result = service.create("issuer-a", command())
-
-        assertEquals(aggregate, assertIs<Success<AfterSale>>(result).value)
-        verifyNoInteractions(orders, factory)
-    }
-
-    @Test
-    fun `single-line request on multi-line order passes only requested ceiling`() {
-        val order =
-            testOrder(
-                trade = TradeStatus.ACTIVE,
-                payment = PaymentStatus.PAID,
-                itemStatuses = listOf(OrderItemStatus.NONE, OrderItemStatus.NONE),
-                currency = "JPY",
-            )
-        var captured: List<RefundCapacityCeiling>? = null
-        var capturedAfterSale: AfterSale? = null
-        val repository =
-            object : AfterSaleRepository {
-                override fun findByOrderId(orderId: OrderId) = emptyList<AfterSale>()
-
-                override fun save(aggregate: AfterSale) = aggregate.also { capturedAfterSale = it }
-
-                override fun findById(id: AfterSaleId): AfterSale? = null
-
-                override fun findByIdForUpdate(id: AfterSaleId): AfterSale? = null
-            }
-        val capacityRepository =
-            object : RefundCapacityRepository {
-                private val values = mutableMapOf<OrderItemId, RefundCapacity>()
-
-                override fun initializeIfAbsent(capacities: List<RefundCapacity>) {
-                    captured = capacities.map {
-                        RefundCapacityCeiling(
-                            it.orderId,
-                            it.id,
-                            it.quantityCeiling,
-                            it.amountCeiling,
-                        )
-                    }
-                    capacities.forEach { values.putIfAbsent(it.id, it) }
-                }
-
-                override fun lockAll(ids: Collection<OrderItemId>) = ids.mapNotNull(values::get)
-
-                override fun save(aggregate: RefundCapacity) = aggregate
-
-                override fun findById(id: OrderItemId) = values[id]
-            }
-        val receiptStore =
-            object : AfterSaleCommandReceiptStore {
-                override fun find(actorId: Long, type: AfterSaleCommandType, key: String) = null
-
-                override fun claim(receipt: AfterSaleCommandReceipt) = true
-            }
-        val orderRepository =
-            object : OrderRepository {
-                override fun findById(id: OrderId) = order
-
-                override fun add(order: Order) = Unit
-
-                override fun save(entity: Order) = entity
-
-                override fun findByBuyerUserId(authenticationDomain: String, uid: Long) =
-                    emptyList<Order>()
-
-                override fun pageListByUserId(
-                    authenticationDomain: String,
-                    uid: Long,
-                    currentPage: Int,
-                    pageSize: Int,
-                ): com.jstore.common.query.Page<Order> = throw UnsupportedOperationException()
-            }
-        val actual =
-            AfterSaleApplicationService(
-                    AfterSaleFactoryImpl(com.jstore.common.persistent.SnowFlakSequence(1, 1)),
-                    repository,
-                    capacityRepository,
-                    receiptStore,
-                    orderRepository,
-                    publisher,
-                )
-                .create("issuer-a", command())
-
-        assertIs<Success<AfterSale>>(actual)
-        assertEquals(listOf(OrderItemId(1)), assertNotNull(captured).map { it.orderItemId })
-        assertEquals("JPY", assertNotNull(capturedAfterSale).items.single().currency)
-    }
-
-    private fun command(applicant: Long = 1) =
-        AfterSaleCreateCMD(
-            OrderId(1),
-            ApplicantActorId(applicant),
-            RefundReason(RefundCategory.OTHER, "reason"),
-            listOf(AfterSaleItemRequestCMD(OrderItemId(1), 1, Price.ofFen(100))),
-            "key",
+  @Test
+  fun `create propagates factory failure without reserving capacity`() {
+    val order = testOrder(trade = TradeStatus.ACTIVE, payment = PaymentStatus.UNPAID)
+    `when`(orders.findById(OrderId(1))).thenReturn(order)
+    val sequence = mock(com.jstore.common.persistent.SnowFlakSequence::class.java)
+    val concreteService =
+        AfterSaleApplicationService(
+            AfterSaleFactoryImpl(sequence),
+            afterSales,
+            capacities,
+            receipts,
+            orders,
+            publisher,
         )
 
-    private fun commandHash(command: AfterSaleCreateCMD): String =
-        java.security.MessageDigest.getInstance("SHA-256")
-            .digest(command.toString().toByteArray())
-            .joinToString("") { "%02x".format(it) }
+    val result = concreteService.create("issuer-a", command())
+
+    assertEquals(AfterSaleErrors.ORDER_NOT_ELIGIBLE, assertIs<Failure<*>>(result).error)
+  }
+
+  @Test
+  fun `same command receipt returns stored aggregate without loading order`() {
+    val aggregate = mock(AfterSale::class.java)
+    val receipt =
+        AfterSaleCommandReceipt(
+            1,
+            AfterSaleCommandType.CREATE,
+            "issuer-a:key",
+            commandHash(command()),
+            AfterSaleId(8),
+            AfterSaleStatus.REQUESTED,
+            java.time.LocalDateTime.MIN,
+        )
+    `when`(receipts.find(1, AfterSaleCommandType.CREATE, "issuer-a:key")).thenReturn(receipt)
+    `when`(afterSales.findById(AfterSaleId(8))).thenReturn(aggregate)
+
+    val result = service.create("issuer-a", command())
+
+    assertEquals(aggregate, assertIs<Success<AfterSale>>(result).value)
+    verifyNoInteractions(orders, factory)
+  }
+
+  @Test
+  fun `single-line request on multi-line order passes only requested ceiling`() {
+    val order =
+        testOrder(
+            trade = TradeStatus.ACTIVE,
+            payment = PaymentStatus.PAID,
+            itemStatuses = listOf(OrderItemStatus.NONE, OrderItemStatus.NONE),
+            currency = "JPY",
+        )
+    var captured: List<RefundCapacityCeiling>? = null
+    var capturedAfterSale: AfterSale? = null
+    val repository =
+        object : AfterSaleRepository {
+          override fun findByOrderId(orderId: OrderId) = emptyList<AfterSale>()
+
+          override fun save(aggregate: AfterSale) = aggregate.also { capturedAfterSale = it }
+
+          override fun findById(id: AfterSaleId): AfterSale? = null
+
+          override fun findByIdForUpdate(id: AfterSaleId): AfterSale? = null
+        }
+    val capacityRepository =
+        object : RefundCapacityRepository {
+          private val values = mutableMapOf<OrderItemId, RefundCapacity>()
+
+          override fun initializeIfAbsent(capacities: List<RefundCapacity>) {
+            captured = capacities.map {
+              RefundCapacityCeiling(
+                  it.orderId,
+                  it.id,
+                  it.quantityCeiling,
+                  it.amountCeiling,
+              )
+            }
+            capacities.forEach { values.putIfAbsent(it.id, it) }
+          }
+
+          override fun lockAll(ids: Collection<OrderItemId>) = ids.mapNotNull(values::get)
+
+          override fun save(aggregate: RefundCapacity) = aggregate
+
+          override fun findById(id: OrderItemId) = values[id]
+        }
+    val receiptStore =
+        object : AfterSaleCommandReceiptStore {
+          override fun find(actorId: Long, type: AfterSaleCommandType, key: String) = null
+
+          override fun claim(receipt: AfterSaleCommandReceipt) = true
+        }
+    val orderRepository =
+        object : OrderRepository {
+          override fun findById(id: OrderId) = order
+
+          override fun add(order: Order) = Unit
+
+          override fun save(entity: Order) = entity
+
+          override fun findByBuyerUserId(authenticationDomain: String, uid: Long) =
+              emptyList<Order>()
+
+          override fun pageListByUserId(
+              authenticationDomain: String,
+              uid: Long,
+              currentPage: Int,
+              pageSize: Int,
+          ): com.jstore.common.query.Page<Order> = throw UnsupportedOperationException()
+        }
+    val actual =
+        AfterSaleApplicationService(
+                AfterSaleFactoryImpl(com.jstore.common.persistent.SnowFlakSequence(1, 1)),
+                repository,
+                capacityRepository,
+                receiptStore,
+                orderRepository,
+                publisher,
+            )
+            .create("issuer-a", command())
+
+    assertIs<Success<AfterSale>>(actual)
+    assertEquals(listOf(OrderItemId(1)), assertNotNull(captured).map { it.orderItemId })
+    assertEquals("JPY", assertNotNull(capturedAfterSale).items.single().currency)
+  }
+
+  private fun command(applicant: Long = 1) =
+      AfterSaleCreateCMD(
+          OrderId(1),
+          ApplicantActorId(applicant),
+          RefundReason(RefundCategory.OTHER, "reason"),
+          listOf(AfterSaleItemRequestCMD(OrderItemId(1), 1, Price.ofFen(100))),
+          "key",
+      )
+
+  private fun commandHash(command: AfterSaleCreateCMD): String =
+      java.security.MessageDigest.getInstance("SHA-256")
+          .digest(command.toString().toByteArray())
+          .joinToString("") { "%02x".format(it) }
 }

@@ -20,8 +20,8 @@ import com.jstore.common.framework.RecordsDomainEvents
 
 /** Publishes a stable event snapshot and acknowledges it only after every publication succeeds. */
 fun RecordsDomainEvents.publishPendingEvents(publisher: DomainEventPublisher) {
-    val pending = pendingDomainEvents()
-    publisher.publishEvents(pending)
-    val publishedEventIds = pending.mapTo(linkedSetOf()) { it.eventId }
-    publisher.afterPublicationCommitted { acknowledgeDomainEvents(publishedEventIds) }
+  val pending = pendingDomainEvents()
+  publisher.publishEvents(pending)
+  val publishedEventIds = pending.mapTo(linkedSetOf()) { it.eventId }
+  publisher.afterPublicationCommitted { acknowledgeDomainEvents(publishedEventIds) }
 }

@@ -45,72 +45,72 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.method.support.ModelAndViewContainer
 
 class UserAccountControllerContractTest {
-    private val useCase = mock<UserAccountUseCase>()
-    private val mvc =
-        MockMvcBuilders.standaloneSetup(UserAccountController(useCase))
-            .setCustomArgumentResolvers(CurrentUserResolver())
-            .build()
+  private val useCase = mock<UserAccountUseCase>()
+  private val mvc =
+      MockMvcBuilders.standaloneSetup(UserAccountController(useCase))
+          .setCustomArgumentResolvers(CurrentUserResolver())
+          .build()
 
-    @Test
-    fun `me lookup always uses authenticated user id`() {
-        val account =
-            UserAccountImpl(
-                id = UserId(42),
-                phoneNumber = PhoneNumber("+8613800138000"),
-                nickname = Nickname("current-user"),
-                passwordHash = Password("hash"),
-                status = UserAccountStatus.ACTIVE,
-            )
-        whenever(useCase.findById(UserId(42))).thenReturn(Success(account))
+  @Test
+  fun `me lookup always uses authenticated user id`() {
+    val account =
+        UserAccountImpl(
+            id = UserId(42),
+            phoneNumber = PhoneNumber("+8613800138000"),
+            nickname = Nickname("current-user"),
+            passwordHash = Password("hash"),
+            status = UserAccountStatus.ACTIVE,
+        )
+    whenever(useCase.findById(UserId(42))).thenReturn(Success(account))
 
-        mvc.perform(get("/api/users/me").header("X-Test-User", "42"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.id").value(42))
-            .andExpect(jsonPath("$.nickname").value("current-user"))
+    mvc.perform(get("/api/users/me").header("X-Test-User", "42"))
+        .andExpect(status().isOk)
+        .andExpect(jsonPath("$.id").value(42))
+        .andExpect(jsonPath("$.nickname").value("current-user"))
 
-        verify(useCase).findById(UserId(42))
-    }
+    verify(useCase).findById(UserId(42))
+  }
 
-    @Test
-    fun `arbitrary user and consumer admin routes do not exist`() {
-        listOf(
-                get("/api/users/99"),
-                post("/api/users/99/disable"),
-                post("/api/users/99/enable"),
-                post("/api/users/99/force-offline"),
-            )
-            .forEach { request -> mvc.perform(request).andExpect(status().isNotFound) }
-    }
+  @Test
+  fun `arbitrary user and consumer admin routes do not exist`() {
+    listOf(
+            get("/api/users/99"),
+            post("/api/users/99/disable"),
+            post("/api/users/99/enable"),
+            post("/api/users/99/force-offline"),
+        )
+        .forEach { request -> mvc.perform(request).andExpect(status().isNotFound) }
+  }
 
-    @Test
-    fun `controller defaults to authentication and only onboarding endpoints skip login`() {
-        assertTrue(UserAccountController::class.java.isAnnotationPresent(RequireLogin::class.java))
-        listOf(
-                "requestPhoneVerification",
-                "register",
-                "login",
-                "refreshToken",
-            )
-            .forEach { name ->
-                val method = UserAccountController::class.java.methods.single { it.name == name }
-                assertTrue(method.isAnnotationPresent(SkipLogin::class.java), name)
-            }
-    }
+  @Test
+  fun `controller defaults to authentication and only onboarding endpoints skip login`() {
+    assertTrue(UserAccountController::class.java.isAnnotationPresent(RequireLogin::class.java))
+    listOf(
+            "requestPhoneVerification",
+            "register",
+            "login",
+            "refreshToken",
+        )
+        .forEach { name ->
+          val method = UserAccountController::class.java.methods.single { it.name == name }
+          assertTrue(method.isAnnotationPresent(SkipLogin::class.java), name)
+        }
+  }
 
-    private class CurrentUserResolver : HandlerMethodArgumentResolver {
-        override fun supportsParameter(parameter: MethodParameter) =
-            parameter.hasParameterAnnotation(CurrentPrincipal::class.java) &&
-                parameter.parameterType == AuthenticatedPrincipal::class.java
+  private class CurrentUserResolver : HandlerMethodArgumentResolver {
+    override fun supportsParameter(parameter: MethodParameter) =
+        parameter.hasParameterAnnotation(CurrentPrincipal::class.java) &&
+            parameter.parameterType == AuthenticatedPrincipal::class.java
 
-        override fun resolveArgument(
-            parameter: MethodParameter,
-            mavContainer: ModelAndViewContainer?,
-            webRequest: NativeWebRequest,
-            binderFactory: org.springframework.web.bind.support.WebDataBinderFactory?,
-        ) =
-            AuthenticatedPrincipal(
-                "issuer-a",
-                AuthenticatedAccountId(webRequest.getHeader("X-Test-User")!!.toLong()),
-            )
-    }
+    override fun resolveArgument(
+        parameter: MethodParameter,
+        mavContainer: ModelAndViewContainer?,
+        webRequest: NativeWebRequest,
+        binderFactory: org.springframework.web.bind.support.WebDataBinderFactory?,
+    ) =
+        AuthenticatedPrincipal(
+            "issuer-a",
+            AuthenticatedAccountId(webRequest.getHeader("X-Test-User")!!.toLong()),
+        )
+  }
 }

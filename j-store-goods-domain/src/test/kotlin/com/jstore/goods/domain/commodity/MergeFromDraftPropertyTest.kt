@@ -38,89 +38,89 @@ import io.kotest.property.checkAll
 class MergeFromDraftPropertyTest :
     FunSpec({
 
-        // Generator for a single SKU with unique attribute value
-        fun skuArb(attrValue: String): Arb<Sku> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE),
-                Arb.string(1..20),
-                Arb.long(1L..999999L),
-            ) { skuIdVal, skuName, priceFen ->
+      // Generator for a single SKU with unique attribute value
+      fun skuArb(attrValue: String): Arb<Sku> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE),
+              Arb.string(1..20),
+              Arb.long(1L..999999L),
+          ) { skuIdVal, skuName, priceFen ->
+            SkuImpl(
+                id = SkuId(skuIdVal),
+                skuName = skuName,
+                attributes = listOf(Attribute("variant", attrValue)),
+            )
+          }
+
+      // Generator for a non-empty list of SKUs (1..5)
+      val skuListArb: Arb<List<Sku>> =
+          Arb.list(
+              Arb.bind(
+                  Arb.long(1L..Long.MAX_VALUE),
+                  Arb.string(1..20),
+                  Arb.long(1L..999999L),
+                  Arb.string(1..10),
+              ) { skuIdVal, skuName, priceFen, attrValue ->
                 SkuImpl(
                     id = SkuId(skuIdVal),
                     skuName = skuName,
                     attributes = listOf(Attribute("variant", attrValue)),
                 )
-            }
+              },
+              1..5,
+          )
 
-        // Generator for a non-empty list of SKUs (1..5)
-        val skuListArb: Arb<List<Sku>> =
-            Arb.list(
-                Arb.bind(
-                    Arb.long(1L..Long.MAX_VALUE),
-                    Arb.string(1..20),
-                    Arb.long(1L..999999L),
-                    Arb.string(1..10),
-                ) { skuIdVal, skuName, priceFen, attrValue ->
-                    SkuImpl(
-                        id = SkuId(skuIdVal),
-                        skuName = skuName,
-                        attributes = listOf(Attribute("variant", attrValue)),
-                    )
-                },
-                1..5,
+      // Generator for an PUBLISHED source SPU
+      val onSaleSpuArb: Arb<SpuImpl> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE),
+              Arb.string(1..50),
+              Arb.string(0..100),
+              Arb.long(1L..10000L),
+              skuListArb,
+          ) { spuIdVal, name, description, version, skus ->
+            SpuImpl(
+                id = SpuId(spuIdVal),
+                name = name,
+                description = description,
+                _status = CommodityStatus.PUBLISHED,
+                _skus = skus.toMutableList(),
+                _version = version,
             )
+          }
 
-        // Generator for an PUBLISHED source SPU
-        val onSaleSpuArb: Arb<SpuImpl> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE),
-                Arb.string(1..50),
-                Arb.string(0..100),
-                Arb.long(1L..10000L),
-                skuListArb,
-            ) { spuIdVal, name, description, version, skus ->
-                SpuImpl(
-                    id = SpuId(spuIdVal),
-                    name = name,
-                    description = description,
-                    _status = CommodityStatus.PUBLISHED,
-                    _skus = skus.toMutableList(),
-                    _version = version,
-                )
-            }
+      // Generator for a draft SPU with at least one SKU
+      val draftSpuArb: Arb<SpuImpl> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE),
+              Arb.string(1..50),
+              Arb.string(0..100),
+              skuListArb,
+          ) { spuIdVal, name, description, skus ->
+            SpuImpl(
+                id = SpuId(spuIdVal),
+                name = name,
+                description = description,
+                _status = CommodityStatus.DRAFT,
+                _skus = skus.toMutableList(),
+                _version = 1L,
+            )
+          }
 
-        // Generator for a draft SPU with at least one SKU
-        val draftSpuArb: Arb<SpuImpl> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE),
-                Arb.string(1..50),
-                Arb.string(0..100),
-                skuListArb,
-            ) { spuIdVal, name, description, skus ->
-                SpuImpl(
-                    id = SpuId(spuIdVal),
-                    name = name,
-                    description = description,
-                    _status = CommodityStatus.DRAFT,
-                    _skus = skus.toMutableList(),
-                    _version = 1L,
-                )
-            }
+      test("mergeFromDraft should merge draft data into PUBLISHED source and increment version") {
+        checkAll(100, onSaleSpuArb, draftSpuArb) { source, draft ->
+          val versionBefore = source.version
 
-        test("mergeFromDraft should merge draft data into PUBLISHED source and increment version") {
-            checkAll(100, onSaleSpuArb, draftSpuArb) { source, draft ->
-                val versionBefore = source.version
+          val result = source.mergeFromDraft(draft)
 
-                val result = source.mergeFromDraft(draft)
-
-                result.shouldBeInstanceOf<Success<Unit>>()
-                source.name shouldBe draft.name
-                source.description shouldBe draft.description
-                source.skus.map { it.skuName } shouldBe draft.skus.map { it.skuName }
-                source.skus.map { it.attributes } shouldBe draft.skus.map { it.attributes }
-                source.skus.map { it.id } shouldBe draft.skus.map { it.sourceSkuId ?: it.id }
-                source.version shouldBe versionBefore + 1
-                source.status shouldBe CommodityStatus.PUBLISHED
-            }
+          result.shouldBeInstanceOf<Success<Unit>>()
+          source.name shouldBe draft.name
+          source.description shouldBe draft.description
+          source.skus.map { it.skuName } shouldBe draft.skus.map { it.skuName }
+          source.skus.map { it.attributes } shouldBe draft.skus.map { it.attributes }
+          source.skus.map { it.id } shouldBe draft.skus.map { it.sourceSkuId ?: it.id }
+          source.version shouldBe versionBefore + 1
+          source.status shouldBe CommodityStatus.PUBLISHED
         }
+      }
     })

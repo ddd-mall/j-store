@@ -36,56 +36,56 @@ class OutboxOperationsController(
     private val deadLetterService: OutboxDeadLetterOperations,
     private val properties: OutboxOperationsProperties,
 ) {
-    @GetMapping
-    fun findDeadLetters(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @RequestParam(defaultValue = "1") page: Int,
-        @RequestParam(defaultValue = "20") size: Int,
-    ): ResponseEntity<*> {
-        forbidden(principal)?.let {
-            return it
-        }
-        if (page < 1 || size !in 1..200) {
-            return ResponseEntity.badRequest()
-                .body(
-                    OutboxOperationsErrorResponse(
-                        "page must be at least 1 and size must be between 1 and 200",
-                        "OUTBOX_OPERATIONS_INVALID_PAGE",
-                    )
-                )
-        }
-        return ResponseEntity.ok(
-            DeadLetterPageResponse.from(deadLetterService.findDeadLetters(page, size))
+  @GetMapping
+  fun findDeadLetters(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @RequestParam(defaultValue = "1") page: Int,
+      @RequestParam(defaultValue = "20") size: Int,
+  ): ResponseEntity<*> {
+    forbidden(principal)?.let {
+      return it
+    }
+    if (page < 1 || size !in 1..200) {
+      return ResponseEntity.badRequest()
+          .body(
+              OutboxOperationsErrorResponse(
+                  "page must be at least 1 and size must be between 1 and 200",
+                  "OUTBOX_OPERATIONS_INVALID_PAGE",
+              )
+          )
+    }
+    return ResponseEntity.ok(
+        DeadLetterPageResponse.from(deadLetterService.findDeadLetters(page, size))
+    )
+  }
+
+  @PostMapping("/requeue")
+  fun requeue(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @Valid @RequestBody request: RequeueDeadLettersRequest,
+  ): ResponseEntity<*> {
+    forbidden(principal)?.let {
+      return it
+    }
+    val result =
+        deadLetterService.requeue(
+            ids = request.ids,
+            operatorId = "${principal.authenticationDomain}:${principal.accountId.value}",
+            reason = request.reason,
         )
-    }
+    return ResponseEntity.ok(RequeueDeadLettersResponse.from(result))
+  }
 
-    @PostMapping("/requeue")
-    fun requeue(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @Valid @RequestBody request: RequeueDeadLettersRequest,
-    ): ResponseEntity<*> {
-        forbidden(principal)?.let {
-            return it
-        }
-        val result =
-            deadLetterService.requeue(
-                ids = request.ids,
-                operatorId = "${principal.authenticationDomain}:${principal.accountId.value}",
-                reason = request.reason,
+  private fun forbidden(
+      principal: AuthenticatedPrincipal
+  ): ResponseEntity<OutboxOperationsErrorResponse>? {
+    if (properties.isAdministrator(principal.accountId.value)) return null
+    return ResponseEntity.status(403)
+        .body(
+            OutboxOperationsErrorResponse(
+                message = "Current user is not an Outbox operations administrator",
+                errorCode = "OUTBOX_OPERATIONS_FORBIDDEN",
             )
-        return ResponseEntity.ok(RequeueDeadLettersResponse.from(result))
-    }
-
-    private fun forbidden(
-        principal: AuthenticatedPrincipal
-    ): ResponseEntity<OutboxOperationsErrorResponse>? {
-        if (properties.isAdministrator(principal.accountId.value)) return null
-        return ResponseEntity.status(403)
-            .body(
-                OutboxOperationsErrorResponse(
-                    message = "Current user is not an Outbox operations administrator",
-                    errorCode = "OUTBOX_OPERATIONS_FORBIDDEN",
-                )
-            )
-    }
+        )
+  }
 }

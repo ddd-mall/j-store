@@ -11,7 +11,7 @@ j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring
 
 ## 代码格式化
 
-Java、Kotlin 和 Gradle Kotlin DSL 代码只由 Spotless 格式化，其中 Kotlin 和 Gradle Kotlin DSL 使用 ktfmt（Kotlin 风格）。仓库不采用额外的人工或 AI 格式化规则。执行方式见 [`docs/steering/code-formatting-guidelines.md`](docs/steering/code-formatting-guidelines.md)。
+Java、Kotlin 和 Gradle Kotlin DSL 代码只由 Spotless 格式化，其中 Java 使用 google-java-format 的官方默认 Google 风格，Kotlin 和 Gradle Kotlin DSL 使用 ktfmt 的官方默认风格。仓库不采用额外的人工或 AI 格式化规则。执行方式见 [`docs/steering/code-formatting-guidelines.md`](docs/steering/code-formatting-guidelines.md)。
 
 ```bash
 ./gradlew spotlessApply

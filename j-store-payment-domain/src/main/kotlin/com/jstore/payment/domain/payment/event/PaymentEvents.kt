@@ -33,9 +33,9 @@ sealed class PaymentDomainEvent(
     override val eventVersion: Int,
 ) : DomainEvent {
 
-    override val aggregateType: String = "PaymentOrder"
-    override val aggregateId: String
-        get() = paymentId.value.toString()
+  override val aggregateType: String = "PaymentOrder"
+  override val aggregateId: String
+    get() = paymentId.value.toString()
 }
 
 @DomainEventType(name = "payment.captured")

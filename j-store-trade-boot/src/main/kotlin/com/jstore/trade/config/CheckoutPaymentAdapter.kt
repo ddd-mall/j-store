@@ -22,15 +22,15 @@ import com.jstore.trade.service.CheckoutPaymentView
 
 class CheckoutPaymentAdapter(private val payments: ReadyCheckoutPaymentQuery) :
     CheckoutPaymentGateway {
-    override fun findReadyPayment(paymentId: Long): CheckoutPaymentView? =
-        payments.find(paymentId)?.let {
-            CheckoutPaymentView(
-                it.paymentId,
-                it.status,
-                it.amount,
-                it.currency,
-                it.payAction,
-                it.expiresAt,
-            )
-        }
+  override fun findReadyPayment(paymentId: Long): CheckoutPaymentView? =
+      payments.find(paymentId)?.let {
+        CheckoutPaymentView(
+            it.paymentId,
+            it.status,
+            it.amount,
+            it.currency,
+            it.payAction,
+            it.expiresAt,
+        )
+      }
 }

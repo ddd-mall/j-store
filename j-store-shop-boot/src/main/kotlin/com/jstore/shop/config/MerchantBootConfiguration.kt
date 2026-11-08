@@ -32,34 +32,32 @@ import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
 class MerchantBootConfiguration {
-    @Bean
-    fun merchantIdGenerator(sequence: SnowFlakSequence) = MerchantIdGenerator(sequence::nextId)
+  @Bean fun merchantIdGenerator(sequence: SnowFlakSequence) = MerchantIdGenerator(sequence::nextId)
 
-    @Bean
-    fun merchantUserAccountLookup(userProfiles: UserProfileQueryService) =
-        UserAccountLookup { userId ->
-            userProfiles.findInCurrentAuthenticationDomain(userId) != null
-        }
+  @Bean
+  fun merchantUserAccountLookup(userProfiles: UserProfileQueryService) =
+      UserAccountLookup { userId ->
+        userProfiles.findInCurrentAuthenticationDomain(userId) != null
+      }
 
-    @Bean
-    fun merchantAuthorizationService(
-        merchantRepository: MerchantRepository,
-        membershipRepository: MerchantMembershipRepository,
-    ) = MerchantAuthorizationService(merchantRepository, membershipRepository)
+  @Bean
+  fun merchantAuthorizationService(
+      merchantRepository: MerchantRepository,
+      membershipRepository: MerchantMembershipRepository,
+  ) = MerchantAuthorizationService(merchantRepository, membershipRepository)
 
-    @Bean
-    fun merchantApplicationService(
-        idGenerator: MerchantIdGenerator,
-        merchantRepository: MerchantRepository,
-        membershipRepository: MerchantMembershipRepository,
-        userAccountLookup: UserAccountLookup,
-    ) = MerchantService(idGenerator, merchantRepository, membershipRepository, userAccountLookup)
+  @Bean
+  fun merchantApplicationService(
+      idGenerator: MerchantIdGenerator,
+      merchantRepository: MerchantRepository,
+      membershipRepository: MerchantMembershipRepository,
+      userAccountLookup: UserAccountLookup,
+  ) = MerchantService(idGenerator, merchantRepository, membershipRepository, userAccountLookup)
 
-    @Bean
-    @Primary
-    fun transactionalMerchantUseCase(
-        merchantApplicationService: MerchantService,
-        transactionManager: PlatformTransactionManager,
-    ): MerchantUseCase =
-        TransactionalMerchantUseCase(merchantApplicationService, transactionManager)
+  @Bean
+  @Primary
+  fun transactionalMerchantUseCase(
+      merchantApplicationService: MerchantService,
+      transactionManager: PlatformTransactionManager,
+  ): MerchantUseCase = TransactionalMerchantUseCase(merchantApplicationService, transactionManager)
 }

@@ -19,14 +19,14 @@ package com.jstore.outbox.spring
 import java.time.Instant
 
 interface OutboxDeadLetterOperations {
-    fun findDeadLetters(page: Int, size: Int): OutboxDeadLetterPage
+  fun findDeadLetters(page: Int, size: Int): OutboxDeadLetterPage
 
-    fun requeue(
-        ids: Collection<String>,
-        operatorId: String,
-        reason: String,
-        nextAttemptAt: Instant = Instant.now(),
-    ): DeadLetterRequeueResult
+  fun requeue(
+      ids: Collection<String>,
+      operatorId: String,
+      reason: String,
+      nextAttemptAt: Instant = Instant.now(),
+  ): DeadLetterRequeueResult
 }
 
 /**
@@ -35,14 +35,14 @@ interface OutboxDeadLetterOperations {
  * Implementations must update an entry and append its audit record in the same transaction.
  */
 interface OutboxDeadLetterOperationsRepository {
-    fun findDeadLetters(page: Int, size: Int): OutboxDeadLetterPage
+  fun findDeadLetters(page: Int, size: Int): OutboxDeadLetterPage
 
-    fun requeueDeadLetters(
-        ids: Collection<String>,
-        operatorId: String,
-        reason: String,
-        nextAttemptAt: Instant,
-    ): DeadLetterRequeueResult
+  fun requeueDeadLetters(
+      ids: Collection<String>,
+      operatorId: String,
+      reason: String,
+      nextAttemptAt: Instant,
+  ): DeadLetterRequeueResult
 }
 
 data class OutboxDeadLetterPage(
@@ -76,12 +76,12 @@ data class DeadLetterRequeueResult(
 )
 
 enum class OutboxDeadLetterAuditAction {
-    REQUEUE
+  REQUEUE
 }
 
 enum class OutboxDeadLetterAuditResult {
-    REQUEUED,
-    NOT_REQUEUED,
+  REQUEUED,
+  NOT_REQUEUED,
 }
 
 data class OutboxDeadLetterAudit(

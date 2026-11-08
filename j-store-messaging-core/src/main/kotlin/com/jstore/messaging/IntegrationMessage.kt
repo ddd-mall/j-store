@@ -22,39 +22,39 @@ import java.util.UUID
 
 /** A stable message contract crossing a bounded-context or process boundary. */
 interface IntegrationMessage {
-    val messageId: String
-    val messageName: String
-    val messageVersion: Int
-    val occurredAt: Instant
-    val partitionKey: String
-    val correlationId: String
-    val causationId: String?
-        get() = null
+  val messageId: String
+  val messageName: String
+  val messageVersion: Int
+  val occurredAt: Instant
+  val partitionKey: String
+  val correlationId: String
+  val causationId: String?
+    get() = null
 
-    /** Optional merchant isolation scope. It is not a site or deployment identity. */
-    val merchantScopeId: String?
-        get() = null
+  /** Optional merchant isolation scope. It is not a site or deployment identity. */
+  val merchantScopeId: String?
+    get() = null
 
-    /** Optional deployment/site routing extension, independent from merchant authorization. */
-    val deploymentScopeId: String?
-        get() = null
+  /** Optional deployment/site routing extension, independent from merchant authorization. */
+  val deploymentScopeId: String?
+    get() = null
 
-    val destination: String
+  val destination: String
 
-    val metadata: IntegrationMessageMetadata
-        get() =
-            IntegrationMessageMetadata(
-                messageId = messageId,
-                messageName = messageName,
-                messageVersion = messageVersion,
-                occurredAt = occurredAt,
-                partitionKey = partitionKey,
-                correlationId = correlationId,
-                causationId = causationId,
-                merchantScopeId = merchantScopeId,
-                deploymentScopeId = deploymentScopeId,
-                acceptBefore = (this as? IntegrationCommand)?.acceptBefore,
-            )
+  val metadata: IntegrationMessageMetadata
+    get() =
+        IntegrationMessageMetadata(
+            messageId = messageId,
+            messageName = messageName,
+            messageVersion = messageVersion,
+            occurredAt = occurredAt,
+            partitionKey = partitionKey,
+            correlationId = correlationId,
+            causationId = causationId,
+            merchantScopeId = merchantScopeId,
+            deploymentScopeId = deploymentScopeId,
+            acceptBefore = (this as? IntegrationCommand)?.acceptBefore,
+        )
 }
 
 @Target(AnnotationTarget.CLASS)
@@ -69,9 +69,9 @@ interface IntegrationEvent : IntegrationMessage
 
 /** An intention addressed to one logical owning context. */
 interface IntegrationCommand : IntegrationMessage {
-    /** Latest instant at which a consumer may start accepting this command. */
-    val acceptBefore: Instant?
-        get() = null
+  /** Latest instant at which a consumer may start accepting this command. */
+  val acceptBefore: Instant?
+    get() = null
 }
 
 data class IntegrationMessageMetadata(
@@ -86,29 +86,29 @@ data class IntegrationMessageMetadata(
     val deploymentScopeId: String? = null,
     val acceptBefore: Instant? = null,
 ) {
-    init {
-        require(messageId.isNotBlank()) { "messageId must not be blank" }
-        require(messageName.isNotBlank()) { "messageName must not be blank" }
-        require(messageVersion > 0) { "messageVersion must be greater than zero" }
-        require(partitionKey.isNotBlank()) { "partitionKey must not be blank" }
-        require(correlationId.isNotBlank()) { "correlationId must not be blank" }
-        require(causationId == null || causationId.isNotBlank()) {
-            "causationId must be null or non-blank"
-        }
-        require(merchantScopeId == null || merchantScopeId.isNotBlank()) {
-            "merchantScopeId must be null or non-blank"
-        }
-        require(deploymentScopeId == null || deploymentScopeId.isNotBlank()) {
-            "deploymentScopeId must be null or non-blank"
-        }
-        require(acceptBefore == null || !acceptBefore.isBefore(occurredAt)) {
-            "acceptBefore must not precede occurredAt"
-        }
+  init {
+    require(messageId.isNotBlank()) { "messageId must not be blank" }
+    require(messageName.isNotBlank()) { "messageName must not be blank" }
+    require(messageVersion > 0) { "messageVersion must be greater than zero" }
+    require(partitionKey.isNotBlank()) { "partitionKey must not be blank" }
+    require(correlationId.isNotBlank()) { "correlationId must not be blank" }
+    require(causationId == null || causationId.isNotBlank()) {
+      "causationId must be null or non-blank"
     }
+    require(merchantScopeId == null || merchantScopeId.isNotBlank()) {
+      "merchantScopeId must be null or non-blank"
+    }
+    require(deploymentScopeId == null || deploymentScopeId.isNotBlank()) {
+      "deploymentScopeId must be null or non-blank"
+    }
+    require(acceptBefore == null || !acceptBefore.isBefore(occurredAt)) {
+      "acceptBefore must not precede occurredAt"
+    }
+  }
 }
 
 interface IntegrationMessagePublisher {
-    fun publish(message: IntegrationMessage)
+  fun publish(message: IntegrationMessage)
 }
 
 /**
@@ -122,11 +122,11 @@ fun stableIntegrationMessageId(
     sourceMessageId: String,
     businessKey: String,
 ): String {
-    require(messageName.isNotBlank()) { "messageName must not be blank" }
-    require(messageVersion > 0) { "messageVersion must be greater than zero" }
-    require(sourceMessageId.isNotBlank()) { "sourceMessageId must not be blank" }
-    require(businessKey.isNotBlank()) { "businessKey must not be blank" }
-    val fields = listOf(messageName, messageVersion.toString(), sourceMessageId, businessKey)
-    val canonical = fields.joinToString(separator = "") { value -> "${value.length}:$value" }
-    return UUID.nameUUIDFromBytes(canonical.toByteArray(StandardCharsets.UTF_8)).toString()
+  require(messageName.isNotBlank()) { "messageName must not be blank" }
+  require(messageVersion > 0) { "messageVersion must be greater than zero" }
+  require(sourceMessageId.isNotBlank()) { "sourceMessageId must not be blank" }
+  require(businessKey.isNotBlank()) { "businessKey must not be blank" }
+  val fields = listOf(messageName, messageVersion.toString(), sourceMessageId, businessKey)
+  val canonical = fields.joinToString(separator = "") { value -> "${value.length}:$value" }
+  return UUID.nameUUIDFromBytes(canonical.toByteArray(StandardCharsets.UTF_8)).toString()
 }

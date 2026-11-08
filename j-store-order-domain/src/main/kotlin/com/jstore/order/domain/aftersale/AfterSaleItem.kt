@@ -22,12 +22,12 @@ import com.jstore.order.domain.order.OrderId
 import com.jstore.order.domain.order.OrderItemId
 
 interface AfterSaleItem : Entity<AfterSaleItemId> {
-    val orderId: OrderId
-    val orderItemId: OrderItemId
-    val requestedQuantity: Int
-    val requestedAmount: Price
-    val currency: String
-    val eligibilitySnapshot: RefundEligibilitySnapshot
+  val orderId: OrderId
+  val orderItemId: OrderItemId
+  val requestedQuantity: Int
+  val requestedAmount: Price
+  val currency: String
+  val eligibilitySnapshot: RefundEligibilitySnapshot
 }
 
 data class AfterSaleItemImpl(
@@ -39,13 +39,9 @@ data class AfterSaleItemImpl(
     override val currency: String,
     override val eligibilitySnapshot: RefundEligibilitySnapshot,
 ) : AfterSaleItem {
-    init {
-        require(
-            requestedQuantity > 0 && requestedQuantity <= eligibilitySnapshot.refundableQuantity
-        )
-        require(
-            requestedAmount > Price.ZERO && requestedAmount <= eligibilitySnapshot.refundableAmount
-        )
-        require(currency == eligibilitySnapshot.currency)
-    }
+  init {
+    require(requestedQuantity > 0 && requestedQuantity <= eligibilitySnapshot.refundableQuantity)
+    require(requestedAmount > Price.ZERO && requestedAmount <= eligibilitySnapshot.refundableAmount)
+    require(currency == eligibilitySnapshot.currency)
+  }
 }

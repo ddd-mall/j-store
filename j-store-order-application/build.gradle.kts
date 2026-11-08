@@ -1,33 +1,33 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.kotlin.jvm)
 }
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 dependencies {
-    api(libs.kotlin.stdlib)
-    api(project(":j-store-order-domain"))
-    implementation(project(":j-store-common-core"))
-    api(project(":j-store-messaging-core"))
-    implementation(project(":j-store-integration-contracts"))
-    implementation(project(":j-store-shop-api"))
-    implementation(project(":j-store-order-api"))
+  api(libs.kotlin.stdlib)
+  api(project(":j-store-order-domain"))
+  implementation(project(":j-store-common-core"))
+  api(project(":j-store-messaging-core"))
+  implementation(project(":j-store-integration-contracts"))
+  implementation(project(":j-store-shop-api"))
+  implementation(project(":j-store-order-api"))
 
-    testImplementation(libs.mockito)
-    testImplementation(testFixtures(project(":j-store-order-domain")))
-    testImplementation(libs.mockito.kotlin)
-    testImplementation(libs.kotlin.test)
-    testImplementation(libs.kotest.runner.junit5)
-    testImplementation(libs.kotest.assertions.core)
-    testImplementation(libs.kotest.property)
+  testImplementation(libs.mockito)
+  testImplementation(testFixtures(project(":j-store-order-domain")))
+  testImplementation(libs.mockito.kotlin)
+  testImplementation(libs.kotlin.test)
+  testImplementation(libs.kotest.runner.junit5)
+  testImplementation(libs.kotest.assertions.core)
+  testImplementation(libs.kotest.property)
 }
 
 tasks.test {
-    useJUnitPlatform()
+  useJUnitPlatform()
 }
 
 kotlin {
-    jvmToolchain(25)
+  jvmToolchain(25)
 }

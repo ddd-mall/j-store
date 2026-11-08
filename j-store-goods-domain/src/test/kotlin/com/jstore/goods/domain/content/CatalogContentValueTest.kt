@@ -23,40 +23,40 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class CatalogContentValueTest {
-    @Test
-    fun `localized text normalizes locale keys and provides deterministic fallback`() {
-        val text = LocalizedText.of("ZH_cn" to "咖啡", "en-US" to "Coffee")
+  @Test
+  fun `localized text normalizes locale keys and provides deterministic fallback`() {
+    val text = LocalizedText.of("ZH_cn" to "咖啡", "en-US" to "Coffee")
 
-        assertEquals("咖啡", text["zh-CN"])
-        assertEquals("Coffee", text.resolve("en-US"))
-        assertEquals("Coffee", text.resolve("fr-FR"))
+    assertEquals("咖啡", text["zh-CN"])
+    assertEquals("Coffee", text.resolve("en-US"))
+    assertEquals("Coffee", text.resolve("fr-FR"))
+  }
+
+  @Test
+  fun `localized text rejects empty content`() {
+    assertFailsWith<IllegalArgumentException> { LocalizedText(emptyMap()) }
+    assertFailsWith<IllegalArgumentException> { LocalizedText.of("zh-CN" to " ") }
+  }
+
+  @Test
+  fun `media asset validates stable key and position`() {
+    assertFailsWith<IllegalArgumentException> {
+      MediaAsset("", MediaType.IMAGE, MediaRole.PRIMARY, 0)
     }
-
-    @Test
-    fun `localized text rejects empty content`() {
-        assertFailsWith<IllegalArgumentException> { LocalizedText(emptyMap()) }
-        assertFailsWith<IllegalArgumentException> { LocalizedText.of("zh-CN" to " ") }
+    assertFailsWith<IllegalArgumentException> {
+      MediaAsset("oss-key", MediaType.IMAGE, MediaRole.GALLERY, -1)
     }
+  }
 
-    @Test
-    fun `media asset validates stable key and position`() {
-        assertFailsWith<IllegalArgumentException> {
-            MediaAsset("", MediaType.IMAGE, MediaRole.PRIMARY, 0)
-        }
-        assertFailsWith<IllegalArgumentException> {
-            MediaAsset("oss-key", MediaType.IMAGE, MediaRole.GALLERY, -1)
-        }
-    }
+  @Test
+  fun `category references parent by id`() {
+    val category =
+        Category(
+            id = CategoryId(2),
+            name = LocalizedText.of("zh-CN" to "咖啡豆"),
+            parentId = CategoryId(1),
+        )
 
-    @Test
-    fun `category references parent by id`() {
-        val category =
-            Category(
-                id = CategoryId(2),
-                name = LocalizedText.of("zh-CN" to "咖啡豆"),
-                parentId = CategoryId(1),
-            )
-
-        assertEquals(CategoryId(1), category.parentId)
-    }
+    assertEquals(CategoryId(1), category.parentId)
+  }
 }

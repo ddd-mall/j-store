@@ -23,13 +23,13 @@ import com.jstore.order.domain.order.OrderRepository
 import java.time.ZoneOffset
 
 class OrderAccountingQueryService(private val orders: OrderRepository) : OrderAccountingQuery {
-    override fun find(orderId: Long): OrderAccountingSnapshot? =
-        orders.findById(OrderId(orderId))?.let {
-            OrderAccountingSnapshot(
-                it.id.value,
-                it.merchantId.value,
-                it.paidAmount.fen,
-                it.updateTime.toInstant(ZoneOffset.UTC),
-            )
-        }
+  override fun find(orderId: Long): OrderAccountingSnapshot? =
+      orders.findById(OrderId(orderId))?.let {
+        OrderAccountingSnapshot(
+            it.id.value,
+            it.merchantId.value,
+            it.paidAmount.fen,
+            it.updateTime.toInstant(ZoneOffset.UTC),
+        )
+      }
 }

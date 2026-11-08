@@ -34,172 +34,172 @@ import org.springframework.web.bind.annotation.*
 @RequireLogin
 class OrderController(private val orderService: OrderUseCase) {
 
-    // ---- Request DTOs ----
+  // ---- Request DTOs ----
 
-    data class CancelOrderRequest(
-        val category: CancellationCategory,
-        val description: String,
-    )
+  data class CancelOrderRequest(
+      val category: CancellationCategory,
+      val description: String,
+  )
 
-    // ---- Response DTOs ----
+  // ---- Response DTOs ----
 
-    data class OrderResponse(
-        val id: Long,
-        val merchantId: Long,
-        val buyerUid: Long,
-        val tradeStatus: String,
-        val paymentStatus: String,
-        val fulfillmentStatus: String,
-        val commitmentStatus: String,
-        val currency: String,
-        val itemsSubtotal: Long,
-        val discountAmount: Long,
-        val shippingAmount: Long,
-        val taxAmount: Long,
-        val payableAmount: Long,
-        val paidAmount: Long,
-        val refundedAmount: Long,
-        val items: List<OrderItemResponse>,
-        val createTime: LocalDateTime,
-        val updateTime: LocalDateTime,
-    )
+  data class OrderResponse(
+      val id: Long,
+      val merchantId: Long,
+      val buyerUid: Long,
+      val tradeStatus: String,
+      val paymentStatus: String,
+      val fulfillmentStatus: String,
+      val commitmentStatus: String,
+      val currency: String,
+      val itemsSubtotal: Long,
+      val discountAmount: Long,
+      val shippingAmount: Long,
+      val taxAmount: Long,
+      val payableAmount: Long,
+      val paidAmount: Long,
+      val refundedAmount: Long,
+      val items: List<OrderItemResponse>,
+      val createTime: LocalDateTime,
+      val updateTime: LocalDateTime,
+  )
 
-    data class OrderItemResponse(
-        val id: Long,
-        val offerId: Long,
-        val storeId: Long,
-        val offerVersion: Long,
-        val fulfillmentNodeId: String,
-        val channelId: String,
-        val skuId: Long,
-        val spuId: Long,
-        val goodsName: String,
-        val skuDescription: String,
-        val quantity: Int,
-        val unitPrice: Long,
-        val status: String,
-        val refundedQuantity: Int,
-        val refundedAmount: Long,
-    )
+  data class OrderItemResponse(
+      val id: Long,
+      val offerId: Long,
+      val storeId: Long,
+      val offerVersion: Long,
+      val fulfillmentNodeId: String,
+      val channelId: String,
+      val skuId: Long,
+      val spuId: Long,
+      val goodsName: String,
+      val skuDescription: String,
+      val quantity: Int,
+      val unitPrice: Long,
+      val status: String,
+      val refundedQuantity: Int,
+      val refundedAmount: Long,
+  )
 
-    data class PageResponse<T>(
-        val current: Int,
-        val size: Int,
-        val records: Collection<T>,
-    )
+  data class PageResponse<T>(
+      val current: Int,
+      val size: Int,
+      val records: Collection<T>,
+  )
 
-    data class ErrorResponse(
-        val message: String,
-        val errorCode: String,
-    )
+  data class ErrorResponse(
+      val message: String,
+      val errorCode: String,
+  )
 
-    // ---- 买家接口 ----
+  // ---- 买家接口 ----
 
-    @GetMapping("/{orderId}")
-    fun getOrder(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> {
-        return orderService
-            .getOrderById(
-                principal.authenticationDomain,
-                principal.accountId.value,
-                OrderId(orderId),
-            )
-            .toResponse {
-                it.toOrderResponse()
-            }
-    }
-
-    @GetMapping
-    fun listMyOrders(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @RequestParam(defaultValue = "1") page: Int,
-        @RequestParam(defaultValue = "10") size: Int,
-    ): ResponseEntity<*> {
-        val result =
-            orderService.pageListByUserId(
-                principal.authenticationDomain,
-                principal.accountId.value,
-                page,
-                size,
-            )
-        return ResponseEntity.ok(
-            PageResponse(
-                current = result.currentPage,
-                size = result.totalElements,
-                records = result.records.map { it.toOrderResponse() },
-            )
+  @GetMapping("/{orderId}")
+  fun getOrder(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable orderId: Long,
+  ): ResponseEntity<*> {
+    return orderService
+        .getOrderById(
+            principal.authenticationDomain,
+            principal.accountId.value,
+            OrderId(orderId),
         )
-    }
+        .toResponse {
+          it.toOrderResponse()
+        }
+  }
 
-    @PostMapping("/{orderId}/cancel")
-    fun cancelOrder(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable orderId: Long,
-        @RequestBody request: CancelOrderRequest,
-    ): ResponseEntity<*> {
-        val cmd =
-            OrderCancelCMD(
-                orderId = OrderId(orderId),
-                category = request.category,
-                description = request.description,
-            )
-        return orderService
-            .cancelOrder(principal.authenticationDomain, principal.accountId.value, cmd)
-            .toResponse {}
-    }
-
-    // ---- Helpers ----
-
-    private fun Order.toOrderResponse() =
-        OrderResponse(
-            id = id.value,
-            merchantId = merchantId.value,
-            buyerUid = buyerInfo.uid,
-            tradeStatus = tradeStatus.name,
-            paymentStatus = paymentStatus.name,
-            fulfillmentStatus = fulfillmentStatus.name,
-            commitmentStatus = commitmentStatus.name,
-            currency = amountSnapshot.currency,
-            itemsSubtotal = amountSnapshot.itemsSubtotal.fen,
-            discountAmount = amountSnapshot.discountAmount.fen,
-            shippingAmount = amountSnapshot.shippingAmount.fen,
-            taxAmount = amountSnapshot.taxAmount.fen,
-            payableAmount = amountSnapshot.payableAmount.fen,
-            paidAmount = paidAmount.fen,
-            refundedAmount = refundedAmount.fen,
-            items = items.map { it.toOrderItemResponse() },
-            createTime = createTime,
-            updateTime = updateTime,
+  @GetMapping
+  fun listMyOrders(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @RequestParam(defaultValue = "1") page: Int,
+      @RequestParam(defaultValue = "10") size: Int,
+  ): ResponseEntity<*> {
+    val result =
+        orderService.pageListByUserId(
+            principal.authenticationDomain,
+            principal.accountId.value,
+            page,
+            size,
         )
-
-    private fun OrderItem.toOrderItemResponse() =
-        OrderItemResponse(
-            id = id.value,
-            offerId = offerId,
-            storeId = storeId,
-            offerVersion = offerVersion,
-            fulfillmentNodeId = fulfillmentNodeId,
-            channelId = channelId,
-            skuId = skuId,
-            spuId = spuId,
-            goodsName = goodsName,
-            skuDescription = skuDescription,
-            quantity = quantity,
-            unitPrice = unitPrice.fen,
-            status = status.name,
-            refundedQuantity = refundedQuantity,
-            refundedAmount = refundedAmount.fen,
+    return ResponseEntity.ok(
+        PageResponse(
+            current = result.currentPage,
+            size = result.totalElements,
+            records = result.records.map { it.toOrderResponse() },
         )
+    )
+  }
 
-    private fun <T> Result<T, BusinessError>.toResponse(mapper: (T) -> Any): ResponseEntity<*> {
-        return fold(
-            onSuccess = { ResponseEntity.ok(mapper(it)) },
-            onFailure = { error ->
-                ResponseEntity.status(error.httpCode)
-                    .body(ErrorResponse(message = error.message, errorCode = error.errorCode))
-            },
+  @PostMapping("/{orderId}/cancel")
+  fun cancelOrder(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable orderId: Long,
+      @RequestBody request: CancelOrderRequest,
+  ): ResponseEntity<*> {
+    val cmd =
+        OrderCancelCMD(
+            orderId = OrderId(orderId),
+            category = request.category,
+            description = request.description,
         )
-    }
+    return orderService
+        .cancelOrder(principal.authenticationDomain, principal.accountId.value, cmd)
+        .toResponse {}
+  }
+
+  // ---- Helpers ----
+
+  private fun Order.toOrderResponse() =
+      OrderResponse(
+          id = id.value,
+          merchantId = merchantId.value,
+          buyerUid = buyerInfo.uid,
+          tradeStatus = tradeStatus.name,
+          paymentStatus = paymentStatus.name,
+          fulfillmentStatus = fulfillmentStatus.name,
+          commitmentStatus = commitmentStatus.name,
+          currency = amountSnapshot.currency,
+          itemsSubtotal = amountSnapshot.itemsSubtotal.fen,
+          discountAmount = amountSnapshot.discountAmount.fen,
+          shippingAmount = amountSnapshot.shippingAmount.fen,
+          taxAmount = amountSnapshot.taxAmount.fen,
+          payableAmount = amountSnapshot.payableAmount.fen,
+          paidAmount = paidAmount.fen,
+          refundedAmount = refundedAmount.fen,
+          items = items.map { it.toOrderItemResponse() },
+          createTime = createTime,
+          updateTime = updateTime,
+      )
+
+  private fun OrderItem.toOrderItemResponse() =
+      OrderItemResponse(
+          id = id.value,
+          offerId = offerId,
+          storeId = storeId,
+          offerVersion = offerVersion,
+          fulfillmentNodeId = fulfillmentNodeId,
+          channelId = channelId,
+          skuId = skuId,
+          spuId = spuId,
+          goodsName = goodsName,
+          skuDescription = skuDescription,
+          quantity = quantity,
+          unitPrice = unitPrice.fen,
+          status = status.name,
+          refundedQuantity = refundedQuantity,
+          refundedAmount = refundedAmount.fen,
+      )
+
+  private fun <T> Result<T, BusinessError>.toResponse(mapper: (T) -> Any): ResponseEntity<*> {
+    return fold(
+        onSuccess = { ResponseEntity.ok(mapper(it)) },
+        onFailure = { error ->
+          ResponseEntity.status(error.httpCode)
+              .body(ErrorResponse(message = error.message, errorCode = error.errorCode))
+        },
+    )
+  }
 }

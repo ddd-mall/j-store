@@ -28,24 +28,24 @@ import com.jstore.warehouse.domain.PhysicalStockRepository
 import com.jstore.warehouse.domain.WarehouseErrors
 
 interface WarehouseStockUseCase {
-    fun adjust(stockId: PhysicalStockId, quantity: Int, reason: String): Result<Unit, BusinessError>
+  fun adjust(stockId: PhysicalStockId, quantity: Int, reason: String): Result<Unit, BusinessError>
 }
 
 class WarehouseStockService(
     private val stocks: PhysicalStockRepository,
     private val publisher: DomainEventPublisher,
 ) : WarehouseStockUseCase {
-    override fun adjust(
-        stockId: PhysicalStockId,
-        quantity: Int,
-        reason: String,
-    ): Result<Unit, BusinessError> {
-        val stock = stocks.findById(stockId) ?: return Failure(WarehouseErrors.NOT_FOUND)
-        stock.adjustTo(quantity, reason).onFailure {
-            return Failure(it)
-        }
-        stocks.save(stock)
-        stock.publishPendingEvents(publisher)
-        return Success(Unit)
+  override fun adjust(
+      stockId: PhysicalStockId,
+      quantity: Int,
+      reason: String,
+  ): Result<Unit, BusinessError> {
+    val stock = stocks.findById(stockId) ?: return Failure(WarehouseErrors.NOT_FOUND)
+    stock.adjustTo(quantity, reason).onFailure {
+      return Failure(it)
     }
+    stocks.save(stock)
+    stock.publishPendingEvents(publisher)
+    return Success(Unit)
+  }
 }

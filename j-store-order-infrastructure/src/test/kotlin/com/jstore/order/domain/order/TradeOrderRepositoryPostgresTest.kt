@@ -38,130 +38,130 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter
 
 class TradeOrderRepositoryPostgresTest {
-    private val sequence = SnowFlakSequence(1, 1)
+  private val sequence = SnowFlakSequence(1, 1)
 
-    @Test
-    fun `trade source survives round trip and order plan is unique`() = database { factory ->
-        transaction(factory) { entityManager ->
-            val repository = repository(entityManager)
-            repository.add(order(8001, "digest-a"))
-            entityManager.flush()
-            entityManager.clear()
+  @Test
+  fun `trade source survives round trip and order plan is unique`() = database { factory ->
+    transaction(factory) { entityManager ->
+      val repository = repository(entityManager)
+      repository.add(order(8001, "digest-a"))
+      entityManager.flush()
+      entityManager.clear()
 
-            val restored = assertNotNull(repository.findBySourceOrderPlanId(8001))
-            assertEquals(9001, restored.sourceTradeId)
-            assertEquals("digest-a", restored.sourcePlanDigest)
-            assertEquals(TradeStatus.ACTIVE, restored.tradeStatus)
-            assertEquals(CommitmentStatus.CONFIRMED, restored.commitmentStatus)
-        }
-
-        assertFails {
-            transaction(factory) { entityManager ->
-                repository(entityManager).add(order(8001, "digest-b"))
-                entityManager.flush()
-            }
-        }
+      val restored = assertNotNull(repository.findBySourceOrderPlanId(8001))
+      assertEquals(9001, restored.sourceTradeId)
+      assertEquals("digest-a", restored.sourcePlanDigest)
+      assertEquals(TradeStatus.ACTIVE, restored.tradeStatus)
+      assertEquals(CommitmentStatus.CONFIRMED, restored.commitmentStatus)
     }
 
-    private fun order(
-        orderPlanId: Long,
-        digest: String,
-    ): Order {
-        val factory = TrustedOrderFactoryImpl(sequence)
-        return assertIs<Success<Order>>(
-                factory.create(
-                    TrustedOrderDraft(
-                        tradeId = 9001,
-                        orderPlanId = orderPlanId,
-                        planDigest = digest,
-                        merchantId = 7,
-                        buyerAuthenticationDomain = "issuer-a",
-                        buyerId = 42,
-                        buyerName = "张三",
-                        buyerPhone = "+8613800138000",
-                        recipientName = "张三",
-                        recipientPhone = "+8613800138000",
-                        recipientEmail = null,
-                        shippingAddress = address(),
-                        detailAddress = "示例路 1 号",
-                        postalCode = null,
-                        customsFields = emptyMap(),
-                        items =
-                            listOf(
-                                TrustedOrderItemDraft(
-                                    spuId = 201,
-                                    skuId = 101,
-                                    offerId = 11,
-                                    storeId = 71,
-                                    offerVersion = 1,
-                                    fulfillmentNodeId = "NODE-1",
-                                    channelId = "WEB",
-                                    goodsName = "商品",
-                                    skuDescription = "规格",
-                                    quantity = 1,
-                                    unitPrice = Price.ofFen(1000),
-                                    catalogSnapshotVersion = 1,
-                                )
-                            ),
-                        payableAmount = Price.ofFen(1000),
-                        currency = "CNY",
-                    )
+    assertFails {
+      transaction(factory) { entityManager ->
+        repository(entityManager).add(order(8001, "digest-b"))
+        entityManager.flush()
+      }
+    }
+  }
+
+  private fun order(
+      orderPlanId: Long,
+      digest: String,
+  ): Order {
+    val factory = TrustedOrderFactoryImpl(sequence)
+    return assertIs<Success<Order>>(
+            factory.create(
+                TrustedOrderDraft(
+                    tradeId = 9001,
+                    orderPlanId = orderPlanId,
+                    planDigest = digest,
+                    merchantId = 7,
+                    buyerAuthenticationDomain = "issuer-a",
+                    buyerId = 42,
+                    buyerName = "张三",
+                    buyerPhone = "+8613800138000",
+                    recipientName = "张三",
+                    recipientPhone = "+8613800138000",
+                    recipientEmail = null,
+                    shippingAddress = address(),
+                    detailAddress = "示例路 1 号",
+                    postalCode = null,
+                    customsFields = emptyMap(),
+                    items =
+                        listOf(
+                            TrustedOrderItemDraft(
+                                spuId = 201,
+                                skuId = 101,
+                                offerId = 11,
+                                storeId = 71,
+                                offerVersion = 1,
+                                fulfillmentNodeId = "NODE-1",
+                                channelId = "WEB",
+                                goodsName = "商品",
+                                skuDescription = "规格",
+                                quantity = 1,
+                                unitPrice = Price.ofFen(1000),
+                                catalogSnapshotVersion = 1,
+                            )
+                        ),
+                    payableAmount = Price.ofFen(1000),
+                    currency = "CNY",
                 )
             )
-            .value
-    }
-
-    private fun address() =
-        I18nGeoAddress(
-            CountryCode.CN,
-            listOf(
-                AddressComponent(
-                    "110105",
-                    DivisionLevel(3, "district"),
-                    mapOf(Locale.CHINA to "朝阳区"),
-                    Locale.CHINA,
-                )
-            ),
         )
+        .value
+  }
 
-    private fun repository(entityManager: EntityManager): OrderRepositoryImpl {
-        val factory = JpaRepositoryFactory(entityManager)
-        return OrderRepositoryImpl(
-            factory.getRepository(OrderPOJpaRepository::class.java),
-            entityManager,
-        )
-    }
+  private fun address() =
+      I18nGeoAddress(
+          CountryCode.CN,
+          listOf(
+              AddressComponent(
+                  "110105",
+                  DivisionLevel(3, "district"),
+                  mapOf(Locale.CHINA to "朝阳区"),
+                  Locale.CHINA,
+              )
+          ),
+      )
 
-    private fun <T> transaction(factory: EntityManagerFactory, block: (EntityManager) -> T): T {
-        val entityManager = factory.createEntityManager()
-        return try {
-            entityManager.transaction.begin()
-            val result = block(entityManager)
-            entityManager.transaction.commit()
-            result
-        } catch (throwable: Throwable) {
-            if (entityManager.transaction.isActive) entityManager.transaction.rollback()
-            throw throwable
-        } finally {
-            entityManager.close()
-        }
-    }
+  private fun repository(entityManager: EntityManager): OrderRepositoryImpl {
+    val factory = JpaRepositoryFactory(entityManager)
+    return OrderRepositoryImpl(
+        factory.getRepository(OrderPOJpaRepository::class.java),
+        entityManager,
+    )
+  }
 
-    private fun database(block: (EntityManagerFactory) -> Unit) {
-        EmbeddedPostgres.builder().start().use { postgres ->
-            val factoryBean =
-                LocalContainerEntityManagerFactoryBean().apply {
-                    dataSource = postgres.postgresDatabase
-                    jpaVendorAdapter = HibernateJpaVendorAdapter()
-                    setPackagesToScan("com.jstore.order.domain.order.persistence")
-                    setJpaPropertyMap(mapOf("hibernate.hbm2ddl.auto" to "create-drop"))
-                    afterPropertiesSet()
-                }
-            try {
-                block(requireNotNull(factoryBean.`object`))
-            } finally {
-                factoryBean.destroy()
-            }
-        }
+  private fun <T> transaction(factory: EntityManagerFactory, block: (EntityManager) -> T): T {
+    val entityManager = factory.createEntityManager()
+    return try {
+      entityManager.transaction.begin()
+      val result = block(entityManager)
+      entityManager.transaction.commit()
+      result
+    } catch (throwable: Throwable) {
+      if (entityManager.transaction.isActive) entityManager.transaction.rollback()
+      throw throwable
+    } finally {
+      entityManager.close()
     }
+  }
+
+  private fun database(block: (EntityManagerFactory) -> Unit) {
+    EmbeddedPostgres.builder().start().use { postgres ->
+      val factoryBean =
+          LocalContainerEntityManagerFactoryBean().apply {
+            dataSource = postgres.postgresDatabase
+            jpaVendorAdapter = HibernateJpaVendorAdapter()
+            setPackagesToScan("com.jstore.order.domain.order.persistence")
+            setJpaPropertyMap(mapOf("hibernate.hbm2ddl.auto" to "create-drop"))
+            afterPropertiesSet()
+          }
+      try {
+        block(requireNotNull(factoryBean.`object`))
+      } finally {
+        factoryBean.destroy()
+      }
+    }
+  }
 }

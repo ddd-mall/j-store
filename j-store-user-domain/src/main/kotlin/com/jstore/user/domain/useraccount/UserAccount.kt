@@ -29,23 +29,23 @@ import java.time.LocalDateTime
  * TODO: 补充最后登陆时间,最后登陆地点,最后登陆设备等信息
  */
 interface UserAccount : AggregateRoot<UserId>, RecordsDomainEvents {
-    override val id: UserId
-    val phoneNumber: PhoneNumber
-    val nickname: Nickname
-    val passwordHash: Password
-    val status: UserAccountStatus
-    val createTime: LocalDateTime
-    val updateTime: LocalDateTime
+  override val id: UserId
+  val phoneNumber: PhoneNumber
+  val nickname: Nickname
+  val passwordHash: Password
+  val status: UserAccountStatus
+  val createTime: LocalDateTime
+  val updateTime: LocalDateTime
 
-    /** 修改昵称 */
-    fun changeNickname(newNickname: Nickname): Result<Unit, BusinessError>
+  /** 修改昵称 */
+  fun changeNickname(newNickname: Nickname): Result<Unit, BusinessError>
 
-    /** 修改密码（需传入新的哈希密文） */
-    fun changePassword(newPasswordHash: Password): Result<Unit, BusinessError>
+  /** 修改密码（需传入新的哈希密文） */
+  fun changePassword(newPasswordHash: Password): Result<Unit, BusinessError>
 
-    /** 禁用账号 */
-    fun disable(): Result<Unit, BusinessError>
+  /** 禁用账号 */
+  fun disable(): Result<Unit, BusinessError>
 
-    /** 启用账号 */
-    fun enable(): Result<Unit, BusinessError>
+  /** 启用账号 */
+  fun enable(): Result<Unit, BusinessError>
 }

@@ -63,178 +63,178 @@ import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
 class OrderBootConfiguration {
-    @Bean
-    fun orderAccountingQuery(orders: OrderRepository): OrderAccountingQuery =
-        OrderAccountingQueryService(orders)
+  @Bean
+  fun orderAccountingQuery(orders: OrderRepository): OrderAccountingQuery =
+      OrderAccountingQueryService(orders)
 
-    @Bean
-    fun snowFlakSequence(): SnowFlakSequence {
-        return SnowFlakSequence()
-    }
+  @Bean
+  fun snowFlakSequence(): SnowFlakSequence {
+    return SnowFlakSequence()
+  }
 
-    @Bean
-    fun goodsService(goodsSnapshotQueryService: GoodsSnapshotQueryService): GoodsService {
-        return GoodsServiceImpl(goodsSnapshotQueryService)
-    }
+  @Bean
+  fun goodsService(goodsSnapshotQueryService: GoodsSnapshotQueryService): GoodsService {
+    return GoodsServiceImpl(goodsSnapshotQueryService)
+  }
 
-    @Bean
-    fun offerService(offerSnapshotQueryService: OfferSnapshotQueryService): OfferService =
-        OfferServiceImpl(offerSnapshotQueryService)
+  @Bean
+  fun offerService(offerSnapshotQueryService: OfferSnapshotQueryService): OfferService =
+      OfferServiceImpl(offerSnapshotQueryService)
 
-    @Bean
-    fun orderUserService(
-        userProfileQueryService: UserProfileQueryService,
-        @org.springframework.beans.factory.annotation.Value($$"${jwt.issuer}")
-        authenticationDomain: String,
-    ): UserService = UserServiceImpl(userProfileQueryService, authenticationDomain)
+  @Bean
+  fun orderUserService(
+      userProfileQueryService: UserProfileQueryService,
+      @org.springframework.beans.factory.annotation.Value($$"${jwt.issuer}")
+      authenticationDomain: String,
+  ): UserService = UserServiceImpl(userProfileQueryService, authenticationDomain)
 
-    @Bean
-    fun orderFactory(
-        snowFlakSequence: SnowFlakSequence,
-        goodsService: GoodsService,
-        geoAddressService: GeoAddressService,
-        offerService: OfferService,
-    ): OrderFactory {
-        return OrderFactoryImpl(
-            snowFlakSequence,
-            goodsService,
-            geoAddressService,
-            offerService,
-        )
-    }
+  @Bean
+  fun orderFactory(
+      snowFlakSequence: SnowFlakSequence,
+      goodsService: GoodsService,
+      geoAddressService: GeoAddressService,
+      offerService: OfferService,
+  ): OrderFactory {
+    return OrderFactoryImpl(
+        snowFlakSequence,
+        goodsService,
+        geoAddressService,
+        offerService,
+    )
+  }
 
-    @Bean
-    fun orderApplicationService(
-        orderFactory: OrderFactory,
-        orderRepository: OrderRepository,
-        domainEventPublisher: DomainEventPublisher,
-        userService: UserService,
-        trustedOrderFactory: TrustedOrderFactory,
-    ): OrderService {
-        return OrderService(
-            orderFactory,
-            orderRepository,
-            domainEventPublisher,
-            userService,
-            trustedOrderFactory,
-        )
-    }
+  @Bean
+  fun orderApplicationService(
+      orderFactory: OrderFactory,
+      orderRepository: OrderRepository,
+      domainEventPublisher: DomainEventPublisher,
+      userService: UserService,
+      trustedOrderFactory: TrustedOrderFactory,
+  ): OrderService {
+    return OrderService(
+        orderFactory,
+        orderRepository,
+        domainEventPublisher,
+        userService,
+        trustedOrderFactory,
+    )
+  }
 
-    @Bean
-    fun trustedOrderFactory(snowFlakSequence: SnowFlakSequence): TrustedOrderFactory =
-        TrustedOrderFactoryImpl(snowFlakSequence)
+  @Bean
+  fun trustedOrderFactory(snowFlakSequence: SnowFlakSequence): TrustedOrderFactory =
+      TrustedOrderFactoryImpl(snowFlakSequence)
 
-    @Bean
-    @Primary
-    fun transactionalOrderUseCase(
-        orderApplicationService: OrderService,
-        transactionManager: PlatformTransactionManager,
-    ): OrderUseCase = TransactionalOrderUseCase(orderApplicationService, transactionManager)
+  @Bean
+  @Primary
+  fun transactionalOrderUseCase(
+      orderApplicationService: OrderService,
+      transactionManager: PlatformTransactionManager,
+  ): OrderUseCase = TransactionalOrderUseCase(orderApplicationService, transactionManager)
 
-    @Bean
-    fun internalOrderCreationUseCase(
-        orderApplicationService: OrderService,
-        transactionManager: PlatformTransactionManager,
-    ): InternalOrderCreationUseCase =
-        TransactionalInternalOrderCreationUseCase(orderApplicationService, transactionManager)
+  @Bean
+  fun internalOrderCreationUseCase(
+      orderApplicationService: OrderService,
+      transactionManager: PlatformTransactionManager,
+  ): InternalOrderCreationUseCase =
+      TransactionalInternalOrderCreationUseCase(orderApplicationService, transactionManager)
 
-    @Bean
-    fun createOrderFromTradeCommandHandler(
-        orderApplicationService: OrderService,
-        publisher: IntegrationMessagePublisher,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<
-        com.jstore.contracts.commerce.CreateOrderFromTradeIntegrationCommand
-    > =
-        transactional(
-            CreateOrderFromTradeIntegrationCommandHandler(orderApplicationService, publisher),
-            transactionManager,
-        )
+  @Bean
+  fun createOrderFromTradeCommandHandler(
+      orderApplicationService: OrderService,
+      publisher: IntegrationMessagePublisher,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<
+      com.jstore.contracts.commerce.CreateOrderFromTradeIntegrationCommand
+  > =
+      transactional(
+          CreateOrderFromTradeIntegrationCommandHandler(orderApplicationService, publisher),
+          transactionManager,
+      )
 
-    @Bean
-    fun cancelOrderFromTradeCommandHandler(
-        orderApplicationService: OrderService,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<
-        com.jstore.contracts.commerce.CancelOrderFromTradeIntegrationCommand
-    > =
-        transactional(
-            CancelOrderFromTradeIntegrationCommandHandler(orderApplicationService),
-            transactionManager,
-        )
+  @Bean
+  fun cancelOrderFromTradeCommandHandler(
+      orderApplicationService: OrderService,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<
+      com.jstore.contracts.commerce.CancelOrderFromTradeIntegrationCommand
+  > =
+      transactional(
+          CancelOrderFromTradeIntegrationCommandHandler(orderApplicationService),
+          transactionManager,
+      )
 
-    @Bean
-    fun paymentCapturedOrderHandler(service: OrderUseCase) = PaymentCapturedOrderHandler(service)
+  @Bean
+  fun paymentCapturedOrderHandler(service: OrderUseCase) = PaymentCapturedOrderHandler(service)
 
-    @Bean
-    fun fulfillmentPreparedOrderHandler(service: OrderUseCase) =
-        FulfillmentPreparedOrderHandler(service)
+  @Bean
+  fun fulfillmentPreparedOrderHandler(service: OrderUseCase) =
+      FulfillmentPreparedOrderHandler(service)
 
-    @Bean
-    fun fulfillmentDispatchedOrderHandler(service: OrderUseCase) =
-        FulfillmentDispatchedOrderHandler(service)
+  @Bean
+  fun fulfillmentDispatchedOrderHandler(service: OrderUseCase) =
+      FulfillmentDispatchedOrderHandler(service)
 
-    @Bean
-    fun fulfillmentDeliveredOrderHandler(service: OrderUseCase) =
-        FulfillmentDeliveredOrderHandler(service)
+  @Bean
+  fun fulfillmentDeliveredOrderHandler(service: OrderUseCase) =
+      FulfillmentDeliveredOrderHandler(service)
 
-    @Bean
-    fun paymentRefundSucceededOrderHandler(
-        afterSales: AfterSaleUseCase,
-        orders: OrderUseCase,
-    ) = PaymentRefundSucceededOrderHandler(afterSales, orders)
+  @Bean
+  fun paymentRefundSucceededOrderHandler(
+      afterSales: AfterSaleUseCase,
+      orders: OrderUseCase,
+  ) = PaymentRefundSucceededOrderHandler(afterSales, orders)
 
-    @Bean
-    fun paymentRefundFailedOrderHandler(afterSales: AfterSaleUseCase) =
-        PaymentRefundFailedOrderHandler(afterSales)
+  @Bean
+  fun paymentRefundFailedOrderHandler(afterSales: AfterSaleUseCase) =
+      PaymentRefundFailedOrderHandler(afterSales)
 
-    @Bean
-    fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory =
-        AfterSaleFactoryImpl(snowFlakSequence)
+  @Bean
+  fun afterSaleFactory(snowFlakSequence: SnowFlakSequence): AfterSaleFactory =
+      AfterSaleFactoryImpl(snowFlakSequence)
 
-    @Bean
-    fun afterSaleApplicationService(
-        factory: AfterSaleFactory,
-        repository: AfterSaleRepository,
-        refundCapacityRepository: RefundCapacityRepository,
-        receiptStore: AfterSaleCommandReceiptStore,
-        orderRepository: OrderRepository,
-        domainEventPublisher: DomainEventPublisher,
-    ) =
-        AfterSaleApplicationService(
-            factory,
-            repository,
-            refundCapacityRepository,
-            receiptStore,
-            orderRepository,
-            domainEventPublisher,
-        )
+  @Bean
+  fun afterSaleApplicationService(
+      factory: AfterSaleFactory,
+      repository: AfterSaleRepository,
+      refundCapacityRepository: RefundCapacityRepository,
+      receiptStore: AfterSaleCommandReceiptStore,
+      orderRepository: OrderRepository,
+      domainEventPublisher: DomainEventPublisher,
+  ) =
+      AfterSaleApplicationService(
+          factory,
+          repository,
+          refundCapacityRepository,
+          receiptStore,
+          orderRepository,
+          domainEventPublisher,
+      )
 
-    @Bean
-    @Primary
-    fun transactionalAfterSaleUseCase(
-        afterSaleApplicationService: AfterSaleApplicationService,
-        transactionManager: PlatformTransactionManager,
-    ): AfterSaleUseCase =
-        TransactionalAfterSaleUseCase(afterSaleApplicationService, transactionManager)
+  @Bean
+  @Primary
+  fun transactionalAfterSaleUseCase(
+      afterSaleApplicationService: AfterSaleApplicationService,
+      transactionManager: PlatformTransactionManager,
+  ): AfterSaleUseCase =
+      TransactionalAfterSaleUseCase(afterSaleApplicationService, transactionManager)
 
-    @Bean
-    fun afterSaleAccessUseCase(
-        afterSaleUseCase: AfterSaleUseCase,
-        authorization: MerchantAuthorizationQuery,
-    ): AfterSaleAccessUseCase = AfterSaleAccessService(afterSaleUseCase, authorization)
+  @Bean
+  fun afterSaleAccessUseCase(
+      afterSaleUseCase: AfterSaleUseCase,
+      authorization: MerchantAuthorizationQuery,
+  ): AfterSaleAccessUseCase = AfterSaleAccessService(afterSaleUseCase, authorization)
 
-    private fun <T : IntegrationMessage> transactional(
-        delegate: IntegrationMessageHandler<T>,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<T> =
-        object : IntegrationMessageHandler<T> {
-            private val transaction = TransactionTemplate(transactionManager)
+  private fun <T : IntegrationMessage> transactional(
+      delegate: IntegrationMessageHandler<T>,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<T> =
+      object : IntegrationMessageHandler<T> {
+        private val transaction = TransactionTemplate(transactionManager)
 
-            override fun handlerId() = delegate.handlerId()
+        override fun handlerId() = delegate.handlerId()
 
-            override fun handle(message: T) {
-                transaction.executeWithoutResult { delegate.handle(message) }
-            }
+        override fun handle(message: T) {
+          transaction.executeWithoutResult { delegate.handle(message) }
         }
+      }
 }

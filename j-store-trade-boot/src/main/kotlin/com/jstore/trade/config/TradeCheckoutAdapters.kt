@@ -33,49 +33,49 @@ import org.springframework.transaction.support.TransactionTemplate
 /** Maps Trade's plan-level authorization request to the current Store integration language. */
 class TradeAuthorizationMessageGateway(private val publisher: IntegrationMessagePublisher) :
     TradeAuthorizationGateway {
-    override fun requestAuthorization(trade: Trade, plan: TradeOrderPlan) {
-        val now = Instant.now()
-        publisher.publish(
-            AuthorizeSaleCommand(
-                tradeId = trade.id.value,
-                orderPlanId = plan.id.value,
-                merchantId = plan.merchantId,
-                items =
-                    plan.items.map {
-                        ContractSaleItem(
-                            it.offerId,
-                            it.storeId,
-                            it.spuId,
-                            it.skuId,
-                            it.quantity,
-                            it.catalogSnapshotVersion,
-                            it.offerVersion,
-                            it.fulfillmentNodeId,
-                            it.channelId,
-                            it.unitPrice.fen,
-                        )
-                    },
-                sourceMessageId = "${trade.checkoutRequestId}:${plan.id.value}",
-                occurredAtValue = now,
-            )
+  override fun requestAuthorization(trade: Trade, plan: TradeOrderPlan) {
+    val now = Instant.now()
+    publisher.publish(
+        AuthorizeSaleCommand(
+            tradeId = trade.id.value,
+            orderPlanId = plan.id.value,
+            merchantId = plan.merchantId,
+            items =
+                plan.items.map {
+                  ContractSaleItem(
+                      it.offerId,
+                      it.storeId,
+                      it.spuId,
+                      it.skuId,
+                      it.quantity,
+                      it.catalogSnapshotVersion,
+                      it.offerVersion,
+                      it.fulfillmentNodeId,
+                      it.channelId,
+                      it.unitPrice.fen,
+                  )
+                },
+            sourceMessageId = "${trade.checkoutRequestId}:${plan.id.value}",
+            occurredAtValue = now,
         )
-    }
+    )
+  }
 }
 
 class TransactionalCheckoutUseCase(
     private val delegate: CheckoutApplicationService,
     transactionManager: PlatformTransactionManager,
 ) : CheckoutUseCase {
-    private val write = TransactionTemplate(transactionManager)
-    private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+  private val write = TransactionTemplate(transactionManager)
+  private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun checkout(command: CreateCheckoutCommand) =
-        try {
-            requireNotNull(write.execute { delegate.checkout(command) })
-        } catch (failure: DataIntegrityViolationException) {
-            read.execute { delegate.recoverConcurrentCheckout(command) } ?: throw failure
-        }
+  override fun checkout(command: CreateCheckoutCommand) =
+      try {
+        requireNotNull(write.execute { delegate.checkout(command) })
+      } catch (failure: DataIntegrityViolationException) {
+        read.execute { delegate.recoverConcurrentCheckout(command) } ?: throw failure
+      }
 
-    override fun find(buyerAuthenticationDomain: String, buyerId: Long, tradeId: Long) =
-        requireNotNull(read.execute { delegate.find(buyerAuthenticationDomain, buyerId, tradeId) })
+  override fun find(buyerAuthenticationDomain: String, buyerId: Long, tradeId: Long) =
+      requireNotNull(read.execute { delegate.find(buyerAuthenticationDomain, buyerId, tradeId) })
 }

@@ -24,7 +24,7 @@ package com.jstore.outbox
  * Implementations must not send to an external transport from this call.
  */
 fun interface OutboxWriter {
-    fun append(messages: List<OutboxMessage>)
+  fun append(messages: List<OutboxMessage>)
 }
 
 /** One deployment-selected implementation owns both transactional append and stream allocation. */
@@ -33,7 +33,7 @@ data class OutboxBackend(
     val writer: OutboxWriter,
     val sequenceAllocator: OutboxStreamSequenceAllocator,
 ) {
-    init {
-        require(id.isNotBlank()) { "Outbox backend ID must not be blank" }
-    }
+  init {
+    require(id.isNotBlank()) { "Outbox backend ID must not be blank" }
+  }
 }

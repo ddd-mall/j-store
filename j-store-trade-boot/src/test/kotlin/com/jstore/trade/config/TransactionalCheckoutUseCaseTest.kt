@@ -35,48 +35,48 @@ import org.springframework.transaction.TransactionStatus
 import org.springframework.transaction.support.SimpleTransactionStatus
 
 class TransactionalCheckoutUseCaseTest {
-    @Test
-    fun `unique-key race recovers the winning checkout in a fresh transaction`() {
-        val delegate = mock(CheckoutApplicationService::class.java)
-        val transactions = RecordingTransactionManager()
-        val command = command()
-        `when`(delegate.checkout(command)).thenThrow(DataIntegrityViolationException("duplicate"))
-        `when`(delegate.recoverConcurrentCheckout(command))
-            .thenReturn(Success(CheckoutAccepted(9001, emptyList())))
+  @Test
+  fun `unique-key race recovers the winning checkout in a fresh transaction`() {
+    val delegate = mock(CheckoutApplicationService::class.java)
+    val transactions = RecordingTransactionManager()
+    val command = command()
+    `when`(delegate.checkout(command)).thenThrow(DataIntegrityViolationException("duplicate"))
+    `when`(delegate.recoverConcurrentCheckout(command))
+        .thenReturn(Success(CheckoutAccepted(9001, emptyList())))
 
-        val result = TransactionalCheckoutUseCase(delegate, transactions).checkout(command)
+    val result = TransactionalCheckoutUseCase(delegate, transactions).checkout(command)
 
-        assertEquals(9001, assertIs<Success<CheckoutAccepted>>(result).value.tradeId)
-        assertEquals(listOf(false, true), transactions.readOnlyTransactions)
-        verify(delegate).recoverConcurrentCheckout(command)
-    }
+    assertEquals(9001, assertIs<Success<CheckoutAccepted>>(result).value.tradeId)
+    assertEquals(listOf(false, true), transactions.readOnlyTransactions)
+    verify(delegate).recoverConcurrentCheckout(command)
+  }
 
-    private fun command() =
-        CreateCheckoutCommand(
-            "checkout-1",
-            "issuer-a",
-            8,
-            CheckoutRecipient(
-                "buyer",
-                "CN",
-                "13800000000",
-                null,
-                "110101",
-                "No. 1 Road",
-            ),
-            listOf(CheckoutItem(11, 1, 21, 31, 1, 1)),
-        )
+  private fun command() =
+      CreateCheckoutCommand(
+          "checkout-1",
+          "issuer-a",
+          8,
+          CheckoutRecipient(
+              "buyer",
+              "CN",
+              "13800000000",
+              null,
+              "110101",
+              "No. 1 Road",
+          ),
+          listOf(CheckoutItem(11, 1, 21, 31, 1, 1)),
+      )
 }
 
 private class RecordingTransactionManager : PlatformTransactionManager {
-    val readOnlyTransactions = mutableListOf<Boolean>()
+  val readOnlyTransactions = mutableListOf<Boolean>()
 
-    override fun getTransaction(definition: TransactionDefinition?): TransactionStatus {
-        readOnlyTransactions += definition?.isReadOnly == true
-        return SimpleTransactionStatus()
-    }
+  override fun getTransaction(definition: TransactionDefinition?): TransactionStatus {
+    readOnlyTransactions += definition?.isReadOnly == true
+    return SimpleTransactionStatus()
+  }
 
-    override fun commit(status: TransactionStatus) = Unit
+  override fun commit(status: TransactionStatus) = Unit
 
-    override fun rollback(status: TransactionStatus) = Unit
+  override fun rollback(status: TransactionStatus) = Unit
 }

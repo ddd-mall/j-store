@@ -33,18 +33,18 @@ data class SettlementPaidEvent(
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
 
-    override val eventName: String
-        get() = "accounting.settlement-paid"
+  override val eventName: String
+    get() = "accounting.settlement-paid"
 
-    override val eventVersion: Int
-        get() = 1
+  override val eventVersion: Int
+    get() = 1
 
-    override val occurredAt: Instant
-        get() = paidAt
+  override val occurredAt: Instant
+    get() = paidAt
 
-    override val aggregateType: String
-        get() = "SettlementStatement"
+  override val aggregateType: String
+    get() = "SettlementStatement"
 
-    override val aggregateId: String
-        get() = settlementId.toString()
+  override val aggregateId: String
+    get() = settlementId.toString()
 }

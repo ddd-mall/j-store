@@ -29,41 +29,40 @@ import org.springframework.context.annotation.Configuration
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(CartLimitsProperties::class, CartNacosProperties::class)
 class CartLimitsConfiguration {
-    @Bean
-    @ConditionalOnProperty(
-        prefix = "jstore.cart.nacos",
-        name = ["enabled"],
-        havingValue = "false",
-        matchIfMissing = true,
+  @Bean
+  @ConditionalOnProperty(
+      prefix = "jstore.cart.nacos",
+      name = ["enabled"],
+      havingValue = "false",
+      matchIfMissing = true,
+  )
+  @ConditionalOnMissingBean(CartLimitsProvider::class)
+  fun localCartLimitsProvider(properties: CartLimitsProperties): CartLimitsProvider {
+    val limits = properties.toLimits()
+    return CartLimitsProvider { limits }
+  }
+
+  @Bean(destroyMethod = "shutDown")
+  @ConditionalOnProperty(prefix = "jstore.cart.nacos", name = ["enabled"], havingValue = "true")
+  @ConditionalOnMissingBean(ConfigService::class)
+  fun cartNacosConfigService(properties: CartNacosProperties): ConfigService {
+    require(properties.serverAddr.isNotBlank()) { "jstore.cart.nacos.server-addr is required" }
+    return NacosFactory.createConfigService(
+        Properties().apply {
+          setProperty("serverAddr", properties.serverAddr)
+          setProperty("namespace", properties.namespace)
+          setProperty("username", properties.username)
+          setProperty("password", properties.password)
+        }
     )
-    @ConditionalOnMissingBean(CartLimitsProvider::class)
-    fun localCartLimitsProvider(properties: CartLimitsProperties): CartLimitsProvider {
-        val limits = properties.toLimits()
-        return CartLimitsProvider { limits }
-    }
+  }
 
-    @Bean(destroyMethod = "shutDown")
-    @ConditionalOnProperty(prefix = "jstore.cart.nacos", name = ["enabled"], havingValue = "true")
-    @ConditionalOnMissingBean(ConfigService::class)
-    fun cartNacosConfigService(properties: CartNacosProperties): ConfigService {
-        require(properties.serverAddr.isNotBlank()) { "jstore.cart.nacos.server-addr is required" }
-        return NacosFactory.createConfigService(
-            Properties().apply {
-                setProperty("serverAddr", properties.serverAddr)
-                setProperty("namespace", properties.namespace)
-                setProperty("username", properties.username)
-                setProperty("password", properties.password)
-            }
-        )
-    }
-
-    @Bean(destroyMethod = "close")
-    @ConditionalOnProperty(prefix = "jstore.cart.nacos", name = ["enabled"], havingValue = "true")
-    @ConditionalOnMissingBean(CartLimitsProvider::class)
-    fun nacosCartLimitsProvider(
-        properties: CartLimitsProperties,
-        nacos: CartNacosProperties,
-        configService: ConfigService,
-    ): NacosCartLimitsProvider =
-        NacosCartLimitsProvider(properties.toLimits(), nacos, configService)
+  @Bean(destroyMethod = "close")
+  @ConditionalOnProperty(prefix = "jstore.cart.nacos", name = ["enabled"], havingValue = "true")
+  @ConditionalOnMissingBean(CartLimitsProvider::class)
+  fun nacosCartLimitsProvider(
+      properties: CartLimitsProperties,
+      nacos: CartNacosProperties,
+      configService: ConfigService,
+  ): NacosCartLimitsProvider = NacosCartLimitsProvider(properties.toLimits(), nacos, configService)
 }

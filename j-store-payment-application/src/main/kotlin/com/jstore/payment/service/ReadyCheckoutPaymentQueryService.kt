@@ -27,18 +27,18 @@ class ReadyCheckoutPaymentQueryService(
     private val payments: TradePaymentRepository,
     private val now: () -> Instant = Instant::now,
 ) : ReadyCheckoutPaymentQuery {
-    override fun find(paymentId: Long): ReadyCheckoutPayment? {
-        val payment = payments.findById(TradePaymentId(paymentId)) ?: return null
-        if (payment.status != TradePaymentStatus.READY) return null
-        val expiresAt = requireNotNull(payment.expiresAt)
-        if (expiresAt <= now()) return null
-        return ReadyCheckoutPayment(
-            payment.id.value,
-            payment.status.name,
-            payment.payableAmount.fen,
-            payment.currency,
-            requireNotNull(payment.payAction),
-            expiresAt,
-        )
-    }
+  override fun find(paymentId: Long): ReadyCheckoutPayment? {
+    val payment = payments.findById(TradePaymentId(paymentId)) ?: return null
+    if (payment.status != TradePaymentStatus.READY) return null
+    val expiresAt = requireNotNull(payment.expiresAt)
+    if (expiresAt <= now()) return null
+    return ReadyCheckoutPayment(
+        payment.id.value,
+        payment.status.name,
+        payment.payableAmount.fen,
+        payment.currency,
+        requireNotNull(payment.payAction),
+        expiresAt,
+    )
+  }
 }

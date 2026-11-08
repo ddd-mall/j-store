@@ -28,24 +28,24 @@ class JacksonIntegrationMessageSerializer(
     private val objectMapper: ObjectMapper,
     private val typeRegistry: IntegrationMessageTypeRegistry,
 ) : IntegrationMessageSerializer {
-    override fun serialize(message: IntegrationMessage): String =
-        objectMapper.writeValueAsString(message)
+  override fun serialize(message: IntegrationMessage): String =
+      objectMapper.writeValueAsString(message)
 
-    override fun deserialize(
-        payload: String,
-        messageName: String,
-        messageVersion: Int,
-    ): IntegrationMessage =
-        try {
-            objectMapper
-                .readerFor(typeRegistry.resolve(messageName, messageVersion))
-                .without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .readValue(payload)
-        } catch (exception: Exception) {
-            throw OutboxSerializationException(
-                "Failed to deserialize integration message: messageName=$messageName, " +
-                    "messageVersion=$messageVersion",
-                exception,
-            )
-        }
+  override fun deserialize(
+      payload: String,
+      messageName: String,
+      messageVersion: Int,
+  ): IntegrationMessage =
+      try {
+        objectMapper
+            .readerFor(typeRegistry.resolve(messageName, messageVersion))
+            .without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .readValue(payload)
+      } catch (exception: Exception) {
+        throw OutboxSerializationException(
+            "Failed to deserialize integration message: messageName=$messageName, " +
+                "messageVersion=$messageVersion",
+            exception,
+        )
+      }
 }

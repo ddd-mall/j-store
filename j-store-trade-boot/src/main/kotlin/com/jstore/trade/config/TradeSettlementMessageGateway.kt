@@ -38,68 +38,68 @@ class TradeSettlementMessageGateway(
     private val paymentActionLifetime: Duration = Duration.ofMinutes(15),
     private val safetyMargin: Duration = Duration.ofMinutes(2),
 ) : TradeSettlementGateway {
-    init {
-        require(!preparationTimeout.isNegative && !preparationTimeout.isZero)
-        require(!paymentActionLifetime.isNegative && !paymentActionLifetime.isZero)
-        require(!safetyMargin.isNegative)
-        require(preparationTimeout < paymentActionLifetime)
-    }
+  init {
+    require(!preparationTimeout.isNegative && !preparationTimeout.isZero)
+    require(!paymentActionLifetime.isNegative && !paymentActionLifetime.isZero)
+    require(!safetyMargin.isNegative)
+    require(preparationTimeout < paymentActionLifetime)
+  }
 
-    override fun prepareSettlement(
-        trade: Trade,
-        settlementPlanId: SettlementPlanId,
-    ): Result<Unit, BusinessError> {
-        if (trade.settlementTerms.mode != SettlementMode.PREPAID) return Success(Unit)
-        val installment = trade.settlementTerms.installments.single()
-        val occurredAt = now()
-        val reservationDeadline = trade.orderPlans.mapNotNull { it.reservationExpiresAt }.min()
-        val acceptBefore = occurredAt.plus(preparationTimeout)
-        val expiresAt = occurredAt.plus(paymentActionLifetime)
-        if (expiresAt.plus(safetyMargin) > reservationDeadline) {
-            return com.jstore.common.utils.Failure(TradeErrors.RESERVATION_WINDOW_INSUFFICIENT)
-        }
-        publisher.publish(
-            PreparePaymentInstallmentCommand(
-                trade.id.value,
-                settlementPlanId.value,
-                installment.installmentId,
-                installment.amount.fen,
-                trade.currency,
-                trade.orderPlans.map {
-                    ContractPaymentAllocation(
-                        it.id.value,
-                        requireNotNull(it.orderId),
-                        it.merchantId,
-                        it.payableAmount.fen,
-                    )
-                },
-                "trade:${trade.id.value}:settlement:${settlementPlanId.value}",
-                occurredAt,
-                acceptBefore,
-                expiresAt,
-            )
+  override fun prepareSettlement(
+      trade: Trade,
+      settlementPlanId: SettlementPlanId,
+  ): Result<Unit, BusinessError> {
+    if (trade.settlementTerms.mode != SettlementMode.PREPAID) return Success(Unit)
+    val installment = trade.settlementTerms.installments.single()
+    val occurredAt = now()
+    val reservationDeadline = trade.orderPlans.mapNotNull { it.reservationExpiresAt }.min()
+    val acceptBefore = occurredAt.plus(preparationTimeout)
+    val expiresAt = occurredAt.plus(paymentActionLifetime)
+    if (expiresAt.plus(safetyMargin) > reservationDeadline) {
+      return com.jstore.common.utils.Failure(TradeErrors.RESERVATION_WINDOW_INSUFFICIENT)
+    }
+    publisher.publish(
+        PreparePaymentInstallmentCommand(
+            trade.id.value,
+            settlementPlanId.value,
+            installment.installmentId,
+            installment.amount.fen,
+            trade.currency,
+            trade.orderPlans.map {
+              ContractPaymentAllocation(
+                  it.id.value,
+                  requireNotNull(it.orderId),
+                  it.merchantId,
+                  it.payableAmount.fen,
+              )
+            },
+            "trade:${trade.id.value}:settlement:${settlementPlanId.value}",
+            occurredAt,
+            acceptBefore,
+            expiresAt,
         )
-        return Success(Unit)
-    }
+    )
+    return Success(Unit)
+  }
 
-    override fun cancelSettlement(
-        trade: Trade,
-        settlementPlanId: SettlementPlanId,
-        reason: String,
-    ): Result<Unit, BusinessError> {
-        val occurredAt = now()
-        trade.settlementTerms.installments.forEach { installment ->
-            publisher.publish(
-                CancelPaymentInstallmentCommand(
-                    trade.id.value,
-                    settlementPlanId.value,
-                    installment.installmentId,
-                    reason,
-                    "trade:${trade.id.value}:cancel-settlement:${settlementPlanId.value}",
-                    occurredAt,
-                )
-            )
-        }
-        return Success(Unit)
+  override fun cancelSettlement(
+      trade: Trade,
+      settlementPlanId: SettlementPlanId,
+      reason: String,
+  ): Result<Unit, BusinessError> {
+    val occurredAt = now()
+    trade.settlementTerms.installments.forEach { installment ->
+      publisher.publish(
+          CancelPaymentInstallmentCommand(
+              trade.id.value,
+              settlementPlanId.value,
+              installment.installmentId,
+              reason,
+              "trade:${trade.id.value}:cancel-settlement:${settlementPlanId.value}",
+              occurredAt,
+          )
+      )
     }
+    return Success(Unit)
+  }
 }

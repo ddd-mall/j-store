@@ -33,20 +33,20 @@ import org.springframework.stereotype.Component
 class OrderCancelledToTradeTranslator(
     private val integrationMessagePublisher: IntegrationMessagePublisher
 ) : DomainEventListener<OrderCancellationRequestedEvent> {
-    override fun listenerId(): String = "translator.order-cancelled.to-trade.v1"
+  override fun listenerId(): String = "translator.order-cancelled.to-trade.v1"
 
-    override fun onDomainEvent(event: OrderCancellationRequestedEvent) {
-        integrationMessagePublisher.publish(
-            OrderCancelledIntegrationEvent(
-                tradeId = event.tradeId,
-                orderPlanId = event.orderPlanId,
-                orderId = event.orderId.value,
-                reason = event.reason,
-                sourceMessageId = event.eventId,
-                occurredAtValue = event.occurredAt,
-            )
+  override fun onDomainEvent(event: OrderCancellationRequestedEvent) {
+    integrationMessagePublisher.publish(
+        OrderCancelledIntegrationEvent(
+            tradeId = event.tradeId,
+            orderPlanId = event.orderPlanId,
+            orderId = event.orderId.value,
+            reason = event.reason,
+            sourceMessageId = event.eventId,
+            occurredAtValue = event.occurredAt,
         )
-    }
+    )
+  }
 }
 
 @Component
@@ -54,20 +54,20 @@ class OrderPaidToStockConfirmTranslator(
     private val orders: OrderRepository,
     private val integrationMessagePublisher: IntegrationMessagePublisher,
 ) : DomainEventListener<OrderPaidEvent> {
-    override fun listenerId(): String = "translator.order-paid.to-stock-confirm-requested.v2"
+  override fun listenerId(): String = "translator.order-paid.to-stock-confirm-requested.v2"
 
-    override fun onDomainEvent(event: OrderPaidEvent) {
-        val order = requireNotNull(orders.findById(event.orderId))
-        val tradeId = order.sourceTradeId ?: return
-        val orderPlanId = order.sourceOrderPlanId ?: return
-        integrationMessagePublisher.publish(
-            ConfirmInventoryCommand(
-                tradeId = tradeId,
-                orderPlanId = orderPlanId,
-                items = event.items.map { ContractItem(skuId = it.skuId, quantity = it.quantity) },
-                sourceMessageId = event.eventId,
-                occurredAtValue = event.occurredAt,
-            )
+  override fun onDomainEvent(event: OrderPaidEvent) {
+    val order = requireNotNull(orders.findById(event.orderId))
+    val tradeId = order.sourceTradeId ?: return
+    val orderPlanId = order.sourceOrderPlanId ?: return
+    integrationMessagePublisher.publish(
+        ConfirmInventoryCommand(
+            tradeId = tradeId,
+            orderPlanId = orderPlanId,
+            items = event.items.map { ContractItem(skuId = it.skuId, quantity = it.quantity) },
+            sourceMessageId = event.eventId,
+            occurredAtValue = event.occurredAt,
         )
-    }
+    )
+  }
 }

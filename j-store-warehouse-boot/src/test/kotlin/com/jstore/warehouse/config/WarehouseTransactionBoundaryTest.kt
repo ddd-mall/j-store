@@ -30,43 +30,43 @@ import org.springframework.transaction.support.DefaultTransactionStatus
 import org.springframework.transaction.support.TransactionSynchronizationManager
 
 class WarehouseTransactionBoundaryTest {
-    @Test
-    fun `stock adjustment saves and publishes inside one transaction`() {
-        val transactionManager = RecordingTransactionManager()
-        val repository =
-            object : PhysicalStockRepository {
-                override fun save(aggregate: PhysicalStock): PhysicalStock {
-                    assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
-                    return aggregate
-                }
+  @Test
+  fun `stock adjustment saves and publishes inside one transaction`() {
+    val transactionManager = RecordingTransactionManager()
+    val repository =
+        object : PhysicalStockRepository {
+          override fun save(aggregate: PhysicalStock): PhysicalStock {
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+            return aggregate
+          }
 
-                override fun findById(id: PhysicalStockId) = PhysicalStock(id, 61, "WH-1", 10)
-            }
-        val publisher =
-            object : DomainEventPublisher {
-                override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
-                    assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
-                }
-            }
-        val useCase =
-            WarehouseBootConfiguration()
-                .warehouseStockService(repository, publisher, transactionManager)
-
-        assertTrue(useCase.adjust(PhysicalStockId("61@WH-1"), 9, "count") is Success)
-        assertEquals(1, transactionManager.commits)
-    }
-
-    private class RecordingTransactionManager : AbstractPlatformTransactionManager() {
-        var commits = 0
-
-        override fun doGetTransaction() = Any()
-
-        override fun doBegin(transaction: Any, definition: TransactionDefinition) = Unit
-
-        override fun doCommit(status: DefaultTransactionStatus) {
-            commits++
+          override fun findById(id: PhysicalStockId) = PhysicalStock(id, 61, "WH-1", 10)
         }
+    val publisher =
+        object : DomainEventPublisher {
+          override fun publishEvent(event: com.jstore.common.framework.event.DomainEvent) {
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+          }
+        }
+    val useCase =
+        WarehouseBootConfiguration()
+            .warehouseStockService(repository, publisher, transactionManager)
 
-        override fun doRollback(status: DefaultTransactionStatus) = Unit
+    assertTrue(useCase.adjust(PhysicalStockId("61@WH-1"), 9, "count") is Success)
+    assertEquals(1, transactionManager.commits)
+  }
+
+  private class RecordingTransactionManager : AbstractPlatformTransactionManager() {
+    var commits = 0
+
+    override fun doGetTransaction() = Any()
+
+    override fun doBegin(transaction: Any, definition: TransactionDefinition) = Unit
+
+    override fun doCommit(status: DefaultTransactionStatus) {
+      commits++
     }
+
+    override fun doRollback(status: DefaultTransactionStatus) = Unit
+  }
 }

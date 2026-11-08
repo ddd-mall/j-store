@@ -22,87 +22,87 @@ import kotlin.test.assertEquals
 import org.flywaydb.core.Flyway
 
 class TradePaymentSchemaMigrationTest {
-    @Test
-    fun `payment provider fields belong to trade payments and not order plans`() {
-        EmbeddedPostgres.builder().start().use { postgres ->
-            Flyway.configure()
-                .dataSource(postgres.postgresDatabase)
-                .locations("classpath:db/migration")
-                .schemas("develop")
-                .defaultSchema("develop")
-                .load()
-                .migrate()
+  @Test
+  fun `payment provider fields belong to trade payments and not order plans`() {
+    EmbeddedPostgres.builder().start().use { postgres ->
+      Flyway.configure()
+          .dataSource(postgres.postgresDatabase)
+          .locations("classpath:db/migration")
+          .schemas("develop")
+          .defaultSchema("develop")
+          .load()
+          .migrate()
 
-            postgres.postgresDatabase.connection.use { connection ->
-                val providerColumns =
-                    setOf(
-                        "provider_reference",
-                        "pay_action",
-                        "provider_accepted_at",
-                        "accept_before",
-                        "expires_at",
-                        "failure_reason",
-                        "cancellation_reason",
-                    )
-                assertEquals(
-                    providerColumns,
-                    columns(connection, "trade_payments") intersect providerColumns,
-                )
-                assertEquals(
-                    emptySet(),
-                    columns(connection, "trade_order_plans") intersect providerColumns,
-                )
-                assertEquals(
-                    setOf("trade_id", "installment_id", "payment_id"),
-                    columns(connection, "trade_installment_payment_refs"),
-                )
-                assertEquals("text", columnType(connection, "trade_payments", "provider_reference"))
-            }
-        }
+      postgres.postgresDatabase.connection.use { connection ->
+        val providerColumns =
+            setOf(
+                "provider_reference",
+                "pay_action",
+                "provider_accepted_at",
+                "accept_before",
+                "expires_at",
+                "failure_reason",
+                "cancellation_reason",
+            )
+        assertEquals(
+            providerColumns,
+            columns(connection, "trade_payments") intersect providerColumns,
+        )
+        assertEquals(
+            emptySet(),
+            columns(connection, "trade_order_plans") intersect providerColumns,
+        )
+        assertEquals(
+            setOf("trade_id", "installment_id", "payment_id"),
+            columns(connection, "trade_installment_payment_refs"),
+        )
+        assertEquals("text", columnType(connection, "trade_payments", "provider_reference"))
+      }
     }
+  }
 
-    private fun columns(
-        connection: java.sql.Connection,
-        table: String,
-    ): Set<String> =
-        connection
-            .prepareStatement(
-                """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_schema = 'develop' AND table_name = ?
-                """
-                    .trimIndent()
-            )
-            .use { statement ->
-                statement.setString(1, table)
-                statement.executeQuery().use { result ->
-                    buildSet {
-                        while (result.next()) add(result.getString("column_name"))
-                    }
-                }
+  private fun columns(
+      connection: java.sql.Connection,
+      table: String,
+  ): Set<String> =
+      connection
+          .prepareStatement(
+              """
+              SELECT column_name
+              FROM information_schema.columns
+              WHERE table_schema = 'develop' AND table_name = ?
+              """
+                  .trimIndent()
+          )
+          .use { statement ->
+            statement.setString(1, table)
+            statement.executeQuery().use { result ->
+              buildSet {
+                while (result.next()) add(result.getString("column_name"))
+              }
             }
+          }
 
-    private fun columnType(
-        connection: java.sql.Connection,
-        table: String,
-        column: String,
-    ): String =
-        connection
-            .prepareStatement(
-                """
-                SELECT data_type
-                FROM information_schema.columns
-                WHERE table_schema = 'develop' AND table_name = ? AND column_name = ?
-                """
-                    .trimIndent()
-            )
-            .use { statement ->
-                statement.setString(1, table)
-                statement.setString(2, column)
-                statement.executeQuery().use { result ->
-                    check(result.next()) { "Missing $table.$column" }
-                    result.getString("data_type")
-                }
+  private fun columnType(
+      connection: java.sql.Connection,
+      table: String,
+      column: String,
+  ): String =
+      connection
+          .prepareStatement(
+              """
+              SELECT data_type
+              FROM information_schema.columns
+              WHERE table_schema = 'develop' AND table_name = ? AND column_name = ?
+              """
+                  .trimIndent()
+          )
+          .use { statement ->
+            statement.setString(1, table)
+            statement.setString(2, column)
+            statement.executeQuery().use { result ->
+              check(result.next()) { "Missing $table.$column" }
+              result.getString("data_type")
             }
+          }
 }

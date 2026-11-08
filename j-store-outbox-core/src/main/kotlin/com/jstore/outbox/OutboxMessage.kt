@@ -56,107 +56,106 @@ data class OutboxMessage(
     /** Strictly increasing position within (transportId, orderingKey). */
     val sequenceNo: Long,
 ) {
-    init {
-        require(id.isNotBlank()) { "Outbox entry ID must not be blank" }
-        require(eventId.isNotBlank()) { "Outbox event/message ID must not be blank" }
-        require(eventType.isNotBlank()) { "Outbox event/message type must not be blank" }
-        require(eventClassName.isNotBlank()) { "Outbox class name must not be blank" }
-        require(eventVersion > 0) { "Outbox event/message version must be positive" }
-        require(aggregateType.isNotBlank()) { "Outbox aggregate type must not be blank" }
-        require(aggregateId.isNotBlank()) { "Outbox aggregate ID must not be blank" }
-        require(destination.isNotBlank()) { "Outbox destination must not be blank" }
-        require(logicalDestination.isNotBlank()) { "Outbox logical destination must not be blank" }
-        require(deliveryProfile.isNotBlank()) { "Outbox delivery profile must not be blank" }
-        require(acceptBefore == null || !acceptBefore.isBefore(occurredAt)) {
-            "Outbox accept-before deadline must not precede occurred-at"
-        }
-        require(transportId.isNotBlank()) { "Outbox transport ID must not be blank" }
-        require(partitionKey.isNotBlank()) { "Outbox partition key must not be blank" }
-        require(correlationId.isNotBlank()) { "Outbox correlation ID must not be blank" }
-        require(merchantScopeId == null || merchantScopeId.isNotBlank()) {
-            "Outbox merchant scope ID must be null or non-blank"
-        }
-        require(deploymentScopeId == null || deploymentScopeId.isNotBlank()) {
-            "Outbox deployment scope ID must be null or non-blank"
-        }
-        require(orderingKey.isNotBlank()) { "Outbox ordering key must not be blank" }
-        require(sequenceNo > 0) { "Outbox sequence number must be positive" }
-        when (messageKind) {
-            OutboxMessageKind.DOMAIN_EVENT -> {
-                require(
-                    deliveryTarget == OutboxDeliveryTarget.LOCAL_DOMAIN &&
-                        transportId == OutboxTransportIds.LOCAL_DOMAIN
-                ) {
-                    "Domain events can only target local-domain"
-                }
-                require(deliveryProfile == "LOCAL_DOMAIN" && acceptBefore == null) {
-                    "Domain events require LOCAL_DOMAIN profile and cannot have an acceptance deadline"
-                }
-            }
-            OutboxMessageKind.INTEGRATION_EVENT,
-            OutboxMessageKind.INTEGRATION_COMMAND -> {
-                require(
-                    when (deliveryTarget) {
-                        OutboxDeliveryTarget.LOCAL_DOMAIN -> false
-                        OutboxDeliveryTarget.LOCAL_INTEGRATION ->
-                            transportId == OutboxTransportIds.LOCAL
-                        OutboxDeliveryTarget.BROKER ->
-                            transportId != OutboxTransportIds.LOCAL_DOMAIN &&
-                                transportId != OutboxTransportIds.LOCAL
-                    }
-                ) {
-                    "Integration message delivery target and transport ID are inconsistent"
-                }
-                if (messageKind == OutboxMessageKind.INTEGRATION_EVENT) {
-                    require(acceptBefore == null) {
-                        "Integration events cannot have an acceptance deadline"
-                    }
-                }
-            }
-        }
+  init {
+    require(id.isNotBlank()) { "Outbox entry ID must not be blank" }
+    require(eventId.isNotBlank()) { "Outbox event/message ID must not be blank" }
+    require(eventType.isNotBlank()) { "Outbox event/message type must not be blank" }
+    require(eventClassName.isNotBlank()) { "Outbox class name must not be blank" }
+    require(eventVersion > 0) { "Outbox event/message version must be positive" }
+    require(aggregateType.isNotBlank()) { "Outbox aggregate type must not be blank" }
+    require(aggregateId.isNotBlank()) { "Outbox aggregate ID must not be blank" }
+    require(destination.isNotBlank()) { "Outbox destination must not be blank" }
+    require(logicalDestination.isNotBlank()) { "Outbox logical destination must not be blank" }
+    require(deliveryProfile.isNotBlank()) { "Outbox delivery profile must not be blank" }
+    require(acceptBefore == null || !acceptBefore.isBefore(occurredAt)) {
+      "Outbox accept-before deadline must not precede occurred-at"
     }
+    require(transportId.isNotBlank()) { "Outbox transport ID must not be blank" }
+    require(partitionKey.isNotBlank()) { "Outbox partition key must not be blank" }
+    require(correlationId.isNotBlank()) { "Outbox correlation ID must not be blank" }
+    require(merchantScopeId == null || merchantScopeId.isNotBlank()) {
+      "Outbox merchant scope ID must be null or non-blank"
+    }
+    require(deploymentScopeId == null || deploymentScopeId.isNotBlank()) {
+      "Outbox deployment scope ID must be null or non-blank"
+    }
+    require(orderingKey.isNotBlank()) { "Outbox ordering key must not be blank" }
+    require(sequenceNo > 0) { "Outbox sequence number must be positive" }
+    when (messageKind) {
+      OutboxMessageKind.DOMAIN_EVENT -> {
+        require(
+            deliveryTarget == OutboxDeliveryTarget.LOCAL_DOMAIN &&
+                transportId == OutboxTransportIds.LOCAL_DOMAIN
+        ) {
+          "Domain events can only target local-domain"
+        }
+        require(deliveryProfile == "LOCAL_DOMAIN" && acceptBefore == null) {
+          "Domain events require LOCAL_DOMAIN profile and cannot have an acceptance deadline"
+        }
+      }
+      OutboxMessageKind.INTEGRATION_EVENT,
+      OutboxMessageKind.INTEGRATION_COMMAND -> {
+        require(
+            when (deliveryTarget) {
+              OutboxDeliveryTarget.LOCAL_DOMAIN -> false
+              OutboxDeliveryTarget.LOCAL_INTEGRATION -> transportId == OutboxTransportIds.LOCAL
+              OutboxDeliveryTarget.BROKER ->
+                  transportId != OutboxTransportIds.LOCAL_DOMAIN &&
+                      transportId != OutboxTransportIds.LOCAL
+            }
+        ) {
+          "Integration message delivery target and transport ID are inconsistent"
+        }
+        if (messageKind == OutboxMessageKind.INTEGRATION_EVENT) {
+          require(acceptBefore == null) {
+            "Integration events cannot have an acceptance deadline"
+          }
+        }
+      }
+    }
+  }
 }
 
 enum class OutboxMessageKind {
-    DOMAIN_EVENT,
-    INTEGRATION_EVENT,
-    INTEGRATION_COMMAND,
+  DOMAIN_EVENT,
+  INTEGRATION_EVENT,
+  INTEGRATION_COMMAND,
 }
 
 enum class OutboxDeliveryTarget {
-    LOCAL_DOMAIN,
-    LOCAL_INTEGRATION,
-    BROKER,
+  LOCAL_DOMAIN,
+  LOCAL_INTEGRATION,
+  BROKER,
 }
 
 val OutboxDeliveryTarget.defaultTransportId: String
-    get() =
-        when (this) {
-            OutboxDeliveryTarget.LOCAL_DOMAIN -> OutboxTransportIds.LOCAL_DOMAIN
-            OutboxDeliveryTarget.LOCAL_INTEGRATION -> OutboxTransportIds.LOCAL
-            OutboxDeliveryTarget.BROKER -> OutboxTransportIds.LEGACY_BROKER
-        }
+  get() =
+      when (this) {
+        OutboxDeliveryTarget.LOCAL_DOMAIN -> OutboxTransportIds.LOCAL_DOMAIN
+        OutboxDeliveryTarget.LOCAL_INTEGRATION -> OutboxTransportIds.LOCAL
+        OutboxDeliveryTarget.BROKER -> OutboxTransportIds.LEGACY_BROKER
+      }
 
 object OutboxTransportIds {
-    const val LOCAL_DOMAIN = "local-domain"
-    const val LOCAL = "local"
-    const val LEGACY_BROKER = "broker"
+  const val LOCAL_DOMAIN = "local-domain"
+  const val LOCAL = "local"
+  const val LEGACY_BROKER = "broker"
 }
 
 object OutboxOrderingKeys {
-    fun domain(aggregateType: String, aggregateId: String): String =
-        scoped(aggregateType, aggregateId)
+  fun domain(aggregateType: String, aggregateId: String): String =
+      scoped(aggregateType, aggregateId)
 
-    fun integration(destination: String, partitionKey: String): String =
-        scoped(destination, partitionKey)
+  fun integration(destination: String, partitionKey: String): String =
+      scoped(destination, partitionKey)
 
-    private fun scoped(scope: String, key: String): String {
-        require(scope.isNotBlank()) { "Ordering scope must not be blank" }
-        require(key.isNotBlank()) { "Ordering key component must not be blank" }
-        val scopeBytes = scope.toByteArray(StandardCharsets.UTF_8)
-        val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
-        val canonical =
-            "${scopeBytes.size}:$scope:${keyBytes.size}:$key".toByteArray(StandardCharsets.UTF_8)
-        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical))
-    }
+  private fun scoped(scope: String, key: String): String {
+    require(scope.isNotBlank()) { "Ordering scope must not be blank" }
+    require(key.isNotBlank()) { "Ordering key component must not be blank" }
+    val scopeBytes = scope.toByteArray(StandardCharsets.UTF_8)
+    val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
+    val canonical =
+        "${scopeBytes.size}:$scope:${keyBytes.size}:$key".toByteArray(StandardCharsets.UTF_8)
+    return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical))
+  }
 }

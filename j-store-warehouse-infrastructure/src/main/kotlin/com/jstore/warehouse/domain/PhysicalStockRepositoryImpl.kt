@@ -25,29 +25,29 @@ import org.springframework.transaction.annotation.Transactional
 @Repository
 class PhysicalStockRepositoryImpl(private val jpa: PhysicalStockPOJpaRepository) :
     PhysicalStockRepository {
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(entity: PhysicalStock): PhysicalStock = toDomain(jpa.save(toPO(entity)))
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun save(entity: PhysicalStock): PhysicalStock = toDomain(jpa.save(toPO(entity)))
 
-    override fun findById(id: PhysicalStockId): PhysicalStock? =
-        jpa.findById(id.value).orElse(null)?.let(::toDomain)
+  override fun findById(id: PhysicalStockId): PhysicalStock? =
+      jpa.findById(id.value).orElse(null)?.let(::toDomain)
 
-    private fun toPO(stock: PhysicalStock) =
-        PhysicalStockPO(
-            stock.id.value,
-            stock.skuId,
-            stock.fulfillmentNodeId,
-            stock.onHand,
-            stock.sourceVersion,
-            stock.persistenceVersion,
-        )
+  private fun toPO(stock: PhysicalStock) =
+      PhysicalStockPO(
+          stock.id.value,
+          stock.skuId,
+          stock.fulfillmentNodeId,
+          stock.onHand,
+          stock.sourceVersion,
+          stock.persistenceVersion,
+      )
 
-    private fun toDomain(po: PhysicalStockPO) =
-        PhysicalStock(
-            PhysicalStockId(po.id),
-            po.skuId,
-            po.fulfillmentNodeId,
-            po.onHand,
-            po.sourceVersion,
-            po.persistenceVersion,
-        )
+  private fun toDomain(po: PhysicalStockPO) =
+      PhysicalStock(
+          PhysicalStockId(po.id),
+          po.skuId,
+          po.fulfillmentNodeId,
+          po.onHand,
+          po.sourceVersion,
+          po.persistenceVersion,
+      )
 }

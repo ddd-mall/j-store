@@ -39,68 +39,68 @@ import java.time.Instant
  * Stable inbound port for order use cases. Framework transaction concerns belong to boot adapters.
  */
 interface OrderUseCase {
-    fun getOrderById(
-        buyerAuthenticationDomain: String,
-        buyerId: Long,
-        orderId: OrderId,
-    ): Result<Order, BusinessError>
+  fun getOrderById(
+      buyerAuthenticationDomain: String,
+      buyerId: Long,
+      orderId: OrderId,
+  ): Result<Order, BusinessError>
 
-    fun pageListByUserId(
-        buyerAuthenticationDomain: String,
-        uid: Long,
-        currentPage: Int,
-        pageSize: Int,
-    ): Page<Order>
+  fun pageListByUserId(
+      buyerAuthenticationDomain: String,
+      uid: Long,
+      currentPage: Int,
+      pageSize: Int,
+  ): Page<Order>
 
-    fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError>
+  fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError>
 
-    fun rejectTradeCommitment(orderId: OrderId, reason: String): Result<Unit, BusinessError>
+  fun rejectTradeCommitment(orderId: OrderId, reason: String): Result<Unit, BusinessError>
 
-    fun recordPaymentCaptured(
-        orderId: OrderId,
-        paymentReference: String,
-        amount: Price,
-        currency: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError>
+  fun recordPaymentCaptured(
+      orderId: OrderId,
+      paymentReference: String,
+      amount: Price,
+      currency: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError>
 
-    fun recordFulfillmentPrepared(
-        orderId: OrderId,
-        fulfillmentReference: String,
-    ): Result<Boolean, BusinessError>
+  fun recordFulfillmentPrepared(
+      orderId: OrderId,
+      fulfillmentReference: String,
+  ): Result<Boolean, BusinessError>
 
-    fun recordShipmentDispatched(
-        orderId: OrderId,
-        fulfillmentReference: String,
-    ): Result<Boolean, BusinessError>
+  fun recordShipmentDispatched(
+      orderId: OrderId,
+      fulfillmentReference: String,
+  ): Result<Boolean, BusinessError>
 
-    fun recordShipmentDelivered(
-        orderId: OrderId,
-        fulfillmentReference: String,
-    ): Result<Boolean, BusinessError>
+  fun recordShipmentDelivered(
+      orderId: OrderId,
+      fulfillmentReference: String,
+  ): Result<Boolean, BusinessError>
 
-    fun recordRefundSucceeded(
-        orderId: OrderId,
-        refundId: String,
-        afterSaleId: AfterSaleId,
-        items: List<SuccessfulRefundItem>,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError>
+  fun recordRefundSucceeded(
+      orderId: OrderId,
+      refundId: String,
+      afterSaleId: AfterSaleId,
+      items: List<SuccessfulRefundItem>,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError>
 
-    fun completeOrder(orderId: OrderId): Result<Unit, BusinessError>
+  fun completeOrder(orderId: OrderId): Result<Unit, BusinessError>
 
-    fun cancelOrder(
-        buyerAuthenticationDomain: String,
-        buyerId: Long,
-        cmd: OrderCancelCMD,
-    ): Result<Unit, BusinessError>
+  fun cancelOrder(
+      buyerAuthenticationDomain: String,
+      buyerId: Long,
+      cmd: OrderCancelCMD,
+  ): Result<Unit, BusinessError>
 }
 
 /** Trusted, non-HTTP creation/cancellation port used only by the Trade checkout boundary. */
 interface InternalOrderCreationUseCase {
-    fun createOrder(cmd: CreateOrderFromTradeCommand): Result<Order, BusinessError>
+  fun createOrder(cmd: CreateOrderFromTradeCommand): Result<Order, BusinessError>
 
-    fun cancelOrder(tradeId: Long, orderPlanId: Long, reason: String): Result<Unit, BusinessError>
+  fun cancelOrder(tradeId: Long, orderPlanId: Long, reason: String): Result<Unit, BusinessError>
 }
 
 data class CreateOrderFromTradeItem(
@@ -140,38 +140,38 @@ data class CreateOrderFromTradeCommand(
 )
 
 interface AfterSaleUseCase {
-    fun findById(id: AfterSaleId): Result<AfterSale, BusinessError>
+  fun findById(id: AfterSaleId): Result<AfterSale, BusinessError>
 
-    fun listByOrderForAccess(orderId: OrderId): Result<AfterSaleOrderAccess, BusinessError>
+  fun listByOrderForAccess(orderId: OrderId): Result<AfterSaleOrderAccess, BusinessError>
 
-    fun create(
-        buyerAuthenticationDomain: String,
-        cmd: AfterSaleCreateCMD,
-    ): Result<AfterSale, BusinessError>
+  fun create(
+      buyerAuthenticationDomain: String,
+      cmd: AfterSaleCreateCMD,
+  ): Result<AfterSale, BusinessError>
 
-    fun approve(cmd: AfterSaleApproveCMD): Result<AfterSale, BusinessError>
+  fun approve(cmd: AfterSaleApproveCMD): Result<AfterSale, BusinessError>
 
-    fun reject(cmd: AfterSaleRejectCMD): Result<AfterSale, BusinessError>
+  fun reject(cmd: AfterSaleRejectCMD): Result<AfterSale, BusinessError>
 
-    fun cancel(
-        buyerAuthenticationDomain: String,
-        cmd: AfterSaleCancelCMD,
-    ): Result<AfterSale, BusinessError>
+  fun cancel(
+      buyerAuthenticationDomain: String,
+      cmd: AfterSaleCancelCMD,
+  ): Result<AfterSale, BusinessError>
 
-    fun receiveReturn(cmd: AfterSaleReceiveReturnCMD): Result<AfterSale, BusinessError>
+  fun receiveReturn(cmd: AfterSaleReceiveReturnCMD): Result<AfterSale, BusinessError>
 
-    fun retryRefund(cmd: AfterSaleRetryRefundCMD): Result<AfterSale, BusinessError>
+  fun retryRefund(cmd: AfterSaleRetryRefundCMD): Result<AfterSale, BusinessError>
 
-    fun recordRefundSucceeded(
-        afterSaleId: AfterSaleId,
-        refundId: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError>
+  fun recordRefundSucceeded(
+      afterSaleId: AfterSaleId,
+      refundId: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError>
 
-    fun recordRefundFailed(
-        afterSaleId: AfterSaleId,
-        refundId: String,
-        reason: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError>
+  fun recordRefundFailed(
+      afterSaleId: AfterSaleId,
+      refundId: String,
+      reason: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError>
 }

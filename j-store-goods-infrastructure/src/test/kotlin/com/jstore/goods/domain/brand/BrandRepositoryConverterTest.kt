@@ -21,23 +21,23 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class BrandRepositoryConverterTest {
-    @Test
-    fun `brand persistence preserves merchant localized name and status`() {
-        val po =
-            BrandPO(
-                id = 9,
-                merchantId = 7,
-                name = """{"en-US":"Mountain","zh-CN":"山野"}""",
-                normalizedName = "mountain",
-                status = BrandStatus.INACTIVE,
-            )
+  @Test
+  fun `brand persistence preserves merchant localized name and status`() {
+    val po =
+        BrandPO(
+            id = 9,
+            merchantId = 7,
+            name = """{"en-US":"Mountain","zh-CN":"山野"}""",
+            normalizedName = "mountain",
+            status = BrandStatus.INACTIVE,
+        )
 
-        val brand = BrandRepositoryImpl.Converter.toDomain(po)
+    val brand = BrandRepositoryImpl.Converter.toDomain(po)
 
-        assertEquals(BrandId(9), brand.id)
-        assertEquals(7, brand.merchantId.value)
-        assertEquals("山野", brand.name["zh-CN"])
-        assertEquals("mountain", brand.normalizedName)
-        assertEquals(BrandStatus.INACTIVE, brand.status)
-    }
+    assertEquals(BrandId(9), brand.id)
+    assertEquals(7, brand.merchantId.value)
+    assertEquals("山野", brand.name["zh-CN"])
+    assertEquals("mountain", brand.normalizedName)
+    assertEquals(BrandStatus.INACTIVE, brand.status)
+  }
 }

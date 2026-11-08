@@ -22,20 +22,20 @@ import com.jstore.common.properties.Id
 class SkuId(override val value: Long) : Id<Long>(value)
 
 interface Sku : Entity<SkuId> {
-    /** SKU 名称（如 "红色 / XL"） */
-    val skuName: String
+  /** SKU 名称（如 "红色 / XL"） */
+  val skuName: String
 
-    /** 销售属性列表 */
-    val attributes: List<Attribute<String, String>>
+  /** 销售属性列表 */
+  val attributes: List<Attribute<String, String>>
 
-    /** 商家内部货号 */
-    val merchantCode: String?
+  /** 商家内部货号 */
+  val merchantCode: String?
 
-    /** 标准条形码（EAN/UPC） */
-    val barcode: String?
+  /** 标准条形码（EAN/UPC） */
+  val barcode: String?
 
-    /** 草稿 SKU 对应的稳定已发布 SKU；新建 SKU 和已发布 SKU 为 null。 */
-    val sourceSkuId: SkuId?
+  /** 草稿 SKU 对应的稳定已发布 SKU；新建 SKU 和已发布 SKU 为 null。 */
+  val sourceSkuId: SkuId?
 }
 
 class SkuImpl(

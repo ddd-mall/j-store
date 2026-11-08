@@ -33,8 +33,8 @@ abstract class CommerceIntegrationCommand(
     final override val merchantScopeId: String?,
     final override val destination: String,
 ) : IntegrationCommand {
-    override val acceptBefore: Instant?
-        get() = null
+  override val acceptBefore: Instant?
+    get() = null
 }
 
 abstract class CommerceIntegrationEvent(
@@ -128,10 +128,10 @@ data class ContractAuthenticatedAccount(
     val authenticationDomain: String,
     val accountId: Long,
 ) {
-    init {
-        require(authenticationDomain.isNotBlank()) { "authenticationDomain must not be blank" }
-        require(accountId > 0) { "accountId must be positive" }
-    }
+  init {
+    require(authenticationDomain.isNotBlank()) { "authenticationDomain must not be blank" }
+    require(accountId > 0) { "accountId must be positive" }
+  }
 }
 
 @IntegrationMessageType("order.create-from-trade", 2)

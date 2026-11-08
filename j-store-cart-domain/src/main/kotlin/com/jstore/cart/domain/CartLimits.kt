@@ -17,11 +17,11 @@
 package com.jstore.cart.domain
 
 data class CartLimits(val minQuantity: Int, val maxQuantity: Int, val maxLines: Int) {
-    init {
-        require(minQuantity > 0) { "minQuantity must be positive" }
-        require(maxQuantity >= minQuantity) { "maxQuantity must be at least minQuantity" }
-        require(maxLines > 0) { "maxLines must be positive" }
-    }
+  init {
+    require(minQuantity > 0) { "minQuantity must be positive" }
+    require(maxQuantity >= minQuantity) { "maxQuantity must be at least minQuantity" }
+    require(maxLines > 0) { "maxLines must be positive" }
+  }
 
-    fun acceptsQuantity(quantity: Int): Boolean = quantity in minQuantity..maxQuantity
+  fun acceptsQuantity(quantity: Int): Boolean = quantity in minQuantity..maxQuantity
 }

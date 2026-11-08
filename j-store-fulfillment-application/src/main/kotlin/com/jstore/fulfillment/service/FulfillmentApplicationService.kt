@@ -45,66 +45,66 @@ class FulfillmentApplicationService(
     private val sequence: SnowFlakSequence,
     private val publisher: DomainEventPublisher,
 ) : FulfillmentUseCase {
-    override fun createForOrder(
-        request: FulfillmentRequest
-    ): Result<FulfillmentOrder, BusinessError> {
-        repository.findByOrderId(request.orderId)?.let { existing ->
-            return if (
-                existing.merchantId == request.merchantId &&
-                    existing.recipient == request.recipient &&
-                    existing.items == request.items
-            )
-                Success(existing)
-            else Failure(FulfillmentErrors.ORDER_CONFLICT)
-        }
-        val fulfillment =
-            FulfillmentOrderImpl(
-                id = FulfillmentOrderId(sequence.nextId()),
-                orderId = request.orderId,
-                merchantId = request.merchantId,
-                recipient = request.recipient,
-                items = request.items,
-            )
+  override fun createForOrder(
+      request: FulfillmentRequest
+  ): Result<FulfillmentOrder, BusinessError> {
+    repository.findByOrderId(request.orderId)?.let { existing ->
+      return if (
+          existing.merchantId == request.merchantId &&
+              existing.recipient == request.recipient &&
+              existing.items == request.items
+      )
+          Success(existing)
+      else Failure(FulfillmentErrors.ORDER_CONFLICT)
+    }
+    val fulfillment =
+        FulfillmentOrderImpl(
+            id = FulfillmentOrderId(sequence.nextId()),
+            orderId = request.orderId,
+            merchantId = request.merchantId,
+            recipient = request.recipient,
+            items = request.items,
+        )
+    repository.save(fulfillment)
+    fulfillment.publishPendingEvents(publisher)
+    return Success(fulfillment)
+  }
+
+  override fun getByOrderId(orderId: Long): Result<FulfillmentOrder, BusinessError> =
+      repository.findByOrderId(orderId)?.let(::Success) ?: Failure(FulfillmentErrors.NOT_FOUND)
+
+  override fun prepare(
+      orderId: Long,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError> = mutate(orderId) { it.prepare(occurredAt) }
+
+  override fun dispatch(
+      orderId: Long,
+      carrierCode: String,
+      trackingNumber: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError> =
+      mutate(orderId) {
+        it.dispatch(carrierCode, trackingNumber, occurredAt)
+      }
+
+  override fun deliver(
+      orderId: Long,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError> = mutate(orderId) { it.deliver(occurredAt) }
+
+  private fun mutate(
+      orderId: Long,
+      operation: (FulfillmentOrder) -> Result<Boolean, BusinessError>,
+  ): Result<Boolean, BusinessError> {
+    val fulfillment =
+        repository.findByOrderId(orderId) ?: return Failure(FulfillmentErrors.NOT_FOUND)
+    val changed = operation(fulfillment)
+    return changed.onSuccess { didChange ->
+      if (didChange) {
         repository.save(fulfillment)
         fulfillment.publishPendingEvents(publisher)
-        return Success(fulfillment)
+      }
     }
-
-    override fun getByOrderId(orderId: Long): Result<FulfillmentOrder, BusinessError> =
-        repository.findByOrderId(orderId)?.let(::Success) ?: Failure(FulfillmentErrors.NOT_FOUND)
-
-    override fun prepare(
-        orderId: Long,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError> = mutate(orderId) { it.prepare(occurredAt) }
-
-    override fun dispatch(
-        orderId: Long,
-        carrierCode: String,
-        trackingNumber: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError> =
-        mutate(orderId) {
-            it.dispatch(carrierCode, trackingNumber, occurredAt)
-        }
-
-    override fun deliver(
-        orderId: Long,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError> = mutate(orderId) { it.deliver(occurredAt) }
-
-    private fun mutate(
-        orderId: Long,
-        operation: (FulfillmentOrder) -> Result<Boolean, BusinessError>,
-    ): Result<Boolean, BusinessError> {
-        val fulfillment =
-            repository.findByOrderId(orderId) ?: return Failure(FulfillmentErrors.NOT_FOUND)
-        val changed = operation(fulfillment)
-        return changed.onSuccess { didChange ->
-            if (didChange) {
-                repository.save(fulfillment)
-                fulfillment.publishPendingEvents(publisher)
-            }
-        }
-    }
+  }
 }

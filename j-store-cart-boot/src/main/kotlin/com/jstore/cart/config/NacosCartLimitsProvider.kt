@@ -34,89 +34,89 @@ class NacosCartLimitsProvider(
     private val properties: CartNacosProperties,
     private val client: ConfigService,
 ) : CartLimitsProvider, AutoCloseable {
-    private val current = AtomicReference(local)
-    private val refreshExecutor = Executors.newSingleThreadExecutor { task ->
-        Thread(task, "cart-limits-refresh").apply { isDaemon = true }
-    }
-    private val logger = LoggerFactory.getLogger(javaClass)
-    private val listener =
-        object : Listener {
-            override fun getExecutor() = refreshExecutor
+  private val current = AtomicReference(local)
+  private val refreshExecutor = Executors.newSingleThreadExecutor { task ->
+    Thread(task, "cart-limits-refresh").apply { isDaemon = true }
+  }
+  private val logger = LoggerFactory.getLogger(javaClass)
+  private val listener =
+      object : Listener {
+        override fun getExecutor() = refreshExecutor
 
-            override fun receiveConfigInfo(configInfo: String?) {
-                synchronized(this@NacosCartLimitsProvider) {
-                    try {
-                        current.set(parse(configInfo))
-                        logger.info("Cart limits configuration refreshed")
-                    } catch (_: RuntimeException) {
-                        logger.warn(
-                            "Rejected invalid Cart limits configuration; retaining last valid snapshot"
-                        )
-                    }
-                }
+        override fun receiveConfigInfo(configInfo: String?) {
+          synchronized(this@NacosCartLimitsProvider) {
+            try {
+              current.set(parse(configInfo))
+              logger.info("Cart limits configuration refreshed")
+            } catch (_: RuntimeException) {
+              logger.warn(
+                  "Rejected invalid Cart limits configuration; retaining last valid snapshot"
+              )
             }
+          }
         }
+      }
 
-    init {
-        try {
-            require(properties.timeoutMs > 0) { "Nacos timeout must be positive" }
-            require(properties.dataId.isNotBlank() && properties.group.isNotBlank()) {
-                "Nacos data-id and group must not be blank"
-            }
-            synchronized(this) {
-                current.set(
-                    parse(
-                        client.getConfigAndSignListener(
-                            properties.dataId,
-                            properties.group,
-                            properties.timeoutMs,
-                            listener,
-                        )
-                    )
-                )
-            }
-        } catch (failure: Exception) {
-            close()
-            throw failure
-        }
-    }
-
-    override fun current(): CartLimits = current.get()
-
-    override fun close() {
-        try {
-            client.removeListener(properties.dataId, properties.group, listener)
-        } finally {
-            refreshExecutor.shutdownNow()
-        }
-    }
-
-    private fun parse(content: String?): CartLimits {
-        require(!content.isNullOrBlank()) {
-            "Nacos Cart limits configuration must exist and not be empty"
-        }
-        val remote = Properties().apply { load(StringReader(content)) }
-        val keys =
-            setOf(
-                "jstore.cart.limits.min-quantity",
-                "jstore.cart.limits.max-quantity",
-                "jstore.cart.limits.max-lines",
-            )
-        require(remote.isNotEmpty() && remote.stringPropertyNames().all { it in keys }) {
-            "Nacos Cart limits configuration contains no supported settings or unknown keys"
-        }
-        val candidate =
-            CartLimitsProperties().apply {
-                minQuantity = local.minQuantity
-                maxQuantity = local.maxQuantity
-                maxLines = local.maxLines
-            }
-        Binder(
-                MapConfigurationPropertySource(
-                    remote.entries.associate { it.key.toString() to it.value }
+  init {
+    try {
+      require(properties.timeoutMs > 0) { "Nacos timeout must be positive" }
+      require(properties.dataId.isNotBlank() && properties.group.isNotBlank()) {
+        "Nacos data-id and group must not be blank"
+      }
+      synchronized(this) {
+        current.set(
+            parse(
+                client.getConfigAndSignListener(
+                    properties.dataId,
+                    properties.group,
+                    properties.timeoutMs,
+                    listener,
                 )
             )
-            .bind("jstore.cart.limits", Bindable.ofInstance(candidate))
-        return candidate.toLimits()
+        )
+      }
+    } catch (failure: Exception) {
+      close()
+      throw failure
     }
+  }
+
+  override fun current(): CartLimits = current.get()
+
+  override fun close() {
+    try {
+      client.removeListener(properties.dataId, properties.group, listener)
+    } finally {
+      refreshExecutor.shutdownNow()
+    }
+  }
+
+  private fun parse(content: String?): CartLimits {
+    require(!content.isNullOrBlank()) {
+      "Nacos Cart limits configuration must exist and not be empty"
+    }
+    val remote = Properties().apply { load(StringReader(content)) }
+    val keys =
+        setOf(
+            "jstore.cart.limits.min-quantity",
+            "jstore.cart.limits.max-quantity",
+            "jstore.cart.limits.max-lines",
+        )
+    require(remote.isNotEmpty() && remote.stringPropertyNames().all { it in keys }) {
+      "Nacos Cart limits configuration contains no supported settings or unknown keys"
+    }
+    val candidate =
+        CartLimitsProperties().apply {
+          minQuantity = local.minQuantity
+          maxQuantity = local.maxQuantity
+          maxLines = local.maxLines
+        }
+    Binder(
+            MapConfigurationPropertySource(
+                remote.entries.associate { it.key.toString() to it.value }
+            )
+        )
+        .bind("jstore.cart.limits", Bindable.ofInstance(candidate))
+    return candidate.toLimits()
+  }
 }

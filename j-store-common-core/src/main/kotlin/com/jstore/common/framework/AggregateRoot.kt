@@ -23,9 +23,9 @@ interface AggregateRoot<I : Identifier> : Entity<I>
 
 /** Event recording capability kept separate from the aggregate-root marker. */
 interface RecordsDomainEvents {
-    fun pendingDomainEvents(): List<DomainEvent>
+  fun pendingDomainEvents(): List<DomainEvent>
 
-    fun acknowledgeDomainEvents(eventIds: Set<String>)
+  fun acknowledgeDomainEvents(eventIds: Set<String>)
 }
 
 /**
@@ -35,21 +35,21 @@ interface RecordsDomainEvents {
  * events by stable ID after publication succeeds.
  */
 abstract class EventRecordingAggregateRoot<I : Identifier> : AggregateRoot<I>, RecordsDomainEvents {
-    private val domainEvents = mutableListOf<DomainEvent>()
+  private val domainEvents = mutableListOf<DomainEvent>()
 
-    protected fun raise(event: DomainEvent) {
-        require(domainEvents.none { it.eventId == event.eventId }) {
-            "Duplicate pending domain event id: ${event.eventId}"
-        }
-        domainEvents += event
+  protected fun raise(event: DomainEvent) {
+    require(domainEvents.none { it.eventId == event.eventId }) {
+      "Duplicate pending domain event id: ${event.eventId}"
     }
+    domainEvents += event
+  }
 
-    override fun pendingDomainEvents(): List<DomainEvent> = domainEvents.toList()
+  override fun pendingDomainEvents(): List<DomainEvent> = domainEvents.toList()
 
-    override fun acknowledgeDomainEvents(eventIds: Set<String>) {
-        require(eventIds.size == domainEvents.count { it.eventId in eventIds }) {
-            "Cannot acknowledge unknown or duplicate pending domain event IDs"
-        }
-        domainEvents.removeAll { it.eventId in eventIds }
+  override fun acknowledgeDomainEvents(eventIds: Set<String>) {
+    require(eventIds.size == domainEvents.count { it.eventId in eventIds }) {
+      "Cannot acknowledge unknown or duplicate pending domain event IDs"
     }
+    domainEvents.removeAll { it.eventId in eventIds }
+  }
 }

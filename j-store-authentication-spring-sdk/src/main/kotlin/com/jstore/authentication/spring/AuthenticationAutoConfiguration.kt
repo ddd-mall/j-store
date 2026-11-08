@@ -35,43 +35,41 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 @ConditionalOnBean(AccessTokenVerifier::class)
 class AuthenticationAutoConfiguration {
 
-    @Bean
-    @ConditionalOnMissingBean
-    fun authenticationInterceptor(
-        accessTokenVerifier: AccessTokenVerifier,
-        tokenStore: ObjectProvider<AuthenticatedSessionStore>,
-        configurers: List<AuthenticationConfigurer>,
-        objectMapper: ObjectMapper,
-    ): AuthenticationInterceptor {
-        return AuthenticationInterceptor(
-            accessTokenVerifier,
-            tokenStore.ifAvailable,
-            configurers,
-            objectMapper,
-        )
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  fun authenticationInterceptor(
+      accessTokenVerifier: AccessTokenVerifier,
+      tokenStore: ObjectProvider<AuthenticatedSessionStore>,
+      configurers: List<AuthenticationConfigurer>,
+      objectMapper: ObjectMapper,
+  ): AuthenticationInterceptor {
+    return AuthenticationInterceptor(
+        accessTokenVerifier,
+        tokenStore.ifAvailable,
+        configurers,
+        objectMapper,
+    )
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    fun currentPrincipalArgumentResolver(): CurrentPrincipalArgumentResolver {
-        return CurrentPrincipalArgumentResolver()
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  fun currentPrincipalArgumentResolver(): CurrentPrincipalArgumentResolver {
+    return CurrentPrincipalArgumentResolver()
+  }
 
-    @Bean
-    fun authenticationWebMvcConfigurer(
-        interceptor: AuthenticationInterceptor,
-        resolver: CurrentPrincipalArgumentResolver,
-    ): WebMvcConfigurer {
-        return object : WebMvcConfigurer {
-            override fun addInterceptors(registry: InterceptorRegistry) {
-                registry.addInterceptor(interceptor).addPathPatterns("/**")
-            }
+  @Bean
+  fun authenticationWebMvcConfigurer(
+      interceptor: AuthenticationInterceptor,
+      resolver: CurrentPrincipalArgumentResolver,
+  ): WebMvcConfigurer {
+    return object : WebMvcConfigurer {
+      override fun addInterceptors(registry: InterceptorRegistry) {
+        registry.addInterceptor(interceptor).addPathPatterns("/**")
+      }
 
-            override fun addArgumentResolvers(
-                resolvers: MutableList<HandlerMethodArgumentResolver>
-            ) {
-                resolvers.add(resolver)
-            }
-        }
+      override fun addArgumentResolvers(resolvers: MutableList<HandlerMethodArgumentResolver>) {
+        resolvers.add(resolver)
+      }
     }
+  }
 }

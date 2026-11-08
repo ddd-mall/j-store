@@ -51,168 +51,168 @@ import org.springframework.transaction.PlatformTransactionManager
  */
 class OutboxAutoConfigurationTest :
     FunSpec({
-        val contextRunner =
-            ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(OutboxAutoConfiguration::class.java))
-                .withUserConfiguration(TestInfrastructureConfig::class.java)
+      val contextRunner =
+          ApplicationContextRunner()
+              .withConfiguration(AutoConfigurations.of(OutboxAutoConfiguration::class.java))
+              .withUserConfiguration(TestInfrastructureConfig::class.java)
 
-        test("enabled=true registers OutboxEventPublisher as DomainEventPublisher") {
-            contextRunner.withPropertyValues("jstore.outbox.enabled=true").run { context ->
-                context.containsBean("domainEventPublisher") shouldBe true
-                context
-                    .getBean(DomainEventPublisher::class.java)
-                    .shouldBeInstanceOf<OutboxEventPublisher>()
-                context.containsBean("outboxPublisher") shouldBe true
-                context.containsBean("outboxRelayCoordinator") shouldBe true
-                context.containsBean("outboxRelaySignal") shouldBe true
-                context.containsBean("outboxRelayExecutor") shouldBe true
-                context.containsBean("outboxCleaner") shouldBe true
-                context.containsBean("eventSerializer") shouldBe true
-                context.containsBean("eventTypeRegistry") shouldBe true
-                context.containsBean("springEventTypeRegistryRegistrar") shouldBe true
-                context.containsBean("outboxEntryRepository") shouldBe true
-                context.containsBean("messageConsumptionRepository") shouldBe true
-                context.containsBean("outboxRelayTransactionOperations") shouldBe true
-                context.containsBean("springDomainEventMulticasterGuard") shouldBe true
-                context.getBean(IntegrationMessagePublisher::class.java).shouldNotBeNull()
-                context.getBeansOfType(OutboxDeliveryChannel::class.java).keys shouldBe
-                    setOf(
-                        "localDomainEventDeliveryChannel",
-                        "localIntegrationMessageDeliveryChannel",
-                    )
+      test("enabled=true registers OutboxEventPublisher as DomainEventPublisher") {
+        contextRunner.withPropertyValues("jstore.outbox.enabled=true").run { context ->
+          context.containsBean("domainEventPublisher") shouldBe true
+          context
+              .getBean(DomainEventPublisher::class.java)
+              .shouldBeInstanceOf<OutboxEventPublisher>()
+          context.containsBean("outboxPublisher") shouldBe true
+          context.containsBean("outboxRelayCoordinator") shouldBe true
+          context.containsBean("outboxRelaySignal") shouldBe true
+          context.containsBean("outboxRelayExecutor") shouldBe true
+          context.containsBean("outboxCleaner") shouldBe true
+          context.containsBean("eventSerializer") shouldBe true
+          context.containsBean("eventTypeRegistry") shouldBe true
+          context.containsBean("springEventTypeRegistryRegistrar") shouldBe true
+          context.containsBean("outboxEntryRepository") shouldBe true
+          context.containsBean("messageConsumptionRepository") shouldBe true
+          context.containsBean("outboxRelayTransactionOperations") shouldBe true
+          context.containsBean("springDomainEventMulticasterGuard") shouldBe true
+          context.getBean(IntegrationMessagePublisher::class.java).shouldNotBeNull()
+          context.getBeansOfType(OutboxDeliveryChannel::class.java).keys shouldBe
+              setOf(
+                  "localDomainEventDeliveryChannel",
+                  "localIntegrationMessageDeliveryChannel",
+              )
+        }
+      }
+
+      test("configured external target fails fast when its transport is absent") {
+        contextRunner
+            .withPropertyValues(
+                "jstore.outbox.enabled=true",
+                "jstore.messaging.targets=kafka",
+            )
+            .run { context -> context.startupFailure.shouldNotBeNull() }
+      }
+
+      test("configured external target starts when matching transport is provided") {
+        contextRunner
+            .withUserConfiguration(BrokerTransportConfig::class.java)
+            .withPropertyValues(
+                "jstore.outbox.enabled=true",
+                "jstore.messaging.targets=kafka",
+            )
+            .run { context ->
+              context.startupFailure shouldBe null
+              context.containsBean("transportConfigurationGuard") shouldBe true
             }
-        }
+      }
 
-        test("configured external target fails fast when its transport is absent") {
-            contextRunner
-                .withPropertyValues(
-                    "jstore.outbox.enabled=true",
-                    "jstore.messaging.targets=kafka",
-                )
-                .run { context -> context.startupFailure.shouldNotBeNull() }
-        }
-
-        test("configured external target starts when matching transport is provided") {
-            contextRunner
-                .withUserConfiguration(BrokerTransportConfig::class.java)
-                .withPropertyValues(
-                    "jstore.outbox.enabled=true",
-                    "jstore.messaging.targets=kafka",
-                )
-                .run { context ->
-                    context.startupFailure shouldBe null
-                    context.containsBean("transportConfigurationGuard") shouldBe true
-                }
-        }
-
-        test("destination route properties bind to the publication planner") {
-            contextRunner
-                .withUserConfiguration(BrokerTransportConfig::class.java)
-                .withPropertyValues(
-                    "jstore.outbox.enabled=true",
-                    "jstore.messaging.routes[0].logical-destination=inventory.commands",
-                    "jstore.messaging.routes[0].deliveries[0].transport-id=kafka",
-                    "jstore.messaging.routes[0].deliveries[0].destination=commerce.inventory.commands.v1",
-                    "jstore.messaging.routes[0].deliveries[0].delivery-profile=CHECKOUT_CRITICAL",
-                )
-                .run { context ->
-                    context.startupFailure shouldBe null
-                    val publication =
-                        context
-                            .getBean(IntegrationPublicationPlanner::class.java)
-                            .plan("inventory.commands")
-                            .single()
-                    publication.transportId shouldBe "kafka"
-                    publication.destination shouldBe "commerce.inventory.commands.v1"
-                    publication.deliveryProfile shouldBe "CHECKOUT_CRITICAL"
-                }
-        }
-
-        test("transport adapter cannot claim the reserved local-domain transport ID") {
-            contextRunner
-                .withUserConfiguration(ReservedDomainTransportConfig::class.java)
-                .withPropertyValues("jstore.outbox.enabled=true")
-                .run { context -> context.startupFailure.shouldNotBeNull() }
-        }
-
-        test("enabled=false does not register OutboxAutoConfiguration beans") {
-            contextRunner.withPropertyValues("jstore.outbox.enabled=false").run { context ->
-                context.containsBean("domainEventPublisher") shouldBe false
-                context.containsBean("outboxPublisher") shouldBe false
-                context.containsBean("outboxCleaner") shouldBe false
+      test("destination route properties bind to the publication planner") {
+        contextRunner
+            .withUserConfiguration(BrokerTransportConfig::class.java)
+            .withPropertyValues(
+                "jstore.outbox.enabled=true",
+                "jstore.messaging.routes[0].logical-destination=inventory.commands",
+                "jstore.messaging.routes[0].deliveries[0].transport-id=kafka",
+                "jstore.messaging.routes[0].deliveries[0].destination=commerce.inventory.commands.v1",
+                "jstore.messaging.routes[0].deliveries[0].delivery-profile=CHECKOUT_CRITICAL",
+            )
+            .run { context ->
+              context.startupFailure shouldBe null
+              val publication =
+                  context
+                      .getBean(IntegrationPublicationPlanner::class.java)
+                      .plan("inventory.commands")
+                      .single()
+              publication.transportId shouldBe "kafka"
+              publication.destination shouldBe "commerce.inventory.commands.v1"
+              publication.deliveryProfile shouldBe "CHECKOUT_CRITICAL"
             }
-        }
+      }
 
-        test("real MeterRegistry activates Micrometer Outbox monitoring") {
-            val registry = SimpleMeterRegistry()
-            val beanFactory = StaticListableBeanFactory(mapOf("meterRegistry" to registry))
-            val repository = mock<OutboxEntryRepository>()
-            val schedulerState = SchedulerExecutionState()
-            val observabilityProperties = OutboxObservabilityProperties()
-            val health =
-                OutboxOperationalHealth(
+      test("transport adapter cannot claim the reserved local-domain transport ID") {
+        contextRunner
+            .withUserConfiguration(ReservedDomainTransportConfig::class.java)
+            .withPropertyValues("jstore.outbox.enabled=true")
+            .run { context -> context.startupFailure.shouldNotBeNull() }
+      }
+
+      test("enabled=false does not register OutboxAutoConfiguration beans") {
+        contextRunner.withPropertyValues("jstore.outbox.enabled=false").run { context ->
+          context.containsBean("domainEventPublisher") shouldBe false
+          context.containsBean("outboxPublisher") shouldBe false
+          context.containsBean("outboxCleaner") shouldBe false
+        }
+      }
+
+      test("real MeterRegistry activates Micrometer Outbox monitoring") {
+        val registry = SimpleMeterRegistry()
+        val beanFactory = StaticListableBeanFactory(mapOf("meterRegistry" to registry))
+        val repository = mock<OutboxEntryRepository>()
+        val schedulerState = SchedulerExecutionState()
+        val observabilityProperties = OutboxObservabilityProperties()
+        val health =
+            OutboxOperationalHealth(
+                repository,
+                schedulerState,
+                observabilityProperties,
+                maxRetryCount = 8,
+            )
+
+        val monitor =
+            PollingOutboxConfiguration()
+                .outboxMonitor(
+                    beanFactory.getBeanProvider(MeterRegistry::class.java),
                     repository,
+                    health,
                     schedulerState,
+                    IntegrationPublicationPlanner(defaultTargets = listOf("local")),
                     observabilityProperties,
-                    maxRetryCount = 8,
                 )
 
-            val monitor =
-                PollingOutboxConfiguration()
-                    .outboxMonitor(
-                        beanFactory.getBeanProvider(MeterRegistry::class.java),
-                        repository,
-                        health,
-                        schedulerState,
-                        IntegrationPublicationPlanner(defaultTargets = listOf("local")),
-                        observabilityProperties,
-                    )
+        monitor.shouldBeInstanceOf<MicrometerOutboxMonitor>()
+        registry.meters.isNotEmpty() shouldBe true
+      }
 
-            monitor.shouldBeInstanceOf<MicrometerOutboxMonitor>()
-            registry.meters.isNotEmpty() shouldBe true
+      test("no property configured does not register OutboxAutoConfiguration beans") {
+        contextRunner.run { context ->
+          context.containsBean("domainEventPublisher") shouldBe false
+          context.containsBean("outboxPublisher") shouldBe false
+          context.containsBean("outboxCleaner") shouldBe false
         }
-
-        test("no property configured does not register OutboxAutoConfiguration beans") {
-            contextRunner.run { context ->
-                context.containsBean("domainEventPublisher") shouldBe false
-                context.containsBean("outboxPublisher") shouldBe false
-                context.containsBean("outboxCleaner") shouldBe false
-            }
-        }
+      }
     }) {
-    /** 提供 OutboxAutoConfiguration 所需的基础设施 Bean（mock 实现）。 */
-    @Configuration
-    class TestInfrastructureConfig {
-        @Bean fun objectMapper(): ObjectMapper = ObjectMapper()
+  /** 提供 OutboxAutoConfiguration 所需的基础设施 Bean（mock 实现）。 */
+  @Configuration
+  class TestInfrastructureConfig {
+    @Bean fun objectMapper(): ObjectMapper = ObjectMapper()
 
-        @Bean fun outboxEntryPOJpaRepository(): OutboxEntryPOJpaRepository = mock()
+    @Bean fun outboxEntryPOJpaRepository(): OutboxEntryPOJpaRepository = mock()
 
-        @Bean fun entityManager(): EntityManager = mock()
+    @Bean fun entityManager(): EntityManager = mock()
 
-        @Bean fun snowFlakSequence(): SnowFlakSequence = SnowFlakSequence(1, 1)
+    @Bean fun snowFlakSequence(): SnowFlakSequence = SnowFlakSequence(1, 1)
 
-        @Bean fun transactionManager(): PlatformTransactionManager = mock()
-    }
+    @Bean fun transactionManager(): PlatformTransactionManager = mock()
+  }
 
-    @Configuration
-    class BrokerTransportConfig {
-        @Bean
-        fun kafkaIntegrationMessageTransport(): IntegrationMessageTransport =
-            object : IntegrationMessageTransport {
-                override val transportId: String = "kafka"
+  @Configuration
+  class BrokerTransportConfig {
+    @Bean
+    fun kafkaIntegrationMessageTransport(): IntegrationMessageTransport =
+        object : IntegrationMessageTransport {
+          override val transportId: String = "kafka"
 
-                override fun publish(envelope: IntegrationMessageEnvelope) = Unit
-            }
-    }
+          override fun publish(envelope: IntegrationMessageEnvelope) = Unit
+        }
+  }
 
-    @Configuration
-    class ReservedDomainTransportConfig {
-        @Bean
-        fun reservedDomainIntegrationMessageTransport(): IntegrationMessageTransport =
-            object : IntegrationMessageTransport {
-                override val transportId: String = "local-domain"
+  @Configuration
+  class ReservedDomainTransportConfig {
+    @Bean
+    fun reservedDomainIntegrationMessageTransport(): IntegrationMessageTransport =
+        object : IntegrationMessageTransport {
+          override val transportId: String = "local-domain"
 
-                override fun publish(envelope: IntegrationMessageEnvelope) = Unit
-            }
-    }
+          override fun publish(envelope: IntegrationMessageEnvelope) = Unit
+        }
+  }
 }

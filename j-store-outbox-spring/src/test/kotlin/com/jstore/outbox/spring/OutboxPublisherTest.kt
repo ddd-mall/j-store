@@ -33,438 +33,430 @@ import org.mockito.kotlin.*
  */
 class OutboxPublisherTest :
     FunSpec({
-        class RecordingTransactionOperations : OutboxRelayTransactionOperations {
-            val calls = mutableListOf<String>()
+      class RecordingTransactionOperations : OutboxRelayTransactionOperations {
+        val calls = mutableListOf<String>()
 
-            override fun <T> executeDelivery(action: () -> T): T {
-                calls.add("delivery-begin")
-                try {
-                    return action().also {
-                        calls.add("delivery-commit")
-                    }
-                } catch (e: Exception) {
-                    calls.add("delivery-rollback")
-                    throw e
-                }
+        override fun <T> executeDelivery(action: () -> T): T {
+          calls.add("delivery-begin")
+          try {
+            return action().also {
+              calls.add("delivery-commit")
             }
-
-            override fun <T> executeFailure(action: () -> T): T {
-                calls.add("failure-begin")
-                return action().also {
-                    calls.add("failure-commit")
-                }
-            }
+          } catch (e: Exception) {
+            calls.add("delivery-rollback")
+            throw e
+          }
         }
 
-        fun createEntry(
-            id: String = "entry-1",
-            retryCount: Int = 0,
-        ) =
-            OutboxEntry(
-                id = id,
-                eventType = "com.example.StubEvent",
-                payload = """{"source":"stub"}""",
-                aggregateType = "Order",
-                aggregateId = "42",
-                status = OutboxEntryStatus.IN_PROGRESS,
-                createdAt = Instant.parse("2025-01-01T00:00:00Z"),
-                updatedAt = Instant.parse("2025-01-01T00:00:00Z"),
-                retryCount = retryCount,
-                lockedBy = "worker-a",
-                lockedAt = Instant.parse("2025-01-01T00:00:00Z"),
-                lockedUntil = Instant.parse("2099-01-01T00:00:00Z"),
-                lockToken = 1,
-                orderingKey = OutboxOrderingKeys.domain("Order", "42"),
-                sequenceNo = 1,
+        override fun <T> executeFailure(action: () -> T): T {
+          calls.add("failure-begin")
+          return action().also {
+            calls.add("failure-commit")
+          }
+        }
+      }
+
+      fun createEntry(
+          id: String = "entry-1",
+          retryCount: Int = 0,
+      ) =
+          OutboxEntry(
+              id = id,
+              eventType = "com.example.StubEvent",
+              payload = """{"source":"stub"}""",
+              aggregateType = "Order",
+              aggregateId = "42",
+              status = OutboxEntryStatus.IN_PROGRESS,
+              createdAt = Instant.parse("2025-01-01T00:00:00Z"),
+              updatedAt = Instant.parse("2025-01-01T00:00:00Z"),
+              retryCount = retryCount,
+              lockedBy = "worker-a",
+              lockedAt = Instant.parse("2025-01-01T00:00:00Z"),
+              lockedUntil = Instant.parse("2099-01-01T00:00:00Z"),
+              lockToken = 1,
+              orderingKey = OutboxOrderingKeys.domain("Order", "42"),
+              sequenceNo = 1,
+          )
+
+      test("preparation precedes delivery transaction and preparation failures remain retryable") {
+        val entry = createEntry()
+        val repo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn listOf(entry)
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markPublished(any(), any()) } doReturn true
+              on { markFailed(any(), any()) } doReturn true
+            }
+        val tx = RecordingTransactionOperations()
+        var fail = true
+        val channel =
+            object : PreparingOutboxDeliveryChannel {
+              override val transportId = entry.transportId
+
+              override fun deliver(entry: OutboxMessage) = error("must prepare")
+
+              override fun prepare(entry: OutboxMessage): () -> Unit {
+                tx.calls.contains("delivery-begin") shouldBe false
+                if (fail) error("upstream unavailable")
+                return { tx.calls.last() shouldBe "delivery-begin" }
+              }
+            }
+        val publisher =
+            OutboxPublisher(
+                repo,
+                OutboxDeliveryRouter(listOf(channel)),
+                OutboxProperties(),
+                transactionOperations = tx,
+            )
+        publisher.pollAndPublish()
+        verify(repo).markFailed(any(), any())
+        verify(repo, never()).markPublished(any(), any())
+        tx.calls shouldBe listOf("failure-begin", "failure-commit")
+        tx.calls.clear()
+        fail = false
+        publisher.pollAndPublish()
+        tx.calls shouldBe listOf("delivery-begin", "delivery-commit")
+        verify(repo).markPublished(any(), any())
+      }
+
+      test("drain batch budget must be positive") {
+        shouldThrow<IllegalArgumentException> { OutboxProperties(maxBatchesPerDrain = 0) }
+      }
+
+      test("cleanup configuration must preserve bounded progress and deduplication horizon") {
+        shouldThrow<IllegalArgumentException> {
+          OutboxProperties(cleanupMaxBatchesPerRun = 0)
+        }
+        shouldThrow<IllegalArgumentException> { OutboxProperties(cleanupIntervalMillis = 0) }
+        shouldThrow<IllegalArgumentException> {
+          OutboxProperties(retentionDays = 7, consumptionRetentionDays = 6)
+        }
+      }
+
+      test("poll, deliver, and update status to PUBLISHED on success") {
+        val entry = createEntry()
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn listOf(entry)
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markPublished(any(), any()) } doReturn true
+            }
+        val mockSerializer =
+            mock<EventSerializer> {
+              on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
+            }
+        val mockBus = mock<LocalDomainEventBus>()
+        val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+
+        val publisher =
+            OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
+        publisher.pollAndPublish()
+
+        verify(mockBus).publishEvent(any())
+        val captor = argumentCaptor<OutboxEntry>()
+        verify(mockRepo).markPublished(captor.capture(), any())
+        captor.firstValue.status shouldBe OutboxEntryStatus.PUBLISHED
+        captor.firstValue.lockedBy shouldBe null
+        captor.firstValue.lockedUntil shouldBe null
+        captor.firstValue.lastError shouldBe null
+        (captor.firstValue.publishedAt == null) shouldBe false
+      }
+
+      test("delivery failure increments retryCount and sets FAILED status") {
+        val entry = createEntry(retryCount = 2)
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn listOf(entry)
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markFailed(any(), any()) } doReturn true
+            }
+        val mockSerializer =
+            mock<EventSerializer> {
+              on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
+            }
+        val mockBus =
+            mock<LocalDomainEventBus> {
+              on { publishEvent(any()) } doThrow RuntimeException("bus error")
+            }
+        val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+
+        val publisher =
+            OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
+        publisher.pollAndPublish()
+
+        val captor = argumentCaptor<OutboxEntry>()
+        verify(mockRepo).markFailed(captor.capture(), any())
+        captor.firstValue.retryCount shouldBe 2
+        captor.firstValue.status shouldBe OutboxEntryStatus.FAILED
+        captor.firstValue.lockedBy shouldBe null
+        captor.firstValue.lockedUntil shouldBe null
+        captor.firstValue.lastError shouldBe "java.lang.RuntimeException: bus error"
+        captor.firstValue.nextAttemptAt.isAfter(Instant.now()) shouldBe true
+      }
+
+      test("delivery failure at max retry sets DEAD_LETTER status") {
+        val entry = createEntry(retryCount = 5)
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn listOf(entry)
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markFailed(any(), any()) } doReturn true
+            }
+        val mockSerializer =
+            mock<EventSerializer> {
+              on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
+            }
+        val mockBus =
+            mock<LocalDomainEventBus> {
+              on { publishEvent(any()) } doThrow RuntimeException("bus error")
+            }
+        val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+
+        val publisher =
+            OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
+        publisher.pollAndPublish()
+
+        val captor = argumentCaptor<OutboxEntry>()
+        verify(mockRepo).markFailed(captor.capture(), any())
+        captor.firstValue.retryCount shouldBe 5
+        captor.firstValue.status shouldBe OutboxEntryStatus.DEAD_LETTER
+        captor.firstValue.lockedBy shouldBe null
+        captor.firstValue.lockedUntil shouldBe null
+      }
+
+      test("top-level exception is propagated so scheduler health records failure") {
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doThrow
+                  RuntimeException("DB connection lost")
+            }
+        val mockSerializer = mock<EventSerializer>()
+        val mockBus = mock<LocalDomainEventBus>()
+        val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+
+        val publisher =
+            OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
+
+        shouldThrow<RuntimeException> { publisher.pollAndPublish() }
+
+        // Verify no delivery was attempted
+        verify(mockBus, never()).publishEvent(any())
+      }
+
+      test("poll claims entries with worker id and lock timeout") {
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn emptyList()
+            }
+        val mockSerializer = mock<EventSerializer>()
+        val mockBus = mock<LocalDomainEventBus>()
+        val properties =
+            OutboxProperties(
+                maxRetryCount = 5,
+                batchSize = 12,
+                lockTimeoutMillis = 30000,
+                workerId = "worker-a",
             )
 
-        test(
-            "preparation precedes delivery transaction and preparation failures remain retryable"
-        ) {
-            val entry = createEntry()
-            val repo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(entry)
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markPublished(any(), any()) } doReturn true
-                    on { markFailed(any(), any()) } doReturn true
-                }
-            val tx = RecordingTransactionOperations()
-            var fail = true
-            val channel =
-                object : PreparingOutboxDeliveryChannel {
-                    override val transportId = entry.transportId
+        val publisher =
+            OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
+        val before = Instant.now()
+        publisher.pollAndPublish()
 
-                    override fun deliver(entry: OutboxMessage) = error("must prepare")
+        verify(mockRepo)
+            .claimPendingAndRetryable(
+                eq(5),
+                eq(12),
+                eq("worker-a"),
+                argThat { isAfter(before.plusMillis(29000)) },
+            )
+      }
 
-                    override fun prepare(entry: OutboxMessage): () -> Unit {
-                        tx.calls.contains("delivery-begin") shouldBe false
-                        if (fail) error("upstream unavailable")
-                        return { tx.calls.last() shouldBe "delivery-begin" }
-                    }
-                }
-            val publisher =
-                OutboxPublisher(
-                    repo,
-                    OutboxDeliveryRouter(listOf(channel)),
-                    OutboxProperties(),
-                    transactionOperations = tx,
-                )
-            publisher.pollAndPublish()
-            verify(repo).markFailed(any(), any())
-            verify(repo, never()).markPublished(any(), any())
-            tx.calls shouldBe listOf("failure-begin", "failure-commit")
-            tx.calls.clear()
-            fail = false
-            publisher.pollAndPublish()
-            tx.calls shouldBe listOf("delivery-begin", "delivery-commit")
-            verify(repo).markPublished(any(), any())
-        }
-
-        test("drain batch budget must be positive") {
-            shouldThrow<IllegalArgumentException> { OutboxProperties(maxBatchesPerDrain = 0) }
-        }
-
-        test("cleanup configuration must preserve bounded progress and deduplication horizon") {
-            shouldThrow<IllegalArgumentException> {
-                OutboxProperties(cleanupMaxBatchesPerRun = 0)
+      test("empty poll results in no delivery attempts") {
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn emptyList()
             }
-            shouldThrow<IllegalArgumentException> { OutboxProperties(cleanupIntervalMillis = 0) }
-            shouldThrow<IllegalArgumentException> {
-                OutboxProperties(retentionDays = 7, consumptionRetentionDays = 6)
+        val mockSerializer = mock<EventSerializer>()
+        val mockBus = mock<LocalDomainEventBus>()
+        val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+
+        val publisher =
+            OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
+        publisher.pollAndPublish()
+
+        verify(mockBus, never()).publishEvent(any())
+        verify(mockRepo, never()).markPublished(any(), any())
+        verify(mockRepo, never()).markFailed(any(), any())
+      }
+
+      test("drain processes entries created by earlier delivery until queue becomes empty") {
+        val first = createEntry(id = "entry-1")
+        val second = createEntry(id = "entry-2")
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
+                  listOf(first) doReturn
+                  listOf(second) doReturn
+                  emptyList()
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markPublished(any(), any()) } doReturn true
             }
-        }
+        val serializer =
+            mock<EventSerializer> {
+              on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
+            }
+        val bus = mock<LocalDomainEventBus>()
+        val publisher =
+            OutboxPublisher(
+                mockRepo,
+                deliveryRouter(serializer, bus),
+                OutboxProperties(maxBatchesPerDrain = 10),
+            )
 
-        test("poll, deliver, and update status to PUBLISHED on success") {
-            val entry = createEntry()
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(entry)
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markPublished(any(), any()) } doReturn true
-                }
-            val mockSerializer =
-                mock<EventSerializer> {
-                    on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
-                }
-            val mockBus = mock<LocalDomainEventBus>()
-            val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+        publisher.drainAndPublish() shouldBe OutboxDrainResult(2, false)
 
-            val publisher =
-                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
-            publisher.pollAndPublish()
+        verify(mockRepo, times(3)).claimPendingAndRetryable(any(), any(), any(), any())
+        verify(bus, times(2)).publishEvent(any())
+      }
 
-            verify(mockBus).publishEvent(any())
-            val captor = argumentCaptor<OutboxEntry>()
-            verify(mockRepo).markPublished(captor.capture(), any())
-            captor.firstValue.status shouldBe OutboxEntryStatus.PUBLISHED
-            captor.firstValue.lockedBy shouldBe null
-            captor.firstValue.lockedUntil shouldBe null
-            captor.firstValue.lastError shouldBe null
-            (captor.firstValue.publishedAt == null) shouldBe false
-        }
+      test("drain stops at configured batch budget and reports continuation") {
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
+                  listOf(createEntry("entry-1")) doReturn
+                  listOf(createEntry("entry-2"))
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markPublished(any(), any()) } doReturn true
+            }
+        val serializer =
+            mock<EventSerializer> {
+              on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
+            }
+        val publisher =
+            OutboxPublisher(
+                mockRepo,
+                deliveryRouter(serializer, mock()),
+                OutboxProperties(maxBatchesPerDrain = 2),
+            )
 
-        test("delivery failure increments retryCount and sets FAILED status") {
-            val entry = createEntry(retryCount = 2)
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(entry)
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markFailed(any(), any()) } doReturn true
-                }
-            val mockSerializer =
-                mock<EventSerializer> {
-                    on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
-                }
-            val mockBus =
-                mock<LocalDomainEventBus> {
-                    on { publishEvent(any()) } doThrow RuntimeException("bus error")
-                }
-            val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+        publisher.drainAndPublish() shouldBe OutboxDrainResult(2, true)
+        verify(mockRepo, times(2)).claimPendingAndRetryable(any(), any(), any(), any())
+      }
 
-            val publisher =
-                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
-            publisher.pollAndPublish()
+      test("multiple entries: one failure does not prevent others from being delivered") {
+        val entry1 = createEntry(id = "entry-1")
+        val entry2 = createEntry(id = "entry-2")
+        val entry3 = createEntry(id = "entry-3")
 
-            val captor = argumentCaptor<OutboxEntry>()
-            verify(mockRepo).markFailed(captor.capture(), any())
-            captor.firstValue.retryCount shouldBe 2
-            captor.firstValue.status shouldBe OutboxEntryStatus.FAILED
-            captor.firstValue.lockedBy shouldBe null
-            captor.firstValue.lockedUntil shouldBe null
-            captor.firstValue.lastError shouldBe "java.lang.RuntimeException: bus error"
-            captor.firstValue.nextAttemptAt.isAfter(Instant.now()) shouldBe true
-        }
+        val stubEvent = StubDomainEvent()
+        var callCount = 0
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
+                  listOf(entry1, entry2, entry3)
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markPublished(any(), any()) } doReturn true
+              on { markFailed(any(), any()) } doReturn true
+            }
+        val mockSerializer =
+            mock<EventSerializer> {
+              on { deserialize(any(), any(), any()) } doReturn stubEvent
+            }
+        val mockBus =
+            mock<LocalDomainEventBus> {
+              on { publishEvent(any()) } doAnswer
+                  {
+                    callCount++
+                    if (callCount == 2) throw RuntimeException("second delivery fails")
+                  }
+            }
+        val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-        test("delivery failure at max retry sets DEAD_LETTER status") {
-            val entry = createEntry(retryCount = 5)
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(entry)
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markFailed(any(), any()) } doReturn true
-                }
-            val mockSerializer =
-                mock<EventSerializer> {
-                    on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
-                }
-            val mockBus =
-                mock<LocalDomainEventBus> {
-                    on { publishEvent(any()) } doThrow RuntimeException("bus error")
-                }
-            val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+        val publisher =
+            OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
+        publisher.pollAndPublish()
 
-            val publisher =
-                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
-            publisher.pollAndPublish()
+        verify(mockRepo, times(2)).markPublished(any(), any())
+        verify(mockRepo, times(1)).markFailed(any(), any())
+      }
 
-            val captor = argumentCaptor<OutboxEntry>()
-            verify(mockRepo).markFailed(captor.capture(), any())
-            captor.firstValue.retryCount shouldBe 5
-            captor.firstValue.status shouldBe OutboxEntryStatus.DEAD_LETTER
-            captor.firstValue.lockedBy shouldBe null
-            captor.firstValue.lockedUntil shouldBe null
-        }
+      test(
+          "single entry delivery runs in delivery transaction and failure update runs in separate transaction"
+      ) {
+        val entry = createEntry()
+        val transactions = RecordingTransactionOperations()
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn listOf(entry)
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markFailed(any(), any()) } doReturn true
+            }
+        val mockSerializer =
+            mock<EventSerializer> {
+              on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
+            }
+        val mockBus =
+            mock<LocalDomainEventBus> {
+              on { publishEvent(any()) } doThrow RuntimeException("bus error")
+            }
+        val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-        test("top-level exception is propagated so scheduler health records failure") {
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doThrow
-                        RuntimeException("DB connection lost")
-                }
-            val mockSerializer = mock<EventSerializer>()
-            val mockBus = mock<LocalDomainEventBus>()
-            val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
+        val publisher =
+            OutboxPublisher(
+                mockRepo,
+                deliveryRouter(mockSerializer, mockBus),
+                properties,
+                transactionOperations = transactions,
+            )
+        publisher.pollAndPublish()
 
-            val publisher =
-                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
+        transactions.calls shouldBe
+            listOf(
+                "delivery-begin",
+                "delivery-rollback",
+                "failure-begin",
+                "failure-commit",
+            )
+        verify(mockRepo).markFailed(any(), any())
+      }
 
-            shouldThrow<RuntimeException> { publisher.pollAndPublish() }
+      test("publish lock ownership change rolls back delivery and records failure separately") {
+        val entry = createEntry()
+        val transactions = RecordingTransactionOperations()
+        val mockRepo =
+            mock<OutboxEntryRepository> {
+              on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn listOf(entry)
+              on { renewLease(any(), any(), any(), any()) } doReturn true
+              on { markPublished(any(), any()) } doReturn false
+              on { markFailed(any(), any()) } doReturn false
+            }
+        val mockSerializer =
+            mock<EventSerializer> {
+              on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
+            }
+        val mockBus = mock<LocalDomainEventBus>()
+        val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
 
-            // Verify no delivery was attempted
-            verify(mockBus, never()).publishEvent(any())
-        }
+        val publisher =
+            OutboxPublisher(
+                mockRepo,
+                deliveryRouter(mockSerializer, mockBus),
+                properties,
+                transactionOperations = transactions,
+            )
+        publisher.pollAndPublish()
 
-        test("poll claims entries with worker id and lock timeout") {
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn emptyList()
-                }
-            val mockSerializer = mock<EventSerializer>()
-            val mockBus = mock<LocalDomainEventBus>()
-            val properties =
-                OutboxProperties(
-                    maxRetryCount = 5,
-                    batchSize = 12,
-                    lockTimeoutMillis = 30000,
-                    workerId = "worker-a",
-                )
-
-            val publisher =
-                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
-            val before = Instant.now()
-            publisher.pollAndPublish()
-
-            verify(mockRepo)
-                .claimPendingAndRetryable(
-                    eq(5),
-                    eq(12),
-                    eq("worker-a"),
-                    argThat { isAfter(before.plusMillis(29000)) },
-                )
-        }
-
-        test("empty poll results in no delivery attempts") {
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn emptyList()
-                }
-            val mockSerializer = mock<EventSerializer>()
-            val mockBus = mock<LocalDomainEventBus>()
-            val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
-
-            val publisher =
-                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
-            publisher.pollAndPublish()
-
-            verify(mockBus, never()).publishEvent(any())
-            verify(mockRepo, never()).markPublished(any(), any())
-            verify(mockRepo, never()).markFailed(any(), any())
-        }
-
-        test("drain processes entries created by earlier delivery until queue becomes empty") {
-            val first = createEntry(id = "entry-1")
-            val second = createEntry(id = "entry-2")
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(first) doReturn
-                        listOf(second) doReturn
-                        emptyList()
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markPublished(any(), any()) } doReturn true
-                }
-            val serializer =
-                mock<EventSerializer> {
-                    on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
-                }
-            val bus = mock<LocalDomainEventBus>()
-            val publisher =
-                OutboxPublisher(
-                    mockRepo,
-                    deliveryRouter(serializer, bus),
-                    OutboxProperties(maxBatchesPerDrain = 10),
-                )
-
-            publisher.drainAndPublish() shouldBe OutboxDrainResult(2, false)
-
-            verify(mockRepo, times(3)).claimPendingAndRetryable(any(), any(), any(), any())
-            verify(bus, times(2)).publishEvent(any())
-        }
-
-        test("drain stops at configured batch budget and reports continuation") {
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(createEntry("entry-1")) doReturn
-                        listOf(createEntry("entry-2"))
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markPublished(any(), any()) } doReturn true
-                }
-            val serializer =
-                mock<EventSerializer> {
-                    on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
-                }
-            val publisher =
-                OutboxPublisher(
-                    mockRepo,
-                    deliveryRouter(serializer, mock()),
-                    OutboxProperties(maxBatchesPerDrain = 2),
-                )
-
-            publisher.drainAndPublish() shouldBe OutboxDrainResult(2, true)
-            verify(mockRepo, times(2)).claimPendingAndRetryable(any(), any(), any(), any())
-        }
-
-        test("multiple entries: one failure does not prevent others from being delivered") {
-            val entry1 = createEntry(id = "entry-1")
-            val entry2 = createEntry(id = "entry-2")
-            val entry3 = createEntry(id = "entry-3")
-
-            val stubEvent = StubDomainEvent()
-            var callCount = 0
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(entry1, entry2, entry3)
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markPublished(any(), any()) } doReturn true
-                    on { markFailed(any(), any()) } doReturn true
-                }
-            val mockSerializer =
-                mock<EventSerializer> {
-                    on { deserialize(any(), any(), any()) } doReturn stubEvent
-                }
-            val mockBus =
-                mock<LocalDomainEventBus> {
-                    on { publishEvent(any()) } doAnswer
-                        {
-                            callCount++
-                            if (callCount == 2) throw RuntimeException("second delivery fails")
-                        }
-                }
-            val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
-
-            val publisher =
-                OutboxPublisher(mockRepo, deliveryRouter(mockSerializer, mockBus), properties)
-            publisher.pollAndPublish()
-
-            verify(mockRepo, times(2)).markPublished(any(), any())
-            verify(mockRepo, times(1)).markFailed(any(), any())
-        }
-
-        test(
-            "single entry delivery runs in delivery transaction and failure update runs in separate transaction"
-        ) {
-            val entry = createEntry()
-            val transactions = RecordingTransactionOperations()
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(entry)
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markFailed(any(), any()) } doReturn true
-                }
-            val mockSerializer =
-                mock<EventSerializer> {
-                    on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
-                }
-            val mockBus =
-                mock<LocalDomainEventBus> {
-                    on { publishEvent(any()) } doThrow RuntimeException("bus error")
-                }
-            val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
-
-            val publisher =
-                OutboxPublisher(
-                    mockRepo,
-                    deliveryRouter(mockSerializer, mockBus),
-                    properties,
-                    transactionOperations = transactions,
-                )
-            publisher.pollAndPublish()
-
-            transactions.calls shouldBe
-                listOf(
-                    "delivery-begin",
-                    "delivery-rollback",
-                    "failure-begin",
-                    "failure-commit",
-                )
-            verify(mockRepo).markFailed(any(), any())
-        }
-
-        test("publish lock ownership change rolls back delivery and records failure separately") {
-            val entry = createEntry()
-            val transactions = RecordingTransactionOperations()
-            val mockRepo =
-                mock<OutboxEntryRepository> {
-                    on { claimPendingAndRetryable(any(), any(), any(), any()) } doReturn
-                        listOf(entry)
-                    on { renewLease(any(), any(), any(), any()) } doReturn true
-                    on { markPublished(any(), any()) } doReturn false
-                    on { markFailed(any(), any()) } doReturn false
-                }
-            val mockSerializer =
-                mock<EventSerializer> {
-                    on { deserialize(any(), any(), any()) } doReturn StubDomainEvent()
-                }
-            val mockBus = mock<LocalDomainEventBus>()
-            val properties = OutboxProperties(maxRetryCount = 5, batchSize = 100)
-
-            val publisher =
-                OutboxPublisher(
-                    mockRepo,
-                    deliveryRouter(mockSerializer, mockBus),
-                    properties,
-                    transactionOperations = transactions,
-                )
-            publisher.pollAndPublish()
-
-            transactions.calls shouldBe
-                listOf(
-                    "delivery-begin",
-                    "delivery-rollback",
-                    "failure-begin",
-                    "failure-commit",
-                )
-            verify(mockBus).publishEvent(any())
-            verify(mockRepo).markFailed(any(), any())
-        }
+        transactions.calls shouldBe
+            listOf(
+                "delivery-begin",
+                "delivery-rollback",
+                "failure-begin",
+                "failure-commit",
+            )
+        verify(mockBus).publishEvent(any())
+        verify(mockRepo).markFailed(any(), any())
+      }
     })
 
 private fun deliveryRouter(

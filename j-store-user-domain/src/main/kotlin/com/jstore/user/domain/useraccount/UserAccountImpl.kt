@@ -35,54 +35,54 @@ class UserAccountImpl(
     override val createTime: LocalDateTime = LocalDateTime.now(),
     updateTime: LocalDateTime = LocalDateTime.now(),
 ) : EventRecordingAggregateRoot<UserId>(), UserAccount {
-    private var _nickname = nickname
-    private var _passwordHash = passwordHash
-    private var _status = status
-    private var _updateTime = updateTime
+  private var _nickname = nickname
+  private var _passwordHash = passwordHash
+  private var _status = status
+  private var _updateTime = updateTime
 
-    override val nickname: Nickname
-        get() = _nickname
+  override val nickname: Nickname
+    get() = _nickname
 
-    override val passwordHash: Password
-        get() = _passwordHash
+  override val passwordHash: Password
+    get() = _passwordHash
 
-    override val status: UserAccountStatus
-        get() = _status
+  override val status: UserAccountStatus
+    get() = _status
 
-    override val updateTime: LocalDateTime
-        get() = _updateTime
+  override val updateTime: LocalDateTime
+    get() = _updateTime
 
-    internal fun recordRegistered() {
-        raise(UserAccountRegisteredEvent(userId = id, phoneNumber = phoneNumber))
+  internal fun recordRegistered() {
+    raise(UserAccountRegisteredEvent(userId = id, phoneNumber = phoneNumber))
+  }
+
+  override fun changeNickname(newNickname: Nickname): Result<Unit, BusinessError> {
+    _nickname = newNickname
+    _updateTime = LocalDateTime.now()
+    return Success(Unit)
+  }
+
+  override fun changePassword(newPasswordHash: Password): Result<Unit, BusinessError> {
+    _passwordHash = newPasswordHash
+    _updateTime = LocalDateTime.now()
+    return Success(Unit)
+  }
+
+  override fun disable(): Result<Unit, BusinessError> {
+    if (_status != UserAccountStatus.ACTIVE) {
+      return Failure(UserAccountErrors.ILLEGAL_STATE)
     }
+    _status = UserAccountStatus.DISABLED
+    _updateTime = LocalDateTime.now()
+    return Success(Unit)
+  }
 
-    override fun changeNickname(newNickname: Nickname): Result<Unit, BusinessError> {
-        _nickname = newNickname
-        _updateTime = LocalDateTime.now()
-        return Success(Unit)
+  override fun enable(): Result<Unit, BusinessError> {
+    if (_status != UserAccountStatus.DISABLED) {
+      return Failure(UserAccountErrors.ILLEGAL_STATE)
     }
-
-    override fun changePassword(newPasswordHash: Password): Result<Unit, BusinessError> {
-        _passwordHash = newPasswordHash
-        _updateTime = LocalDateTime.now()
-        return Success(Unit)
-    }
-
-    override fun disable(): Result<Unit, BusinessError> {
-        if (_status != UserAccountStatus.ACTIVE) {
-            return Failure(UserAccountErrors.ILLEGAL_STATE)
-        }
-        _status = UserAccountStatus.DISABLED
-        _updateTime = LocalDateTime.now()
-        return Success(Unit)
-    }
-
-    override fun enable(): Result<Unit, BusinessError> {
-        if (_status != UserAccountStatus.DISABLED) {
-            return Failure(UserAccountErrors.ILLEGAL_STATE)
-        }
-        _status = UserAccountStatus.ACTIVE
-        _updateTime = LocalDateTime.now()
-        return Success(Unit)
-    }
+    _status = UserAccountStatus.ACTIVE
+    _updateTime = LocalDateTime.now()
+    return Success(Unit)
+  }
 }

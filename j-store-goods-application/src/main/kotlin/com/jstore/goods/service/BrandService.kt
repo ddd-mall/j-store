@@ -30,47 +30,47 @@ class BrandService(
     private val sequence: SnowFlakSequence,
     private val repository: BrandRepository,
 ) : BrandUseCase {
-    override fun save(command: BrandSaveCommand): Result<Brand, BusinessError> {
-        val duplicate =
-            repository.findByMerchantIdAndNormalizedName(
-                command.merchantId,
-                Brand.normalizeName(command.name),
-            )
-        if (duplicate != null && duplicate.id != command.id) {
-            return Failure(BrandErrors.NAME_DUPLICATE)
-        }
-        val brand =
-            command.id?.let { id ->
-                val existing = repository.findById(id) ?: return Failure(BrandErrors.NOT_FOUND)
-                if (existing.merchantId != command.merchantId) {
-                    return Failure(BrandErrors.MERCHANT_MISMATCH)
-                }
-                existing.rename(command.name)
-                existing
-            }
-                ?: Brand(
-                    id = BrandId(sequence.nextId()),
-                    merchantId = command.merchantId,
-                    name = command.name,
-                )
-        return Success(repository.save(brand))
+  override fun save(command: BrandSaveCommand): Result<Brand, BusinessError> {
+    val duplicate =
+        repository.findByMerchantIdAndNormalizedName(
+            command.merchantId,
+            Brand.normalizeName(command.name),
+        )
+    if (duplicate != null && duplicate.id != command.id) {
+      return Failure(BrandErrors.NAME_DUPLICATE)
     }
-
-    override fun activate(command: BrandStatusCommand): Result<Brand, BusinessError> =
-        changeStatus(command, Brand::activate)
-
-    override fun deactivate(command: BrandStatusCommand): Result<Brand, BusinessError> =
-        changeStatus(command, Brand::deactivate)
-
-    private fun changeStatus(
-        command: BrandStatusCommand,
-        change: Brand.() -> Unit,
-    ): Result<Brand, BusinessError> {
-        val brand = repository.findById(command.id) ?: return Failure(BrandErrors.NOT_FOUND)
-        if (brand.merchantId != command.merchantId) {
+    val brand =
+        command.id?.let { id ->
+          val existing = repository.findById(id) ?: return Failure(BrandErrors.NOT_FOUND)
+          if (existing.merchantId != command.merchantId) {
             return Failure(BrandErrors.MERCHANT_MISMATCH)
+          }
+          existing.rename(command.name)
+          existing
         }
-        brand.change()
-        return Success(repository.save(brand))
+            ?: Brand(
+                id = BrandId(sequence.nextId()),
+                merchantId = command.merchantId,
+                name = command.name,
+            )
+    return Success(repository.save(brand))
+  }
+
+  override fun activate(command: BrandStatusCommand): Result<Brand, BusinessError> =
+      changeStatus(command, Brand::activate)
+
+  override fun deactivate(command: BrandStatusCommand): Result<Brand, BusinessError> =
+      changeStatus(command, Brand::deactivate)
+
+  private fun changeStatus(
+      command: BrandStatusCommand,
+      change: Brand.() -> Unit,
+  ): Result<Brand, BusinessError> {
+    val brand = repository.findById(command.id) ?: return Failure(BrandErrors.NOT_FOUND)
+    if (brand.merchantId != command.merchantId) {
+      return Failure(BrandErrors.MERCHANT_MISMATCH)
     }
+    brand.change()
+    return Success(repository.save(brand))
+  }
 }

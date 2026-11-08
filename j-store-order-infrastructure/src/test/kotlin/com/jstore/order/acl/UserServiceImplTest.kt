@@ -26,26 +26,26 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 class UserServiceImplTest {
-    private val profiles = mock<UserProfileQueryService>()
-    private val service = UserServiceImpl(profiles, "issuer-a")
+  private val profiles = mock<UserProfileQueryService>()
+  private val service = UserServiceImpl(profiles, "issuer-a")
 
-    @Test
-    fun `active profile is translated into order local user info`() {
-        whenever(profiles.findInCurrentAuthenticationDomain(42))
-            .thenReturn(UserProfileInfo(42, "buyer", "+8613800138000", UserProfileStatus.ACTIVE))
+  @Test
+  fun `active profile is translated into order local user info`() {
+    whenever(profiles.findInCurrentAuthenticationDomain(42))
+        .thenReturn(UserProfileInfo(42, "buyer", "+8613800138000", UserProfileStatus.ACTIVE))
 
-        val info = service.findUserInfo(42)!!
+    val info = service.findUserInfo(42)!!
 
-        assertEquals(42, info.uid)
-        assertEquals("buyer", info.userName)
-        assertEquals("+8613800138000", info.phoneNumber?.value)
-    }
+    assertEquals(42, info.uid)
+    assertEquals("buyer", info.userName)
+    assertEquals("+8613800138000", info.phoneNumber?.value)
+  }
 
-    @Test
-    fun `disabled profile is not an eligible order buyer`() {
-        whenever(profiles.findInCurrentAuthenticationDomain(42))
-            .thenReturn(UserProfileInfo(42, "buyer", "+8613800138000", UserProfileStatus.DISABLED))
+  @Test
+  fun `disabled profile is not an eligible order buyer`() {
+    whenever(profiles.findInCurrentAuthenticationDomain(42))
+        .thenReturn(UserProfileInfo(42, "buyer", "+8613800138000", UserProfileStatus.DISABLED))
 
-        assertNull(service.findUserInfo(42))
-    }
+    assertNull(service.findUserInfo(42))
+  }
 }

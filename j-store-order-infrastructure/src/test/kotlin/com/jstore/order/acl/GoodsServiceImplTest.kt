@@ -25,62 +25,61 @@ import io.kotest.matchers.shouldBe
 
 class GoodsServiceImplTest :
     FunSpec({
-        test("queryGoods maps goods API snapshots without exposing goods domain objects") {
-            var capturedSpuIds: List<Long>? = null
-            val snapshotQueryService =
-                object : GoodsSnapshotQueryService {
-                    override fun queryLatestSnapshots(spuIds: List<Long>): List<GoodsSnapshotInfo> {
-                        capturedSpuIds = spuIds
-                        return listOf(
-                            GoodsSnapshotInfo(
-                                spuId = 1001L,
-                                merchantId = 7L,
-                                snapshotVersion = 7L,
-                                spuName = "Phone",
-                                skuSnapshots =
-                                    listOf(
-                                        GoodsSkuSnapshotInfo(
-                                            skuId = 2001L,
-                                            skuName = "Black 128G",
-                                            attributes =
-                                                listOf("color" to "black", "storage" to "128G"),
-                                        )
-                                    ),
-                            )
-                        )
-                    }
-                }
-
-            val service = GoodsServiceImpl(snapshotQueryService)
-
-            val result =
-                service.queryGoods(
-                    listOf(
-                        GoodsId(spuId = 1001L, skuId = 2001L),
-                        GoodsId(spuId = 1001L, skuId = 9999L),
-                        GoodsId(spuId = 1001L, skuId = 2001L),
+      test("queryGoods maps goods API snapshots without exposing goods domain objects") {
+        var capturedSpuIds: List<Long>? = null
+        val snapshotQueryService =
+            object : GoodsSnapshotQueryService {
+              override fun queryLatestSnapshots(spuIds: List<Long>): List<GoodsSnapshotInfo> {
+                capturedSpuIds = spuIds
+                return listOf(
+                    GoodsSnapshotInfo(
+                        spuId = 1001L,
+                        merchantId = 7L,
+                        snapshotVersion = 7L,
+                        spuName = "Phone",
+                        skuSnapshots =
+                            listOf(
+                                GoodsSkuSnapshotInfo(
+                                    skuId = 2001L,
+                                    skuName = "Black 128G",
+                                    attributes = listOf("color" to "black", "storage" to "128G"),
+                                )
+                            ),
                     )
                 )
+              }
+            }
 
-            capturedSpuIds shouldBe listOf(1001L)
-            result shouldContainExactly
+        val service = GoodsServiceImpl(snapshotQueryService)
+
+        val result =
+            service.queryGoods(
                 listOf(
-                    GoodsInfo(
-                        id = GoodsId(spuId = 1001L, skuId = 2001L),
-                        merchantId = 7L,
-                        snapshotVersion = 7L,
-                        spuName = "Phone",
-                        skuName = "Black 128G",
-                        attributes = listOf("color" to "black", "storage" to "128G"),
-                    ),
-                    GoodsInfo(
-                        id = GoodsId(spuId = 1001L, skuId = 2001L),
-                        merchantId = 7L,
-                        snapshotVersion = 7L,
-                        spuName = "Phone",
-                        skuName = "Black 128G",
-                        attributes = listOf("color" to "black", "storage" to "128G"),
-                    ),
+                    GoodsId(spuId = 1001L, skuId = 2001L),
+                    GoodsId(spuId = 1001L, skuId = 9999L),
+                    GoodsId(spuId = 1001L, skuId = 2001L),
                 )
-        }
+            )
+
+        capturedSpuIds shouldBe listOf(1001L)
+        result shouldContainExactly
+            listOf(
+                GoodsInfo(
+                    id = GoodsId(spuId = 1001L, skuId = 2001L),
+                    merchantId = 7L,
+                    snapshotVersion = 7L,
+                    spuName = "Phone",
+                    skuName = "Black 128G",
+                    attributes = listOf("color" to "black", "storage" to "128G"),
+                ),
+                GoodsInfo(
+                    id = GoodsId(spuId = 1001L, skuId = 2001L),
+                    merchantId = 7L,
+                    snapshotVersion = 7L,
+                    spuName = "Phone",
+                    skuName = "Black 128G",
+                    attributes = listOf("color" to "black", "storage" to "128G"),
+                ),
+            )
+      }
     })

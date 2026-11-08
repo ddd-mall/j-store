@@ -69,160 +69,160 @@ import org.springframework.transaction.support.TransactionTemplate
 @SpringBootTest(classes = [OutboxRelayCapacityTest.TestConfig::class])
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OutboxRelayCapacityTest {
-    @Autowired private lateinit var repository: OutboxEntryRepository
-    @Autowired private lateinit var jpaRepository: OutboxEntryPOJpaRepository
-    @Autowired private lateinit var transactionManager: PlatformTransactionManager
+  @Autowired private lateinit var repository: OutboxEntryRepository
+  @Autowired private lateinit var jpaRepository: OutboxEntryPOJpaRepository
+  @Autowired private lateinit var transactionManager: PlatformTransactionManager
 
-    @Test
-    fun `measure transaction commit to local delivery latency`() {
-        jpaRepository.deleteAll()
-        val config = OutboxRelayCapacityConfig.fromSystemProperties()
-        val committedAtNanos = ConcurrentHashMap<String, Long>()
-        val latencies = ConcurrentLinkedQueue<Duration>()
-        val delivered = CountDownLatch(config.messageCount)
-        val relayExecutor = Executors.newSingleThreadExecutor()
-        val producerExecutor = Executors.newFixedThreadPool(config.producerConcurrency)
-        val channel =
-            object : OutboxDeliveryChannel {
-                override val transportId: String = OutboxTransportIds.LOCAL_DOMAIN
+  @Test
+  fun `measure transaction commit to local delivery latency`() {
+    jpaRepository.deleteAll()
+    val config = OutboxRelayCapacityConfig.fromSystemProperties()
+    val committedAtNanos = ConcurrentHashMap<String, Long>()
+    val latencies = ConcurrentLinkedQueue<Duration>()
+    val delivered = CountDownLatch(config.messageCount)
+    val relayExecutor = Executors.newSingleThreadExecutor()
+    val producerExecutor = Executors.newFixedThreadPool(config.producerConcurrency)
+    val channel =
+        object : OutboxDeliveryChannel {
+          override val transportId: String = OutboxTransportIds.LOCAL_DOMAIN
 
-                override fun deliver(entry: OutboxMessage) {
-                    val committedNanos =
-                        checkNotNull(committedAtNanos[entry.id]) {
-                            "delivery observed before commit timestamp: ${entry.id}"
-                        }
-                    latencies += Duration.ofNanos(System.nanoTime() - committedNanos)
-                    delivered.countDown()
+          override fun deliver(entry: OutboxMessage) {
+            val committedNanos =
+                checkNotNull(committedAtNanos[entry.id]) {
+                  "delivery observed before commit timestamp: ${entry.id}"
                 }
-            }
-        val publisher =
-            OutboxPublisher(
-                repository,
-                OutboxDeliveryRouter(listOf(channel)),
-                OutboxProperties(
-                    batchSize = config.batchSize,
-                    maxInFlightPerPoll = config.batchSize,
-                    maxBatchesPerDrain = config.maxBatchesPerDrain,
-                    workerId = "capacity-relay",
-                ),
-                transactionOperations = SpringOutboxRelayTransactionOperations(transactionManager),
-            )
-        val coordinator = OutboxRelayCoordinator(publisher, relayExecutor)
-        val signal = TransactionAwareOutboxRelaySignal(coordinator)
-        val transactions = TransactionTemplate(transactionManager)
-        val start = CountDownLatch(1)
-        val startedAt = Instant.now()
-        val startedNanos = System.nanoTime()
+            latencies += Duration.ofNanos(System.nanoTime() - committedNanos)
+            delivered.countDown()
+          }
+        }
+    val publisher =
+        OutboxPublisher(
+            repository,
+            OutboxDeliveryRouter(listOf(channel)),
+            OutboxProperties(
+                batchSize = config.batchSize,
+                maxInFlightPerPoll = config.batchSize,
+                maxBatchesPerDrain = config.maxBatchesPerDrain,
+                workerId = "capacity-relay",
+            ),
+            transactionOperations = SpringOutboxRelayTransactionOperations(transactionManager),
+        )
+    val coordinator = OutboxRelayCoordinator(publisher, relayExecutor)
+    val signal = TransactionAwareOutboxRelaySignal(coordinator)
+    val transactions = TransactionTemplate(transactionManager)
+    val start = CountDownLatch(1)
+    val startedAt = Instant.now()
+    val startedNanos = System.nanoTime()
 
-        try {
-            val producers =
-                (1..config.messageCount).map { index ->
-                    producerExecutor.submit {
-                        start.await()
-                        val id = "capacity-$index"
-                        transactions.executeWithoutResult {
-                            repository.save(entry(id))
-                            TransactionSynchronizationManager.registerSynchronization(
-                                object : TransactionSynchronization {
-                                    override fun afterCommit() {
-                                        committedAtNanos[id] = System.nanoTime()
-                                    }
-                                }
-                            )
-                            signal.signalAfterCommit()
-                        }
+    try {
+      val producers =
+          (1..config.messageCount).map { index ->
+            producerExecutor.submit {
+              start.await()
+              val id = "capacity-$index"
+              transactions.executeWithoutResult {
+                repository.save(entry(id))
+                TransactionSynchronizationManager.registerSynchronization(
+                    object : TransactionSynchronization {
+                      override fun afterCommit() {
+                        committedAtNanos[id] = System.nanoTime()
+                      }
                     }
-                }
-            start.countDown()
-            producers.forEach { it.get(config.timeout.toSeconds(), TimeUnit.SECONDS) }
-            assertTrue(
-                delivered.await(config.timeout.toMillis(), TimeUnit.MILLISECONDS),
-                "relay timed out with ${delivered.count} messages undelivered",
-            )
-        } finally {
-            producerExecutor.shutdownNow()
-            relayExecutor.shutdown()
-            relayExecutor.awaitTermination(10, TimeUnit.SECONDS)
-        }
-
-        val completedNanos = System.nanoTime()
-        val completedAt = Instant.now()
-        val report =
-            OutboxRelayCapacityReport.create(
-                config,
-                latencies.toList(),
-                startedAt,
-                completedAt,
-                Duration.ofNanos(completedNanos - startedNanos),
-            )
-        writeReport(report)
-
-        assertEquals(config.messageCount, report.deliveredCount)
-        assertEquals(
-            config.messageCount.toLong(),
-            repository.countByStatus(OutboxEntryStatus.PUBLISHED),
-        )
-        assertEquals(0L, repository.countByStatus(OutboxEntryStatus.FAILED))
-        assertEquals(0L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER))
-    }
-
-    private fun entry(id: String): OutboxEntry {
-        val now = Instant.now()
-        return OutboxEntry(
-            id = id,
-            eventType = "capacity.probe",
-            payload = "{}",
-            aggregateType = "CapacityProbe",
-            aggregateId = id,
-            status = OutboxEntryStatus.PENDING,
-            createdAt = now,
-            updatedAt = now,
-            orderingKey = "CapacityProbe:$id",
-            sequenceNo = 1,
-        )
-    }
-
-    private fun writeReport(report: OutboxRelayCapacityReport) {
-        val configured = System.getProperty("outboxCapacity.output")
-        val output =
-            if (configured.isNullOrBlank()) {
-                Path.of("build/reports/outbox-relay-capacity/result.json")
-            } else {
-                Path.of(configured)
+                )
+                signal.signalAfterCommit()
+              }
             }
-        Files.createDirectories(output.toAbsolutePath().parent)
-        jacksonObjectMapper()
-            .registerModule(JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            .writerWithDefaultPrettyPrinter()
-            .writeValue(output.toFile(), report)
-        println("Outbox relay capacity report: ${output.toAbsolutePath()}")
+          }
+      start.countDown()
+      producers.forEach { it.get(config.timeout.toSeconds(), TimeUnit.SECONDS) }
+      assertTrue(
+          delivered.await(config.timeout.toMillis(), TimeUnit.MILLISECONDS),
+          "relay timed out with ${delivered.count} messages undelivered",
+      )
+    } finally {
+      producerExecutor.shutdownNow()
+      relayExecutor.shutdown()
+      relayExecutor.awaitTermination(10, TimeUnit.SECONDS)
     }
 
-    @SpringBootConfiguration
-    @EnableAutoConfiguration
-    @EntityScan(basePackageClasses = [OutboxEntryPO::class])
-    @EnableJpaRepositories(basePackageClasses = [OutboxEntryPOJpaRepository::class])
-    class TestConfig {
-        @Bean
-        fun outboxEntryRepository(
-            jpaRepository: OutboxEntryPOJpaRepository,
-            entityManager: EntityManager,
-        ): OutboxEntryRepository = OutboxEntryRepositoryImpl(jpaRepository, entityManager)
-    }
+    val completedNanos = System.nanoTime()
+    val completedAt = Instant.now()
+    val report =
+        OutboxRelayCapacityReport.create(
+            config,
+            latencies.toList(),
+            startedAt,
+            completedAt,
+            Duration.ofNanos(completedNanos - startedNanos),
+        )
+    writeReport(report)
 
-    companion object {
-        private val postgres: EmbeddedPostgres by lazy { EmbeddedPostgres.builder().start() }
+    assertEquals(config.messageCount, report.deliveredCount)
+    assertEquals(
+        config.messageCount.toLong(),
+        repository.countByStatus(OutboxEntryStatus.PUBLISHED),
+    )
+    assertEquals(0L, repository.countByStatus(OutboxEntryStatus.FAILED))
+    assertEquals(0L, repository.countByStatus(OutboxEntryStatus.DEAD_LETTER))
+  }
 
-        @JvmStatic
-        @DynamicPropertySource
-        fun registerProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.datasource.url") { postgres.getJdbcUrl("postgres", "postgres") }
-            registry.add("spring.datasource.username") { "postgres" }
-            registry.add("spring.datasource.password") { "" }
-            registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
-            registry.add("spring.jpa.hibernate.ddl-auto") { "create-drop" }
-            registry.add("spring.flyway.enabled") { "false" }
+  private fun entry(id: String): OutboxEntry {
+    val now = Instant.now()
+    return OutboxEntry(
+        id = id,
+        eventType = "capacity.probe",
+        payload = "{}",
+        aggregateType = "CapacityProbe",
+        aggregateId = id,
+        status = OutboxEntryStatus.PENDING,
+        createdAt = now,
+        updatedAt = now,
+        orderingKey = "CapacityProbe:$id",
+        sequenceNo = 1,
+    )
+  }
+
+  private fun writeReport(report: OutboxRelayCapacityReport) {
+    val configured = System.getProperty("outboxCapacity.output")
+    val output =
+        if (configured.isNullOrBlank()) {
+          Path.of("build/reports/outbox-relay-capacity/result.json")
+        } else {
+          Path.of(configured)
         }
+    Files.createDirectories(output.toAbsolutePath().parent)
+    jacksonObjectMapper()
+        .registerModule(JavaTimeModule())
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+        .writerWithDefaultPrettyPrinter()
+        .writeValue(output.toFile(), report)
+    println("Outbox relay capacity report: ${output.toAbsolutePath()}")
+  }
+
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
+  @EntityScan(basePackageClasses = [OutboxEntryPO::class])
+  @EnableJpaRepositories(basePackageClasses = [OutboxEntryPOJpaRepository::class])
+  class TestConfig {
+    @Bean
+    fun outboxEntryRepository(
+        jpaRepository: OutboxEntryPOJpaRepository,
+        entityManager: EntityManager,
+    ): OutboxEntryRepository = OutboxEntryRepositoryImpl(jpaRepository, entityManager)
+  }
+
+  companion object {
+    private val postgres: EmbeddedPostgres by lazy { EmbeddedPostgres.builder().start() }
+
+    @JvmStatic
+    @DynamicPropertySource
+    fun registerProperties(registry: DynamicPropertyRegistry) {
+      registry.add("spring.datasource.url") { postgres.getJdbcUrl("postgres", "postgres") }
+      registry.add("spring.datasource.username") { "postgres" }
+      registry.add("spring.datasource.password") { "" }
+      registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
+      registry.add("spring.jpa.hibernate.ddl-auto") { "create-drop" }
+      registry.add("spring.flyway.enabled") { "false" }
     }
+  }
 }

@@ -21,21 +21,21 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties("jstore.cart.limits")
 class CartLimitsProperties {
-    var minQuantity: Int = 1
-    var maxQuantity: Int = 999
-    var maxLines: Int = 100
+  var minQuantity: Int = 1
+  var maxQuantity: Int = 999
+  var maxLines: Int = 100
 
-    fun toLimits() = CartLimits(minQuantity, maxQuantity, maxLines)
+  fun toLimits() = CartLimits(minQuantity, maxQuantity, maxLines)
 }
 
 @ConfigurationProperties("jstore.cart.nacos")
 class CartNacosProperties {
-    var enabled: Boolean = false
-    var serverAddr: String = ""
-    var namespace: String = "public"
-    var group: String = "DEFAULT_GROUP"
-    var dataId: String = "j-store-cart.properties"
-    var timeoutMs: Long = 3000
-    var username: String = ""
-    var password: String = ""
+  var enabled: Boolean = false
+  var serverAddr: String = ""
+  var namespace: String = "public"
+  var group: String = "DEFAULT_GROUP"
+  var dataId: String = "j-store-cart.properties"
+  var timeoutMs: Long = 3000
+  var username: String = ""
+  var password: String = ""
 }

@@ -27,10 +27,10 @@ open class PollingOutboxWriter(
     private val repository: OutboxEntryRepository,
     private val signal: OutboxRelaySignal,
 ) : OutboxWriter {
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun append(messages: List<OutboxMessage>) {
-        if (messages.isEmpty()) return
-        repository.saveAll(messages.map(OutboxEntry::pending))
-        signal.signalAfterCommit()
-    }
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun append(messages: List<OutboxMessage>) {
+    if (messages.isEmpty()) return
+    repository.saveAll(messages.map(OutboxEntry::pending))
+    signal.signalAfterCommit()
+  }
 }

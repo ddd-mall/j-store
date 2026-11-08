@@ -46,171 +46,169 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.transaction.support.TransactionTemplate
 
 class TransactionalTradePaymentPreparationUseCaseTest {
-    @Test
-    fun `spring transaction operations suspend ambient transaction around provider call`() {
-        val outerConnection = mock<Connection>()
-        val durableConnection = mock<Connection>()
-        whenever(outerConnection.autoCommit).thenReturn(true)
-        whenever(durableConnection.autoCommit).thenReturn(true)
-        val dataSource = mock<DataSource>()
-        whenever(dataSource.connection).thenReturn(outerConnection, durableConnection)
-        val transactionManager = DataSourceTransactionManager(dataSource)
-        val operations = SpringTradePaymentPreparationTransactionOperations(transactionManager)
+  @Test
+  fun `spring transaction operations suspend ambient transaction around provider call`() {
+    val outerConnection = mock<Connection>()
+    val durableConnection = mock<Connection>()
+    whenever(outerConnection.autoCommit).thenReturn(true)
+    whenever(durableConnection.autoCommit).thenReturn(true)
+    val dataSource = mock<DataSource>()
+    whenever(dataSource.connection).thenReturn(outerConnection, durableConnection)
+    val transactionManager = DataSourceTransactionManager(dataSource)
+    val operations = SpringTradePaymentPreparationTransactionOperations(transactionManager)
 
-        TransactionTemplate(transactionManager).executeWithoutResult {
-            assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
-            operations.durable {
-                assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
-            }
-            operations.withoutTransaction {
-                assertFalse(TransactionSynchronizationManager.isActualTransactionActive())
-            }
-            assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+    TransactionTemplate(transactionManager).executeWithoutResult {
+      assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+      operations.durable {
+        assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+      }
+      operations.withoutTransaction {
+        assertFalse(TransactionSynchronizationManager.isActualTransactionActive())
+      }
+      assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+    }
+  }
+
+  @Test
+  fun `commits stable preparation before invoking provider outside transaction`() {
+    val instant = Instant.parse("2030-01-01T00:00:00Z")
+    val transactions = RecordingPaymentTransactions()
+    val repository = InMemoryTradePaymentRepository()
+    val service =
+        TradePaymentPreparationService(
+            repository,
+            { 8001 },
+            PaymentProviderGateway {
+              assertFalse(transactions.inDurableTransaction)
+              PaymentProviderResult.Accepted(
+                  "provider-1",
+                  "opaque-action",
+                  instant,
+                  instant.plusSeconds(300),
+              )
+            },
+            object : IntegrationMessagePublisher {
+              override fun publish(message: IntegrationMessage) = Unit
+            },
+        ) {
+          instant
         }
-    }
+    val useCase = TransactionalTradePaymentPreparationUseCase(service, transactions)
 
-    @Test
-    fun `commits stable preparation before invoking provider outside transaction`() {
-        val instant = Instant.parse("2030-01-01T00:00:00Z")
-        val transactions = RecordingPaymentTransactions()
-        val repository = InMemoryTradePaymentRepository()
-        val service =
-            TradePaymentPreparationService(
-                repository,
-                { 8001 },
-                PaymentProviderGateway {
-                    assertFalse(transactions.inDurableTransaction)
-                    PaymentProviderResult.Accepted(
-                        "provider-1",
-                        "opaque-action",
-                        instant,
-                        instant.plusSeconds(300),
+    assertIs<Success<Boolean>>(useCase.prepare(command(instant)))
+
+    assertEquals(listOf("durable", "external", "durable"), transactions.phases)
+    assertEquals(8001, repository.payment?.id?.value)
+  }
+
+  @Test
+  fun `commits cancelling state before invoking provider outside transaction`() {
+    val instant = Instant.parse("2030-01-01T00:00:00Z")
+    val transactions = RecordingPaymentTransactions()
+    val repository = InMemoryTradePaymentRepository()
+    repository.save(
+        TradePayment.prepare(
+                TradePaymentId(8001),
+                100,
+                200,
+                "FULL",
+                com.jstore.common.properties.Price.ofFen(1000),
+                "CNY",
+                listOf(
+                    com.jstore.payment.domain.payment.PaymentAllocationSnapshot(
+                        11,
+                        21,
+                        7,
+                        com.jstore.common.properties.Price.ofFen(1000),
                     )
-                },
-                object : IntegrationMessagePublisher {
-                    override fun publish(message: IntegrationMessage) = Unit
-                },
-            ) {
-                instant
+                ),
+                instant,
+            )
+            .also {
+              it.markReady(
+                  "provider-1",
+                  "opaque-action",
+                  instant,
+                  instant.plusSeconds(60),
+                  instant.plusSeconds(600),
+              )
             }
-        val useCase = TransactionalTradePaymentPreparationUseCase(service, transactions)
+    )
+    val service =
+        TradePaymentCancellationService(
+            repository,
+            PaymentProviderCancellationGateway {
+              assertFalse(transactions.inDurableTransaction)
+              PaymentProviderCancellationResult.Confirmed
+            },
+            object : IntegrationMessagePublisher {
+              override fun publish(message: IntegrationMessage) = Unit
+            },
+        ) {
+          instant
+        }
 
-        assertIs<Success<Boolean>>(useCase.prepare(command(instant)))
+    assertIs<Success<Boolean>>(
+        TransactionalTradePaymentCancellationUseCase(service, transactions)
+            .cancel(CancelPaymentInstallmentCommand(100, 200, "FULL", "cancel", "source", instant))
+    )
 
-        assertEquals(listOf("durable", "external", "durable"), transactions.phases)
-        assertEquals(8001, repository.payment?.id?.value)
-    }
+    assertEquals(listOf("durable", "external", "durable"), transactions.phases)
+    assertEquals(
+        com.jstore.payment.domain.payment.TradePaymentStatus.CANCELLED,
+        repository.payment?.status,
+    )
+  }
 
-    @Test
-    fun `commits cancelling state before invoking provider outside transaction`() {
-        val instant = Instant.parse("2030-01-01T00:00:00Z")
-        val transactions = RecordingPaymentTransactions()
-        val repository = InMemoryTradePaymentRepository()
-        repository.save(
-            TradePayment.prepare(
-                    TradePaymentId(8001),
-                    100,
-                    200,
-                    "FULL",
-                    com.jstore.common.properties.Price.ofFen(1000),
-                    "CNY",
-                    listOf(
-                        com.jstore.payment.domain.payment.PaymentAllocationSnapshot(
-                            11,
-                            21,
-                            7,
-                            com.jstore.common.properties.Price.ofFen(1000),
-                        )
-                    ),
-                    instant,
-                )
-                .also {
-                    it.markReady(
-                        "provider-1",
-                        "opaque-action",
-                        instant,
-                        instant.plusSeconds(60),
-                        instant.plusSeconds(600),
-                    )
-                }
-        )
-        val service =
-            TradePaymentCancellationService(
-                repository,
-                PaymentProviderCancellationGateway {
-                    assertFalse(transactions.inDurableTransaction)
-                    PaymentProviderCancellationResult.Confirmed
-                },
-                object : IntegrationMessagePublisher {
-                    override fun publish(message: IntegrationMessage) = Unit
-                },
-            ) {
-                instant
-            }
-
-        assertIs<Success<Boolean>>(
-            TransactionalTradePaymentCancellationUseCase(service, transactions)
-                .cancel(
-                    CancelPaymentInstallmentCommand(100, 200, "FULL", "cancel", "source", instant)
-                )
-        )
-
-        assertEquals(listOf("durable", "external", "durable"), transactions.phases)
-        assertEquals(
-            com.jstore.payment.domain.payment.TradePaymentStatus.CANCELLED,
-            repository.payment?.status,
-        )
-    }
-
-    private fun command(instant: Instant) =
-        PreparePaymentInstallmentCommand(
-            100,
-            200,
-            "FULL",
-            1000,
-            "CNY",
-            listOf(ContractPaymentAllocation(11, 21, 7, 1000)),
-            "source-1",
-            instant,
-            instant.plusSeconds(60),
-            instant.plusSeconds(600),
-        )
+  private fun command(instant: Instant) =
+      PreparePaymentInstallmentCommand(
+          100,
+          200,
+          "FULL",
+          1000,
+          "CNY",
+          listOf(ContractPaymentAllocation(11, 21, 7, 1000)),
+          "source-1",
+          instant,
+          instant.plusSeconds(60),
+          instant.plusSeconds(600),
+      )
 }
 
 private class RecordingPaymentTransactions : TradePaymentPreparationTransactionOperations {
-    val phases = mutableListOf<String>()
-    var inDurableTransaction = false
-        private set
+  val phases = mutableListOf<String>()
+  var inDurableTransaction = false
+    private set
 
-    override fun <T : Any> durable(action: () -> T): T {
-        phases += "durable"
-        check(!inDurableTransaction)
-        inDurableTransaction = true
-        return try {
-            action()
-        } finally {
-            inDurableTransaction = false
-        }
+  override fun <T : Any> durable(action: () -> T): T {
+    phases += "durable"
+    check(!inDurableTransaction)
+    inDurableTransaction = true
+    return try {
+      action()
+    } finally {
+      inDurableTransaction = false
     }
+  }
 
-    override fun <T : Any> withoutTransaction(action: () -> T): T {
-        phases += "external"
-        check(!inDurableTransaction)
-        return action()
-    }
+  override fun <T : Any> withoutTransaction(action: () -> T): T {
+    phases += "external"
+    check(!inDurableTransaction)
+    return action()
+  }
 }
 
 private class InMemoryTradePaymentRepository : TradePaymentRepository {
-    var payment: TradePayment? = null
+  var payment: TradePayment? = null
 
-    override fun save(aggregate: TradePayment): TradePayment = aggregate.also { payment = it }
+  override fun save(aggregate: TradePayment): TradePayment = aggregate.also { payment = it }
 
-    override fun findById(id: TradePaymentId): TradePayment? = payment?.takeIf { it.id == id }
+  override fun findById(id: TradePaymentId): TradePayment? = payment?.takeIf { it.id == id }
 
-    override fun findByInstallment(
-        settlementPlanId: Long,
-        installmentId: String,
-    ): TradePayment? = payment?.takeIf {
-        it.settlementPlanId == settlementPlanId && it.installmentId == installmentId
-    }
+  override fun findByInstallment(
+      settlementPlanId: Long,
+      installmentId: String,
+  ): TradePayment? = payment?.takeIf {
+    it.settlementPlanId == settlementPlanId && it.installmentId == installmentId
+  }
 }

@@ -39,10 +39,10 @@ data class SaleAuthorizedEvent(
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
-    override val eventName = "store.sale-authorized"
-    override val eventVersion = 1
-    override val aggregateType = "TradeSaleAuthorization"
-    override val aggregateId = orderPlanId.toString()
+  override val eventName = "store.sale-authorized"
+  override val eventVersion = 1
+  override val aggregateType = "TradeSaleAuthorization"
+  override val aggregateId = orderPlanId.toString()
 }
 
 @DomainEventType(name = "store.sale-authorization-released", version = 1)
@@ -53,10 +53,10 @@ data class SaleAuthorizationReleasedEvent(
     override val occurredAt: Instant,
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
-    override val eventName = "store.sale-authorization-released"
-    override val eventVersion = 1
-    override val aggregateType = "SaleAuthorization"
-    override val aggregateId = authorizationId.value
+  override val eventName = "store.sale-authorization-released"
+  override val eventVersion = 1
+  override val aggregateType = "SaleAuthorization"
+  override val aggregateId = authorizationId.value
 }
 
 @DomainEventType(name = "store.sale-authorization-rejected", version = 1)
@@ -67,8 +67,8 @@ data class SaleAuthorizationRejectedEvent(
     override val occurredAt: Instant = Instant.now(),
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
-    override val eventName = "store.sale-authorization-rejected"
-    override val eventVersion = 1
-    override val aggregateType = "TradeSaleAuthorization"
-    override val aggregateId = orderPlanId.toString()
+  override val eventName = "store.sale-authorization-rejected"
+  override val eventVersion = 1
+  override val aggregateType = "TradeSaleAuthorization"
+  override val aggregateId = orderPlanId.toString()
 }

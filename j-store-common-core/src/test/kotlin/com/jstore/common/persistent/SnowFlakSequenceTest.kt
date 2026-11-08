@@ -21,18 +21,18 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SnowFlakSequenceTest {
-    @Test
-    fun `current epoch ids remain positive and preserve worker bit layout`() {
-        val workerOne = SnowFlakSequence(workerId = 1, datacenterId = 2)
-        val workerTwo = SnowFlakSequence(workerId = 2, datacenterId = 2)
+  @Test
+  fun `current epoch ids remain positive and preserve worker bit layout`() {
+    val workerOne = SnowFlakSequence(workerId = 1, datacenterId = 2)
+    val workerTwo = SnowFlakSequence(workerId = 2, datacenterId = 2)
 
-        val first = workerOne.nextId()
-        val second = workerTwo.nextId()
+    val first = workerOne.nextId()
+    val second = workerTwo.nextId()
 
-        assertTrue(first > 0)
-        assertTrue(second > 0)
-        assertEquals(1, ((first shr 12) and 0x1f).toInt())
-        assertEquals(2, ((second shr 12) and 0x1f).toInt())
-        assertEquals(2, ((first shr 17) and 0x1f).toInt())
-    }
+    assertTrue(first > 0)
+    assertTrue(second > 0)
+    assertEquals(1, ((first shr 12) and 0x1f).toInt())
+    assertEquals(2, ((second shr 12) and 0x1f).toInt())
+    assertEquals(2, ((first shr 17) and 0x1f).toInt())
+  }
 }

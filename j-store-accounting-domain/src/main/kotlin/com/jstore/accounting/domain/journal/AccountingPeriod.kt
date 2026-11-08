@@ -27,22 +27,22 @@ import java.time.LocalDate
 data class AccountingPeriodId(override val value: Long) : Id<Long>(value)
 
 enum class PeriodStatus {
-    OPEN,
-    CLOSED,
+  OPEN,
+  CLOSED,
 }
 
 interface AccountingPeriod : AggregateRoot<AccountingPeriodId>, RecordsDomainEvents {
-    override val id: AccountingPeriodId
-    val periodCode: String
-    val startDate: LocalDate
-    val endDate: LocalDate
-    val status: PeriodStatus
-    val closedAt: Instant?
-    val closedBy: String?
+  override val id: AccountingPeriodId
+  val periodCode: String
+  val startDate: LocalDate
+  val endDate: LocalDate
+  val status: PeriodStatus
+  val closedAt: Instant?
+  val closedBy: String?
 
-    fun contains(date: LocalDate): Boolean
+  fun contains(date: LocalDate): Boolean
 
-    fun close(closedBy: String): Result<Unit, BusinessError>
+  fun close(closedBy: String): Result<Unit, BusinessError>
 
-    fun reopen(reason: String): Result<Unit, BusinessError>
+  fun reopen(reason: String): Result<Unit, BusinessError>
 }

@@ -25,26 +25,26 @@ import com.jstore.payment.domain.payment.PaymentRefundItem
 
 class RequestPaymentRefundCommandHandler(private val payments: PaymentUseCase) :
     IntegrationMessageHandler<RequestPaymentRefundCommand> {
-    override fun handlerId() = "payment.request-refund.v1"
+  override fun handlerId() = "payment.request-refund.v1"
 
-    override fun handle(message: RequestPaymentRefundCommand) {
-        payments
-            .requestRefund(
-                PaymentRefundRequest(
-                    message.orderId,
-                    message.afterSaleId,
-                    message.items.map {
-                        PaymentRefundItem(
-                            it.orderItemId,
-                            it.skuId,
-                            it.quantity,
-                            Price.ofFen(it.amountFen),
-                        )
-                    },
-                    Price.ofFen(message.amountFen),
-                ),
-                message.occurredAt,
-            )
-            .getOrThrow(::BusinessErrorException)
-    }
+  override fun handle(message: RequestPaymentRefundCommand) {
+    payments
+        .requestRefund(
+            PaymentRefundRequest(
+                message.orderId,
+                message.afterSaleId,
+                message.items.map {
+                  PaymentRefundItem(
+                      it.orderItemId,
+                      it.skuId,
+                      it.quantity,
+                      Price.ofFen(it.amountFen),
+                  )
+                },
+                Price.ofFen(message.amountFen),
+            ),
+            message.occurredAt,
+        )
+        .getOrThrow(::BusinessErrorException)
+  }
 }

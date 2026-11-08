@@ -46,90 +46,90 @@ class TransactionalOrderUseCase(
     private val delegate: OrderUseCase,
     transactionManager: PlatformTransactionManager,
 ) : OrderUseCase {
-    private val write = TransactionTemplate(transactionManager)
-    private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+  private val write = TransactionTemplate(transactionManager)
+  private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun getOrderById(
-        buyerAuthenticationDomain: String,
-        buyerId: Long,
-        orderId: OrderId,
-    ) = read {
-        delegate.getOrderById(buyerAuthenticationDomain, buyerId, orderId)
-    }
+  override fun getOrderById(
+      buyerAuthenticationDomain: String,
+      buyerId: Long,
+      orderId: OrderId,
+  ) = read {
+    delegate.getOrderById(buyerAuthenticationDomain, buyerId, orderId)
+  }
 
-    override fun pageListByUserId(
-        buyerAuthenticationDomain: String,
-        uid: Long,
-        currentPage: Int,
-        pageSize: Int,
-    ): Page<Order> = read {
-        delegate.pageListByUserId(buyerAuthenticationDomain, uid, currentPage, pageSize)
-    }
+  override fun pageListByUserId(
+      buyerAuthenticationDomain: String,
+      uid: Long,
+      currentPage: Int,
+      pageSize: Int,
+  ): Page<Order> = read {
+    delegate.pageListByUserId(buyerAuthenticationDomain, uid, currentPage, pageSize)
+  }
 
-    override fun confirmTradeCommitment(orderId: OrderId) = write {
-        delegate.confirmTradeCommitment(orderId)
-    }
+  override fun confirmTradeCommitment(orderId: OrderId) = write {
+    delegate.confirmTradeCommitment(orderId)
+  }
 
-    override fun rejectTradeCommitment(orderId: OrderId, reason: String) = write {
-        delegate.rejectTradeCommitment(orderId, reason)
-    }
+  override fun rejectTradeCommitment(orderId: OrderId, reason: String) = write {
+    delegate.rejectTradeCommitment(orderId, reason)
+  }
 
-    override fun recordPaymentCaptured(
-        orderId: OrderId,
-        paymentReference: String,
-        amount: Price,
-        currency: String,
-        occurredAt: Instant,
-    ) = write {
-        delegate.recordPaymentCaptured(orderId, paymentReference, amount, currency, occurredAt)
-    }
+  override fun recordPaymentCaptured(
+      orderId: OrderId,
+      paymentReference: String,
+      amount: Price,
+      currency: String,
+      occurredAt: Instant,
+  ) = write {
+    delegate.recordPaymentCaptured(orderId, paymentReference, amount, currency, occurredAt)
+  }
 
-    override fun recordFulfillmentPrepared(orderId: OrderId, fulfillmentReference: String) = write {
-        delegate.recordFulfillmentPrepared(orderId, fulfillmentReference)
-    }
+  override fun recordFulfillmentPrepared(orderId: OrderId, fulfillmentReference: String) = write {
+    delegate.recordFulfillmentPrepared(orderId, fulfillmentReference)
+  }
 
-    override fun recordShipmentDispatched(orderId: OrderId, fulfillmentReference: String) = write {
-        delegate.recordShipmentDispatched(orderId, fulfillmentReference)
-    }
+  override fun recordShipmentDispatched(orderId: OrderId, fulfillmentReference: String) = write {
+    delegate.recordShipmentDispatched(orderId, fulfillmentReference)
+  }
 
-    override fun recordShipmentDelivered(orderId: OrderId, fulfillmentReference: String) = write {
-        delegate.recordShipmentDelivered(orderId, fulfillmentReference)
-    }
+  override fun recordShipmentDelivered(orderId: OrderId, fulfillmentReference: String) = write {
+    delegate.recordShipmentDelivered(orderId, fulfillmentReference)
+  }
 
-    override fun recordRefundSucceeded(
-        orderId: OrderId,
-        refundId: String,
-        afterSaleId: AfterSaleId,
-        items: List<SuccessfulRefundItem>,
-        occurredAt: Instant,
-    ) = write { delegate.recordRefundSucceeded(orderId, refundId, afterSaleId, items, occurredAt) }
+  override fun recordRefundSucceeded(
+      orderId: OrderId,
+      refundId: String,
+      afterSaleId: AfterSaleId,
+      items: List<SuccessfulRefundItem>,
+      occurredAt: Instant,
+  ) = write { delegate.recordRefundSucceeded(orderId, refundId, afterSaleId, items, occurredAt) }
 
-    override fun completeOrder(orderId: OrderId) = write { delegate.completeOrder(orderId) }
+  override fun completeOrder(orderId: OrderId) = write { delegate.completeOrder(orderId) }
 
-    override fun cancelOrder(
-        buyerAuthenticationDomain: String,
-        buyerId: Long,
-        cmd: OrderCancelCMD,
-    ) = write {
-        delegate.cancelOrder(buyerAuthenticationDomain, buyerId, cmd)
-    }
+  override fun cancelOrder(
+      buyerAuthenticationDomain: String,
+      buyerId: Long,
+      cmd: OrderCancelCMD,
+  ) = write {
+    delegate.cancelOrder(buyerAuthenticationDomain, buyerId, cmd)
+  }
 
-    private fun <T> read(block: () -> T): T = requireNotNull(read.execute { block() })
+  private fun <T> read(block: () -> T): T = requireNotNull(read.execute { block() })
 
-    private fun <T> write(block: () -> T): T = requireNotNull(write.execute { block() })
+  private fun <T> write(block: () -> T): T = requireNotNull(write.execute { block() })
 }
 
 class TransactionalInternalOrderCreationUseCase(
     private val delegate: InternalOrderCreationUseCase,
     transactionManager: PlatformTransactionManager,
 ) : InternalOrderCreationUseCase {
-    private val write = TransactionTemplate(transactionManager)
+  private val write = TransactionTemplate(transactionManager)
 
-    override fun createOrder(cmd: CreateOrderFromTradeCommand) =
-        requireNotNull(write.execute { delegate.createOrder(cmd) })
+  override fun createOrder(cmd: CreateOrderFromTradeCommand) =
+      requireNotNull(write.execute { delegate.createOrder(cmd) })
 
-    override fun cancelOrder(tradeId: Long, orderPlanId: Long, reason: String) =
-        requireNotNull(write.execute { delegate.cancelOrder(tradeId, orderPlanId, reason) })
+  override fun cancelOrder(tradeId: Long, orderPlanId: Long, reason: String) =
+      requireNotNull(write.execute { delegate.cancelOrder(tradeId, orderPlanId, reason) })
 }
 
 /** Spring transaction boundary for after-sale commands and consistent reads. */
@@ -137,49 +137,50 @@ class TransactionalAfterSaleUseCase(
     private val delegate: AfterSaleUseCase,
     transactionManager: PlatformTransactionManager,
 ) : AfterSaleUseCase {
-    private val write = TransactionTemplate(transactionManager)
-    private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+  private val write = TransactionTemplate(transactionManager)
+  private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun findById(id: AfterSaleId): Result<AfterSale, BusinessError> = read {
-        delegate.findById(id)
-    }
+  override fun findById(id: AfterSaleId): Result<AfterSale, BusinessError> = read {
+    delegate.findById(id)
+  }
 
-    override fun listByOrderForAccess(
-        orderId: OrderId
-    ): Result<AfterSaleOrderAccess, BusinessError> = read { delegate.listByOrderForAccess(orderId) }
+  override fun listByOrderForAccess(orderId: OrderId): Result<AfterSaleOrderAccess, BusinessError> =
+      read {
+        delegate.listByOrderForAccess(orderId)
+      }
 
-    override fun create(buyerAuthenticationDomain: String, cmd: AfterSaleCreateCMD) = write {
-        delegate.create(buyerAuthenticationDomain, cmd)
-    }
+  override fun create(buyerAuthenticationDomain: String, cmd: AfterSaleCreateCMD) = write {
+    delegate.create(buyerAuthenticationDomain, cmd)
+  }
 
-    override fun approve(cmd: AfterSaleApproveCMD) = write { delegate.approve(cmd) }
+  override fun approve(cmd: AfterSaleApproveCMD) = write { delegate.approve(cmd) }
 
-    override fun reject(cmd: AfterSaleRejectCMD) = write { delegate.reject(cmd) }
+  override fun reject(cmd: AfterSaleRejectCMD) = write { delegate.reject(cmd) }
 
-    override fun cancel(buyerAuthenticationDomain: String, cmd: AfterSaleCancelCMD) = write {
-        delegate.cancel(buyerAuthenticationDomain, cmd)
-    }
+  override fun cancel(buyerAuthenticationDomain: String, cmd: AfterSaleCancelCMD) = write {
+    delegate.cancel(buyerAuthenticationDomain, cmd)
+  }
 
-    override fun receiveReturn(cmd: AfterSaleReceiveReturnCMD) = write {
-        delegate.receiveReturn(cmd)
-    }
+  override fun receiveReturn(cmd: AfterSaleReceiveReturnCMD) = write {
+    delegate.receiveReturn(cmd)
+  }
 
-    override fun retryRefund(cmd: AfterSaleRetryRefundCMD) = write { delegate.retryRefund(cmd) }
+  override fun retryRefund(cmd: AfterSaleRetryRefundCMD) = write { delegate.retryRefund(cmd) }
 
-    override fun recordRefundSucceeded(
-        afterSaleId: AfterSaleId,
-        refundId: String,
-        occurredAt: Instant,
-    ) = write { delegate.recordRefundSucceeded(afterSaleId, refundId, occurredAt) }
+  override fun recordRefundSucceeded(
+      afterSaleId: AfterSaleId,
+      refundId: String,
+      occurredAt: Instant,
+  ) = write { delegate.recordRefundSucceeded(afterSaleId, refundId, occurredAt) }
 
-    override fun recordRefundFailed(
-        afterSaleId: AfterSaleId,
-        refundId: String,
-        reason: String,
-        occurredAt: Instant,
-    ) = write { delegate.recordRefundFailed(afterSaleId, refundId, reason, occurredAt) }
+  override fun recordRefundFailed(
+      afterSaleId: AfterSaleId,
+      refundId: String,
+      reason: String,
+      occurredAt: Instant,
+  ) = write { delegate.recordRefundFailed(afterSaleId, refundId, reason, occurredAt) }
 
-    private fun <T> read(block: () -> T): T = requireNotNull(read.execute { block() })
+  private fun <T> read(block: () -> T): T = requireNotNull(read.execute { block() })
 
-    private fun <T> write(block: () -> T): T = requireNotNull(write.execute { block() })
+  private fun <T> write(block: () -> T): T = requireNotNull(write.execute { block() })
 }

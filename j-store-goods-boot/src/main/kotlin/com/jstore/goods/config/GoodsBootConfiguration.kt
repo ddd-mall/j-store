@@ -36,77 +36,77 @@ import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
 class GoodsBootConfiguration {
-    @Bean
-    fun spuFactory(snowFlakSequence: SnowFlakSequence): SpuFactory {
-        return SpuFactoryImpl(snowFlakSequence)
-    }
+  @Bean
+  fun spuFactory(snowFlakSequence: SnowFlakSequence): SpuFactory {
+    return SpuFactoryImpl(snowFlakSequence)
+  }
 
-    @Bean
-    fun goodsStyleFactory(snowFlakSequence: SnowFlakSequence): GoodsStyleFactory {
-        return GoodsStyleFactoryImpl(snowFlakSequence)
-    }
+  @Bean
+  fun goodsStyleFactory(snowFlakSequence: SnowFlakSequence): GoodsStyleFactory {
+    return GoodsStyleFactoryImpl(snowFlakSequence)
+  }
 
-    @Bean
-    fun spuSnapshotFactory(snowFlakSequence: SnowFlakSequence): SpuSnapshotFactory {
-        return SpuSnapshotFactoryImpl(snowFlakSequence)
-    }
+  @Bean
+  fun spuSnapshotFactory(snowFlakSequence: SnowFlakSequence): SpuSnapshotFactory {
+    return SpuSnapshotFactoryImpl(snowFlakSequence)
+  }
 
-    @Bean
-    fun commodityService(
-        spuFactory: SpuFactory,
-        spuRepository: SpuRepository,
-        domainEventPublisher: DomainEventPublisher,
-        snapshotFactory: SpuSnapshotFactory,
-        snapshotRepository: SpuSnapshotRepository,
-        goodsStyleRepository: GoodsStyleRepository,
-        goodsStyleFactory: GoodsStyleFactory,
-        brandRepository: BrandRepository,
-        productTypeRepository: ProductTypeRepository,
-    ): CommodityService {
-        return CommodityService(
-            spuFactory = spuFactory,
-            spuRepository = spuRepository,
-            domainEventPublisher = domainEventPublisher,
-            snapshotFactory = snapshotFactory,
-            snapshotRepository = snapshotRepository,
-            goodsStyleRepository = goodsStyleRepository,
-            goodsStyleFactory = goodsStyleFactory,
-            brandRepository = brandRepository,
-            productTypeRepository = productTypeRepository,
-        )
-    }
+  @Bean
+  fun commodityService(
+      spuFactory: SpuFactory,
+      spuRepository: SpuRepository,
+      domainEventPublisher: DomainEventPublisher,
+      snapshotFactory: SpuSnapshotFactory,
+      snapshotRepository: SpuSnapshotRepository,
+      goodsStyleRepository: GoodsStyleRepository,
+      goodsStyleFactory: GoodsStyleFactory,
+      brandRepository: BrandRepository,
+      productTypeRepository: ProductTypeRepository,
+  ): CommodityService {
+    return CommodityService(
+        spuFactory = spuFactory,
+        spuRepository = spuRepository,
+        domainEventPublisher = domainEventPublisher,
+        snapshotFactory = snapshotFactory,
+        snapshotRepository = snapshotRepository,
+        goodsStyleRepository = goodsStyleRepository,
+        goodsStyleFactory = goodsStyleFactory,
+        brandRepository = brandRepository,
+        productTypeRepository = productTypeRepository,
+    )
+  }
 
-    @Bean
-    fun brandService(
-        snowFlakSequence: SnowFlakSequence,
-        brandRepository: BrandRepository,
-    ): BrandService = BrandService(snowFlakSequence, brandRepository)
+  @Bean
+  fun brandService(
+      snowFlakSequence: SnowFlakSequence,
+      brandRepository: BrandRepository,
+  ): BrandService = BrandService(snowFlakSequence, brandRepository)
 
-    @Bean
-    @Primary
-    fun transactionalBrandUseCase(
-        brandService: BrandService,
-        transactionManager: PlatformTransactionManager,
-    ): BrandUseCase = TransactionalBrandUseCase(brandService, transactionManager)
+  @Bean
+  @Primary
+  fun transactionalBrandUseCase(
+      brandService: BrandService,
+      transactionManager: PlatformTransactionManager,
+  ): BrandUseCase = TransactionalBrandUseCase(brandService, transactionManager)
 
-    @Bean
-    fun productTypeService(
-        snowFlakSequence: SnowFlakSequence,
-        productTypeRepository: ProductTypeRepository,
-    ): ProductTypeService = ProductTypeService(snowFlakSequence, productTypeRepository)
+  @Bean
+  fun productTypeService(
+      snowFlakSequence: SnowFlakSequence,
+      productTypeRepository: ProductTypeRepository,
+  ): ProductTypeService = ProductTypeService(snowFlakSequence, productTypeRepository)
 
-    @Bean
-    @Primary
-    fun transactionalProductTypeUseCase(
-        productTypeService: ProductTypeService,
-        transactionManager: PlatformTransactionManager,
-    ): ProductTypeUseCase = TransactionalProductTypeUseCase(productTypeService, transactionManager)
+  @Bean
+  @Primary
+  fun transactionalProductTypeUseCase(
+      productTypeService: ProductTypeService,
+      transactionManager: PlatformTransactionManager,
+  ): ProductTypeUseCase = TransactionalProductTypeUseCase(productTypeService, transactionManager)
 
-    @Bean
-    @Primary
-    fun transactionalCommodityUseCase(
-        commodityService: CommodityService,
-        transactionManager: PlatformTransactionManager,
-    ): TransactionalCommodityUseCase =
-        TransactionalCommodityUseCase(commodityService, commodityService, transactionManager)
+  @Bean
+  @Primary
+  fun transactionalCommodityUseCase(
+      commodityService: CommodityService,
+      transactionManager: PlatformTransactionManager,
+  ): TransactionalCommodityUseCase =
+      TransactionalCommodityUseCase(commodityService, commodityService, transactionManager)
 }

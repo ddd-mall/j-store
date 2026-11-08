@@ -19,8 +19,8 @@ package com.jstore.payment.domain.payment.persistence
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface TradePaymentPOJpaRepository : JpaRepository<TradePaymentPO, Long> {
-    fun findBySettlementPlanIdAndInstallmentId(
-        settlementPlanId: Long,
-        installmentId: String,
-    ): TradePaymentPO?
+  fun findBySettlementPlanIdAndInstallmentId(
+      settlementPlanId: Long,
+      installmentId: String,
+  ): TradePaymentPO?
 }

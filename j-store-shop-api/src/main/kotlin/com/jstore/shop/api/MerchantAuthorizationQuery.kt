@@ -17,14 +17,14 @@
 package com.jstore.shop.api
 
 enum class MerchantCapability {
-    PAYMENT_READ,
-    PAYMENT_MANAGE,
-    FULFILLMENT_READ,
-    FULFILLMENT_MANAGE,
-    AFTER_SALE_READ,
-    AFTER_SALE_MANAGE,
+  PAYMENT_READ,
+  PAYMENT_MANAGE,
+  FULFILLMENT_READ,
+  FULFILLMENT_MANAGE,
+  AFTER_SALE_READ,
+  AFTER_SALE_MANAGE,
 }
 
 fun interface MerchantAuthorizationQuery {
-    fun isAllowed(accountId: Long, merchantId: Long, capability: MerchantCapability): Boolean
+  fun isAllowed(accountId: Long, merchantId: Long, capability: MerchantCapability): Boolean
 }
