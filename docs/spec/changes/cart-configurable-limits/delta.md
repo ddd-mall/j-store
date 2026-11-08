@@ -53,3 +53,15 @@ HttpClient 5.6.3 的官方 parent POM 本身选择 HttpCore 5.4.3；其余 Boot 
 退出码 0、无漏洞发现。Nacos 监听以 ConfigService mock 验证，真实服务端连接与配置推送、
 独立评审未执行；远端 CI 状态以 PR 最新提交检查为准。
 详细证据摘要见 `docs/spec/cart/summary.md`。
+
+## 2026-11-08：依赖漏洞门禁回归
+
+PR #71 提交 `ef9c97ea` 的 [远端 OSV 报告](https://github.com/ddd-mall/j-store/actions/runs/42494997499/job/128775327690) 在生产 SBOM 中发现 11 条不同公告。沿用原有 catalog 与统一 Platform BOM 的解析路径，更新以下安全下限：
+
+| 依赖 | 原版本 → 修复版本 | 远端报告中的公告 |
+|---|---|---|
+| Guava | 33.6.0-jre → 33.7.2-jre | GHSA-xxph-c9ww-hj94 |
+| Jackson BOM（core / databind） | 2.21.5 → 2.21.7 | GHSA-7hhh-6rmp-j9qf、GHSA-p6pp-m3f8-5c89、GHSA-cxp5-3px4-pw24、GHSA-gx83-3vf8-gh7j、GHSA-q4xh-88c3-wmh7、GHSA-wjgm-6hv5-3cvf、GHSA-wv8q-qhhj-9h54 |
+| OpenTelemetry BOM | 1.62.0 → 1.67.0 | GHSA-ccrj-gw8r-854m |
+
+依赖治理测试在旧版本失败，更新后通过。Gradle dependencyInsight 确认以上修复版本实际生效；重新生成的 227 包生产 SBOM 由 OSV Scanner 2.4.0 扫描后只剩 Spring MVC 6.2.19 上的 [CVE-2026-47884](https://spring.io/security/cve-2026-47884/) 和 [CVE-2026-47890](https://spring.io/security/cve-2026-47890/)，扫描仍返回 1。未改动扫描规则或添加豁免。Spring 官方的同系列修复 6.2.20 仅限企业订阅，公开修复从 7.0.9 开始。回退上述版本及对应治理断言会重新暴露这 9 条公告。

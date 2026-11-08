@@ -111,8 +111,9 @@ class DependencyManagementContractTest(unittest.TestCase):
         versions = self.catalog["versions"]
         libraries = self.catalog["libraries"]
 
-        self.assertEqual("1.62.0", versions["open-telemetry"])
-        self.assertEqual("2.21.5", versions["jackson"])
+        self.assertEqual("33.7.2-jre", versions["guava"])
+        self.assertEqual("1.67.0", versions["open-telemetry"])
+        self.assertEqual("2.21.7", versions["jackson"])
         # GHSA-c4c3-7fpv-j4q5 / GHSA-fccg-mwvh-qqg4: first patched 4.1 release.
         self.assertEqual("4.1.137.Final", versions["netty"])
         self.assertEqual("2.25.5", versions["log4j"])
