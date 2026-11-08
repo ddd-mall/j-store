@@ -34,7 +34,7 @@ dependencies {
   implementation(kotlin("stdlib"))
 }
 
-val repositoryRoot = rootDir.parentFile
+val repositoryRoot: File = rootDir.parentFile
 val projectLicenseFile = layout.projectDirectory.file("../LICENSE")
 val thirdPartyNoticeFile = layout.projectDirectory.file("../THIRD_PARTY.md")
 
