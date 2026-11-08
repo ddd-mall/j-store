@@ -9,7 +9,6 @@ junit = "6.1.2"
 mockito = "5.23.0"
 mockito-kotlin = "6.3.0"
 libphonenumber = "9.0.36"
-jjwt = "0.13.0"
 open-telemetry = "1.62.0"
 jackson = "2.21.5"
 netty = "4.1.137.Final"
@@ -65,6 +64,11 @@ spring-tx = { module = "org.springframework:spring-tx" }
 spring-data-commons = { module = "org.springframework.data:spring-data-commons" }
 spring-data-redis = { module = "org.springframework.data:spring-data-redis" }
 spring-data-jpa = { module = "org.springframework.data:spring-data-jpa" }
+spring-authorization-server = { module = "org.springframework.security:spring-security-oauth2-authorization-server" }
+spring-security-test = { module = "org.springframework.security:spring-security-test" }
+spring-security-web = { module = "org.springframework.security:spring-security-web" }
+spring-security-config = { module = "org.springframework.security:spring-security-config" }
+spring-session-data-redis = { module = "org.springframework.session:spring-session-data-redis" }
 spring-security-crypto = { module = "org.springframework.security:spring-security-crypto" }
 tomcat-embed-core = { module = "org.apache.tomcat.embed:tomcat-embed-core", version.ref = "tomcat" }
 tomcat-embed-el = { module = "org.apache.tomcat.embed:tomcat-embed-el", version.ref = "tomcat" }
@@ -83,9 +87,6 @@ micrometer-tracing-bridge-otel = { module = "io.micrometer:micrometer-tracing-br
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 fastexcel = { module = "cn.idev.excel:fastexcel", version.ref = "fastexcel" }
 libphonenumber = { module = "com.googlecode.libphonenumber:libphonenumber", version.ref = "libphonenumber" }
-jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
-jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
-jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
 money-api = { module = "javax.money:money-api", version.ref = "money-api" }
 
 # Jackson coordinates are aligned by the approved security BOM

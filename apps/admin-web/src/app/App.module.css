@@ -1,0 +1,3 @@
+.entry {
+  padding: clamp(24px, 5vw, 64px);
+}

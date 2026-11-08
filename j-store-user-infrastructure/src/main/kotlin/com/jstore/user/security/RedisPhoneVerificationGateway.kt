@@ -45,14 +45,18 @@ class RedisPhoneVerificationGateway(
         require(sendIntervalSeconds > 0) { "send interval must be positive" }
     }
 
-    override fun createChallenge(phoneNumber: PhoneNumber): IssuedPhoneVerificationChallenge? {
+    override fun createChallenge(
+        phoneNumber: PhoneNumber,
+        purpose: String,
+        context: String,
+    ): IssuedPhoneVerificationChallenge? {
         val challengeId = randomBytesHex(24)
         val code = random.nextInt(1_000_000).toString().padStart(6, '0')
         val stored =
             redisTemplate.execute(
                 CREATE_SCRIPT,
                 listOf(rateKey(phoneNumber), challengeKey(challengeId)),
-                digest(challengeId, phoneNumber, code),
+                digest(challengeId, phoneNumber, code, purpose, context),
                 challengeTtlSeconds.toString(),
                 sendIntervalSeconds.toString(),
             ) == 1L
@@ -69,6 +73,8 @@ class RedisPhoneVerificationGateway(
     override fun consumeChallenge(
         phoneNumber: PhoneNumber,
         proof: PhoneVerificationProof,
+        purpose: String,
+        context: String,
     ): Boolean {
         if (
             proof.challengeId.isBlank() || proof.code.length != 6 || !proof.code.all(Char::isDigit)
@@ -78,14 +84,23 @@ class RedisPhoneVerificationGateway(
         return redisTemplate.execute(
             CONSUME_SCRIPT,
             listOf(challengeKey(proof.challengeId)),
-            digest(proof.challengeId, phoneNumber, proof.code),
+            digest(proof.challengeId, phoneNumber, proof.code, purpose, context),
         ) == 1L
     }
 
-    private fun digest(challengeId: String, phoneNumber: PhoneNumber, code: String): String {
+    private fun digest(
+        challengeId: String,
+        phoneNumber: PhoneNumber,
+        code: String,
+        purpose: String,
+        context: String,
+    ): String {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(hmacKey)
-        return mac.doFinal("$challengeId:${phoneNumber.value}:$code".toByteArray(Charsets.UTF_8))
+        return mac.doFinal(
+                "$purpose:$context:$challengeId:${phoneNumber.value}:$code"
+                    .toByteArray(Charsets.UTF_8)
+            )
             .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
     }
 

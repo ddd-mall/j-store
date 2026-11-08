@@ -30,11 +30,17 @@ data class IssuedPhoneVerificationChallenge(
 
 interface PhoneVerificationGateway {
     /** Returns null when the phone number is currently send-rate-limited. */
-    fun createChallenge(phoneNumber: PhoneNumber): IssuedPhoneVerificationChallenge?
+    fun createChallenge(
+        phoneNumber: PhoneNumber,
+        purpose: String = "registration",
+        context: String = "",
+    ): IssuedPhoneVerificationChallenge?
 
     fun consumeChallenge(
         phoneNumber: PhoneNumber,
         proof: PhoneVerificationProof,
+        purpose: String = "registration",
+        context: String = "",
     ): Boolean
 }
 

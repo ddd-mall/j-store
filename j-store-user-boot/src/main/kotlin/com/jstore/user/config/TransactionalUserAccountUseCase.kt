@@ -20,13 +20,11 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Result
 import com.jstore.common.utils.Success
+import com.jstore.user.domain.useraccount.AccountSessionStore
 import com.jstore.user.domain.useraccount.Nickname
 import com.jstore.user.domain.useraccount.PhoneVerificationProof
-import com.jstore.user.domain.useraccount.TokenProvider
-import com.jstore.user.domain.useraccount.TokenStore
 import com.jstore.user.domain.useraccount.UserId
 import com.jstore.user.domain.useraccount.command.UserRegisterCMD
-import com.jstore.user.service.RefreshTokenDigest
 import com.jstore.user.service.UserAccountUseCase
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -38,8 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate
  */
 class TransactionalUserAccountUseCase(
     private val delegate: UserAccountUseCase,
-    private val tokenProvider: TokenProvider,
-    private val tokenStore: TokenStore,
+    private val tokenStore: AccountSessionStore,
     transactionManager: PlatformTransactionManager,
 ) : UserAccountUseCase {
     private val write = TransactionTemplate(transactionManager)
@@ -51,28 +48,6 @@ class TransactionalUserAccountUseCase(
     override fun register(cmd: UserRegisterCMD, verificationProof: PhoneVerificationProof) = tx {
         delegate.register(cmd, verificationProof)
     }
-
-    override fun login(phoneNumber: PhoneNumber, rawPassword: String) =
-        tx { delegate.login(phoneNumber, rawPassword) }
-            .also { result ->
-                if (result is Success) {
-                    tokenProvider.parseRefreshToken(result.value.refreshToken)?.let { claims ->
-                        tokenStore.storeRefreshSession(
-                            userId = claims.userId,
-                            sessionId = claims.sessionId,
-                            refreshTokenDigest =
-                                RefreshTokenDigest.sha256(result.value.refreshToken),
-                            sessionEpoch = claims.sessionEpoch,
-                            ttlSeconds = REFRESH_TOKEN_TTL_SECONDS,
-                        )
-                    }
-                }
-            }
-
-    // 刷新令牌是 Redis 主导的外部状态交换，不伪装成数据库原子事务。
-    override fun refreshToken(refreshToken: String) = delegate.refreshToken(refreshToken)
-
-    override fun logout(userId: UserId, accessToken: String) = delegate.logout(userId, accessToken)
 
     override fun findById(userId: UserId) = query { delegate.findById(userId) }
 
@@ -109,8 +84,4 @@ class TransactionalUserAccountUseCase(
     private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 
     private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
-
-    private companion object {
-        const val REFRESH_TOKEN_TTL_SECONDS = 604800L
-    }
 }

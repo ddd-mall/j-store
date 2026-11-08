@@ -84,7 +84,7 @@ class OrderBootConfiguration {
     @Bean
     fun orderUserService(
         userProfileQueryService: UserProfileQueryService,
-        @org.springframework.beans.factory.annotation.Value($$"${jwt.issuer}")
+        @org.springframework.beans.factory.annotation.Value($$"${jstore.oidc.issuer}")
         authenticationDomain: String,
     ): UserService = UserServiceImpl(userProfileQueryService, authenticationDomain)
 

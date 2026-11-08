@@ -44,11 +44,7 @@ class JStoreApplicationContextTest {
                     "--spring.datasource.url=${postgres.getJdbcUrl("postgres", "postgres")}&currentSchema=develop",
                     "--spring.datasource.username=postgres",
                     "--spring.datasource.password=",
-                    "--jwt.access-secret=test-access-secret-with-at-least-32-bytes",
-                    "--jwt.refresh-secret=test-refresh-secret-with-at-least-32-bytes",
-                    "--jwt.issuer=j-store-test",
-                    "--jwt.audience=j-store-test-clients",
-                    "--jwt.key-id=test-key",
+                    "--jstore.oidc.issuer=https://identity.test",
                     "--account.phone-verification.hmac-secret=test-phone-hmac-secret-with-at-least-32-bytes",
                     "--jstore.outbox.enabled=true",
                 )

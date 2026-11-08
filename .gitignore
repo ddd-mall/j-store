@@ -61,3 +61,11 @@ __pycache__/
 
 ### Agentic CI/CD runtime state ###
 /.agentic-cicd/
+
+### Frontend ###
+node_modules/
+apps/*/dist/
+apps/*/coverage/
+apps/*/playwright-report/
+apps/*/test-results/
+*.tsbuildinfo

@@ -42,8 +42,8 @@ class ProductionProfileContractTest {
                 "spring.datasource.password" to "\${JSTORE_DB_PASSWORD}",
                 "spring.data.redis.host" to "\${JSTORE_REDIS_HOST}",
                 "spring.data.redis.password" to "\${JSTORE_REDIS_PASSWORD}",
-                "jwt.access-secret" to "\${JSTORE_JWT_ACCESS_SECRET}",
-                "jwt.refresh-secret" to "\${JSTORE_JWT_REFRESH_SECRET}",
+                "jstore.oidc.jwk-set-location" to "\${JSTORE_OIDC_JWK_SET_LOCATION}",
+                "jstore.oidc.active-key-id" to "\${JSTORE_OIDC_ACTIVE_KEY_ID}",
                 "account.phone-verification.hmac-secret" to
                     "\${JSTORE_PHONE_VERIFICATION_HMAC_SECRET}",
             )
