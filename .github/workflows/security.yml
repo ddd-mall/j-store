@@ -75,6 +75,7 @@ jobs:
     permissions:
       contents: read
     env:
+      OSV_MAVEN_ADVISORY: ${{ (github.event_name == 'pull_request' && github.base_ref == 'develop') || (github.event_name == 'push' && github.ref == 'refs/heads/develop') }}
       OSV_SCANNER_VERSION: "2.4.0"
       OSV_SCANNER_LINUX_X64_SHA256: "15314940c10d26af9c6649f150b8a47c1262e8fc7e17b1d1029b0e479e8ed8a0"
     steps:
@@ -104,6 +105,7 @@ jobs:
 
       - name: Scan resolved Gradle dependencies
         run: >-
+          python3 scripts/run-osv-ci.py
           "$RUNNER_TEMP/osv-scanner" scan source
           --lockfile j-store-boot/build/reports/cyclonedx-direct/bom.json
           --format json
@@ -141,6 +143,7 @@ jobs:
 
       - name: Scan container operating-system and application packages
         run: >-
+          python3 scripts/run-osv-ci.py
           "$RUNNER_TEMP/osv-scanner" scan image --archive
           "$RUNNER_TEMP/j-store-security-docker.tar"
           --format json

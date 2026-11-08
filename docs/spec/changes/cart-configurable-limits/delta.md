@@ -65,3 +65,5 @@ PR #71 提交 `ef9c97ea` 的 [远端 OSV 报告](https://github.com/ddd-mall/j-s
 | OpenTelemetry BOM | 1.62.0 → 1.67.0 | GHSA-ccrj-gw8r-854m |
 
 依赖治理测试在旧版本失败，更新后通过。Gradle dependencyInsight 确认以上修复版本实际生效；重新生成的 227 包生产 SBOM 由 OSV Scanner 2.4.0 扫描后只剩 Spring MVC 6.2.19 上的 [CVE-2026-47884](https://spring.io/security/cve-2026-47884/) 和 [CVE-2026-47890](https://spring.io/security/cve-2026-47890/)，扫描仍返回 1。未改动扫描规则或添加豁免。Spring 官方的同系列修复 6.2.20 仅限企业订阅，公开修复从 7.0.9 开始。回退上述版本及对应治理断言会重新暴露这 9 条公告。
+
+根据维护者决定，develop 日常 CI 将 Maven 漏洞公告作为评审信息。上述两条 Spring MVC 公告仍在报告中，本次沿用 Boot 3。门禁范围见依赖管理规范。
