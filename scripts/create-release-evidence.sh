@@ -56,7 +56,7 @@ mkdir -p \
   "$evidence_dir/source"
 
 ./scripts/quality-gate.sh 2>&1 | tee "$evidence_dir/quality-gate.log"
-./gradlew :j-store-boot:bootJar :j-store-boot:cyclonedxDirectBom licensee \
+./scripts/backend-gradle.sh :j-store-boot:bootJar :j-store-boot:cyclonedxDirectBom licensee \
   --no-daemon --console=plain
 
 git archive \
@@ -65,8 +65,8 @@ git archive \
   --output="$evidence_dir/source/j-store-$tag.tar.gz" \
   "$tag"
 
-find j-store-boot/build/libs -maxdepth 1 -type f -name '*.jar' -exec cp {} "$evidence_dir/artifacts/" \;
-cp j-store-boot/build/reports/cyclonedx-direct/bom.json "$evidence_dir/artifacts/cyclonedx-bom.json"
+find backend/j-store-boot/build/libs -maxdepth 1 -type f -name '*.jar' -exec cp {} "$evidence_dir/artifacts/" \;
+cp backend/j-store-boot/build/reports/cyclonedx-direct/bom.json "$evidence_dir/artifacts/cyclonedx-bom.json"
 cp LICENSE THIRD_PARTY.md config/licenses/file-ownership.toml "$evidence_dir/metadata/"
 cp build/reports/licenses/file-ownership.json "$evidence_dir/metadata/"
 
@@ -86,7 +86,7 @@ done < <(find . -type d -path '*/build/reports/licensee' | sort)
   printf 'evidence_time=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf 'tag_signature=%s\n' "$tag_signature"
   printf 'java=%s\n' "$(java -version 2>&1 | sed -n '1p')"
-  printf 'gradle=%s\n' "$(./gradlew --version --no-daemon | sed -n 's/^Gradle /Gradle /p')"
+  printf 'gradle=%s\n' "$(./scripts/backend-gradle.sh --version --no-daemon | sed -n 's/^Gradle /Gradle /p')"
 } > "$evidence_dir/metadata/build-info.txt"
 
 (

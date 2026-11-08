@@ -2,7 +2,7 @@
 
 ## 核心决策
 
-1. 店铺上下文拆分为 `j-store-shop-domain/application/infrastructure/boot`。领域对象和仓储端口进入 domain，商户用例和用户查询端口进入 application，Controller、Spring 事务装饰器和 Bean 装配进入 boot。
+1. 店铺上下文拆分为 `backend/j-store-shop-domain/application/infrastructure/boot`。领域对象和仓储端口进入 domain，商户用例和用户查询端口进入 application，Controller、Spring 事务装饰器和 Bean 装配进入 boot。
 2. 其它上下文对商户授权服务的依赖指向 shop application，不直接依赖 shop boot 或 infrastructure。
 3. 店铺写仓储采用 `Propagation.MANDATORY`；跨 `Merchant` 与 `MerchantMembership` 的创建和成员变更由 shop boot 的用例事务统一包围。
 4. 库存暂不引入新的持久化值对象，以避免扩大数据库映射变更；由聚合统一校验操作量，由工厂校验初始量。命令删除行为方法，保持纯数据载体。

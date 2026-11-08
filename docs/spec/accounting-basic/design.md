@@ -59,7 +59,7 @@ sequenceDiagram
 目录结构：
 
 ```text
-j-store-accounting/src/main/kotlin/com/jstore/accounting/
+backend/j-store-accounting/src/main/kotlin/com/jstore/accounting/
   domain/
     account/
       LedgerAccount.kt
@@ -91,7 +91,7 @@ j-store-accounting/src/main/kotlin/com/jstore/accounting/
     AccountingEventHandler.kt
     SettlementApplicationService.kt
 
-j-store-accounting-infrastructure/src/main/kotlin/com/jstore/accounting/
+backend/j-store-accounting-infrastructure/src/main/kotlin/com/jstore/accounting/
   domain/
     account/
       LedgerAccountRepositoryImpl.kt
@@ -116,7 +116,7 @@ j-store-accounting-infrastructure/src/main/kotlin/com/jstore/accounting/
 
 ### 1. LedgerAccount
 
-位置：`j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/account/LedgerAccount.kt`
+位置：`backend/j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/account/LedgerAccount.kt`
 
 职责：维护可入账账户，限制只有启用账户可以被分录引用。
 
@@ -151,7 +151,7 @@ interface LedgerAccount : AgreeGate<LedgerAccountId> {
 
 ### 2. JournalEntry
 
-位置：`j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/JournalEntry.kt`
+位置：`backend/j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/journal/JournalEntry.kt`
 
 职责：封装凭证分录、借贷平衡、过账不可变和冲正行为。
 
@@ -214,7 +214,7 @@ interface JournalEntry : AgreeGate<JournalEntryId> {
 
 ### 3. AccountingApplicationService
 
-位置：`j-store-accounting/src/main/kotlin/com/jstore/accounting/service/AccountingApplicationService.kt`
+位置：`backend/j-store-accounting/src/main/kotlin/com/jstore/accounting/service/AccountingApplicationService.kt`
 
 职责：编排入账用例，处理幂等检查、账户查找、聚合创建和保存。业务规则仍由聚合执行。
 
@@ -243,7 +243,7 @@ class AccountingApplicationService(
 
 ### 4. SettlementStatement
 
-位置：`j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/settlement/SettlementStatement.kt`
+位置：`backend/j-store-accounting/src/main/kotlin/com/jstore/accounting/domain/settlement/SettlementStatement.kt`
 
 职责：按商户和结算周期汇总结算明细，确认后冻结金额，打款后发布结算打款事件。
 

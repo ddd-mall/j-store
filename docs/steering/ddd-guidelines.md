@@ -12,7 +12,7 @@ This project is a Kotlin/Spring Boot e-commerce system following Domain-Driven D
 ## Tech Stack
 
 - Kotlin 2.4, Java 25, Spring Boot 3.5, Spring Data JPA, PostgreSQL
-- Build: Gradle Kotlin DSL with version catalog (`gradle/libs.versions.toml`)
+- Build: Gradle Kotlin DSL with version catalog (`backend/gradle/libs.versions.toml`)
 - Base package: `com.jstore`
 
 ## Project Module Layout
@@ -39,7 +39,7 @@ Dependency direction: `boot → application → domain → common-core` and `boo
 
 ## Package Structure Within Modules
 
-Domain module (`j-store-{context}-domain/src/main/kotlin/com/jstore/{context}/`):
+Domain module (`backend/j-store-{context}-domain/src/main/kotlin/com/jstore/{context}/`):
 
 ```
 domain/
@@ -55,7 +55,7 @@ acl/                        # Anti-corruption layer interfaces
 
 Application module (`j-store-{context}-application`) contains use-case ports, orchestration services and integration-message handlers. It must remain free of Spring/Jakarta/Hibernate imports. Spring transactions and bean configuration belong to `j-store-{context}-boot`.
 
-Infrastructure module (`j-store-{context}-infrastructure/src/main/kotlin/com/jstore/{context}/`):
+Infrastructure module (`backend/j-store-{context}-infrastructure/src/main/kotlin/com/jstore/{context}/`):
 
 ```
 domain/

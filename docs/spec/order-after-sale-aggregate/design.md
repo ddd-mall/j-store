@@ -72,7 +72,7 @@ sequenceDiagram
 
 ### 1. 售后领域模型
 
-位置：`j-store-order/src/main/kotlin/com/jstore/order/domain/aftersale/`。
+位置：`backend/j-store-order/src/main/kotlin/com/jstore/order/domain/aftersale/`。
 
 ```kotlin
 data class AfterSaleId(val value: Long) : Identify
@@ -315,13 +315,13 @@ data class AfterSaleCancelledEvent(/* applicantId */) : AfterSaleDomainEvent(...
 
 所有事件 `aggregateType="AfterSale"`、`aggregateId=afterSaleId.value.toString()`，显式 `eventId: String = UUID.randomUUID().toString()`，并携带需求规定字段。事件行项携带 SKU，库存订阅方无需查询订单。
 
-`OrderRefundProjectionHandler : DomainEventListener<AfterSaleApprovedEvent>` 位于 `j-store-order/src/main/.../service/`，`listenerId()` 固定为 `order.after-sale-approved.refund-projection.v1`。处理器调用新增的 `OrderRefundProjectionService.project(event)`；该服务加 `@Transactional` 的适配器放在 infrastructure（领域模块不能引 Spring），锁定订单、调用聚合行为并保存。消费回执 `domain_event_consumption` 与订单写处于 Outbox 投递的同一外层事务；抛出异常即整体回滚并重试。
+`OrderRefundProjectionHandler : DomainEventListener<AfterSaleApprovedEvent>` 位于 `backend/j-store-order/src/main/.../service/`，`listenerId()` 固定为 `order.after-sale-approved.refund-projection.v1`。处理器调用新增的 `OrderRefundProjectionService.project(event)`；该服务加 `@Transactional` 的适配器放在 infrastructure（领域模块不能引 Spring），锁定订单、调用聚合行为并保存。消费回执 `domain_event_consumption` 与订单写处于 Outbox 投递的同一外层事务；抛出异常即整体回滚并重试。
 
 旧 `OrderRefundRequestedEvent`、`OrderRefundApprovedEvent`、`OrderRefundRejectedEvent` 删除。新增 `AfterSaleApprovedToStockRestoreTranslator` 发布数量感知的 `AfterSaleStockRestoreRequestedEvent`；商品上下文按 SKU/数量增加可售库存，不调用会释放整笔预占的 `StockReleaseRequestedEvent`。
 
 ### 6. API 与装配
 
-新增 `j-store-boot/src/main/kotlin/com/jstore/order/controller/AfterSaleController.kt`，类级 `@RestController`、`@RequestMapping("/api/after-sales")`、`@RequireLogin`：
+新增 `backend/j-store-boot/src/main/kotlin/com/jstore/order/controller/AfterSaleController.kt`，类级 `@RestController`、`@RequestMapping("/api/after-sales")`、`@RequireLogin`：
 
 | 方法 | 路由 | 身份与请求 | 成功响应 |
 | --- | --- | --- | --- |
@@ -349,7 +349,7 @@ data class AfterSaleCancelledEvent(/* applicantId */) : AfterSaleDomainEvent(...
 
 ### JPA 持久化对象
 
-新增目录 `j-store-order-infrastructure/src/main/kotlin/com/jstore/order/domain/aftersale/persistence/`：
+新增目录 `backend/j-store-order-infrastructure/src/main/kotlin/com/jstore/order/domain/aftersale/persistence/`：
 
 - `AfterSalePO`：根字段、`@Version var version: Long`、`@OneToMany` EAGER 行项。
 - `AfterSaleItemPO`：申请值、商品快照和资格快照扁平列。
@@ -362,7 +362,7 @@ data class AfterSaleCancelledEvent(/* applicantId */) : AfterSaleDomainEvent(...
 
 ### DDL 与索引
 
-新增 `j-store-boot/src/main/resources/db/migration/V20260803__order_after_sale_aggregate.sql`，先清空 `order_items/orders`，删除旧售后相关列/约束/索引后直接创建：
+新增 `backend/j-store-boot/src/main/resources/db/migration/V20260803__order_after_sale_aggregate.sql`，先清空 `order_items/orders`，删除旧售后相关列/约束/索引后直接创建：
 
 ```sql
 after_sales(
@@ -553,7 +553,7 @@ order_refund_facts(
 | `OrderControllerRefundSummaryContractTest` | 新退款累计字段与旧售后字段/旧 URL 删除 |
 | `AfterSaleApprovedIntegrationEventTest` | 新批准事件驱动订单及库存翻译器，生产代码无旧事件引用 |
 
-验证顺序：先定向执行 `:j-store-order:test`，再 `:j-store-order-infrastructure:test`、`:j-store-boot:test`，最后 `./gradlew.bat test`。另用 `rg` 审计旧 `AfterSaleStatus`、旧退款命令/行为/事件、`REFUNDING`、`previousItemStatus` 和旧路由均无生产引用。
+验证顺序：先定向执行 `:j-store-order:test`，再 `:j-store-order-infrastructure:test`、`:j-store-boot:test`，最后 `./scripts/gradlew-windows.ps1 test`。另用 `rg` 审计旧 `AfterSaleStatus`、旧退款命令/行为/事件、`REFUNDING`、`previousItemStatus` 和旧路由均无生产引用。
 
 ## 删除与替换清单
 

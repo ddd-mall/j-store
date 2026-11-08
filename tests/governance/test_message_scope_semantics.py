@@ -7,17 +7,17 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MESSAGE_SCOPE_FILES = [
     REPO_ROOT
-    / "j-store-messaging-core/src/main/kotlin/com/jstore/messaging/IntegrationMessage.kt",
+    / "backend/j-store-messaging-core/src/main/kotlin/com/jstore/messaging/IntegrationMessage.kt",
     REPO_ROOT
-    / "j-store-messaging-core/src/main/kotlin/com/jstore/messaging/IntegrationMessageTransport.kt",
-    REPO_ROOT / "j-store-outbox-core/src/main/kotlin/com/jstore/outbox/OutboxMessage.kt",
+    / "backend/j-store-messaging-core/src/main/kotlin/com/jstore/messaging/IntegrationMessageTransport.kt",
+    REPO_ROOT / "backend/j-store-outbox-core/src/main/kotlin/com/jstore/outbox/OutboxMessage.kt",
     REPO_ROOT
-    / "j-store-outbox-spring/src/main/kotlin/com/jstore/outbox/spring/persistence/OutboxEntryPO.kt",
+    / "backend/j-store-outbox-spring/src/main/kotlin/com/jstore/outbox/spring/persistence/OutboxEntryPO.kt",
     REPO_ROOT
-    / "j-store-integration-contracts/src/main/kotlin/com/jstore/contracts/commerce/CommerceIntegrationMessages.kt",
-    REPO_ROOT / "j-store-boot/src/main/resources/db/init/init_j_store_boot_schema.sql",
+    / "backend/j-store-integration-contracts/src/main/kotlin/com/jstore/contracts/commerce/CommerceIntegrationMessages.kt",
+    REPO_ROOT / "backend/j-store-boot/src/main/resources/db/init/init_j_store_boot_schema.sql",
     REPO_ROOT
-    / "j-store-boot/src/main/resources/db/migration/V20260807__event_delivery_targets.sql",
+    / "backend/j-store-boot/src/main/resources/db/migration/V20260807__event_delivery_targets.sql",
 ]
 
 

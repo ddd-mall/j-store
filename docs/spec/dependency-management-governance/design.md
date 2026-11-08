@@ -2,7 +2,7 @@
 
 ## 职责划分
 
-- `gradle/libs.versions.toml` 保存外部库、项目插件和工具版本的类型安全名称。
+- `backend/gradle/libs.versions.toml` 保存外部库、项目插件和工具版本的类型安全名称。
 - `j-store-dependencies-platform` 使用 `java-platform` 导入 Spring Boot、JUnit、OpenTelemetry、Jackson 和 Netty BOM，并声明 PostgreSQL 与 Commons Lang 约束，负责影响所有 JVM 模块的解析约束。
 - 根构建脚本把统一 Platform 加到每个 JVM 子项目的主代码与测试配置；Platform 模块本身除外。
 - 模块构建脚本保留 `api`、`implementation`、`runtimeOnly` 等语义和所有 `project()` 依赖。

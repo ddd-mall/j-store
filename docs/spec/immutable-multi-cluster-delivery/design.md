@@ -84,7 +84,7 @@ rollout 和健康验证。
 ## 迁移与恢复
 
 现有 PVC/JAR 开发部署不是生产兼容层。新 OCI 路径通过独立 overlay 落地并成为权威入口后，
-删除无引用的旧 `j-store-boot/k8s-deployment.yaml` 和 PVC/JAR 通用部署清单。回滚始终使用上一
+删除无引用的旧 `backend/j-store-boot/k8s-deployment.yaml` 和 PVC/JAR 通用部署清单。回滚始终使用上一
 候选 digest；数据库和 Secret 生命周期不由应用回滚处理。
 
 development 和 integration 继续允许应用启动时 Flyway，以支持可重建的内部数据库。canary

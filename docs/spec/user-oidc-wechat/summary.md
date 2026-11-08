@@ -75,3 +75,9 @@ catalog 中 Guava/Jackson/OpenTelemetry 版本和 Boot BOM 版本均与 develop 
 4. 多实例真实部署、跨节点登录/登出及故障恢复演练：未执行。共享 PostgreSQL/Redis 的实现路径和撤销策略已有本地测试，但不冒充集群验收证据。
 
 恢复方式见 [delta](delta.md) 与 [runbook](runbook.md)。当前没有旧内部端点或旧开发数据库的兼容层；真实环境恢复仍需针对确切目标取得授权。
+
+## 2026-11-09 后续目录与部署漂移
+
+本文以上保留原始候选的执行证据。后续已同步 develop 的依赖修复，因此 11 条公告不是最新候选的实时扫描结论。后端现位于 backend/，当前构建路径对照见 [目录分离记录](../repository-layout/summary.md)。
+
+LAYOUT-DRIFT-01：搬迁前的 observability Compose / smoke 仍依赖 JSTORE_JWT_ACCESS_SECRET 和 JSTORE_JWT_REFRESH_SECRET，与当前 OIDC 外部签名配置不一致。责任属于用户认证和可观测性部署配置；尚未验证 Compose 的完整认证启动，后续应单独补齐 JWK 挂载、客户端参数与对应 smoke 验收。本次目录重整未接受该漂移为生产就绪。

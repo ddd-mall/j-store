@@ -49,16 +49,16 @@ if command -v uv >/dev/null 2>&1; then
 else
   "$python_bin" "$tool_root/check-file-ownership.py"
 fi
-./gradlew spotlessCheck --no-daemon --console=plain
+./scripts/backend-gradle.sh spotlessCheck --no-daemon --console=plain
 
 printf '%s\n' '[4/6] Dependency resolution and license audit'
-./gradlew verifyDependencyResolution --no-daemon --console=plain
-./gradlew licensee --no-daemon --console=plain
+./scripts/backend-gradle.sh verifyDependencyResolution --no-daemon --console=plain
+./scripts/backend-gradle.sh licensee --no-daemon --console=plain
 
 printf '%s\n' '[5/6] Gradle regression tests'
-./gradlew test --no-daemon --console=plain
+./scripts/backend-gradle.sh test --no-daemon --console=plain
 
 printf '%s\n' '[6/6] Release artifact license verification'
-./gradlew verifyLicenseArtifacts --no-daemon --console=plain
+./scripts/backend-gradle.sh verifyLicenseArtifacts --no-daemon --console=plain
 
 printf '%s\n' 'PASS: all local quality gates completed.'

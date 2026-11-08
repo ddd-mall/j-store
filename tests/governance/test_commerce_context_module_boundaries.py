@@ -22,7 +22,7 @@ FORBIDDEN_IMPORT = re.compile(r"^import (org\.springframework|jakarta\.|org\.hib
 
 class CommerceContextModuleBoundaryTest(unittest.TestCase):
     def test_each_active_context_has_four_physical_modules_and_no_legacy_module(self):
-        settings = (ROOT / "settings.gradle.kts").read_text(encoding="utf-8")
+        settings = (ROOT / "backend" / "settings.gradle.kts").read_text(encoding="utf-8")
         for context in CONTEXTS:
             for layer in ("domain", "application", "infrastructure", "boot"):
                 self.assertIn(f'include("j-store-{context}-{layer}")', settings)
@@ -31,14 +31,14 @@ class CommerceContextModuleBoundaryTest(unittest.TestCase):
     def test_domain_and_application_are_framework_free(self):
         for context in CONTEXTS:
             for layer in ("domain", "application"):
-                source = ROOT / f"j-store-{context}-{layer}" / "src" / "main"
+                source = ROOT / "backend" / f"j-store-{context}-{layer}" / "src" / "main"
                 self.assertTrue(source.is_dir(), source)
                 for path in source.rglob("*.kt"):
                     self.assertIsNone(FORBIDDEN_IMPORT.search(path.read_text(encoding="utf-8")), path)
 
     def test_application_does_not_depend_on_infrastructure_or_boot(self):
         for context in CONTEXTS:
-            build = (ROOT / f"j-store-{context}-application" / "build.gradle.kts").read_text(encoding="utf-8")
+            build = (ROOT / "backend" / f"j-store-{context}-application" / "build.gradle.kts").read_text(encoding="utf-8")
             self.assertNotIn(f'project(":j-store-{context}-infrastructure")', build)
             self.assertNotIn(f'project(":j-store-{context}-boot")', build)
 
@@ -47,7 +47,7 @@ class CommerceContextModuleBoundaryTest(unittest.TestCase):
             r"@Transactional\s*\n\s*override fun (?:save|add|create|createWithOwner)\b"
         )
         for context in CONTEXTS:
-            source = ROOT / f"j-store-{context}-infrastructure" / "src" / "main"
+            source = ROOT / "backend" / f"j-store-{context}-infrastructure" / "src" / "main"
             self.assertTrue(source.is_dir(), source)
             for path in source.rglob("*RepositoryImpl.kt"):
                 text = path.read_text(encoding="utf-8")
@@ -62,7 +62,7 @@ class CommerceContextModuleBoundaryTest(unittest.TestCase):
             re.MULTILINE,
         )
         for context in CONTEXTS:
-            source = ROOT / f"j-store-{context}-domain" / "src" / "main"
+            source = ROOT / "backend" / f"j-store-{context}-domain" / "src" / "main"
             self.assertTrue(source.is_dir(), source)
             for path in source.rglob("*.kt"):
                 self.assertIsNone(
@@ -73,7 +73,7 @@ class CommerceContextModuleBoundaryTest(unittest.TestCase):
     def test_domain_commands_are_data_carriers(self):
         behavior = re.compile(r"^\s+fun\s+[A-Za-z_]\w*\s*\(", re.MULTILINE)
         for context in CONTEXTS:
-            source = ROOT / f"j-store-{context}-domain" / "src" / "main"
+            source = ROOT / "backend" / f"j-store-{context}-domain" / "src" / "main"
             for path in source.rglob("*.kt"):
                 relative_parts = path.relative_to(source).parts
                 is_command = "command" in relative_parts or "comand" in relative_parts
@@ -87,7 +87,7 @@ class CommerceContextModuleBoundaryTest(unittest.TestCase):
         allowed_suffixes = ("-api", "-client-spring")
         project_dependency = re.compile(r'project\(":(j-store-([a-z]+)-[^"\)]+)"\)')
         for context in CONTEXTS:
-            build = ROOT / f"j-store-{context}-boot" / "build.gradle.kts"
+            build = ROOT / "backend" / f"j-store-{context}-boot" / "build.gradle.kts"
             for dependency, target_context in project_dependency.findall(
                 build.read_text(encoding="utf-8")
             ):

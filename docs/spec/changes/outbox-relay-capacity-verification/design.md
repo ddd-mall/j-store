@@ -19,7 +19,7 @@
 独立任务：
 
 ```bash
-./gradlew :j-store-outbox-spring:outboxRelayCapacityTest \
+./scripts/backend-gradle.sh :j-store-outbox-spring:outboxRelayCapacityTest \
   -PoutboxCapacity.messageCount=1000 \
   -PoutboxCapacity.producerConcurrency=8 \
   -PoutboxCapacity.batchSize=100 \
@@ -30,7 +30,7 @@
 默认报告位置为：
 
 ```text
-j-store-outbox-spring/build/reports/outbox-relay-capacity/result.json
+backend/j-store-outbox-spring/build/reports/outbox-relay-capacity/result.json
 ```
 
 可通过 `-PoutboxCapacity.output=<path>` 覆盖。常规 `test` 任务排除 JUnit `capacity` tag，容量任务只包含该 tag 和容量测试类。

@@ -1,14 +1,14 @@
 # 如何查看 BOM 中包含的依赖
 
 本文只说明查询方法，不维护容易过期的依赖版本副本。当前项目声明和最终解析结果分别以
-`gradle/libs.versions.toml`、`j-store-dependencies-platform` 与 Gradle 输出为准。
+`backend/gradle/libs.versions.toml`、`j-store-dependencies-platform` 与 Gradle 输出为准。
 
 ## 查看最终解析版本
 
 优先使用 `dependencyInsight`。它同时展示最终版本、原始请求版本、冲突选择原因和约束来源：
 
 ```bash
-./gradlew :j-store-boot:dependencyInsight \
+./scripts/backend-gradle.sh :j-store-boot:dependencyInsight \
   --dependency log4j-api \
   --configuration runtimeClasspath
 ```
@@ -16,7 +16,7 @@
 查看模块的完整生产运行时依赖树：
 
 ```bash
-./gradlew :j-store-boot:dependencies --configuration runtimeClasspath
+./scripts/backend-gradle.sh :j-store-boot:dependencies --configuration runtimeClasspath
 ```
 
 输出中的常见标识：
@@ -27,8 +27,8 @@
 
 ## 查看项目采用的 BOM
 
-1. 在 `gradle/libs.versions.toml` 的 `[libraries]` 中查找 `*-bom` alias。
-2. 在 `j-store-dependencies-platform/build.gradle.kts` 中确认该 BOM 已由统一 Platform 导入。
+1. 在 `backend/gradle/libs.versions.toml` 的 `[libraries]` 中查找 `*-bom` alias。
+2. 在 `backend/j-store-dependencies-platform/build.gradle.kts` 中确认该 BOM 已由统一 Platform 导入。
 3. 使用 `dependencyInsight` 验证消费模块的最终解析结果；不要只根据 catalog 文本推断。
 
 Spring Boot 管理的坐标和版本可在
@@ -47,7 +47,7 @@ Spring Boot 管理的坐标和版本可在
 也可以单独运行最终解析契约：
 
 ```bash
-./gradlew verifyDependencyResolution
+./scripts/backend-gradle.sh verifyDependencyResolution
 ```
 
 该任务遍历所有可解析的生产 `runtimeClasspath`，验证获批依赖家族没有版本混装，并确认主
@@ -59,11 +59,11 @@ Spring Boot 管理的坐标和版本可在
 生成主启动模块的 CycloneDX SBOM：
 
 ```bash
-./gradlew :j-store-boot:cyclonedxDirectBom --no-daemon
+./scripts/backend-gradle.sh :j-store-boot:cyclonedxDirectBom --no-daemon
 ```
 
 随后使用 `.github/workflows/security.yml` 固定并校验过的 OSV Scanner 版本扫描生成的
-`j-store-boot/build/reports/cyclonedx-direct/bom.json`。本地扫描结果与 CI 不一致时，以 CI
+`backend/j-store-boot/build/reports/cyclonedx-direct/bom.json`。本地扫描结果与 CI 不一致时，以 CI
 固定版本和上游公告复核。
 
 ## 常见误区

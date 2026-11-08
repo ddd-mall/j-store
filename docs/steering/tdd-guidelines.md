@@ -47,10 +47,10 @@ inclusion: always
 优先运行最小相关模块测试，完成后按影响范围扩大：
 
 ```bash
-./gradlew :j-store-order-domain:test :j-store-order-application:test :j-store-order-boot:test
-./gradlew :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
-./gradlew :j-store-accounting-domain:test :j-store-accounting-application:test :j-store-accounting-boot:test
-./gradlew test
+./scripts/backend-gradle.sh :j-store-order-domain:test :j-store-order-application:test :j-store-order-boot:test
+./scripts/backend-gradle.sh :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
+./scripts/backend-gradle.sh :j-store-accounting-domain:test :j-store-accounting-application:test :j-store-accounting-boot:test
+./scripts/backend-gradle.sh test
 ```
 
 涉及数据库、迁移、JPA Repository、Outbox 或 Spring 装配时，必须运行对应 infrastructure/outbox-spring/boot 相关测试。

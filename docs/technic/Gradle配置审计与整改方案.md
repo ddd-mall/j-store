@@ -84,7 +84,7 @@ repositories {
 **验证**
 
 ```bash
-./gradlew :help --no-daemon
+./scripts/backend-gradle.sh :help --no-daemon
 # 应输出：BUILD SUCCESSFUL
 ```
 
@@ -95,7 +95,7 @@ repositories {
 **当前状态**
 
 ```kotlin
-// j-store-common-core/build.gradle.kts
+// backend/j-store-common-core/build.gradle.kts
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.spring)
@@ -123,7 +123,7 @@ dependencies {
 **源码问题**
 
 ```kotlin
-// j-store-common-core/src/main/kotlin/com/jstore/common/framework/event/DomainEventListener.kt
+// backend/j-store-common-core/src/main/kotlin/com/jstore/common/framework/event/DomainEventListener.kt
 import org.springframework.core.ResolvableType  // ❌ 引用了 Spring 类型
 
 interface DomainEventListener<T : DomainEvent> {
@@ -164,7 +164,7 @@ interface DomainEventListener<T : DomainEvent> {
 **步骤 1：更新 build.gradle.kts**
 
 ```kotlin
-// j-store-common-core/build.gradle.kts - 改为
+// backend/j-store-common-core/build.gradle.kts - 改为
 plugins {
     alias(libs.plugins.kotlin.jvm)
 }
@@ -215,7 +215,7 @@ kotlin {
 - 事件类型匹配由具体监听器实现类负责声明
 
 ```kotlin
-// j-store-common-core/src/main/kotlin/com/jstore/common/framework/event/DomainEventListener.kt
+// backend/j-store-common-core/src/main/kotlin/com/jstore/common/framework/event/DomainEventListener.kt
 package com.jstore.common.framework.event
 
 /**
@@ -246,7 +246,7 @@ interface DomainEventListener<T : DomainEvent> {
 若需要在运行时获取监听器支持的事件类型，提供一个工具类而非在接口中实现：
 
 ```kotlin
-// j-store-common-core/src/main/kotlin/com/jstore/common/framework/event/DomainEventListenerUtils.kt
+// backend/j-store-common-core/src/main/kotlin/com/jstore/common/framework/event/DomainEventListenerUtils.kt
 package com.jstore.common.framework.event
 
 import kotlin.reflect.jvm.javaType
@@ -294,7 +294,7 @@ object DomainEventListenerUtils {
 使用工具类的反射能力：
 
 ```kotlin
-// j-store-common-core/src/main/kotlin/com/jstore/common/framework/event/DomainEventDispatcher.kt
+// backend/j-store-common-core/src/main/kotlin/com/jstore/common/framework/event/DomainEventDispatcher.kt
 package com.jstore.common.framework.event
 
 interface DomainEventDispatcher {
@@ -336,10 +336,10 @@ class SyncDomainEventDispatcher : DomainEventDispatcher {
 **验证**
 
 ```bash
-./gradlew :j-store-common-core:compileKotlin --no-daemon
+./scripts/backend-gradle.sh :j-store-common-core:compileKotlin --no-daemon
 # 应输出：BUILD SUCCESSFUL
 
-./gradlew :j-store-common-core:test --no-daemon
+./scripts/backend-gradle.sh :j-store-common-core:test --no-daemon
 # 所有测试通过，无框架依赖
 ```
 
@@ -350,7 +350,7 @@ class SyncDomainEventDispatcher : DomainEventDispatcher {
 **当前状态**
 
 ```kotlin
-// j-store-order/build.gradle.kts
+// backend/j-store-order/build.gradle.kts
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.spring)
@@ -388,12 +388,12 @@ kotlin {
 删除 Spring Boot 相关插件，保留纯 Kotlin JVM 开发所需的最小配置。
 
 **✅ 已实施改动**
-- [x] 移除 j-store-order/build.gradle.kts 中的 kotlin-plugin-spring、kotlin-plugin-jpa、springframework 插件
+- [x] 移除 backend/j-store-order/build.gradle.kts 中的 kotlin-plugin-spring、kotlin-plugin-jpa、springframework 插件
 - [x] 保留 kotlin.jvm 插件和领域模块最小依赖集合
 - [x] 将测试任务统一为 tasks.withType<Test> 并启用 useJUnitPlatform()
 
 ```kotlin
-// j-store-order/build.gradle.kts - 改为
+// backend/j-store-order/build.gradle.kts - 改为
 plugins {
     alias(libs.plugins.kotlin.jvm)
 }
@@ -431,7 +431,7 @@ kotlin {
 **验证**
 
 ```bash
-./gradlew :j-store-order:build --no-daemon
+./scripts/backend-gradle.sh :j-store-order:build --no-daemon
 # 应输出：BUILD SUCCESSFUL
 ```
 
@@ -442,7 +442,7 @@ kotlin {
 **当前状态**
 
 ```kotlin
-// j-store-order-boot/build.gradle.kts
+// backend/j-store-order-boot/build.gradle.kts
 plugins {
     id("java")
     alias(libs.plugins.kotlin.jvm)
@@ -475,7 +475,7 @@ dependencies {
 ```bash
 # 1. 从 settings.gradle.kts 移除引用
 # 2. 删除目录
-rm -rf j-store-order-boot/
+rm -rf backend/j-store-order-boot/
 
 # 3. 更新依赖（检查是否有其他模块依赖 j-store-order-boot）
 grep -r "j-store-order-boot" --include="*.kts" .
@@ -486,7 +486,7 @@ grep -r "j-store-order-boot" --include="*.kts" .
 如果后续需要一个启动入口，可以改造为普通的应用服务模块：
 
 ```kotlin
-// j-store-order-boot/build.gradle.kts - 改为非 Boot
+// backend/j-store-order-boot/build.gradle.kts - 改为非 Boot
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.spring)
@@ -518,7 +518,7 @@ kotlin {
 如果这个模块仅用于测试，将其改名为 j-store-order-boot-test，并添加注释说明：
 
 ```kotlin
-// j-store-order-boot/build.gradle.kts 顶部添加注释
+// backend/j-store-order-boot/build.gradle.kts 顶部添加注释
 /**
  * Test/Demo Boot Application for j-store-order module.
  * This is ONLY for testing and integration verification.
@@ -541,7 +541,7 @@ kotlin {
 **当前状态**
 
 ```kotlin
-// j-store-common-spring-starter/build.gradle.kts
+// backend/j-store-common-spring-starter/build.gradle.kts
 version = "0.0.1-SNAPSHOT"
 
 // 但其他模块是
@@ -577,10 +577,10 @@ include("j-store-common-spring")  // 改名
 **当前状态**
 
 ```kotlin
-// j-store-order-infrastructure/build.gradle.kts
+// backend/j-store-order-infrastructure/build.gradle.kts
 version = "0.1.0-SNAPSHOT"  // ❌ 比其他模块高
 
-// j-store-goods-infrastructure/build.gradle.kts
+// backend/j-store-goods-infrastructure/build.gradle.kts
 version = "0.1.0-SNAPSHOT"  // ❌ 比其他模块高
 
 // 其他模块都是
@@ -601,10 +601,10 @@ version = "0.0.1-SNAPSHOT"
 - [x] 将 j-store-goods-infrastructure 从 `0.1.0-SNAPSHOT` 调整为 `0.0.1-SNAPSHOT`
 
 ```kotlin
-// j-store-order-infrastructure/build.gradle.kts
+// backend/j-store-order-infrastructure/build.gradle.kts
 version = "0.0.1-SNAPSHOT"  // ✅ 改为一致版本
 
-// j-store-goods-infrastructure/build.gradle.kts
+// backend/j-store-goods-infrastructure/build.gradle.kts
 version = "0.0.1-SNAPSHOT"  // ✅ 改为一致版本
 ```
 
@@ -616,7 +616,7 @@ version = "0.0.1-SNAPSHOT"  // ✅ 改为一致版本
 **验证**
 
 ```bash
-./gradlew properties | grep version
+./scripts/backend-gradle.sh properties | grep version
 # 所有模块应输出：0.0.1-SNAPSHOT
 ```
 
@@ -668,7 +668,7 @@ include("j-store-goods-infrastructure")
 **验证**
 
 ```bash
-./gradlew javaToolchains --no-daemon
+./scripts/backend-gradle.sh javaToolchains --no-daemon
 # 应输出：JDK 21（自动下载或本地已有）
 ```
 
@@ -688,14 +688,14 @@ include("j-store-goods-infrastructure")
 # - 编辑 build.gradle.kts，移除 Spring Boot 插件
 
 # 步骤 2：修复 j-store-common-core
-# - 编辑 j-store-common-core/build.gradle.kts
+# - 编辑 backend/j-store-common-core/build.gradle.kts
 # - 移除 Spring Boot 插件，添加 spring-core 依赖
-./gradlew :j-store-common-core:compileKotlin --no-daemon
+./scripts/backend-gradle.sh :j-store-common-core:compileKotlin --no-daemon
 
 # 步骤 3：修复 j-store-order
-# - 编辑 j-store-order/build.gradle.kts
+# - 编辑 backend/j-store-order/build.gradle.kts
 # - 移除 Spring Boot 插件
-./gradlew :j-store-order:build --no-daemon
+./scripts/backend-gradle.sh :j-store-order:build --no-daemon
 
 # 步骤 4：处理 j-store-order-boot
 # - 选择删除或改造
@@ -708,23 +708,23 @@ include("j-store-goods-infrastructure")
 # - 编辑 settings.gradle.kts，添加 foojay 插件
 
 # 步骤 7：全量验证
-./gradlew clean build --no-daemon
+./scripts/backend-gradle.sh clean build --no-daemon
 ```
 
 ### 全量验证命令
 
 ```bash
 # 检查所有模块编译
-./gradlew compileKotlin --no-daemon
+./scripts/backend-gradle.sh compileKotlin --no-daemon
 
 # 检查所有测试
-./gradlew test --no-daemon
+./scripts/backend-gradle.sh test --no-daemon
 
 # 检查完整构建
-./gradlew build --no-daemon
+./scripts/backend-gradle.sh build --no-daemon
 
 # 检查 Java 工具链
-./gradlew javaToolchains --no-daemon
+./scripts/backend-gradle.sh javaToolchains --no-daemon
 ```
 
 ---

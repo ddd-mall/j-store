@@ -336,9 +336,9 @@ fun handler2(event: OrderCreatedEvent) { ... }
 **当前结构：**
 ```
 j-store/
-├── j-store-order/         # 订单模块
-├── j-store-goods/         # 商品模块
-└── j-store-application/   # 主应用
+├── backend/j-store-order/         # 订单模块
+├── backend/j-store-goods/         # 商品模块
+└── backend/j-store-application/   # 主应用
 ```
 
 **改造方案：**

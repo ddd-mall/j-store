@@ -143,7 +143,7 @@ class KubernetesApplicationDeploymentTest(unittest.TestCase):
     def test_observability_profile_enables_tomcat_thread_metrics(self) -> None:
         properties = (
             REPOSITORY_ROOT
-            / "j-store-boot"
+            / "backend" / "j-store-boot"
             / "src"
             / "main"
             / "resources"

@@ -6,7 +6,7 @@
 
 **结果**：仓库具备 Cart 四层模块、`cart-api` 和 `inventory-api`，依赖方向通过构建验证。
 
-- 在 `settings.gradle.kts` 注册 `j-store-cart-api/domain/application/infrastructure/boot` 和 `j-store-inventory-api`。
+- 在 `settings.gradle.kts` 注册 `backend/j-store-cart-api/domain/application/infrastructure/boot` 和 `j-store-inventory-api`。
 - 建立与现有上下文一致的 Gradle 依赖；domain/application 不引入 Spring/JPA。
 - 在根 `j-store-boot` 组合 Cart boot。
 - 先增加架构测试，证明 Cart domain/application 无 Spring、JPA、其它上下文 infrastructure 依赖。
@@ -162,13 +162,13 @@
 最小验证序列：
 
 ```bash
-./gradlew :j-store-cart-domain:test :j-store-cart-application:test
-./gradlew :j-store-cart-infrastructure:test :j-store-cart-boot:test
-./gradlew :j-store-goods-api:test :j-store-goods-application:test
-./gradlew :j-store-shop-api:test :j-store-shop-application:test
-./gradlew :j-store-inventory-api:test :j-store-inventory-application:test :j-store-inventory-infrastructure:test
-./gradlew :j-store-trade-domain:test :j-store-trade-application:test :j-store-trade-infrastructure:test :j-store-trade-boot:test
-./gradlew :j-store-boot:bootJar
+./scripts/backend-gradle.sh :j-store-cart-domain:test :j-store-cart-application:test
+./scripts/backend-gradle.sh :j-store-cart-infrastructure:test :j-store-cart-boot:test
+./scripts/backend-gradle.sh :j-store-goods-api:test :j-store-goods-application:test
+./scripts/backend-gradle.sh :j-store-shop-api:test :j-store-shop-application:test
+./scripts/backend-gradle.sh :j-store-inventory-api:test :j-store-inventory-application:test :j-store-inventory-infrastructure:test
+./scripts/backend-gradle.sh :j-store-trade-domain:test :j-store-trade-application:test :j-store-trade-infrastructure:test :j-store-trade-boot:test
+./scripts/backend-gradle.sh :j-store-boot:bootJar
 ./scripts/quality-gate.sh
 ```
 

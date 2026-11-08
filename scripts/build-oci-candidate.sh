@@ -78,7 +78,7 @@ candidate_tag="${repository}:git-${commit}"
 mkdir -p "$output_dir"
 metadata_file="$output_dir/build-metadata.json"
 
-./gradlew :j-store-boot:bootJar --no-daemon --console=plain
+./scripts/backend-gradle.sh :j-store-boot:bootJar --no-daemon --console=plain
 docker buildx build \
   --platform "$platform" \
   --push \
@@ -86,7 +86,7 @@ docker buildx build \
   --sbom=true \
   --metadata-file "$metadata_file" \
   --tag "$candidate_tag" \
-  j-store-boot
+  backend/j-store-boot
 
 digest=$(python3 - "$metadata_file" <<'PY'
 import json

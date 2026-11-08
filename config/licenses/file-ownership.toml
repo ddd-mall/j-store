@@ -13,7 +13,7 @@ license = "Apache-2.0"
 source = "https://github.com/gradle/gradle"
 reason = "Gradle-generated wrapper launchers and wrapper runtime are redistributed, not original j-store code."
 paths = [
-  "gradlew",
-  "gradlew.bat",
-  "gradle/wrapper/**",
+  "backend/gradlew",
+  "backend/gradlew.bat",
+  "backend/gradle/wrapper/**",
 ]

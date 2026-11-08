@@ -3,8 +3,8 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CORE = ROOT / 'j-store-outbox-core/src/main/kotlin/com/jstore/outbox'
-SPRING = ROOT / 'j-store-outbox-spring/src/main/kotlin/com/jstore/outbox/spring'
+CORE = ROOT / 'backend/j-store-outbox-core/src/main/kotlin/com/jstore/outbox'
+SPRING = ROOT / 'backend/j-store-outbox-spring/src/main/kotlin/com/jstore/outbox/spring'
 
 
 class OutboxBackendBoundaryTest(unittest.TestCase):

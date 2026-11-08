@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CATALOG_PATH = REPO_ROOT / "gradle" / "libs.versions.toml"
+CATALOG_PATH = REPO_ROOT / "backend" / "gradle" / "libs.versions.toml"
 PLATFORM_MODULE = "j-store-dependencies-platform"
 
 
@@ -26,16 +26,16 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertEqual("3.2.4", self.catalog["versions"].get("nacos"))
         self.assertEqual("com.alibaba.nacos:nacos-client",
                          self.catalog["libraries"]["nacos-client"]["module"])
-        platform = (REPO_ROOT / PLATFORM_MODULE / "build.gradle.kts").read_text()
+        platform = (REPO_ROOT / "backend" / PLATFORM_MODULE / "build.gradle.kts").read_text()
         self.assertIn("api(libs.nacos.client)", platform)
-        boot = (REPO_ROOT / "j-store-cart-boot/build.gradle.kts").read_text()
+        boot = (REPO_ROOT / "backend/j-store-cart-boot/build.gradle.kts").read_text()
         self.assertIn("implementation(libs.nacos.client)", boot)
 
     def test_nacos_http_transport_security_constraints(self) -> None:
         versions = self.catalog["versions"]
         self.assertEqual("5.6.3", versions.get("httpclient5"))
         self.assertEqual("5.4.3", versions.get("httpcore5"))
-        platform = (REPO_ROOT / PLATFORM_MODULE / "build.gradle.kts").read_text()
+        platform = (REPO_ROOT / "backend" / PLATFORM_MODULE / "build.gradle.kts").read_text()
         for alias in ("httpclient5", "httpcore5", "httpcore5-h2"):
             self.assertIn("api(libs." + alias.replace("-", ".") + ")", platform)
 
@@ -77,8 +77,8 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertEqual([], unused, f"unused catalog aliases: {unused}")
 
     def test_unified_platform_owns_version_alignment(self) -> None:
-        settings = (REPO_ROOT / "settings.gradle.kts").read_text(encoding="utf-8")
-        platform_path = REPO_ROOT / PLATFORM_MODULE / "build.gradle.kts"
+        settings = (REPO_ROOT / "backend" / "settings.gradle.kts").read_text(encoding="utf-8")
+        platform_path = REPO_ROOT / "backend" / PLATFORM_MODULE / "build.gradle.kts"
 
         self.assertIn(f'include("{PLATFORM_MODULE}")', settings)
         self.assertTrue(platform_path.is_file())
@@ -103,7 +103,7 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertNotIn("platform(libs.log4j.bom)", non_platform_text)
         self.assertNotIn("platform(libs.open.telemetry.bom)", non_platform_text)
 
-        root_build = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        root_build = (REPO_ROOT / "backend" / "build.gradle.kts").read_text(encoding="utf-8")
         self.assertIn('pluginManager.withPlugin("java-test-fixtures")', root_build)
         self.assertIn('"testFixturesImplementation"', root_build)
 
@@ -138,7 +138,7 @@ class DependencyManagementContractTest(unittest.TestCase):
         self.assertNotIn("spirng-boot-boot", libraries)
 
         platform = (
-            REPO_ROOT / PLATFORM_MODULE / "build.gradle.kts"
+            REPO_ROOT / "backend" / PLATFORM_MODULE / "build.gradle.kts"
         ).read_text(encoding="utf-8")
         self.assertIn("api(libs.tomcat.embed.core)", platform)
         self.assertIn("api(libs.tomcat.embed.el)", platform)
@@ -158,7 +158,7 @@ class DependencyManagementContractTest(unittest.TestCase):
 
         guideline = guideline_path.read_text(encoding="utf-8")
         required_contracts = (
-            "gradle/libs.versions.toml",
+            "backend/gradle/libs.versions.toml",
             "j-store-dependencies-platform",
             "Spring Boot BOM",
             "安全下限",
@@ -171,7 +171,7 @@ class DependencyManagementContractTest(unittest.TestCase):
             self.assertIn(contract, guideline)
 
     def test_resolved_dependency_versions_are_verified_by_the_quality_gate(self) -> None:
-        root_build = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        root_build = (REPO_ROOT / "backend" / "build.gradle.kts").read_text(encoding="utf-8")
         quality_gate = (REPO_ROOT / "scripts" / "quality-gate.sh").read_text(
             encoding="utf-8"
         )

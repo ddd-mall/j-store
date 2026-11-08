@@ -8,7 +8,7 @@
 
 ## 验收标准
 
-1. 仓库根目录通过 pnpm workspace 管理 `apps/admin-web`，应用名为 `@j-store/admin-web`，保持 private；无需运行 Gradle 或数据库即可启动。
+1. 仓库根目录通过 pnpm workspace 管理 `frontend/apps/admin-web`，应用名为 `@j-store/admin-web`，保持 private；无需运行 Gradle 或数据库即可启动。
 2. 首页仅呈现最小项目入口，采用 Ant Design Provider、中文语言包和 CSS Modules；路由不存在时提供返回首页入口。
 3. Query Provider 完成基础装配；不自动请求尚未存在的 API，不生成虚构接口，不在浏览器持久化 token 或 secret。
 4. TypeScript strict、ESLint、Prettier、Vitest 和 Testing Library 可执行；Playwright 提供针对构建产物的入口和路由回退冒烟验证。

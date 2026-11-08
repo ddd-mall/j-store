@@ -9,7 +9,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 HOOK_SCRIPT = REPOSITORY_ROOT / "scripts" / "git-hooks" / "pre-push"
 PRE_COMMIT_HOOK_SCRIPT = REPOSITORY_ROOT / "scripts" / "git-hooks" / "pre-commit"
-BUILD_SCRIPT = REPOSITORY_ROOT / "build.gradle.kts"
+BUILD_SCRIPT = REPOSITORY_ROOT / "backend" / "build.gradle.kts"
 FORMATTING_GUIDELINES = (
     REPOSITORY_ROOT / "docs" / "steering" / "code-formatting-guidelines.md"
 )
@@ -35,11 +35,17 @@ class SpotlessConfigurationContractTest(unittest.TestCase):
         wrapper = WINDOWS_GRADLE_WRAPPER.read_text(encoding="utf-8")
 
         self.assertIn("JSTORE_JAVA_TMPDIR", wrapper)
-        self.assertIn('Join-Path $repositoryRoot "gradlew.bat"', wrapper)
+        self.assertIn('Join-Path $repositoryRoot "backend/gradlew.bat"', wrapper)
         self.assertIn("$gradleArguments = @($args)", wrapper)
         self.assertIn("[System.IO.Path]::IsPathRooted", wrapper)
         self.assertIn("finally {", wrapper)
         self.assertIn("exit $gradleExitCode", wrapper)
+
+    def test_git_hooks_use_the_relocated_backend_entrypoint(self) -> None:
+        for hook_path in (PRE_COMMIT_HOOK_SCRIPT, HOOK_SCRIPT):
+            hook = hook_path.read_text(encoding="utf-8")
+            self.assertIn('"$repository_root/scripts/backend-gradle.sh" "$@"', hook)
+            self.assertNotIn('./gradlew "$@"', hook)
 
     def test_git_hooks_use_windows_wrapper_on_git_for_windows(self) -> None:
         for hook_path in (PRE_COMMIT_HOOK_SCRIPT, HOOK_SCRIPT):

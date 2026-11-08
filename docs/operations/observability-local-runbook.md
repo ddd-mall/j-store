@@ -19,7 +19,7 @@
 以下命令是破坏性操作，会删除当前 Compose project 的 PostgreSQL 和可观测性命名卷。只在仓库根目录确认目标 project 后执行：
 
 ```powershell
-docker compose -f docker-compose.postgres.yml -f docker-compose.observability.yml down --volumes
+docker compose -f backend/docker-compose.postgres.yml -f backend/docker-compose.observability.yml down --volumes
 ```
 
 全新环境或尚未执行旧版基线的环境不需要此步骤。不得在包含不可丢弃数据的环境执行该命令。
@@ -28,8 +28,8 @@ docker compose -f docker-compose.postgres.yml -f docker-compose.observability.ym
 
 ```powershell
 .\gradlew.bat :j-store-boot:bootJar
-docker compose -f docker-compose.postgres.yml -f docker-compose.observability.yml config --quiet
-docker compose -f docker-compose.postgres.yml -f docker-compose.observability.yml up -d --build
+docker compose -f backend/docker-compose.postgres.yml -f backend/docker-compose.observability.yml config --quiet
+docker compose -f backend/docker-compose.postgres.yml -f backend/docker-compose.observability.yml up -d --build
 ```
 
 等待以下默认端点就绪：
@@ -96,8 +96,8 @@ Actuator 默认只暴露 `health` 与 `prometheus`。不得把 `env`、`heapdump
 
 ```powershell
 docker system df -v
-docker compose -f docker-compose.postgres.yml -f docker-compose.observability.yml exec alloy du -sh /var/lib/alloy
-docker compose -f docker-compose.postgres.yml -f docker-compose.observability.yml exec loki du -sh /loki
+docker compose -f backend/docker-compose.postgres.yml -f backend/docker-compose.observability.yml exec alloy du -sh /var/lib/alloy
+docker compose -f backend/docker-compose.postgres.yml -f backend/docker-compose.observability.yml exec loki du -sh /loki
 ```
 
 ## 停止、恢复与清理
@@ -105,7 +105,7 @@ docker compose -f docker-compose.postgres.yml -f docker-compose.observability.ym
 保留数据停止：
 
 ```powershell
-docker compose -f docker-compose.postgres.yml -f docker-compose.observability.yml down
+docker compose -f backend/docker-compose.postgres.yml -f backend/docker-compose.observability.yml down
 ```
 
 服务恢复后 Alloy 使用 positions 与 WAL 从已确认位置继续；Loki、Prometheus 和 Grafana 使用命名卷恢复。
@@ -113,7 +113,7 @@ docker compose -f docker-compose.postgres.yml -f docker-compose.observability.ym
 删除本参考栈数据是破坏性操作。先确认当前 Compose project 与卷名，再显式执行：
 
 ```powershell
-docker compose -f docker-compose.postgres.yml -f docker-compose.observability.yml down --volumes
+docker compose -f backend/docker-compose.postgres.yml -f backend/docker-compose.observability.yml down --volumes
 ```
 
 该命令同时删除本 Compose project 的 PostgreSQL 数据卷，不可恢复。若只清理可观测性卷，应先用 `docker volume ls` 确认精确名称，再逐个删除；不得使用宽泛通配符。
