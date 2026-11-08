@@ -9,7 +9,19 @@
 
 j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring Data JPA、PostgreSQL 和 Redis。项目结构、模块边界与测试入口见 [`docs/project-overview.md`](docs/project-overview.md)。
 
-## 代码格式化
+## 后台前端
+
+空白后台前端工程位于 [`apps/admin-web`](apps/admin-web/README.md)，采用 React、TypeScript、Vite 和 Ant Design，通过 pnpm workspace 管理，与 Gradle 后端独立构建。
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm check
+```
+
+运行环境、浏览器测试及 API 接入边界见应用 README。本次初始化不包含业务页面或登录。
+
+## 后端代码格式化
 
 Java、Kotlin 和 Gradle Kotlin DSL 代码只由 Spotless 格式化，其中 Java 使用 google-java-format 的官方默认 Google 风格，Kotlin 和 Gradle Kotlin DSL 使用 ktfmt 的官方默认风格。仓库不采用额外的人工或 AI 格式化规则。执行方式见 [`docs/steering/code-formatting-guidelines.md`](docs/steering/code-formatting-guidelines.md)。
 

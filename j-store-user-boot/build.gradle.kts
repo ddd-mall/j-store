@@ -6,6 +6,14 @@ plugins {
 repositories { mavenCentral() }
 
 dependencies {
+  implementation(libs.spring.authorization.server)
+  implementation(libs.spring.session.data.redis)
+  implementation(libs.spring.jdbc)
+  implementation(libs.spring.security.web)
+  implementation(libs.spring.security.config)
+  testImplementation(libs.spring.security.test)
+  testImplementation(libs.embedded.postgres)
+  testImplementation(libs.embedded.redis)
   implementation(libs.spring.context)
   implementation(project(":j-store-user-domain"))
   implementation(project(":j-store-user-api"))

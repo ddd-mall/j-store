@@ -47,7 +47,7 @@ import org.springframework.web.method.support.ModelAndViewContainer
 class UserAccountControllerContractTest {
   private val useCase = mock<UserAccountUseCase>()
   private val mvc =
-      MockMvcBuilders.standaloneSetup(UserAccountController(useCase))
+      MockMvcBuilders.standaloneSetup(UserAccountController(useCase, org.mockito.kotlin.mock()))
           .setCustomArgumentResolvers(CurrentUserResolver())
           .build()
 
@@ -83,13 +83,31 @@ class UserAccountControllerContractTest {
   }
 
   @Test
+  fun `legacy token issuance endpoints are removed`() {
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                    "/api/users/login"
+                )
+                .contentType("application/json")
+                .content("{}")
+        )
+        .andExpect(status().isNotFound)
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                    "/api/users/refresh-token"
+                )
+                .contentType("application/json")
+                .content("{}")
+        )
+        .andExpect(status().isNotFound)
+  }
+
+  @Test
   fun `controller defaults to authentication and only onboarding endpoints skip login`() {
     assertTrue(UserAccountController::class.java.isAnnotationPresent(RequireLogin::class.java))
     listOf(
             "requestPhoneVerification",
             "register",
-            "login",
-            "refreshToken",
         )
         .forEach { name ->
           val method = UserAccountController::class.java.methods.single { it.name == name }

@@ -44,19 +44,14 @@ class UserBootConfiguration {
   }
 
   @Bean
-  fun jwtTokenProvider(
-      @Value($$"${jwt.access-secret}") accessSecret: String,
-      @Value($$"${jwt.refresh-secret}") refreshSecret: String,
-      @Value($$"${jwt.issuer}") issuer: String,
-      @Value($$"${jwt.audience}") audience: String,
-      @Value($$"${jwt.key-id}") keyId: String,
-  ): JwtTokenProvider {
-    return JwtTokenProvider(accessSecret, refreshSecret, issuer, audience, keyId)
-  }
-
-  @Bean
-  fun redisTokenStore(stringRedisTemplate: StringRedisTemplate): TokenStore {
-    return RedisTokenStore(stringRedisTemplate)
+  fun redisAccountSessionStore(
+      stringRedisTemplate: StringRedisTemplate,
+      @Value($$"${jstore.oidc.issuer}") issuer: String,
+  ): RedisAccountSessionStore {
+    return RedisAccountSessionStore(
+        stringRedisTemplate,
+        com.jstore.user.oidc.DigestAuthorizationService.hash(issuer),
+    )
   }
 
   @Bean
@@ -74,22 +69,16 @@ class UserBootConfiguration {
       userAccountFactory: UserAccountFactory,
       userAccountRepository: UserAccountRepository,
       passwordHasher: PasswordHasher,
-      tokenProvider: TokenProvider,
-      tokenStore: TokenStore,
       phoneVerificationGateway: PhoneVerificationGateway,
       phoneVerificationCodeSender: PhoneVerificationCodeSender,
-      loginAttemptGuard: LoginAttemptGuard,
       domainEventPublisher: DomainEventPublisher,
   ): UserAccountService {
     return UserAccountService(
         userAccountFactory = userAccountFactory,
         userAccountRepository = userAccountRepository,
         passwordHasher = passwordHasher,
-        tokenProvider = tokenProvider,
-        tokenStore = tokenStore,
         phoneVerificationGateway = phoneVerificationGateway,
         phoneVerificationCodeSender = phoneVerificationCodeSender,
-        loginAttemptGuard = loginAttemptGuard,
         domainEventPublisher = domainEventPublisher,
     )
   }
@@ -98,13 +87,11 @@ class UserBootConfiguration {
   @Primary
   fun transactionalUserAccountUseCase(
       userAccountService: UserAccountService,
-      tokenProvider: TokenProvider,
-      tokenStore: TokenStore,
+      tokenStore: AccountSessionStore,
       transactionManager: PlatformTransactionManager,
   ): UserAccountUseCase =
       TransactionalUserAccountUseCase(
           delegate = userAccountService,
-          tokenProvider = tokenProvider,
           tokenStore = tokenStore,
           transactionManager = transactionManager,
       )

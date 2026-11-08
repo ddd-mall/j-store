@@ -34,7 +34,10 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/api/users")
 @RequireLogin
-class UserAccountController(private val userAccountService: UserAccountUseCase) {
+class UserAccountController(
+    private val userAccountService: UserAccountUseCase,
+    private val sessionStore: AccountSessionStore,
+) {
 
   // ---- Request DTOs ----
 
@@ -47,13 +50,6 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
   )
 
   data class PhoneVerificationRequest(val phoneNumber: String)
-
-  data class LoginRequest(
-      val phoneNumber: String,
-      val password: String,
-  )
-
-  data class RefreshTokenRequest(val refreshToken: String)
 
   data class ChangeNicknameRequest(val nickname: String)
 
@@ -71,13 +67,6 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
       val status: String,
       val createTime: LocalDateTime,
       val updateTime: LocalDateTime,
-  )
-
-  data class TokenResponse(
-      val accessToken: String,
-      val accessTokenExpiresAt: LocalDateTime,
-      val refreshToken: String,
-      val refreshTokenExpiresAt: LocalDateTime,
   )
 
   data class ErrorResponse(
@@ -112,37 +101,6 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
           status = account.status.name,
           createTime = account.createTime,
           updateTime = account.updateTime,
-      )
-    }
-  }
-
-  @SkipLogin
-  @PostMapping("/login")
-  fun login(@RequestBody request: LoginRequest): ResponseEntity<*> {
-    return userAccountService
-        .login(
-            phoneNumber = PhoneNumber(request.phoneNumber),
-            rawPassword = request.password,
-        )
-        .toResponse { tokenPair ->
-          TokenResponse(
-              accessToken = tokenPair.accessToken,
-              accessTokenExpiresAt = tokenPair.accessTokenExpiresAt,
-              refreshToken = tokenPair.refreshToken,
-              refreshTokenExpiresAt = tokenPair.refreshTokenExpiresAt,
-          )
-        }
-  }
-
-  @SkipLogin
-  @PostMapping("/refresh-token")
-  fun refreshToken(@RequestBody request: RefreshTokenRequest): ResponseEntity<*> {
-    return userAccountService.refreshToken(request.refreshToken).toResponse { tokenPair ->
-      TokenResponse(
-          accessToken = tokenPair.accessToken,
-          accessTokenExpiresAt = tokenPair.accessTokenExpiresAt,
-          refreshToken = tokenPair.refreshToken,
-          refreshTokenExpiresAt = tokenPair.refreshTokenExpiresAt,
       )
     }
   }
@@ -189,13 +147,11 @@ class UserAccountController(private val userAccountService: UserAccountUseCase) 
   }
 
   @PostMapping("/me/logout")
-  fun logout(
-      @CurrentPrincipal principal: AuthenticatedPrincipal,
-      @RequestHeader("Authorization") authorization: String,
-  ): ResponseEntity<*> =
-      userAccountService
-          .logout(principal.userId(), authorization.removePrefix("Bearer "))
-          .toResponse {}
+  fun logout(@CurrentPrincipal principal: AuthenticatedPrincipal): ResponseEntity<*> {
+    val session = requireNotNull(principal.session)
+    sessionStore.revokeSession(principal.userId(), session.sessionId)
+    return ResponseEntity.ok().build<Unit>()
+  }
 
   // ---- Helper ----
 

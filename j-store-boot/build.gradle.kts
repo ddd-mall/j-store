@@ -72,6 +72,7 @@ dependencies {
   testImplementation(libs.kotlin.test)
   testImplementation(libs.kotlin.test.junit5)
   testImplementation(libs.embedded.postgres)
+  testImplementation(libs.embedded.redis)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 

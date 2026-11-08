@@ -19,7 +19,6 @@ package com.jstore.user.service
 import com.jstore.common.errors.BusinessError
 import com.jstore.common.properties.PhoneNumber
 import com.jstore.common.utils.Result
-import com.jstore.user.domain.useraccount.AuthTokenPair
 import com.jstore.user.domain.useraccount.Nickname
 import com.jstore.user.domain.useraccount.PhoneVerificationChallenge
 import com.jstore.user.domain.useraccount.PhoneVerificationProof
@@ -36,12 +35,6 @@ interface UserAccountUseCase {
       cmd: UserRegisterCMD,
       verificationProof: PhoneVerificationProof,
   ): Result<UserAccount, BusinessError>
-
-  fun login(phoneNumber: PhoneNumber, rawPassword: String): Result<AuthTokenPair, BusinessError>
-
-  fun refreshToken(refreshToken: String): Result<AuthTokenPair, BusinessError>
-
-  fun logout(userId: UserId, accessToken: String): Result<Unit, BusinessError>
 
   fun findById(userId: UserId): Result<UserAccount, BusinessError>
 

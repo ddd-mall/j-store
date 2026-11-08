@@ -1,0 +1,21 @@
+{
+  "name": "j-store-frontend",
+  "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": "^24.0.0 || ^26.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @j-store/admin-web dev",
+    "build": "pnpm --filter @j-store/admin-web build",
+    "preview": "pnpm --filter @j-store/admin-web preview",
+    "typecheck": "pnpm --filter @j-store/admin-web typecheck",
+    "lint": "pnpm --filter @j-store/admin-web lint",
+    "test": "pnpm --filter @j-store/admin-web test",
+    "test:e2e": "pnpm --filter @j-store/admin-web test:e2e",
+    "format": "pnpm --filter @j-store/admin-web format",
+    "format:check": "pnpm --filter @j-store/admin-web format:check",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  }
+}

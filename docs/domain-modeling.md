@@ -26,7 +26,7 @@ j-store 采用战略 DDD 与战术 DDD 结合的方式：
 | Payment | `TradePayment`、退款相关模型 | 按结算分期执行支付和退款的资金状态 | 交易结算条款、订单商品与履约事实 |
 | Fulfillment | `FulfillmentOrder` | 发货、运输、签收等履约状态 | 交易定价、支付记账、实物库存盘点 |
 | Accounting | 账户、期间、凭证、结算模型 | 会计分录和结算事实 | 订单或支付聚合内部状态 |
-| User / Authentication | 用户账户、身份令牌、用户资料查询契约 | 当前认证域内的用户身份、昵称、已验证手机号、账号状态、登录状态和认证事实 | 跨认证域全局身份、商户销售政策与交易状态 |
+| User / Authentication | 用户账户、外部身份绑定、OAuth 授权/同意、账号会话、用户资料查询契约 | 当前认证域内的用户身份、昵称、已验证手机号、账号状态、登录状态和认证事实 | 跨认证域全局身份、商户销售政策与交易状态 |
 
 “权威”表示只有该上下文可以定义和修改该事实的业务语义。其它上下文可以通过 ACL 查询它，或保存发生交易时的不可变快照，但不得反向成为第二权威。
 
@@ -185,6 +185,20 @@ PENDING_OFFER -> CONFIRMED
 ```
 
 Order 不再保存 `SaleAuthorization`，也不判断应否请求或释放库存。收到 Trade 最终成功事实后进入 `CONFIRMED/ACTIVE` 并允许创建支付单；收到最终失败事实后进入 `FAILED/CLOSED`。
+
+## User / Authentication：本地账号与外部身份
+
+OAuth/OIDC 由当前 User 认证域签发；微信只证明外部身份。业务继续使用 `authenticationDomain + accountId`，不把微信 openid、unionid、OAuth client 或 scope 解释为商户成员权限。
+
+`ExternalIdentityBinding` 是当前只允许创建和查询的身份绑定聚合，以 `UserId` 引用本地账号。数据库同时约束 `(provider, appId, subject)` 与 `(provider, appId, userId)` 唯一；unionid 不触发跨应用账号合并。
+
+未绑定微信身份只形成短期 onboarding 意图，不创建正式账号或登录态。验证码绑定用途和 onboarding ID；已有 ACTIVE 账号在明确确认及验证手机号后复用，新账号还必须提供昵称和合规密码。账号创建、绑定与注册事件 Outbox 在同一数据库事务提交；竞争由唯一约束兜底，失败不恢复已消费凭证。
+
+OAuth 授权、同意和 Refresh family 由协议 Store 管理，不嵌入 UserAccount 聚合。授权码与 Refresh Token 只存摘要；协议事务锁保证单次兑换，旧 Refresh 摘要用于重放检测和 family 撤销。每个 family 当前只保留一个 Access Token，刷新后旧 Access Token 失效。普通登出撤销当前账号 session 下的授权，账号安全变更推进用户撤销代次。
+
+Redis 账号会话键按 issuer 派生 namespace。撤销代次首次生成随机初值，丢失屏障时拒绝旧会话，不以固定 0 恢复。密码登录在账号行锁内验证凭证并创建会话，避免与改密/禁用竞争后用旧凭证建立新会话。依赖失败不能降级为仅验 JWT。
+
+本地证据及尚未通过的整体门槛见 [用户 OIDC / 微信交付记录](spec/user-oidc-wechat/summary.md)。真实平台联调和独立审查未完成，模拟测试不构成外部平台验收。
 
 ## 聚合、事务与消息规则
 

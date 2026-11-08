@@ -10,6 +10,7 @@ repositories {
 }
 
 dependencies {
+  implementation(libs.spring.authorization.server)
   implementation(libs.kotlin.stdlib)
   implementation(libs.kotlin.reflect)
   api(project(":j-store-user-domain"))
@@ -21,11 +22,6 @@ dependencies {
   implementation(libs.spring.boot.starter.data.redis)
   implementation(libs.spring.boot.starter.web)
   testImplementation(libs.spring.boot.starter.test)
-
-  // JWT
-  implementation(libs.jjwt.api)
-  runtimeOnly(libs.jjwt.impl)
-  runtimeOnly(libs.jjwt.jackson)
 
   // BCrypt
   implementation(libs.spring.security.crypto)
