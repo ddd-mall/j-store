@@ -28,43 +28,43 @@ data class OidcProperties(
     val clients: List<OidcClientProperties> = emptyList(),
     val wechat: WechatProperties = WechatProperties(),
 ) {
-    fun validate(development: Boolean) {
-        val uri = URI(issuer)
-        require(
-            uri.isAbsolute &&
-                uri.host != null &&
-                uri.userInfo == null &&
-                uri.query == null &&
-                uri.fragment == null &&
-                !issuer.endsWith('/')
-        ) {
-            "Configure a canonical OIDC issuer without trailing slash"
-        }
-        require(
-            uri.scheme == "https" ||
-                (development && uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1"))
-        ) {
-            "OIDC issuer requires HTTPS"
-        }
-        require(jwkSetLocation.isNotBlank() && activeKeyId.isNotBlank() && clients.isNotEmpty()) {
-            "OIDC signing keys and clients must be explicitly configured"
-        }
-        clients.forEach { client ->
-            client.validate()
-            if (!development)
-                require(
-                    (client.redirects + client.postLogoutRedirects + client.corsOrigins).all {
-                        URI(it).scheme == "https"
-                    }
-                )
-        }
-        require(resourceAudience.isNotBlank())
-        require(clients.map { it.id }.toSet().size == clients.size)
-        if (wechat.enabled) {
-            require(wechat.appId.isNotBlank() && wechat.secret.isNotBlank())
-            require(wechat.callbackUri == "$issuer/login/wechat/callback")
-        }
+  fun validate(development: Boolean) {
+    val uri = URI(issuer)
+    require(
+        uri.isAbsolute &&
+            uri.host != null &&
+            uri.userInfo == null &&
+            uri.query == null &&
+            uri.fragment == null &&
+            !issuer.endsWith('/')
+    ) {
+      "Configure a canonical OIDC issuer without trailing slash"
     }
+    require(
+        uri.scheme == "https" ||
+            (development && uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1"))
+    ) {
+      "OIDC issuer requires HTTPS"
+    }
+    require(jwkSetLocation.isNotBlank() && activeKeyId.isNotBlank() && clients.isNotEmpty()) {
+      "OIDC signing keys and clients must be explicitly configured"
+    }
+    clients.forEach { client ->
+      client.validate()
+      if (!development)
+          require(
+              (client.redirects + client.postLogoutRedirects + client.corsOrigins).all {
+                URI(it).scheme == "https"
+              }
+          )
+    }
+    require(resourceAudience.isNotBlank())
+    require(clients.map { it.id }.toSet().size == clients.size)
+    if (wechat.enabled) {
+      require(wechat.appId.isNotBlank() && wechat.secret.isNotBlank())
+      require(wechat.callbackUri == "$issuer/login/wechat/callback")
+    }
+  }
 }
 
 data class OidcClientProperties(
@@ -77,56 +77,54 @@ data class OidcClientProperties(
     val audiences: Set<String> = setOf("j-store-api"),
     val corsOrigins: List<String> = emptyList(),
 ) {
-    val confidential
-        get() = secretHash.isNotBlank()
+  val confidential
+    get() = secretHash.isNotBlank()
 
-    fun validate() {
-        require(
-            id.isNotBlank() && id.length <= 100 && redirects.isNotEmpty() && audiences.isNotEmpty()
-        )
-        require(
-            scopes.contains("openid") &&
-                setOf("openid", "profile", "phone", "offline_access").containsAll(scopes)
-        )
-        require(confidential || "offline_access" !in scopes) {
-            "Public clients cannot request offline access"
-        }
-        require(
-            !confidential ||
-                secretHash.matches(Regex("\\{bcrypt}\\$2[aby]\\$[0-9]{2}\\$[./A-Za-z0-9]{53}"))
-        ) {
-            "Client secret must be a BCrypt digest"
-        }
-        (redirects + postLogoutRedirects).forEach { value ->
-            val uri = URI(value)
-            require(
-                '*' !in value &&
-                    uri.isAbsolute &&
-                    uri.host != null &&
-                    uri.userInfo == null &&
-                    uri.fragment == null
-            )
-            require(
-                uri.scheme == "https" ||
-                    (uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1"))
-            )
-        }
-        corsOrigins.forEach { value ->
-            val uri = URI(value)
-            require(
-                '*' !in value &&
-                    uri.host != null &&
-                    uri.userInfo == null &&
-                    uri.query == null &&
-                    uri.fragment == null &&
-                    uri.path.isNullOrEmpty()
-            )
-            require(
-                uri.scheme == "https" ||
-                    (uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1"))
-            )
-        }
+  fun validate() {
+    require(id.isNotBlank() && id.length <= 100 && redirects.isNotEmpty() && audiences.isNotEmpty())
+    require(
+        scopes.contains("openid") &&
+            setOf("openid", "profile", "phone", "offline_access").containsAll(scopes)
+    )
+    require(confidential || "offline_access" !in scopes) {
+      "Public clients cannot request offline access"
     }
+    require(
+        !confidential ||
+            secretHash.matches(Regex("\\{bcrypt}\\$2[aby]\\$[0-9]{2}\\$[./A-Za-z0-9]{53}"))
+    ) {
+      "Client secret must be a BCrypt digest"
+    }
+    (redirects + postLogoutRedirects).forEach { value ->
+      val uri = URI(value)
+      require(
+          '*' !in value &&
+              uri.isAbsolute &&
+              uri.host != null &&
+              uri.userInfo == null &&
+              uri.fragment == null
+      )
+      require(
+          uri.scheme == "https" ||
+              (uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1"))
+      )
+    }
+    corsOrigins.forEach { value ->
+      val uri = URI(value)
+      require(
+          '*' !in value &&
+              uri.host != null &&
+              uri.userInfo == null &&
+              uri.query == null &&
+              uri.fragment == null &&
+              uri.path.isNullOrEmpty()
+      )
+      require(
+          uri.scheme == "https" ||
+              (uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1"))
+      )
+    }
+  }
 }
 
 data class WechatProperties(

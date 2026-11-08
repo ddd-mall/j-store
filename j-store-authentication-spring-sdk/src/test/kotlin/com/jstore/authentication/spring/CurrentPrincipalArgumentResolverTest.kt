@@ -29,33 +29,31 @@ import org.springframework.web.context.request.NativeWebRequest
 
 class CurrentPrincipalArgumentResolverTest :
     FunSpec({
-        val resolver = CurrentPrincipalArgumentResolver()
+      val resolver = CurrentPrincipalArgumentResolver()
 
-        afterEach { AuthenticatedPrincipalContext.clear() }
+      afterEach { AuthenticatedPrincipalContext.clear() }
 
-        test("supports only CurrentPrincipal parameters") {
-            val parameter = mock<MethodParameter>()
-            whenever(parameter.hasParameterAnnotation(CurrentPrincipal::class.java))
-                .thenReturn(true)
-            whenever(parameter.parameterType).thenReturn(AuthenticatedPrincipal::class.java)
+      test("supports only CurrentPrincipal parameters") {
+        val parameter = mock<MethodParameter>()
+        whenever(parameter.hasParameterAnnotation(CurrentPrincipal::class.java)).thenReturn(true)
+        whenever(parameter.parameterType).thenReturn(AuthenticatedPrincipal::class.java)
 
-            resolver.supportsParameter(parameter) shouldBe true
-        }
+        resolver.supportsParameter(parameter) shouldBe true
+      }
 
-        test("resolves the complete scoped principal") {
-            val principal = AuthenticatedPrincipal("issuer-a", AuthenticatedAccountId(123))
-            AuthenticatedPrincipalContext.set(principal)
-            val parameter = mock<MethodParameter>()
-            whenever(parameter.isOptional).thenReturn(false)
+      test("resolves the complete scoped principal") {
+        val principal = AuthenticatedPrincipal("issuer-a", AuthenticatedAccountId(123))
+        AuthenticatedPrincipalContext.set(principal)
+        val parameter = mock<MethodParameter>()
+        whenever(parameter.isOptional).thenReturn(false)
 
-            resolver.resolveArgument(parameter, null, mock<NativeWebRequest>(), null) shouldBe
-                principal
-        }
+        resolver.resolveArgument(parameter, null, mock<NativeWebRequest>(), null) shouldBe principal
+      }
 
-        test("returns null for an optional parameter without a principal") {
-            val parameter = mock<MethodParameter>()
-            whenever(parameter.isOptional).thenReturn(true)
+      test("returns null for an optional parameter without a principal") {
+        val parameter = mock<MethodParameter>()
+        whenever(parameter.isOptional).thenReturn(true)
 
-            resolver.resolveArgument(parameter, null, mock<NativeWebRequest>(), null) shouldBe null
-        }
+        resolver.resolveArgument(parameter, null, mock<NativeWebRequest>(), null) shouldBe null
+      }
     })

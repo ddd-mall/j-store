@@ -27,5 +27,5 @@ data class InventoryAvailabilityInfo(
 )
 
 fun interface InventoryAvailabilityQueryService {
-    fun queryAvailability(keys: List<InventoryAvailabilityKey>): List<InventoryAvailabilityInfo>
+  fun queryAvailability(keys: List<InventoryAvailabilityKey>): List<InventoryAvailabilityInfo>
 }

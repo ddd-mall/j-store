@@ -66,84 +66,84 @@ data class OutboxEntry(
     /** Strictly increasing position within (transportId, orderingKey). */
     val sequenceNo: Long,
 ) {
-    init {
-        toMessage()
-        require(retryCount >= 0) { "Outbox retry count must not be negative" }
-        require(lockToken >= 0) { "Outbox lock token must not be negative" }
-        require((status == OutboxEntryStatus.PUBLISHED) == (publishedAt != null)) {
-            "Only PUBLISHED outbox entries must have a publication time"
-        }
-
-        val hasCompleteLease = lockedBy != null && lockedAt != null && lockedUntil != null
-        if (status == OutboxEntryStatus.IN_PROGRESS) {
-            require(hasCompleteLease) { "IN_PROGRESS outbox entry requires a complete lease" }
-            require(lockedUntil.isAfter(lockedAt)) {
-                "Outbox lease expiry must be after its acquisition time"
-            }
-        } else {
-            require(lockedBy == null && lockedAt == null && lockedUntil == null) {
-                "Only IN_PROGRESS outbox entries may hold a lease"
-            }
-        }
+  init {
+    toMessage()
+    require(retryCount >= 0) { "Outbox retry count must not be negative" }
+    require(lockToken >= 0) { "Outbox lock token must not be negative" }
+    require((status == OutboxEntryStatus.PUBLISHED) == (publishedAt != null)) {
+      "Only PUBLISHED outbox entries must have a publication time"
     }
 
-    fun toMessage(): OutboxMessage =
-        OutboxMessage(
-            id = id,
-            eventType = eventType,
-            payload = payload,
-            aggregateType = aggregateType,
-            aggregateId = aggregateId,
-            createdAt = createdAt,
-            eventId = eventId,
-            eventClassName = eventClassName,
-            eventVersion = eventVersion,
-            occurredAt = occurredAt,
-            messageKind = messageKind,
-            deliveryTarget = deliveryTarget,
-            transportId = transportId,
-            destination = destination,
-            logicalDestination = logicalDestination,
-            deliveryProfile = deliveryProfile,
-            acceptBefore = acceptBefore,
-            partitionKey = partitionKey,
-            correlationId = correlationId,
-            causationId = causationId,
-            merchantScopeId = merchantScopeId,
-            deploymentScopeId = deploymentScopeId,
-            orderingKey = orderingKey,
-            sequenceNo = sequenceNo,
+    val hasCompleteLease = lockedBy != null && lockedAt != null && lockedUntil != null
+    if (status == OutboxEntryStatus.IN_PROGRESS) {
+      require(hasCompleteLease) { "IN_PROGRESS outbox entry requires a complete lease" }
+      require(lockedUntil.isAfter(lockedAt)) {
+        "Outbox lease expiry must be after its acquisition time"
+      }
+    } else {
+      require(lockedBy == null && lockedAt == null && lockedUntil == null) {
+        "Only IN_PROGRESS outbox entries may hold a lease"
+      }
+    }
+  }
+
+  fun toMessage(): OutboxMessage =
+      OutboxMessage(
+          id = id,
+          eventType = eventType,
+          payload = payload,
+          aggregateType = aggregateType,
+          aggregateId = aggregateId,
+          createdAt = createdAt,
+          eventId = eventId,
+          eventClassName = eventClassName,
+          eventVersion = eventVersion,
+          occurredAt = occurredAt,
+          messageKind = messageKind,
+          deliveryTarget = deliveryTarget,
+          transportId = transportId,
+          destination = destination,
+          logicalDestination = logicalDestination,
+          deliveryProfile = deliveryProfile,
+          acceptBefore = acceptBefore,
+          partitionKey = partitionKey,
+          correlationId = correlationId,
+          causationId = causationId,
+          merchantScopeId = merchantScopeId,
+          deploymentScopeId = deploymentScopeId,
+          orderingKey = orderingKey,
+          sequenceNo = sequenceNo,
+      )
+
+  companion object {
+    fun pending(message: OutboxMessage): OutboxEntry =
+        OutboxEntry(
+            id = message.id,
+            eventType = message.eventType,
+            payload = message.payload,
+            aggregateType = message.aggregateType,
+            aggregateId = message.aggregateId,
+            createdAt = message.createdAt,
+            eventId = message.eventId,
+            eventClassName = message.eventClassName,
+            eventVersion = message.eventVersion,
+            occurredAt = message.occurredAt,
+            messageKind = message.messageKind,
+            deliveryTarget = message.deliveryTarget,
+            transportId = message.transportId,
+            destination = message.destination,
+            logicalDestination = message.logicalDestination,
+            deliveryProfile = message.deliveryProfile,
+            acceptBefore = message.acceptBefore,
+            partitionKey = message.partitionKey,
+            correlationId = message.correlationId,
+            causationId = message.causationId,
+            merchantScopeId = message.merchantScopeId,
+            deploymentScopeId = message.deploymentScopeId,
+            orderingKey = message.orderingKey,
+            sequenceNo = message.sequenceNo,
+            status = OutboxEntryStatus.PENDING,
+            updatedAt = message.createdAt,
         )
-
-    companion object {
-        fun pending(message: OutboxMessage): OutboxEntry =
-            OutboxEntry(
-                id = message.id,
-                eventType = message.eventType,
-                payload = message.payload,
-                aggregateType = message.aggregateType,
-                aggregateId = message.aggregateId,
-                createdAt = message.createdAt,
-                eventId = message.eventId,
-                eventClassName = message.eventClassName,
-                eventVersion = message.eventVersion,
-                occurredAt = message.occurredAt,
-                messageKind = message.messageKind,
-                deliveryTarget = message.deliveryTarget,
-                transportId = message.transportId,
-                destination = message.destination,
-                logicalDestination = message.logicalDestination,
-                deliveryProfile = message.deliveryProfile,
-                acceptBefore = message.acceptBefore,
-                partitionKey = message.partitionKey,
-                correlationId = message.correlationId,
-                causationId = message.causationId,
-                merchantScopeId = message.merchantScopeId,
-                deploymentScopeId = message.deploymentScopeId,
-                orderingKey = message.orderingKey,
-                sequenceNo = message.sequenceNo,
-                status = OutboxEntryStatus.PENDING,
-                updatedAt = message.createdAt,
-            )
-    }
+  }
 }

@@ -29,13 +29,13 @@ import org.springframework.web.bind.annotation.*
 )
 @Controller
 class LoginPageController(private val properties: OidcProperties) {
-    @SkipLogin
-    @GetMapping("/login")
-    @ResponseBody
-    fun login(request: HttpServletRequest): ResponseEntity<String> =
-        page(
-            "登录",
-            """
+  @SkipLogin
+  @GetMapping("/login")
+  @ResponseBody
+  fun login(request: HttpServletRequest): ResponseEntity<String> =
+      page(
+          "登录",
+          """
         <form method="post" action="/login">${csrf(request)}
         <label>手机号<input name="username" type="tel" required autocomplete="username"></label>
         <label>密码<input name="password" type="password" required autocomplete="current-password"></label>
@@ -43,6 +43,6 @@ class LoginPageController(private val properties: OidcProperties) {
         ${if (properties.wechat.enabled) "<p><a href=\"/login/wechat\">微信扫码登录</a></p>" else ""}
         ${if (request.getParameter("error") != null) "<p role=\"alert\">登录失败，请检查凭证后重试。</p>" else ""}
     """
-                .trimIndent(),
-        )
+              .trimIndent(),
+      )
 }

@@ -33,81 +33,80 @@ class HttpWechatIdentityGateway(
     private val baseUri: URI = URI("https://api.weixin.qq.com"),
     private val requestTimeout: Duration = Duration.ofSeconds(5),
 ) : WechatIdentityGateway {
-    private val client =
-        HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(3))
-            .followRedirects(HttpClient.Redirect.NEVER)
+  private val client =
+      HttpClient.newBuilder()
+          .connectTimeout(Duration.ofSeconds(3))
+          .followRedirects(HttpClient.Redirect.NEVER)
+          .build()
+
+  override fun exchange(code: String): VerifiedWechatIdentity? {
+    if (code.isBlank() || code.length > 512) return null
+    return try {
+      val token =
+          get(
+              "/sns/oauth2/access_token",
+              mapOf(
+                  "appid" to appId,
+                  "secret" to secret,
+                  "code" to code,
+                  "grant_type" to "authorization_code",
+              ),
+          ) ?: return null
+      val subject = token.path("openid").asText()
+      val access = token.path("access_token").asText()
+      if (
+          subject.isBlank() ||
+              access.isBlank() ||
+              "snsapi_login" !in token.path("scope").asText().split(',')
+      )
+          return null
+      val profile =
+          get("/sns/userinfo", mapOf("access_token" to access, "openid" to subject)) ?: return null
+      if (profile.path("openid").asText() != subject) return null
+      val union = token.path("unionid").asText().takeIf(String::isNotBlank)
+      val profileUnion = profile.path("unionid").asText().takeIf(String::isNotBlank)
+      if (union != null && profileUnion != null && union != profileUnion) return null
+      VerifiedWechatIdentity(
+          ExternalIdentity("wechat", appId, subject),
+          profileUnion ?: union,
+      )
+    } catch (_: InterruptedException) {
+      Thread.currentThread().interrupt()
+      null
+    } catch (_: Exception) {
+      null
+    }
+  }
+
+  private fun get(path: String, params: Map<String, String>): JsonNode? {
+    val query = params.entries.joinToString("&") { encode(it.key) + "=" + encode(it.value) }
+    val request =
+        HttpRequest.newBuilder(baseUri.resolve("$path?$query"))
+            .timeout(Duration.ofSeconds(5))
+            .GET()
             .build()
-
-    override fun exchange(code: String): VerifiedWechatIdentity? {
-        if (code.isBlank() || code.length > 512) return null
-        return try {
-            val token =
-                get(
-                    "/sns/oauth2/access_token",
-                    mapOf(
-                        "appid" to appId,
-                        "secret" to secret,
-                        "code" to code,
-                        "grant_type" to "authorization_code",
-                    ),
-                ) ?: return null
-            val subject = token.path("openid").asText()
-            val access = token.path("access_token").asText()
-            if (
-                subject.isBlank() ||
-                    access.isBlank() ||
-                    "snsapi_login" !in token.path("scope").asText().split(',')
-            )
-                return null
-            val profile =
-                get("/sns/userinfo", mapOf("access_token" to access, "openid" to subject))
-                    ?: return null
-            if (profile.path("openid").asText() != subject) return null
-            val union = token.path("unionid").asText().takeIf(String::isNotBlank)
-            val profileUnion = profile.path("unionid").asText().takeIf(String::isNotBlank)
-            if (union != null && profileUnion != null && union != profileUnion) return null
-            VerifiedWechatIdentity(
-                ExternalIdentity("wechat", appId, subject),
-                profileUnion ?: union,
-            )
-        } catch (_: InterruptedException) {
-            Thread.currentThread().interrupt()
-            null
-        } catch (_: Exception) {
-            null
+    val pending =
+        client.sendAsync(
+            request,
+            HttpResponse.BodyHandler { _ ->
+              HttpResponse.BodySubscribers.limiting(
+                  HttpResponse.BodySubscribers.ofByteArray(),
+                  65536,
+              )
+            },
+        )
+    val response =
+        try {
+          pending.get(requestTimeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
+        } catch (failure: Exception) {
+          pending.cancel(true)
+          throw failure
         }
-    }
+    if (response.statusCode() != 200) return null
+    val node = mapper.readTree(response.body()) ?: return null
+    if (!node.isObject || node.has("errcode")) return null
+    return node
+  }
 
-    private fun get(path: String, params: Map<String, String>): JsonNode? {
-        val query = params.entries.joinToString("&") { encode(it.key) + "=" + encode(it.value) }
-        val request =
-            HttpRequest.newBuilder(baseUri.resolve("$path?$query"))
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build()
-        val pending =
-            client.sendAsync(
-                request,
-                HttpResponse.BodyHandler { _ ->
-                    HttpResponse.BodySubscribers.limiting(
-                        HttpResponse.BodySubscribers.ofByteArray(),
-                        65536,
-                    )
-                },
-            )
-        val response =
-            try {
-                pending.get(requestTimeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
-            } catch (failure: Exception) {
-                pending.cancel(true)
-                throw failure
-            }
-        if (response.statusCode() != 200) return null
-        val node = mapper.readTree(response.body()) ?: return null
-        if (!node.isObject || node.has("errcode")) return null
-        return node
-    }
-
-    private fun encode(value: String) = URLEncoder.encode(value, Charsets.UTF_8)
+  private fun encode(value: String) = URLEncoder.encode(value, Charsets.UTF_8)
 }

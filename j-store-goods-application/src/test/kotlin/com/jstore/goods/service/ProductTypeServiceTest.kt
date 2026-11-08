@@ -31,23 +31,23 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class ProductTypeServiceTest {
-    @Test
-    fun `save creates and persists a merchant product type`() {
-        val repository = mock<ProductTypeRepository>()
-        whenever(repository.save(any())).thenAnswer { it.arguments[0] as ProductType }
-        val service = ProductTypeService(SnowFlakSequence(), repository)
+  @Test
+  fun `save creates and persists a merchant product type`() {
+    val repository = mock<ProductTypeRepository>()
+    whenever(repository.save(any())).thenAnswer { it.arguments[0] as ProductType }
+    val service = ProductTypeService(SnowFlakSequence(), repository)
 
-        val result =
-            service.save(
-                ProductTypeSaveCommand(
-                    merchantId = MerchantId(7),
-                    name = LocalizedText.of("zh-CN" to "服装"),
-                    definitions = emptyList(),
-                )
+    val result =
+        service.save(
+            ProductTypeSaveCommand(
+                merchantId = MerchantId(7),
+                name = LocalizedText.of("zh-CN" to "服装"),
+                definitions = emptyList(),
             )
+        )
 
-        val saved = assertIs<Success<ProductType>>(result).value
-        assertEquals(MerchantId(7), saved.merchantId)
-        verify(repository).save(saved)
-    }
+    val saved = assertIs<Success<ProductType>>(result).value
+    assertEquals(MerchantId(7), saved.merchantId)
+    verify(repository).save(saved)
+  }
 }

@@ -39,40 +39,40 @@ data class OutboxProperties(
     val eventTypeScanPackages: List<String> = listOf("com.jstore"),
     val asyncMulticasterFailFast: Boolean = false,
 ) {
-    init {
-        require(pollingInterval > 0) { "jstore.outbox.polling-interval must be greater than 0" }
-        require(batchSize > 0) { "jstore.outbox.batch-size must be greater than 0" }
-        require(maxInFlightPerPoll > 0) {
-            "jstore.outbox.max-in-flight-per-poll must be greater than 0"
-        }
-        require(maxBatchesPerDrain > 0) {
-            "jstore.outbox.max-batches-per-drain must be greater than 0"
-        }
-        require(maxRetryCount > 0) { "jstore.outbox.max-retry-count must be greater than 0" }
-        require(initialRetryDelayMillis >= 0) {
-            "jstore.outbox.initial-retry-delay-millis must be greater than or equal to 0"
-        }
-        require(maxRetryDelayMillis >= initialRetryDelayMillis) {
-            "jstore.outbox.max-retry-delay-millis must be greater than or equal to initial retry delay"
-        }
-        require(lockTimeoutMillis > 0) {
-            "jstore.outbox.lock-timeout-millis must be greater than 0"
-        }
-        require(retentionDays >= 0) {
-            "jstore.outbox.retention-days must be greater than or equal to 0"
-        }
-        require(consumptionRetentionDays >= retentionDays) {
-            "jstore.outbox.consumption-retention-days must be greater than or equal to retention-days"
-        }
-        require(cleanupBatchSize > 0) { "jstore.outbox.cleanup-batch-size must be greater than 0" }
-        require(cleanupMaxBatchesPerRun > 0) {
-            "jstore.outbox.cleanup-max-batches-per-run must be greater than 0"
-        }
-        require(cleanupIntervalMillis > 0) {
-            "jstore.outbox.cleanup-interval-millis must be greater than 0"
-        }
-        require(eventTypeScanPackages.isNotEmpty()) {
-            "jstore.outbox.event-type-scan-packages must not be empty"
-        }
+  init {
+    require(pollingInterval > 0) { "jstore.outbox.polling-interval must be greater than 0" }
+    require(batchSize > 0) { "jstore.outbox.batch-size must be greater than 0" }
+    require(maxInFlightPerPoll > 0) {
+      "jstore.outbox.max-in-flight-per-poll must be greater than 0"
     }
+    require(maxBatchesPerDrain > 0) {
+      "jstore.outbox.max-batches-per-drain must be greater than 0"
+    }
+    require(maxRetryCount > 0) { "jstore.outbox.max-retry-count must be greater than 0" }
+    require(initialRetryDelayMillis >= 0) {
+      "jstore.outbox.initial-retry-delay-millis must be greater than or equal to 0"
+    }
+    require(maxRetryDelayMillis >= initialRetryDelayMillis) {
+      "jstore.outbox.max-retry-delay-millis must be greater than or equal to initial retry delay"
+    }
+    require(lockTimeoutMillis > 0) {
+      "jstore.outbox.lock-timeout-millis must be greater than 0"
+    }
+    require(retentionDays >= 0) {
+      "jstore.outbox.retention-days must be greater than or equal to 0"
+    }
+    require(consumptionRetentionDays >= retentionDays) {
+      "jstore.outbox.consumption-retention-days must be greater than or equal to retention-days"
+    }
+    require(cleanupBatchSize > 0) { "jstore.outbox.cleanup-batch-size must be greater than 0" }
+    require(cleanupMaxBatchesPerRun > 0) {
+      "jstore.outbox.cleanup-max-batches-per-run must be greater than 0"
+    }
+    require(cleanupIntervalMillis > 0) {
+      "jstore.outbox.cleanup-interval-millis must be greater than 0"
+    }
+    require(eventTypeScanPackages.isNotEmpty()) {
+      "jstore.outbox.event-type-scan-packages must not be empty"
+    }
+  }
 }

@@ -31,18 +31,18 @@ class ProductTypeService(
     private val sequence: SnowFlakSequence,
     private val repository: ProductTypeRepository,
 ) : ProductTypeUseCase {
-    override fun save(command: ProductTypeSaveCommand): Result<ProductType, BusinessError> {
-        val existing = command.id?.let(repository::findById)
-        if (existing != null && existing.merchantId != command.merchantId) {
-            return Failure(ProductTypeErrors.MERCHANT_MISMATCH)
-        }
-        val productType =
-            ProductTypeImpl(
-                id = command.id ?: ProductTypeId(sequence.nextId()),
-                merchantId = command.merchantId,
-                name = command.name,
-                definitions = command.definitions,
-            )
-        return Success(repository.save(productType))
+  override fun save(command: ProductTypeSaveCommand): Result<ProductType, BusinessError> {
+    val existing = command.id?.let(repository::findById)
+    if (existing != null && existing.merchantId != command.merchantId) {
+      return Failure(ProductTypeErrors.MERCHANT_MISMATCH)
     }
+    val productType =
+        ProductTypeImpl(
+            id = command.id ?: ProductTypeId(sequence.nextId()),
+            merchantId = command.merchantId,
+            name = command.name,
+            definitions = command.definitions,
+        )
+    return Success(repository.save(productType))
+  }
 }

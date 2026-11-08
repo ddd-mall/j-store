@@ -46,95 +46,95 @@ import org.mockito.kotlin.*
  */
 class OutboxEventPublisherPropertyTest :
     FunSpec({
-        val objectMapper =
-            ObjectMapper()
-                .registerKotlinModule()
-                .registerModule(JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-        val realSerializer = JacksonEventSerializer(objectMapper)
+      val objectMapper =
+          ObjectMapper()
+              .registerKotlinModule()
+              .registerModule(JavaTimeModule())
+              .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+              .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+      val realSerializer = JacksonEventSerializer(objectMapper)
 
-        // -- Generators --
+      // -- Generators --
 
-        val arbOrderId = Arb.long(1L..Long.MAX_VALUE).map { OrderId(it) }
-        val arbPrice = Arb.long(0L..10_000_000L).map { Price.ofFen(it) }
-        val arbInstant = Arb.long(0L..4_000_000_000L).map { Instant.ofEpochSecond(it) }
-        val arbItemSnapshot =
-            Arb.bind(
-                Arb.long(1L..100_000L),
-                Arb.int(1..999),
-            ) { skuId, qty ->
-                OrderItemSnapshot(
-                    spuId = 1,
-                    skuId = skuId,
-                    quantity = qty,
-                    catalogSnapshotVersion = 1,
-                    unitPrice = Price.ofFen(100),
-                    offerId = skuId,
-                    storeId = 1,
-                    offerVersion = 1,
-                    fulfillmentNodeId = "DEFAULT",
-                    channelId = "ONLINE",
-                )
-            }
-        val arbItemList = Arb.list(arbItemSnapshot, 1..5)
-
-        val arbDomainEvent: Arb<DomainEvent> =
-            Arb.choice(
-                Arb.bind(arbOrderId, arbPrice, arbItemList, arbInstant) { id, amount, items, ts ->
-                    OrderCreatedEvent(id, MerchantId(7), amount, "CNY", items, ts) as DomainEvent
-                },
-                Arb.bind(arbOrderId, arbPrice, arbItemList, arbInstant) { id, amount, items, ts ->
-                    OrderPaidEvent(id, MerchantId(7), "payment-1", amount, "CNY", items, ts)
-                        as DomainEvent
-                },
-                Arb.bind(arbOrderId, arbInstant) { id, ts ->
-                    OrderCompletedEvent(id, ts) as DomainEvent
-                },
-                Arb.bind(arbOrderId, Arb.string(0..50), arbInstant) { id, reason, ts ->
-                    OrderCancelledEvent(id, reason, ts) as DomainEvent
-                },
+      val arbOrderId = Arb.long(1L..Long.MAX_VALUE).map { OrderId(it) }
+      val arbPrice = Arb.long(0L..10_000_000L).map { Price.ofFen(it) }
+      val arbInstant = Arb.long(0L..4_000_000_000L).map { Instant.ofEpochSecond(it) }
+      val arbItemSnapshot =
+          Arb.bind(
+              Arb.long(1L..100_000L),
+              Arb.int(1..999),
+          ) { skuId, qty ->
+            OrderItemSnapshot(
+                spuId = 1,
+                skuId = skuId,
+                quantity = qty,
+                catalogSnapshotVersion = 1,
+                unitPrice = Price.ofFen(100),
+                offerId = skuId,
+                storeId = 1,
+                offerVersion = 1,
+                fulfillmentNodeId = "DEFAULT",
+                channelId = "ONLINE",
             )
+          }
+      val arbItemList = Arb.list(arbItemSnapshot, 1..5)
 
-        test("Property 1: publishEvent saves entry with PENDING status and stable envelope") {
-            checkAll(PropTestConfig(iterations = 20), arbDomainEvent) { event ->
-                val mockRepository =
-                    mock<OutboxEntryRepository> {
-                        on { saveAll(any()) } doAnswer
-                            @Suppress("UNCHECKED_CAST") { it.arguments[0] as List<OutboxEntry> }
-                    }
-                val eventTypeRegistry =
-                    InMemoryEventTypeRegistry().apply {
-                        val eventType = event::class.java.getAnnotation(DomainEventType::class.java)
-                        register(
-                            event.metadata.eventName,
-                            event.metadata.eventVersion,
-                            event::class.java,
-                        )
-                        eventType.name shouldBe event.metadata.eventName
-                        eventType.version shouldBe event.metadata.eventVersion
-                    }
+      val arbDomainEvent: Arb<DomainEvent> =
+          Arb.choice(
+              Arb.bind(arbOrderId, arbPrice, arbItemList, arbInstant) { id, amount, items, ts ->
+                OrderCreatedEvent(id, MerchantId(7), amount, "CNY", items, ts) as DomainEvent
+              },
+              Arb.bind(arbOrderId, arbPrice, arbItemList, arbInstant) { id, amount, items, ts ->
+                OrderPaidEvent(id, MerchantId(7), "payment-1", amount, "CNY", items, ts)
+                    as DomainEvent
+              },
+              Arb.bind(arbOrderId, arbInstant) { id, ts ->
+                OrderCompletedEvent(id, ts) as DomainEvent
+              },
+              Arb.bind(arbOrderId, Arb.string(0..50), arbInstant) { id, reason, ts ->
+                OrderCancelledEvent(id, reason, ts) as DomainEvent
+              },
+          )
 
-                val publisher =
-                    OutboxEventPublisher(
-                        PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
-                        realSerializer,
-                        SnowFlakSequence(1, 1),
-                        eventTypeRegistry,
-                        OutboxStreamSequenceAllocator { _, _ -> 1 },
-                    )
-                publisher.publishEvent(event)
+      test("Property 1: publishEvent saves entry with PENDING status and stable envelope") {
+        checkAll(PropTestConfig(iterations = 20), arbDomainEvent) { event ->
+          val mockRepository =
+              mock<OutboxEntryRepository> {
+                on { saveAll(any()) } doAnswer
+                    @Suppress("UNCHECKED_CAST") { it.arguments[0] as List<OutboxEntry> }
+              }
+          val eventTypeRegistry =
+              InMemoryEventTypeRegistry().apply {
+                val eventType = event::class.java.getAnnotation(DomainEventType::class.java)
+                register(
+                    event.metadata.eventName,
+                    event.metadata.eventVersion,
+                    event::class.java,
+                )
+                eventType.name shouldBe event.metadata.eventName
+                eventType.version shouldBe event.metadata.eventVersion
+              }
 
-                val captor = argumentCaptor<List<OutboxEntry>>()
-                verify(mockRepository).saveAll(captor.capture())
+          val publisher =
+              OutboxEventPublisher(
+                  PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
+                  realSerializer,
+                  SnowFlakSequence(1, 1),
+                  eventTypeRegistry,
+                  OutboxStreamSequenceAllocator { _, _ -> 1 },
+              )
+          publisher.publishEvent(event)
 
-                val savedEntry = captor.firstValue.single()
-                savedEntry.status shouldBe OutboxEntryStatus.PENDING
-                savedEntry.eventId shouldBe event.metadata.eventId
-                savedEntry.eventType shouldBe event.metadata.eventName
-                savedEntry.eventClassName shouldBe event::class.java.name
-                savedEntry.eventVersion shouldBe event.metadata.eventVersion
-                savedEntry.occurredAt shouldBe event.metadata.occurredAt
-            }
+          val captor = argumentCaptor<List<OutboxEntry>>()
+          verify(mockRepository).saveAll(captor.capture())
+
+          val savedEntry = captor.firstValue.single()
+          savedEntry.status shouldBe OutboxEntryStatus.PENDING
+          savedEntry.eventId shouldBe event.metadata.eventId
+          savedEntry.eventType shouldBe event.metadata.eventName
+          savedEntry.eventClassName shouldBe event::class.java.name
+          savedEntry.eventVersion shouldBe event.metadata.eventVersion
+          savedEntry.occurredAt shouldBe event.metadata.occurredAt
         }
+      }
     })

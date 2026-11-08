@@ -36,25 +36,25 @@ import io.kotest.property.checkAll
  */
 class UserAccountChangeNicknamePropertyTest :
     FunSpec({
-        fun arbActiveUserAccount(): Arb<UserAccountImpl> =
-            Arb.long(1L..999_999L).map { id ->
-                UserAccountImpl(
-                    id = UserId(id),
-                    phoneNumber = PhoneNumber("+8613800138000"),
-                    nickname = Nickname("user$id"),
-                    passwordHash = Password("hashed_password"),
-                    status = UserAccountStatus.ACTIVE,
-                )
-            }
+      fun arbActiveUserAccount(): Arb<UserAccountImpl> =
+          Arb.long(1L..999_999L).map { id ->
+            UserAccountImpl(
+                id = UserId(id),
+                phoneNumber = PhoneNumber("+8613800138000"),
+                nickname = Nickname("user$id"),
+                passwordHash = Password("hashed_password"),
+                status = UserAccountStatus.ACTIVE,
+            )
+          }
 
-        fun arbValidNickname(): Arb<Nickname> =
-            Arb.string(1..20).filter { it.isNotBlank() }.map { Nickname(it) }
+      fun arbValidNickname(): Arb<Nickname> =
+          Arb.string(1..20).filter { it.isNotBlank() }.map { Nickname(it) }
 
-        test("changeNickname on ACTIVE account should succeed and nickname equals new value") {
-            checkAll(100, arbActiveUserAccount(), arbValidNickname()) { account, newNickname ->
-                val result = account.changeNickname(newNickname)
-                result.shouldBeInstanceOf<Success<Unit>>()
-                account.nickname shouldBe newNickname
-            }
+      test("changeNickname on ACTIVE account should succeed and nickname equals new value") {
+        checkAll(100, arbActiveUserAccount(), arbValidNickname()) { account, newNickname ->
+          val result = account.changeNickname(newNickname)
+          result.shouldBeInstanceOf<Success<Unit>>()
+          account.nickname shouldBe newNickname
         }
+      }
     })

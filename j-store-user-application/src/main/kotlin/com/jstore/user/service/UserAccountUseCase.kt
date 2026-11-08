@@ -27,28 +27,28 @@ import com.jstore.user.domain.useraccount.UserId
 import com.jstore.user.domain.useraccount.command.UserRegisterCMD
 
 interface UserAccountUseCase {
-    fun requestPhoneVerification(
-        phoneNumber: PhoneNumber
-    ): Result<PhoneVerificationChallenge, BusinessError>
+  fun requestPhoneVerification(
+      phoneNumber: PhoneNumber
+  ): Result<PhoneVerificationChallenge, BusinessError>
 
-    fun register(
-        cmd: UserRegisterCMD,
-        verificationProof: PhoneVerificationProof,
-    ): Result<UserAccount, BusinessError>
+  fun register(
+      cmd: UserRegisterCMD,
+      verificationProof: PhoneVerificationProof,
+  ): Result<UserAccount, BusinessError>
 
-    fun findById(userId: UserId): Result<UserAccount, BusinessError>
+  fun findById(userId: UserId): Result<UserAccount, BusinessError>
 
-    fun changeNickname(userId: UserId, newNickname: Nickname): Result<Unit, BusinessError>
+  fun changeNickname(userId: UserId, newNickname: Nickname): Result<Unit, BusinessError>
 
-    fun changePassword(
-        userId: UserId,
-        oldPassword: String,
-        newPassword: String,
-    ): Result<Unit, BusinessError>
+  fun changePassword(
+      userId: UserId,
+      oldPassword: String,
+      newPassword: String,
+  ): Result<Unit, BusinessError>
 
-    fun disable(userId: UserId): Result<Unit, BusinessError>
+  fun disable(userId: UserId): Result<Unit, BusinessError>
 
-    fun enable(userId: UserId): Result<Unit, BusinessError>
+  fun enable(userId: UserId): Result<Unit, BusinessError>
 
-    fun forceOffline(userId: UserId): Result<Unit, BusinessError>
+  fun forceOffline(userId: UserId): Result<Unit, BusinessError>
 }

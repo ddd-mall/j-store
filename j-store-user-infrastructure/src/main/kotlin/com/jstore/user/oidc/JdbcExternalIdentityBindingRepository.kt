@@ -25,63 +25,63 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
 class JdbcExternalIdentityBindingRepository(private val jdbc: JdbcOperations) :
     ExternalIdentityBindingRepository {
-    override fun findById(id: ExternalIdentityBindingId) =
-        jdbc
-            .query("SELECT * FROM user_external_identities WHERE id = ?", mapper, id.value)
-            .firstOrNull()
+  override fun findById(id: ExternalIdentityBindingId) =
+      jdbc
+          .query("SELECT * FROM user_external_identities WHERE id = ?", mapper, id.value)
+          .firstOrNull()
 
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(aggregate: ExternalIdentityBinding): ExternalIdentityBinding {
-        add(aggregate)
-        return aggregate
-    }
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun save(aggregate: ExternalIdentityBinding): ExternalIdentityBinding {
+    add(aggregate)
+    return aggregate
+  }
 
-    override fun findByIdentity(identity: ExternalIdentity) =
-        jdbc
-            .query(
-                "SELECT * FROM user_external_identities WHERE provider = ? AND app_id = ? AND subject = ?",
-                mapper,
-                identity.provider,
-                identity.appId,
-                identity.subject,
-            )
-            .firstOrNull()
+  override fun findByIdentity(identity: ExternalIdentity) =
+      jdbc
+          .query(
+              "SELECT * FROM user_external_identities WHERE provider = ? AND app_id = ? AND subject = ?",
+              mapper,
+              identity.provider,
+              identity.appId,
+              identity.subject,
+          )
+          .firstOrNull()
 
-    override fun findByUser(userId: UserId, provider: String, appId: String) =
-        jdbc
-            .query(
-                "SELECT * FROM user_external_identities WHERE user_id = ? AND provider = ? AND app_id = ?",
-                mapper,
-                userId.value,
-                provider,
-                appId,
-            )
-            .firstOrNull()
+  override fun findByUser(userId: UserId, provider: String, appId: String) =
+      jdbc
+          .query(
+              "SELECT * FROM user_external_identities WHERE user_id = ? AND provider = ? AND app_id = ?",
+              mapper,
+              userId.value,
+              provider,
+              appId,
+          )
+          .firstOrNull()
 
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun add(binding: ExternalIdentityBinding) {
-        jdbc.update(
-            "INSERT INTO user_external_identities(id, provider, app_id, subject, user_id, union_id) VALUES (?, ?, ?, ?, ?, ?)",
-            binding.id.value,
-            binding.identity.provider,
-            binding.identity.appId,
-            binding.identity.subject,
-            binding.userId.value,
-            binding.unionId,
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun add(binding: ExternalIdentityBinding) {
+    jdbc.update(
+        "INSERT INTO user_external_identities(id, provider, app_id, subject, user_id, union_id) VALUES (?, ?, ?, ?, ?, ?)",
+        binding.id.value,
+        binding.identity.provider,
+        binding.identity.appId,
+        binding.identity.subject,
+        binding.userId.value,
+        binding.unionId,
+    )
+  }
+
+  private val mapper =
+      org.springframework.jdbc.core.RowMapper { rs, _ ->
+        ExternalIdentityBinding(
+            ExternalIdentityBindingId(rs.getString("id")),
+            ExternalIdentity(
+                rs.getString("provider"),
+                rs.getString("app_id"),
+                rs.getString("subject"),
+            ),
+            UserId(rs.getLong("user_id")),
+            rs.getString("union_id"),
         )
-    }
-
-    private val mapper =
-        org.springframework.jdbc.core.RowMapper { rs, _ ->
-            ExternalIdentityBinding(
-                ExternalIdentityBindingId(rs.getString("id")),
-                ExternalIdentity(
-                    rs.getString("provider"),
-                    rs.getString("app_id"),
-                    rs.getString("subject"),
-                ),
-                UserId(rs.getLong("user_id")),
-                rs.getString("union_id"),
-            )
-        }
+      }
 }

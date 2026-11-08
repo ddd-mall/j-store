@@ -37,52 +37,52 @@ class ExternalAccountBindingService(
     private val phones: PhoneVerificationGateway,
     private val events: DomainEventPublisher,
 ) {
-    fun bind(
-        verified: VerifiedWechatIdentity,
-        intentId: String,
-        phone: PhoneNumber,
-        proof: PhoneVerificationProof,
-        nickname: String,
-        password: String,
-    ): Result<UserId, BusinessError> {
-        if (!phones.consumeChallenge(phone, proof, "wechat-binding", intentId))
-            return Failure(UserAccountErrors.PHONE_VERIFICATION_INVALID)
-        val existing = accounts.findByPhoneNumber(phone)
-        if (existing != null && existing.status != UserAccountStatus.ACTIVE)
-            return Failure(UserAccountErrors.ACCOUNT_DISABLED)
-        val previous = bindings.findByIdentity(verified.identity)
-        if (previous != null && (existing == null || !previous.belongsTo(existing.id)))
-            return Failure(CONFLICT)
-        if (
-            existing != null &&
-                bindings
-                    .findByUser(existing.id, verified.identity.provider, verified.identity.appId)
-                    ?.identity
-                    ?.let { it != verified.identity } == true
+  fun bind(
+      verified: VerifiedWechatIdentity,
+      intentId: String,
+      phone: PhoneNumber,
+      proof: PhoneVerificationProof,
+      nickname: String,
+      password: String,
+  ): Result<UserId, BusinessError> {
+    if (!phones.consumeChallenge(phone, proof, "wechat-binding", intentId))
+        return Failure(UserAccountErrors.PHONE_VERIFICATION_INVALID)
+    val existing = accounts.findByPhoneNumber(phone)
+    if (existing != null && existing.status != UserAccountStatus.ACTIVE)
+        return Failure(UserAccountErrors.ACCOUNT_DISABLED)
+    val previous = bindings.findByIdentity(verified.identity)
+    if (previous != null && (existing == null || !previous.belongsTo(existing.id)))
+        return Failure(CONFLICT)
+    if (
+        existing != null &&
+            bindings
+                .findByUser(existing.id, verified.identity.provider, verified.identity.appId)
+                ?.identity
+                ?.let { it != verified.identity } == true
+    )
+        return Failure(CONFLICT)
+    if (previous != null) return Success(previous.userId)
+    val account =
+        existing
+            ?: when (
+                val created = factory.create(UserRegisterCMD(phone, nickname, password), hasher)
+            ) {
+              is Failure -> return created
+              is Success -> created.value.also(accounts::add)
+            }
+    bindings.add(
+        ExternalIdentityBinding(
+            ExternalIdentityBindingId(),
+            verified.identity,
+            account.id,
+            verified.unionId,
         )
-            return Failure(CONFLICT)
-        if (previous != null) return Success(previous.userId)
-        val account =
-            existing
-                ?: when (
-                    val created = factory.create(UserRegisterCMD(phone, nickname, password), hasher)
-                ) {
-                    is Failure -> return created
-                    is Success -> created.value.also(accounts::add)
-                }
-        bindings.add(
-            ExternalIdentityBinding(
-                ExternalIdentityBindingId(),
-                verified.identity,
-                account.id,
-                verified.unionId,
-            )
-        )
-        if (existing == null) account.publishPendingEvents(events)
-        return Success(account.id)
-    }
+    )
+    if (existing == null) account.publishPendingEvents(events)
+    return Success(account.id)
+  }
 
-    companion object {
-        val CONFLICT = BusinessError("微信身份已绑定或账号已有其他微信身份", "User.ExternalIdentity.Conflict", 409)
-    }
+  companion object {
+    val CONFLICT = BusinessError("微信身份已绑定或账号已有其他微信身份", "User.ExternalIdentity.Conflict", 409)
+  }
 }

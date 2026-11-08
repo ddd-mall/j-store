@@ -37,77 +37,77 @@ import io.kotest.property.checkAll
 class SkuConverterRoundTripPropertyTest :
     FunSpec({
 
-        // Generator for nullable strings (merchantCode / barcode)
-        val nullableStringArb: Arb<String?> =
-            Arb.choice(
-                Arb.constant(null),
-                Arb.string(1..64),
-            )
+      // Generator for nullable strings (merchantCode / barcode)
+      val nullableStringArb: Arb<String?> =
+          Arb.choice(
+              Arb.constant(null),
+              Arb.string(1..64),
+          )
 
-        // Generator for a single attribute
-        val attributeArb: Arb<Attribute<String, String>> =
-            Arb.bind(
-                Arb.string(1..10),
-                Arb.string(1..10),
-            ) { key, value ->
-                Attribute(key, value)
-            }
+      // Generator for a single attribute
+      val attributeArb: Arb<Attribute<String, String>> =
+          Arb.bind(
+              Arb.string(1..10),
+              Arb.string(1..10),
+          ) { key, value ->
+            Attribute(key, value)
+          }
 
-        // Generator for a valid SKU domain object
-        val skuArb: Arb<Sku> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE), // skuId
-                Arb.long(1L..Long.MAX_VALUE), // spuId (needed for toSkuPO)
-                Arb.string(1..20), // skuName
-                Arb.list(attributeArb, 0..3), // attributes
-                Arb.long(0L..999999L), // price in fen
-                nullableStringArb, // merchantCode
-                nullableStringArb, // barcode
-            ) { skuIdVal, _, skuName, attrs, priceFen, merchantCode, barcode ->
-                SkuImpl(
-                    id = SkuId(skuIdVal),
-                    skuName = skuName,
-                    attributes = attrs,
-                    merchantCode = merchantCode,
-                    barcode = barcode,
-                )
-            }
-
-        // Replicate the Converter logic locally since it's a private object in SpuRepositoryImpl
-        fun toSkuPO(sku: Sku, spuId: Long): SkuPO {
-            return SkuPO(
-                id = sku.id.value,
-                spuId = spuId,
-                skuName = sku.skuName,
-                attributes = JsonUtils.toJsonString(sku.attributes),
-                merchantCode = sku.merchantCode,
-                barcode = sku.barcode,
-            )
-        }
-
-        fun toDomainSku(po: SkuPO): Sku {
-            val attrs: List<Attribute<String, String>> = JsonUtils.deserialize(po.attributes)
-            return SkuImpl(
-                id = SkuId(po.id),
-                skuName = po.skuName,
+      // Generator for a valid SKU domain object
+      val skuArb: Arb<Sku> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE), // skuId
+              Arb.long(1L..Long.MAX_VALUE), // spuId (needed for toSkuPO)
+              Arb.string(1..20), // skuName
+              Arb.list(attributeArb, 0..3), // attributes
+              Arb.long(0L..999999L), // price in fen
+              nullableStringArb, // merchantCode
+              nullableStringArb, // barcode
+          ) { skuIdVal, _, skuName, attrs, priceFen, merchantCode, barcode ->
+            SkuImpl(
+                id = SkuId(skuIdVal),
+                skuName = skuName,
                 attributes = attrs,
-                merchantCode = po.merchantCode,
-                barcode = po.barcode,
+                merchantCode = merchantCode,
+                barcode = barcode,
             )
-        }
+          }
 
-        test(
-            "toSkuPO then toDomainSku should preserve all fields including merchantCode and barcode"
-        ) {
-            checkAll(100, skuArb, Arb.long(1L..Long.MAX_VALUE)) { sku, spuId ->
-                val po = toSkuPO(sku, spuId)
-                val roundTripped = toDomainSku(po)
+      // Replicate the Converter logic locally since it's a private object in SpuRepositoryImpl
+      fun toSkuPO(sku: Sku, spuId: Long): SkuPO {
+        return SkuPO(
+            id = sku.id.value,
+            spuId = spuId,
+            skuName = sku.skuName,
+            attributes = JsonUtils.toJsonString(sku.attributes),
+            merchantCode = sku.merchantCode,
+            barcode = sku.barcode,
+        )
+      }
 
-                roundTripped.id.value shouldBe sku.id.value
-                roundTripped.skuName shouldBe sku.skuName
-                roundTripped.attributes shouldBe sku.attributes
-                roundTripped.merchantCode shouldBe sku.merchantCode
-                roundTripped.barcode shouldBe sku.barcode
-            }
+      fun toDomainSku(po: SkuPO): Sku {
+        val attrs: List<Attribute<String, String>> = JsonUtils.deserialize(po.attributes)
+        return SkuImpl(
+            id = SkuId(po.id),
+            skuName = po.skuName,
+            attributes = attrs,
+            merchantCode = po.merchantCode,
+            barcode = po.barcode,
+        )
+      }
+
+      test(
+          "toSkuPO then toDomainSku should preserve all fields including merchantCode and barcode"
+      ) {
+        checkAll(100, skuArb, Arb.long(1L..Long.MAX_VALUE)) { sku, spuId ->
+          val po = toSkuPO(sku, spuId)
+          val roundTripped = toDomainSku(po)
+
+          roundTripped.id.value shouldBe sku.id.value
+          roundTripped.skuName shouldBe sku.skuName
+          roundTripped.attributes shouldBe sku.attributes
+          roundTripped.merchantCode shouldBe sku.merchantCode
+          roundTripped.barcode shouldBe sku.barcode
         }
+      }
     })

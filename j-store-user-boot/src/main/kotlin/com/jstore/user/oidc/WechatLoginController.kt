@@ -55,66 +55,65 @@ class WechatLoginController(
     manager: PlatformTransactionManager,
     private val clock: Clock,
 ) {
-    private val transaction = TransactionTemplate(manager)
+  private val transaction = TransactionTemplate(manager)
 
-    @SkipLogin
-    @GetMapping("/login/wechat")
-    fun start(request: HttpServletRequest, response: HttpServletResponse): String {
-        if (!properties.wechat.enabled) return "redirect:/login?error"
-        val state =
-            intents.create(
-                request.getSession(true).id,
-                mapper.writeValueAsString(
-                    mapOf(
-                        "appId" to properties.wechat.appId,
-                        "target" to authorizationContinuation(request, response, properties),
-                    )
-                ),
-                300,
-            )
-        return "redirect:https://open.weixin.qq.com/connect/qrconnect?appid=${encode(properties.wechat.appId)}&redirect_uri=${encode(properties.wechat.callbackUri)}&response_type=code&scope=snsapi_login&state=$state#wechat_redirect"
-    }
-
-    @SkipLogin
-    @GetMapping("/login/wechat/callback")
-    fun callback(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        @RequestParam(required = false) code: String?,
-        @RequestParam(required = false) state: String?,
-    ): String {
-        val session = request.getSession(false) ?: return "redirect:/login?error"
-        if (!properties.wechat.enabled || state == null) return "redirect:/login?error"
-        val intent =
-            intents.consume(state, session.id)?.let(mapper::readTree)
-                ?: return "redirect:/login?error"
-        if (intent.path("appId").asText() != properties.wechat.appId) return "redirect:/login?error"
-        val target = intent.path("target").asText()
-        if (!validTarget(target)) return "redirect:/login?error"
-        val verified = code?.let(wechat::exchange) ?: return "redirect:/login?error"
-        val bound = bindings.findByIdentity(verified.identity)
-        if (bound != null) return establish(bound.userId, target, request, response)
-        val payload =
+  @SkipLogin
+  @GetMapping("/login/wechat")
+  fun start(request: HttpServletRequest, response: HttpServletResponse): String {
+    if (!properties.wechat.enabled) return "redirect:/login?error"
+    val state =
+        intents.create(
+            request.getSession(true).id,
             mapper.writeValueAsString(
                 mapOf(
-                    "appId" to verified.identity.appId,
-                    "subject" to verified.identity.subject,
-                    "unionId" to verified.unionId,
-                    "target" to target,
+                    "appId" to properties.wechat.appId,
+                    "target" to authorizationContinuation(request, response, properties),
                 )
-            )
-        session.setAttribute("wechat-onboarding", intents.create(session.id, payload, 600))
-        return "redirect:/login/wechat/onboarding"
-    }
+            ),
+            300,
+        )
+    return "redirect:https://open.weixin.qq.com/connect/qrconnect?appid=${encode(properties.wechat.appId)}&redirect_uri=${encode(properties.wechat.callbackUri)}&response_type=code&scope=snsapi_login&state=$state#wechat_redirect"
+  }
 
-    @SkipLogin
-    @GetMapping("/login/wechat/onboarding")
-    @ResponseBody
-    fun onboarding(request: HttpServletRequest): ResponseEntity<String> {
-        if (pending(request) == null) return failure()
-        return page(
-            "验证手机号并绑定账号",
-            """
+  @SkipLogin
+  @GetMapping("/login/wechat/callback")
+  fun callback(
+      request: HttpServletRequest,
+      response: HttpServletResponse,
+      @RequestParam(required = false) code: String?,
+      @RequestParam(required = false) state: String?,
+  ): String {
+    val session = request.getSession(false) ?: return "redirect:/login?error"
+    if (!properties.wechat.enabled || state == null) return "redirect:/login?error"
+    val intent =
+        intents.consume(state, session.id)?.let(mapper::readTree) ?: return "redirect:/login?error"
+    if (intent.path("appId").asText() != properties.wechat.appId) return "redirect:/login?error"
+    val target = intent.path("target").asText()
+    if (!validTarget(target)) return "redirect:/login?error"
+    val verified = code?.let(wechat::exchange) ?: return "redirect:/login?error"
+    val bound = bindings.findByIdentity(verified.identity)
+    if (bound != null) return establish(bound.userId, target, request, response)
+    val payload =
+        mapper.writeValueAsString(
+            mapOf(
+                "appId" to verified.identity.appId,
+                "subject" to verified.identity.subject,
+                "unionId" to verified.unionId,
+                "target" to target,
+            )
+        )
+    session.setAttribute("wechat-onboarding", intents.create(session.id, payload, 600))
+    return "redirect:/login/wechat/onboarding"
+  }
+
+  @SkipLogin
+  @GetMapping("/login/wechat/onboarding")
+  @ResponseBody
+  fun onboarding(request: HttpServletRequest): ResponseEntity<String> {
+    if (pending(request) == null) return failure()
+    return page(
+        "验证手机号并绑定账号",
+        """
             <p>已有账号将绑定到已验证的手机号；新账号需填写昵称和密码。</p>
             <form method="post" action="/login/wechat/onboarding">${csrf(request)}
             <input type=hidden name=action value=send><label>手机号<input name=phone type=tel required></label><button>发送验证码</button></form>
@@ -124,109 +123,109 @@ class WechatLoginController(
             <label>新账号密码<input name=password type=password autocomplete=new-password></label>
             <label><input type=checkbox name=confirm value=true required>确认将此微信绑定到该手机号对应的账号</label><button>验证并继续</button></form>
         """
-                .trimIndent(),
+            .trimIndent(),
+    )
+  }
+
+  @SkipLogin
+  @PostMapping("/login/wechat/onboarding")
+  @ResponseBody
+  fun complete(
+      request: HttpServletRequest,
+      response: HttpServletResponse,
+  ): ResponseEntity<String> {
+    val pending = pending(request) ?: return failure()
+    val session = request.getSession(false) ?: return failure()
+    val id = session.getAttribute("wechat-onboarding") as? String ?: return failure()
+    val phone =
+        try {
+          PhoneNumber(request.getParameter("phone").orEmpty())
+        } catch (_: IllegalArgumentException) {
+          return failure()
+        }
+    if (request.getParameter("action") == "send") {
+      val challenge =
+          phones.createChallenge(phone, "wechat-binding", id)
+              ?: return page("请稍后重试", "验证码请求过于频繁。", 429)
+      sender.send(phone, challenge.code)
+      session.setAttribute("wechat-challenge", challenge.challenge.challengeId)
+      return onboarding(request)
+    }
+    if (request.getParameter("action") != "bind" || request.getParameter("confirm") != "true")
+        return failure()
+    if (intents.consume(id, session.id) == null) return failure()
+    session.removeAttribute("wechat-onboarding")
+    return try {
+      val result = transaction.execute {
+        jdbc.query(
+            "SELECT id FROM user_accounts WHERE phone_number = ? FOR UPDATE",
+            { rs, _ -> rs.getLong(1) },
+            phone.value,
         )
+        binding.bind(
+            VerifiedWechatIdentity(
+                ExternalIdentity(
+                    "wechat",
+                    properties.wechat.appId,
+                    pending.path("subject").asText(),
+                ),
+                pending.path("unionId").takeUnless { it.isNull }?.asText(),
+            ),
+            id,
+            phone,
+            PhoneVerificationProof(
+                request.getParameter("challengeId").orEmpty(),
+                request.getParameter("code").orEmpty(),
+            ),
+            request.getParameter("nickname").orEmpty(),
+            request.getParameter("password").orEmpty(),
+        )
+      }
+      if (result !is Success) return failure()
+      val target =
+          establish(result.value, pending.path("target").asText(), request, response)
+              .removePrefix("redirect:")
+      ResponseEntity.status(302).location(URI(target)).build()
+    } catch (_: Exception) {
+      failure()
     }
+  }
 
-    @SkipLogin
-    @PostMapping("/login/wechat/onboarding")
-    @ResponseBody
-    fun complete(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-    ): ResponseEntity<String> {
-        val pending = pending(request) ?: return failure()
-        val session = request.getSession(false) ?: return failure()
-        val id = session.getAttribute("wechat-onboarding") as? String ?: return failure()
-        val phone =
-            try {
-                PhoneNumber(request.getParameter("phone").orEmpty())
-            } catch (_: IllegalArgumentException) {
-                return failure()
-            }
-        if (request.getParameter("action") == "send") {
-            val challenge =
-                phones.createChallenge(phone, "wechat-binding", id)
-                    ?: return page("请稍后重试", "验证码请求过于频繁。", 429)
-            sender.send(phone, challenge.code)
-            session.setAttribute("wechat-challenge", challenge.challenge.challengeId)
-            return onboarding(request)
-        }
-        if (request.getParameter("action") != "bind" || request.getParameter("confirm") != "true")
-            return failure()
-        if (intents.consume(id, session.id) == null) return failure()
-        session.removeAttribute("wechat-onboarding")
-        return try {
-            val result = transaction.execute {
-                jdbc.query(
-                    "SELECT id FROM user_accounts WHERE phone_number = ? FOR UPDATE",
-                    { rs, _ -> rs.getLong(1) },
-                    phone.value,
-                )
-                binding.bind(
-                    VerifiedWechatIdentity(
-                        ExternalIdentity(
-                            "wechat",
-                            properties.wechat.appId,
-                            pending.path("subject").asText(),
-                        ),
-                        pending.path("unionId").takeUnless { it.isNull }?.asText(),
-                    ),
-                    id,
-                    phone,
-                    PhoneVerificationProof(
-                        request.getParameter("challengeId").orEmpty(),
-                        request.getParameter("code").orEmpty(),
-                    ),
-                    request.getParameter("nickname").orEmpty(),
-                    request.getParameter("password").orEmpty(),
-                )
-            }
-            if (result !is Success) return failure()
-            val target =
-                establish(result.value, pending.path("target").asText(), request, response)
-                    .removePrefix("redirect:")
-            ResponseEntity.status(302).location(URI(target)).build()
-        } catch (_: Exception) {
-            failure()
-        }
+  private fun pending(request: HttpServletRequest): com.fasterxml.jackson.databind.JsonNode? {
+    if (!properties.wechat.enabled) return null
+    val session = request.getSession(false) ?: return null
+    val id = session.getAttribute("wechat-onboarding") as? String ?: return null
+    return intents.read(id, session.id)?.let(mapper::readTree)?.takeIf {
+      it.path("appId").asText() == properties.wechat.appId &&
+          validTarget(it.path("target").asText())
     }
+  }
 
-    private fun pending(request: HttpServletRequest): com.fasterxml.jackson.databind.JsonNode? {
-        if (!properties.wechat.enabled) return null
-        val session = request.getSession(false) ?: return null
-        val id = session.getAttribute("wechat-onboarding") as? String ?: return null
-        return intents.read(id, session.id)?.let(mapper::readTree)?.takeIf {
-            it.path("appId").asText() == properties.wechat.appId &&
-                validTarget(it.path("target").asText())
-        }
+  private fun validTarget(target: String) =
+      target == "/" || target.startsWith(properties.issuer + "/oauth2/authorize?")
+
+  private fun establish(
+      userId: UserId,
+      target: String,
+      request: HttpServletRequest,
+      response: HttpServletResponse,
+  ): String {
+    val authentication =
+        LocalAccountAuthenticationProvider.createAuthentication(userId, tokens, clock)
+    if (!guard.authenticationActive(authentication)) {
+      guard.revoke(authentication)
+      return "redirect:/login?error"
     }
-
-    private fun validTarget(target: String) =
-        target == "/" || target.startsWith(properties.issuer + "/oauth2/authorize?")
-
-    private fun establish(
-        userId: UserId,
-        target: String,
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-    ): String {
-        val authentication =
-            LocalAccountAuthenticationProvider.createAuthentication(userId, tokens, clock)
-        if (!guard.authenticationActive(authentication)) {
-            guard.revoke(authentication)
-            return "redirect:/login?error"
+    request.changeSessionId()
+    org.springframework.security.web.csrf
+        .HttpSessionCsrfTokenRepository()
+        .saveToken(null, request, response)
+    val context =
+        SecurityContextHolder.createEmptyContext().apply {
+          this.authentication = authentication
         }
-        request.changeSessionId()
-        org.springframework.security.web.csrf
-            .HttpSessionCsrfTokenRepository()
-            .saveToken(null, request, response)
-        val context =
-            SecurityContextHolder.createEmptyContext().apply {
-                this.authentication = authentication
-            }
-        SecurityContextHolder.setContext(context)
-        HttpSessionSecurityContextRepository().saveContext(context, request, response)
-        return "redirect:$target"
-    }
+    SecurityContextHolder.setContext(context)
+    HttpSessionSecurityContextRepository().saveContext(context, request, response)
+    return "redirect:$target"
+  }
 }

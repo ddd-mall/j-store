@@ -26,26 +26,26 @@ import org.springframework.web.filter.OncePerRequestFilter
 
 /** SAS protocol CSRF exemptions must not exempt a browser consent POST. */
 class ConsentCsrfFilter : OncePerRequestFilter() {
-    override fun shouldNotFilter(request: HttpServletRequest) =
-        request.method != "POST" || request.requestURI != request.contextPath + "/oauth2/authorize"
+  override fun shouldNotFilter(request: HttpServletRequest) =
+      request.method != "POST" || request.requestURI != request.contextPath + "/oauth2/authorize"
 
-    override fun doFilterInternal(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        chain: FilterChain,
-    ) {
-        val expected = HttpSessionCsrfTokenRepository().loadToken(request)
-        val actual = expected?.let {
-            XorCsrfTokenRequestAttributeHandler().resolveCsrfTokenValue(request, it)
-        }
-        if (
-            expected == null ||
-                actual == null ||
-                !MessageDigest.isEqual(expected.token.toByteArray(), actual.toByteArray())
-        ) {
-            response.sendError(403)
-            return
-        }
-        chain.doFilter(request, response)
+  override fun doFilterInternal(
+      request: HttpServletRequest,
+      response: HttpServletResponse,
+      chain: FilterChain,
+  ) {
+    val expected = HttpSessionCsrfTokenRepository().loadToken(request)
+    val actual = expected?.let {
+      XorCsrfTokenRequestAttributeHandler().resolveCsrfTokenValue(request, it)
     }
+    if (
+        expected == null ||
+            actual == null ||
+            !MessageDigest.isEqual(expected.token.toByteArray(), actual.toByteArray())
+    ) {
+      response.sendError(403)
+      return
+    }
+    chain.doFilter(request, response)
+  }
 }

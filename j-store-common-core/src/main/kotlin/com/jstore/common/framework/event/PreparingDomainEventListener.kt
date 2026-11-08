@@ -22,10 +22,10 @@ package com.jstore.common.framework.event
  * side effects.
  */
 interface PreparingDomainEventListener<T : DomainEvent> : DomainEventListener<T> {
-    fun prepare(event: T): () -> Unit
+  fun prepare(event: T): () -> Unit
 }
 
 /** Optional two-phase local delivery for listeners requiring external reads. */
 interface PreparingLocalDomainEventBus : LocalDomainEventBus {
-    fun prepareEvent(event: DomainEvent): () -> Unit
+  fun prepareEvent(event: DomainEvent): () -> Unit
 }

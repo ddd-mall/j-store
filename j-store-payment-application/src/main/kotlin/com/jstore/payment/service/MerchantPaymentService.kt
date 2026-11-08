@@ -27,64 +27,64 @@ import com.jstore.shop.api.MerchantAuthorizationQuery
 import com.jstore.shop.api.MerchantCapability
 
 interface MerchantPaymentUseCase {
-    fun get(accountId: Long, orderId: Long): Result<PaymentOrder, BusinessError>
+  fun get(accountId: Long, orderId: Long): Result<PaymentOrder, BusinessError>
 
-    fun capture(accountId: Long, command: PaymentCaptureCommand): Result<Boolean, BusinessError>
+  fun capture(accountId: Long, command: PaymentCaptureCommand): Result<Boolean, BusinessError>
 
-    fun recordRefundResult(
-        accountId: Long,
-        refundId: PaymentRefundId,
-        providerRefundId: String?,
-        failureReason: String?,
-    ): Result<Boolean, BusinessError>
+  fun recordRefundResult(
+      accountId: Long,
+      refundId: PaymentRefundId,
+      providerRefundId: String?,
+      failureReason: String?,
+  ): Result<Boolean, BusinessError>
 }
 
 class MerchantPaymentService(
     private val payments: PaymentUseCase,
     private val authorization: MerchantAuthorizationQuery,
 ) : MerchantPaymentUseCase {
-    override fun get(accountId: Long, orderId: Long): Result<PaymentOrder, BusinessError> {
-        val payment =
-            when (val result = payments.getByOrderId(orderId)) {
-                is Success -> result.value
-                is Failure -> return result
-            }
-        return if (allowed(accountId, payment, MerchantCapability.PAYMENT_READ)) Success(payment)
-        else Failure(PaymentErrors.ORDER_NOT_FOUND)
-    }
+  override fun get(accountId: Long, orderId: Long): Result<PaymentOrder, BusinessError> {
+    val payment =
+        when (val result = payments.getByOrderId(orderId)) {
+          is Success -> result.value
+          is Failure -> return result
+        }
+    return if (allowed(accountId, payment, MerchantCapability.PAYMENT_READ)) Success(payment)
+    else Failure(PaymentErrors.ORDER_NOT_FOUND)
+  }
 
-    override fun capture(
-        accountId: Long,
-        command: PaymentCaptureCommand,
-    ): Result<Boolean, BusinessError> {
-        val payment =
-            when (val result = payments.getByOrderId(command.orderId)) {
-                is Success -> result.value
-                is Failure -> return result
-            }
-        if (!allowed(accountId, payment, MerchantCapability.PAYMENT_MANAGE))
-            return Failure(PaymentErrors.ORDER_NOT_FOUND)
-        return payments.capture(command)
-    }
+  override fun capture(
+      accountId: Long,
+      command: PaymentCaptureCommand,
+  ): Result<Boolean, BusinessError> {
+    val payment =
+        when (val result = payments.getByOrderId(command.orderId)) {
+          is Success -> result.value
+          is Failure -> return result
+        }
+    if (!allowed(accountId, payment, MerchantCapability.PAYMENT_MANAGE))
+        return Failure(PaymentErrors.ORDER_NOT_FOUND)
+    return payments.capture(command)
+  }
 
-    override fun recordRefundResult(
-        accountId: Long,
-        refundId: PaymentRefundId,
-        providerRefundId: String?,
-        failureReason: String?,
-    ): Result<Boolean, BusinessError> {
-        val payment =
-            when (val result = payments.getByRefundId(refundId)) {
-                is Success -> result.value
-                is Failure -> return result
-            }
-        if (!allowed(accountId, payment, MerchantCapability.PAYMENT_MANAGE))
-            return Failure(PaymentErrors.REFUND_NOT_FOUND)
-        return if (!providerRefundId.isNullOrBlank())
-            payments.markRefundSucceeded(refundId, providerRefundId)
-        else payments.markRefundFailed(refundId, failureReason.orEmpty())
-    }
+  override fun recordRefundResult(
+      accountId: Long,
+      refundId: PaymentRefundId,
+      providerRefundId: String?,
+      failureReason: String?,
+  ): Result<Boolean, BusinessError> {
+    val payment =
+        when (val result = payments.getByRefundId(refundId)) {
+          is Success -> result.value
+          is Failure -> return result
+        }
+    if (!allowed(accountId, payment, MerchantCapability.PAYMENT_MANAGE))
+        return Failure(PaymentErrors.REFUND_NOT_FOUND)
+    return if (!providerRefundId.isNullOrBlank())
+        payments.markRefundSucceeded(refundId, providerRefundId)
+    else payments.markRefundFailed(refundId, failureReason.orEmpty())
+  }
 
-    private fun allowed(accountId: Long, payment: PaymentOrder, capability: MerchantCapability) =
-        authorization.isAllowed(accountId, payment.merchantId, capability)
+  private fun allowed(accountId: Long, payment: PaymentOrder, capability: MerchantCapability) =
+      authorization.isAllowed(accountId, payment.merchantId, capability)
 }

@@ -25,49 +25,49 @@ import kotlin.test.*
 import org.junit.jupiter.api.Test
 
 class WechatIdentityGatewayTest {
-    @Test
-    fun `exchange checks userinfo identity and discards provider tokens`() {
-        withServer("openid", "openid") { gateway ->
-            val result = assertNotNull(gateway.exchange("one-time-code"))
-            assertEquals("openid", result.identity.subject)
-            assertFalse(result.toString().contains("provider-secret-token"))
-        }
+  @Test
+  fun `exchange checks userinfo identity and discards provider tokens`() {
+    withServer("openid", "openid") { gateway ->
+      val result = assertNotNull(gateway.exchange("one-time-code"))
+      assertEquals("openid", result.identity.subject)
+      assertFalse(result.toString().contains("provider-secret-token"))
     }
+  }
 
-    @Test
-    fun `userinfo mismatch fails closed`() =
-        withServer("openid", "other") { gateway -> assertNull(gateway.exchange("code")) }
+  @Test
+  fun `userinfo mismatch fails closed`() =
+      withServer("openid", "other") { gateway -> assertNull(gateway.exchange("code")) }
 
-    private fun withServer(
-        tokenSubject: String,
-        profileSubject: String,
-        block: (HttpWechatIdentityGateway) -> Unit,
-    ) {
-        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        server.createContext("/sns/oauth2/access_token") { exchange ->
-            val body =
-                """{"openid":"$tokenSubject","access_token":"provider-secret-token","scope":"snsapi_login"}"""
-                    .toByteArray()
-            exchange.sendResponseHeaders(200, body.size.toLong())
-            exchange.responseBody.use { it.write(body) }
-        }
-        server.createContext("/sns/userinfo") { exchange ->
-            val body = """{"openid":"$profileSubject"}""".toByteArray()
-            exchange.sendResponseHeaders(200, body.size.toLong())
-            exchange.responseBody.use { it.write(body) }
-        }
-        server.start()
-        try {
-            block(
-                HttpWechatIdentityGateway(
-                    "app",
-                    "test-secret",
-                    ObjectMapper(),
-                    URI("http://127.0.0.1:${server.address.port}"),
-                )
-            )
-        } finally {
-            server.stop(0)
-        }
+  private fun withServer(
+      tokenSubject: String,
+      profileSubject: String,
+      block: (HttpWechatIdentityGateway) -> Unit,
+  ) {
+    val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+    server.createContext("/sns/oauth2/access_token") { exchange ->
+      val body =
+          """{"openid":"$tokenSubject","access_token":"provider-secret-token","scope":"snsapi_login"}"""
+              .toByteArray()
+      exchange.sendResponseHeaders(200, body.size.toLong())
+      exchange.responseBody.use { it.write(body) }
     }
+    server.createContext("/sns/userinfo") { exchange ->
+      val body = """{"openid":"$profileSubject"}""".toByteArray()
+      exchange.sendResponseHeaders(200, body.size.toLong())
+      exchange.responseBody.use { it.write(body) }
+    }
+    server.start()
+    try {
+      block(
+          HttpWechatIdentityGateway(
+              "app",
+              "test-secret",
+              ObjectMapper(),
+              URI("http://127.0.0.1:${server.address.port}"),
+          )
+      )
+    } finally {
+      server.stop(0)
+    }
+  }
 }

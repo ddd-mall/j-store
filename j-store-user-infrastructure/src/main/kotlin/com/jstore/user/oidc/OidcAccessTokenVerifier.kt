@@ -27,41 +27,41 @@ class OidcAccessTokenVerifier(
     private val audience: String,
     private val active: (OAuth2Authorization) -> Boolean,
 ) : AccessTokenVerifier {
-    override fun verifyAccessToken(token: String): AuthenticatedPrincipal? =
-        try {
-            val jwt = decoder.decode(token)
-            val subject = jwt.subject.toLongOrNull()?.takeIf { it > 0 }
-            val sid = jwt.getClaimAsString("sid")
-            val epoch = (jwt.claims["sev"] as? Number)?.toLong()
-            val grant = jwt.getClaimAsString("aid")?.let(authorizations::findById)
-            if (
-                jwt.headers["alg"] != "RS256" ||
-                    jwt.claims.containsKey("cnf") ||
-                    (jwt.headers["kid"] as? String).isNullOrBlank() ||
-                    jwt.issuer.toString() != issuer ||
-                    audience !in jwt.audience ||
-                    jwt.getClaimAsString("token_use") != "access" ||
-                    jwt.id.isNullOrBlank() ||
-                    jwt.expiresAt == null ||
-                    jwt.issuedAt == null ||
-                    subject == null ||
-                    sid.isNullOrBlank() ||
-                    epoch == null ||
-                    epoch < 0 ||
-                    grant == null ||
-                    grant.principalName != subject.toString() ||
-                    grant.accessToken?.isActive != true ||
-                    grant.accessToken?.token?.tokenValue != token ||
-                    !active(grant)
-            )
-                null
-            else
-                AuthenticatedPrincipal(
-                    issuer,
-                    AuthenticatedAccountId(subject),
-                    AuthenticatedSession(sid, epoch),
-                )
-        } catch (_: Exception) {
+  override fun verifyAccessToken(token: String): AuthenticatedPrincipal? =
+      try {
+        val jwt = decoder.decode(token)
+        val subject = jwt.subject.toLongOrNull()?.takeIf { it > 0 }
+        val sid = jwt.getClaimAsString("sid")
+        val epoch = (jwt.claims["sev"] as? Number)?.toLong()
+        val grant = jwt.getClaimAsString("aid")?.let(authorizations::findById)
+        if (
+            jwt.headers["alg"] != "RS256" ||
+                jwt.claims.containsKey("cnf") ||
+                (jwt.headers["kid"] as? String).isNullOrBlank() ||
+                jwt.issuer.toString() != issuer ||
+                audience !in jwt.audience ||
+                jwt.getClaimAsString("token_use") != "access" ||
+                jwt.id.isNullOrBlank() ||
+                jwt.expiresAt == null ||
+                jwt.issuedAt == null ||
+                subject == null ||
+                sid.isNullOrBlank() ||
+                epoch == null ||
+                epoch < 0 ||
+                grant == null ||
+                grant.principalName != subject.toString() ||
+                grant.accessToken?.isActive != true ||
+                grant.accessToken?.token?.tokenValue != token ||
+                !active(grant)
+        )
             null
-        }
+        else
+            AuthenticatedPrincipal(
+                issuer,
+                AuthenticatedAccountId(subject),
+                AuthenticatedSession(sid, epoch),
+            )
+      } catch (_: Exception) {
+        null
+      }
 }

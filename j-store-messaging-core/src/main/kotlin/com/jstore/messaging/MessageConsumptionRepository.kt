@@ -21,30 +21,30 @@ import java.time.Instant
 
 /** Atomic inbox/idempotency port shared by local and broker-delivered messages. */
 fun interface MessageConsumptionRepository {
-    fun tryStart(
-        consumerId: String,
-        messageId: String,
-        messageName: String,
-        messageVersion: Int,
-    ): Boolean
+  fun tryStart(
+      consumerId: String,
+      messageId: String,
+      messageName: String,
+      messageVersion: Int,
+  ): Boolean
 
-    fun tryStartOrdered(
-        consumerId: String,
-        messageId: String,
-        messageName: String,
-        messageVersion: Int,
-        deliveryOrder: MessageDeliveryOrder,
-    ): Boolean =
-        throw UnsupportedOperationException(
-            "Ordered delivery requires a sequence-aware consumption repository"
-        )
+  fun tryStartOrdered(
+      consumerId: String,
+      messageId: String,
+      messageName: String,
+      messageVersion: Int,
+      deliveryOrder: MessageDeliveryOrder,
+  ): Boolean =
+      throw UnsupportedOperationException(
+          "Ordered delivery requires a sequence-aware consumption repository"
+      )
 }
 
 /** Retention operations kept separate from the hot-path consumption contract. */
 interface MessageConsumptionRetentionRepository {
-    fun deleteConsumptionsBefore(before: Instant, batchSize: Int): Int
+  fun deleteConsumptionsBefore(before: Instant, batchSize: Int): Int
 
-    fun deleteInactiveStreamPositionsBefore(before: Instant, batchSize: Int): Int
+  fun deleteInactiveStreamPositionsBefore(before: Instant, batchSize: Int): Int
 }
 
 data class MessageDeliveryOrder(
@@ -52,15 +52,15 @@ data class MessageDeliveryOrder(
     val orderingKey: String,
     val sequenceNo: Long,
 ) {
-    init {
-        require(transportId.isNotBlank()) { "transportId must not be blank" }
-        require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
-        require(sequenceNo > 0) { "sequenceNo must be positive" }
-    }
+  init {
+    require(transportId.isNotBlank()) { "transportId must not be blank" }
+    require(orderingKey.isNotBlank()) { "orderingKey must not be blank" }
+    require(sequenceNo > 0) { "sequenceNo must be positive" }
+  }
 }
 
 object BuiltInMessageConsumerIds {
-    const val LOCAL_INTEGRATION_BUS = "jstore.local-integration-bus"
+  const val LOCAL_INTEGRATION_BUS = "jstore.local-integration-bus"
 }
 
 class MessageSequenceGapException(

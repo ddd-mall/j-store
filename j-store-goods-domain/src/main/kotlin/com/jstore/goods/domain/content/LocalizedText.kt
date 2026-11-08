@@ -20,26 +20,26 @@ import java.util.Locale
 
 /** Localized catalog content with normalized BCP 47 locale keys. */
 data class LocalizedText(val values: Map<String, String>) {
-    init {
-        require(values.isNotEmpty()) { "localized text must contain at least one value" }
-        require(values.keys.all { it == normalizeLocale(it) }) {
-            "locale keys must be normalized BCP 47 tags"
-        }
-        require(values.values.all { it.isNotBlank() }) { "localized values must not be blank" }
+  init {
+    require(values.isNotEmpty()) { "localized text must contain at least one value" }
+    require(values.keys.all { it == normalizeLocale(it) }) {
+      "locale keys must be normalized BCP 47 tags"
     }
+    require(values.values.all { it.isNotBlank() }) { "localized values must not be blank" }
+  }
 
-    operator fun get(locale: String): String? = values[normalizeLocale(locale)]
+  operator fun get(locale: String): String? = values[normalizeLocale(locale)]
 
-    fun resolve(locale: String): String = get(locale) ?: values.toSortedMap().values.first()
+  fun resolve(locale: String): String = get(locale) ?: values.toSortedMap().values.first()
 
-    companion object {
-        fun of(vararg entries: Pair<String, String>): LocalizedText =
-            LocalizedText(entries.associate { (locale, value) -> normalizeLocale(locale) to value })
+  companion object {
+    fun of(vararg entries: Pair<String, String>): LocalizedText =
+        LocalizedText(entries.associate { (locale, value) -> normalizeLocale(locale) to value })
 
-        fun normalizeLocale(locale: String): String {
-            val normalized = Locale.forLanguageTag(locale.replace('_', '-')).toLanguageTag()
-            require(normalized.isNotBlank() && normalized != "und") { "invalid locale: $locale" }
-            return normalized
-        }
+    fun normalizeLocale(locale: String): String {
+      val normalized = Locale.forLanguageTag(locale.replace('_', '-')).toLanguageTag()
+      require(normalized.isNotBlank() && normalized != "und") { "invalid locale: $locale" }
+      return normalized
     }
+  }
 }

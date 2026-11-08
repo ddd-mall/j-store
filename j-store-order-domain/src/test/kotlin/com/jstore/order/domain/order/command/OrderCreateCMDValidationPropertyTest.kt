@@ -37,84 +37,82 @@ import io.kotest.property.checkAll
  */
 class OrderCreateCMDValidationPropertyTest :
     FunSpec({
-        val validPhone = PhoneNumber("+8613800138000")
-        /**
-         * Generator for RecipientInfoCMD instances that will fail validation. Covers three failure
-         * modes:
-         * 1. blank consigneeName
-         * 2. blank shippingDistrictCode
-         * 3. both phoneNumber and emailAddress are null (CONTRACT_INFO_INVALID)
-         */
-        val failingRecipientInfoArb: Arb<OrderCreateCMD.RecipientInfoCMD> =
-            Arb.element(1, 2, 3).map { mode ->
-                when (mode) {
-                    1 ->
-                        OrderCreateCMD.RecipientInfoCMD(
-                            consigneeName = "  ",
-                            countryCode = "CN",
-                            consigneeContractInfo =
-                                OrderCreateCMD.ContractInfoCMD(phoneNumber = validPhone),
-                            shippingDistrictCode = "110105",
-                            shippingDetailAddress = "详细地址",
-                        )
-                    2 ->
-                        OrderCreateCMD.RecipientInfoCMD(
-                            consigneeName = "张三",
-                            countryCode = "CN",
-                            consigneeContractInfo =
-                                OrderCreateCMD.ContractInfoCMD(phoneNumber = validPhone),
-                            shippingDistrictCode = "  ",
-                            shippingDetailAddress = "详细地址",
-                        )
-                    else ->
-                        OrderCreateCMD.RecipientInfoCMD(
-                            consigneeName = "张三",
-                            countryCode = "CN",
-                            consigneeContractInfo =
-                                OrderCreateCMD.ContractInfoCMD(
-                                    phoneNumber = null,
-                                    emailAddress = null,
-                                ),
-                            shippingDistrictCode = "110105",
-                            shippingDetailAddress = "详细地址",
-                        )
-                }
+      val validPhone = PhoneNumber("+8613800138000")
+      /**
+       * Generator for RecipientInfoCMD instances that will fail validation. Covers three failure
+       * modes:
+       * 1. blank consigneeName
+       * 2. blank shippingDistrictCode
+       * 3. both phoneNumber and emailAddress are null (CONTRACT_INFO_INVALID)
+       */
+      val failingRecipientInfoArb: Arb<OrderCreateCMD.RecipientInfoCMD> =
+          Arb.element(1, 2, 3).map { mode ->
+            when (mode) {
+              1 ->
+                  OrderCreateCMD.RecipientInfoCMD(
+                      consigneeName = "  ",
+                      countryCode = "CN",
+                      consigneeContractInfo =
+                          OrderCreateCMD.ContractInfoCMD(phoneNumber = validPhone),
+                      shippingDistrictCode = "110105",
+                      shippingDetailAddress = "详细地址",
+                  )
+              2 ->
+                  OrderCreateCMD.RecipientInfoCMD(
+                      consigneeName = "张三",
+                      countryCode = "CN",
+                      consigneeContractInfo =
+                          OrderCreateCMD.ContractInfoCMD(phoneNumber = validPhone),
+                      shippingDistrictCode = "  ",
+                      shippingDetailAddress = "详细地址",
+                  )
+              else ->
+                  OrderCreateCMD.RecipientInfoCMD(
+                      consigneeName = "张三",
+                      countryCode = "CN",
+                      consigneeContractInfo =
+                          OrderCreateCMD.ContractInfoCMD(
+                              phoneNumber = null,
+                              emailAddress = null,
+                          ),
+                      shippingDistrictCode = "110105",
+                      shippingDetailAddress = "详细地址",
+                  )
             }
+          }
 
-        test(
-            "OrderCreateCMD.validate() propagates the same Failure as RecipientInfoCMD.validate()"
-        ) {
-            checkAll(100, failingRecipientInfoArb) { failingRecipientInfo ->
-                // First, confirm RecipientInfoCMD.validate() fails
-                val recipientResult = OrderCommandValidator.validate(failingRecipientInfo)
-                recipientResult.shouldBeInstanceOf<Failure<*>>()
-                val expectedError = (recipientResult as Failure).error
+      test("OrderCreateCMD.validate() propagates the same Failure as RecipientInfoCMD.validate()") {
+        checkAll(100, failingRecipientInfoArb) { failingRecipientInfo ->
+          // First, confirm RecipientInfoCMD.validate() fails
+          val recipientResult = OrderCommandValidator.validate(failingRecipientInfo)
+          recipientResult.shouldBeInstanceOf<Failure<*>>()
+          val expectedError = (recipientResult as Failure).error
 
-                // Build a valid OrderCreateCMD (valid items, valid buyerUid) with the failing
-                // recipientInfo
-                val orderCmd =
-                    OrderCreateCMD(
-                        buyerUid = 1L,
-                        merchantId = 7,
-                        recipientInfo = failingRecipientInfo,
-                        items =
-                            listOf(
-                                OrderCreateCMD.OrderItemCMD(
-                                    spuId = 1,
-                                    skuId = 1,
-                                    quantity = 1,
-                                    snapshotVersion = 1L,
-                                    offerId = 2,
-                                    offerVersion = 1,
-                                )
-                            ),
-                    )
+          // Build a valid OrderCreateCMD (valid items, valid buyerUid) with the failing
+          // recipientInfo
+          val orderCmd =
+              OrderCreateCMD(
+                  buyerUid = 1L,
+                  merchantId = 7,
+                  recipientInfo = failingRecipientInfo,
+                  items =
+                      listOf(
+                          OrderCreateCMD.OrderItemCMD(
+                              spuId = 1,
+                              skuId = 1,
+                              quantity = 1,
+                              snapshotVersion = 1L,
+                              offerId = 2,
+                              offerVersion = 1,
+                          )
+                      ),
+              )
 
-                val orderResult = OrderCommandValidator.validate(orderCmd)
+          val orderResult = OrderCommandValidator.validate(orderCmd)
 
-                orderResult.shouldBeInstanceOf<Failure<*>>()
-                (orderResult as Failure).error.errorCode shouldBe expectedError.errorCode
-                orderResult.error.message shouldBe expectedError.message
-            }
+          orderResult.shouldBeInstanceOf<Failure<*>>()
+          (orderResult as Failure).error.errorCode shouldBe expectedError.errorCode
+          orderResult.error.message shouldBe expectedError.message
         }
+      }
     })

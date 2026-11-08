@@ -23,48 +23,48 @@ import com.jstore.goods.domain.content.LocalizedText
 import java.time.LocalDateTime
 
 interface SpuSnapshotFactory {
-    fun createSnapshot(
-        spu: Spu,
-        style: GoodsStyle? = null,
-        brandName: LocalizedText? = null,
-    ): SpuSnapshot
+  fun createSnapshot(
+      spu: Spu,
+      style: GoodsStyle? = null,
+      brandName: LocalizedText? = null,
+  ): SpuSnapshot
 }
 
 class SpuSnapshotFactoryImpl(private val snowFlakSequence: SnowFlakSequence) : SpuSnapshotFactory {
 
-    override fun createSnapshot(
-        spu: Spu,
-        style: GoodsStyle?,
-        brandName: LocalizedText?,
-    ): SpuSnapshot {
-        return SpuSnapshot(
-            id = SpuSnapshotId(snowFlakSequence.nextId()),
-            merchantId = spu.merchantId,
-            spuId = spu.id,
-            snapshotVersion = spu.version,
-            spuName = spu.name,
-            description = spu.description,
-            skuSnapshots =
-                spu.skus.map { sku ->
-                    SkuSnapshot(
-                        skuId = sku.id,
-                        skuName = sku.skuName,
-                        attributes = sku.attributes.toList(),
-                        merchantCode = sku.merchantCode,
-                        barcode = sku.barcode,
-                        imageKeys = style?.skuImages?.get(sku.id).orEmpty(),
-                    )
-                },
-            mainImages = style?.mainImages.orEmpty(),
-            detailHtml = style?.detailHtml.orEmpty(),
-            productTypeId = spu.productTypeId,
-            productAttributes = spu.productAttributes.toList(),
-            brandId = spu.brandId,
-            brandName = brandName,
-            categoryIds = spu.categoryIds.toSet(),
-            localizedNames = spu.localizedNames,
-            localizedDescriptions = spu.localizedDescriptions,
-            createdAt = LocalDateTime.now(),
-        )
-    }
+  override fun createSnapshot(
+      spu: Spu,
+      style: GoodsStyle?,
+      brandName: LocalizedText?,
+  ): SpuSnapshot {
+    return SpuSnapshot(
+        id = SpuSnapshotId(snowFlakSequence.nextId()),
+        merchantId = spu.merchantId,
+        spuId = spu.id,
+        snapshotVersion = spu.version,
+        spuName = spu.name,
+        description = spu.description,
+        skuSnapshots =
+            spu.skus.map { sku ->
+              SkuSnapshot(
+                  skuId = sku.id,
+                  skuName = sku.skuName,
+                  attributes = sku.attributes.toList(),
+                  merchantCode = sku.merchantCode,
+                  barcode = sku.barcode,
+                  imageKeys = style?.skuImages?.get(sku.id).orEmpty(),
+              )
+            },
+        mainImages = style?.mainImages.orEmpty(),
+        detailHtml = style?.detailHtml.orEmpty(),
+        productTypeId = spu.productTypeId,
+        productAttributes = spu.productAttributes.toList(),
+        brandId = spu.brandId,
+        brandName = brandName,
+        categoryIds = spu.categoryIds.toSet(),
+        localizedNames = spu.localizedNames,
+        localizedDescriptions = spu.localizedDescriptions,
+        createdAt = LocalDateTime.now(),
+    )
+  }
 }

@@ -33,26 +33,26 @@ import org.springframework.web.client.RestClient
 
 @ConfigurationProperties("jstore.user-query.remote")
 class UserProfileRemoteProperties {
-    var baseUrl: String = ""
-    var token: String = ""
-    var connectTimeout: Duration = Duration.ofSeconds(2)
-    var readTimeout: Duration = Duration.ofSeconds(3)
+  var baseUrl: String = ""
+  var token: String = ""
+  var connectTimeout: Duration = Duration.ofSeconds(2)
+  var readTimeout: Duration = Duration.ofSeconds(3)
 
-    fun validate() {
-        val uri = runCatching { URI(baseUrl) }.getOrNull()
-        require(uri != null && uri.scheme in setOf("http", "https") && !uri.host.isNullOrBlank()) {
-            "jstore.user-query.remote.base-url must be an absolute HTTP(S) URL"
-        }
-        require(token.length >= 32) {
-            "jstore.user-query.remote.token must contain at least 32 characters"
-        }
-        require(!connectTimeout.isNegative && !connectTimeout.isZero) {
-            "jstore.user-query.remote.connect-timeout must be positive"
-        }
-        require(!readTimeout.isNegative && !readTimeout.isZero) {
-            "jstore.user-query.remote.read-timeout must be positive"
-        }
+  fun validate() {
+    val uri = runCatching { URI(baseUrl) }.getOrNull()
+    require(uri != null && uri.scheme in setOf("http", "https") && !uri.host.isNullOrBlank()) {
+      "jstore.user-query.remote.base-url must be an absolute HTTP(S) URL"
     }
+    require(token.length >= 32) {
+      "jstore.user-query.remote.token must contain at least 32 characters"
+    }
+    require(!connectTimeout.isNegative && !connectTimeout.isZero) {
+      "jstore.user-query.remote.connect-timeout must be positive"
+    }
+    require(!readTimeout.isNegative && !readTimeout.isZero) {
+      "jstore.user-query.remote.read-timeout must be positive"
+    }
+  }
 }
 
 @AutoConfiguration
@@ -60,25 +60,25 @@ class UserProfileRemoteProperties {
 @ConditionalOnProperty(prefix = "jstore.user-query", name = ["mode"], havingValue = "remote")
 @EnableConfigurationProperties(UserProfileRemoteProperties::class)
 class UserProfileClientAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean(UserProfileQueryService::class)
-    fun remoteUserProfileQueryService(
-        properties: UserProfileRemoteProperties,
-        restClientBuilder: RestClient.Builder,
-    ): HttpUserProfileQueryService {
-        properties.validate()
-        val requestFactory =
-            SimpleClientHttpRequestFactory().apply {
-                setConnectTimeout(properties.connectTimeout)
-                setReadTimeout(properties.readTimeout)
-            }
-        val restClient =
-            restClientBuilder
-                .clone()
-                .baseUrl(properties.baseUrl.removeSuffix("/"))
-                .requestFactory(requestFactory)
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer ${properties.token}")
-                .build()
-        return HttpUserProfileQueryService(restClient)
-    }
+  @Bean
+  @ConditionalOnMissingBean(UserProfileQueryService::class)
+  fun remoteUserProfileQueryService(
+      properties: UserProfileRemoteProperties,
+      restClientBuilder: RestClient.Builder,
+  ): HttpUserProfileQueryService {
+    properties.validate()
+    val requestFactory =
+        SimpleClientHttpRequestFactory().apply {
+          setConnectTimeout(properties.connectTimeout)
+          setReadTimeout(properties.readTimeout)
+        }
+    val restClient =
+        restClientBuilder
+            .clone()
+            .baseUrl(properties.baseUrl.removeSuffix("/"))
+            .requestFactory(requestFactory)
+            .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer ${properties.token}")
+            .build()
+    return HttpUserProfileQueryService(restClient)
+  }
 }

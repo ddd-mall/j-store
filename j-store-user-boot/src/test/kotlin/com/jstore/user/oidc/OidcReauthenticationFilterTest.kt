@@ -29,52 +29,52 @@ import org.springframework.security.oauth2.core.*
 import org.springframework.security.oauth2.server.authorization.client.*
 
 class OidcReauthenticationFilterTest {
-    @Test
-    fun `prompt login forces fresh authentication once across saved request continuation`() {
-        val client =
-            RegisteredClient.withId("web")
-                .clientId("web")
-                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri("https://client.example/callback")
-                .build()
-        val clients = InMemoryRegisteredClientRepository(client)
-        val session = MockHttpSession()
-        val filter = OidcReauthenticationFilter(clients, Clock.systemUTC())
-        fun authentication(sid: String) =
-            UsernamePasswordAuthenticationToken.authenticated(
-                    "42",
-                    null,
-                    AuthorityUtils.NO_AUTHORITIES,
-                )
-                .apply { details = mapOf("sid" to sid, "auth_time" to Instant.now().epochSecond) }
-        fun request() =
-            MockHttpServletRequest("GET", "/oauth2/authorize").apply {
-                this.session = session
-                addParameter("client_id", "web")
-                addParameter("redirect_uri", "https://client.example/callback")
-                addParameter("prompt", "login")
-            }
-        try {
-            SecurityContextHolder.getContext().authentication = authentication("old")
-            filter.doFilter(
-                request(),
-                MockHttpServletResponse(),
-                FilterChain { _, _ ->
-                    assertNull(SecurityContextHolder.getContext().authentication)
-                },
+  @Test
+  fun `prompt login forces fresh authentication once across saved request continuation`() {
+    val client =
+        RegisteredClient.withId("web")
+            .clientId("web")
+            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .redirectUri("https://client.example/callback")
+            .build()
+    val clients = InMemoryRegisteredClientRepository(client)
+    val session = MockHttpSession()
+    val filter = OidcReauthenticationFilter(clients, Clock.systemUTC())
+    fun authentication(sid: String) =
+        UsernamePasswordAuthenticationToken.authenticated(
+                "42",
+                null,
+                AuthorityUtils.NO_AUTHORITIES,
             )
-            SecurityContextHolder.getContext().authentication = authentication("fresh")
-            val resumed = request().apply { addParameter("continue", "") }
-            filter.doFilter(
-                resumed,
-                MockHttpServletResponse(),
-                FilterChain { _, _ ->
-                    assertEquals("42", SecurityContextHolder.getContext().authentication.name)
-                },
-            )
-        } finally {
-            SecurityContextHolder.clearContext()
+            .apply { details = mapOf("sid" to sid, "auth_time" to Instant.now().epochSecond) }
+    fun request() =
+        MockHttpServletRequest("GET", "/oauth2/authorize").apply {
+          this.session = session
+          addParameter("client_id", "web")
+          addParameter("redirect_uri", "https://client.example/callback")
+          addParameter("prompt", "login")
         }
+    try {
+      SecurityContextHolder.getContext().authentication = authentication("old")
+      filter.doFilter(
+          request(),
+          MockHttpServletResponse(),
+          FilterChain { _, _ ->
+            assertNull(SecurityContextHolder.getContext().authentication)
+          },
+      )
+      SecurityContextHolder.getContext().authentication = authentication("fresh")
+      val resumed = request().apply { addParameter("continue", "") }
+      filter.doFilter(
+          resumed,
+          MockHttpServletResponse(),
+          FilterChain { _, _ ->
+            assertEquals("42", SecurityContextHolder.getContext().authentication.name)
+          },
+      )
+    } finally {
+      SecurityContextHolder.clearContext()
     }
+  }
 }

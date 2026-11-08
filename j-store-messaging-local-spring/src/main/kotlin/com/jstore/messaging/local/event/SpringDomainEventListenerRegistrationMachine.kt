@@ -23,7 +23,7 @@ class SpringDomainEventListenerRegistrationMachine(
     private val localDomainEventBus: LocalDomainEventBus,
     private val domainEventListeners: List<DomainEventListener<*>>,
 ) : InitializingBean {
-    override fun afterPropertiesSet() {
-        domainEventListeners.forEach(localDomainEventBus::register)
-    }
+  override fun afterPropertiesSet() {
+    domainEventListeners.forEach(localDomainEventBus::register)
+  }
 }

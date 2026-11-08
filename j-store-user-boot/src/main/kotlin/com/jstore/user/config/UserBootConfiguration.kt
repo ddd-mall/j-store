@@ -33,66 +33,66 @@ import org.springframework.transaction.PlatformTransactionManager
 @Configuration
 class UserBootConfiguration {
 
-    @Bean
-    fun userAccountFactory(snowFlakSequence: SnowFlakSequence): UserAccountFactory {
-        return UserAccountFactoryImpl(snowFlakSequence)
-    }
+  @Bean
+  fun userAccountFactory(snowFlakSequence: SnowFlakSequence): UserAccountFactory {
+    return UserAccountFactoryImpl(snowFlakSequence)
+  }
 
-    @Bean
-    fun bcryptPasswordHasher(): PasswordHasher {
-        return BCryptPasswordHasher()
-    }
+  @Bean
+  fun bcryptPasswordHasher(): PasswordHasher {
+    return BCryptPasswordHasher()
+  }
 
-    @Bean
-    fun redisAccountSessionStore(
-        stringRedisTemplate: StringRedisTemplate,
-        @Value($$"${jstore.oidc.issuer}") issuer: String,
-    ): RedisAccountSessionStore {
-        return RedisAccountSessionStore(
-            stringRedisTemplate,
-            com.jstore.user.oidc.DigestAuthorizationService.hash(issuer),
-        )
-    }
+  @Bean
+  fun redisAccountSessionStore(
+      stringRedisTemplate: StringRedisTemplate,
+      @Value($$"${jstore.oidc.issuer}") issuer: String,
+  ): RedisAccountSessionStore {
+    return RedisAccountSessionStore(
+        stringRedisTemplate,
+        com.jstore.user.oidc.DigestAuthorizationService.hash(issuer),
+    )
+  }
 
-    @Bean
-    fun phoneVerificationGateway(
-        stringRedisTemplate: StringRedisTemplate,
-        @Value($$"${account.phone-verification.hmac-secret}") hmacSecret: String,
-    ): PhoneVerificationGateway = RedisPhoneVerificationGateway(stringRedisTemplate, hmacSecret)
+  @Bean
+  fun phoneVerificationGateway(
+      stringRedisTemplate: StringRedisTemplate,
+      @Value($$"${account.phone-verification.hmac-secret}") hmacSecret: String,
+  ): PhoneVerificationGateway = RedisPhoneVerificationGateway(stringRedisTemplate, hmacSecret)
 
-    @Bean
-    fun loginAttemptGuard(stringRedisTemplate: StringRedisTemplate): LoginAttemptGuard =
-        RedisLoginAttemptGuard(stringRedisTemplate)
+  @Bean
+  fun loginAttemptGuard(stringRedisTemplate: StringRedisTemplate): LoginAttemptGuard =
+      RedisLoginAttemptGuard(stringRedisTemplate)
 
-    @Bean
-    fun userAccountService(
-        userAccountFactory: UserAccountFactory,
-        userAccountRepository: UserAccountRepository,
-        passwordHasher: PasswordHasher,
-        phoneVerificationGateway: PhoneVerificationGateway,
-        phoneVerificationCodeSender: PhoneVerificationCodeSender,
-        domainEventPublisher: DomainEventPublisher,
-    ): UserAccountService {
-        return UserAccountService(
-            userAccountFactory = userAccountFactory,
-            userAccountRepository = userAccountRepository,
-            passwordHasher = passwordHasher,
-            phoneVerificationGateway = phoneVerificationGateway,
-            phoneVerificationCodeSender = phoneVerificationCodeSender,
-            domainEventPublisher = domainEventPublisher,
-        )
-    }
+  @Bean
+  fun userAccountService(
+      userAccountFactory: UserAccountFactory,
+      userAccountRepository: UserAccountRepository,
+      passwordHasher: PasswordHasher,
+      phoneVerificationGateway: PhoneVerificationGateway,
+      phoneVerificationCodeSender: PhoneVerificationCodeSender,
+      domainEventPublisher: DomainEventPublisher,
+  ): UserAccountService {
+    return UserAccountService(
+        userAccountFactory = userAccountFactory,
+        userAccountRepository = userAccountRepository,
+        passwordHasher = passwordHasher,
+        phoneVerificationGateway = phoneVerificationGateway,
+        phoneVerificationCodeSender = phoneVerificationCodeSender,
+        domainEventPublisher = domainEventPublisher,
+    )
+  }
 
-    @Bean
-    @Primary
-    fun transactionalUserAccountUseCase(
-        userAccountService: UserAccountService,
-        tokenStore: AccountSessionStore,
-        transactionManager: PlatformTransactionManager,
-    ): UserAccountUseCase =
-        TransactionalUserAccountUseCase(
-            delegate = userAccountService,
-            tokenStore = tokenStore,
-            transactionManager = transactionManager,
-        )
+  @Bean
+  @Primary
+  fun transactionalUserAccountUseCase(
+      userAccountService: UserAccountService,
+      tokenStore: AccountSessionStore,
+      transactionManager: PlatformTransactionManager,
+  ): UserAccountUseCase =
+      TransactionalUserAccountUseCase(
+          delegate = userAccountService,
+          tokenStore = tokenStore,
+          transactionManager = transactionManager,
+      )
 }

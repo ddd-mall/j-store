@@ -24,20 +24,20 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.filter.OncePerRequestFilter
 
 class OidcBrowserSessionFilter(private val guard: OidcSessionGuard) : OncePerRequestFilter() {
-    override fun doFilterInternal(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        chain: FilterChain,
+  override fun doFilterInternal(
+      request: HttpServletRequest,
+      response: HttpServletResponse,
+      chain: FilterChain,
+  ) {
+    val authentication = SecurityContextHolder.getContext().authentication
+    if (
+        authentication != null &&
+            authentication !is AnonymousAuthenticationToken &&
+            !guard.browserActive(authentication)
     ) {
-        val authentication = SecurityContextHolder.getContext().authentication
-        if (
-            authentication != null &&
-                authentication !is AnonymousAuthenticationToken &&
-                !guard.browserActive(authentication)
-        ) {
-            SecurityContextHolder.clearContext()
-            request.getSession(false)?.invalidate()
-        }
-        chain.doFilter(request, response)
+      SecurityContextHolder.clearContext()
+      request.getSession(false)?.invalidate()
     }
+    chain.doFilter(request, response)
+  }
 }

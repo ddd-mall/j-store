@@ -33,83 +33,83 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/carts/current")
 @RequireLogin
 class CartController(private val carts: CartUseCase) {
-    data class SetItemQuantityRequest(
-        val skuId: Long,
-        val offerId: Long,
-        val targetQuantity: Int,
-        val expectedCartVersion: Long,
-    )
+  data class SetItemQuantityRequest(
+      val skuId: Long,
+      val offerId: Long,
+      val targetQuantity: Int,
+      val expectedCartVersion: Long,
+  )
 
-    data class SelectionRequest(
-        val expectedCartVersion: Long,
-        val cartLineIds: Set<Long>,
-    )
+  data class SelectionRequest(
+      val expectedCartVersion: Long,
+      val cartLineIds: Set<Long>,
+  )
 
-    data class RefreshRequest(val expectedCartVersion: Long)
+  data class RefreshRequest(val expectedCartVersion: Long)
 
-    @PutMapping("/items")
-    fun setItemQuantity(
-        @CurrentPrincipal user: AuthenticatedPrincipal,
-        @RequestBody request: SetItemQuantityRequest,
-    ) =
-        respond(
-            result =
-                carts.setItemQuantity(
-                    command =
-                        SetCartItemQuantityCommand(
-                            buyerId = user.accountId.value,
-                            skuId = request.skuId,
-                            offerId = request.offerId,
-                            targetQuantity = request.targetQuantity,
-                            expectedCartVersion = request.expectedCartVersion,
-                        )
-                )
-        )
+  @PutMapping("/items")
+  fun setItemQuantity(
+      @CurrentPrincipal user: AuthenticatedPrincipal,
+      @RequestBody request: SetItemQuantityRequest,
+  ) =
+      respond(
+          result =
+              carts.setItemQuantity(
+                  command =
+                      SetCartItemQuantityCommand(
+                          buyerId = user.accountId.value,
+                          skuId = request.skuId,
+                          offerId = request.offerId,
+                          targetQuantity = request.targetQuantity,
+                          expectedCartVersion = request.expectedCartVersion,
+                      )
+              )
+      )
 
-    @PutMapping("/selection")
-    fun selection(
-        @CurrentPrincipal user: AuthenticatedPrincipal,
-        @RequestBody request: SelectionRequest,
-    ): ResponseEntity<*> =
-        respond(
-            result =
-                carts.replaceSelection(
-                    command =
-                        ReplaceCartSelectionCommand(
-                            buyerId = user.accountId.value,
-                            expectedCartVersion = request.expectedCartVersion,
-                            cartLineIds = request.cartLineIds,
-                        )
-                )
-        )
+  @PutMapping("/selection")
+  fun selection(
+      @CurrentPrincipal user: AuthenticatedPrincipal,
+      @RequestBody request: SelectionRequest,
+  ): ResponseEntity<*> =
+      respond(
+          result =
+              carts.replaceSelection(
+                  command =
+                      ReplaceCartSelectionCommand(
+                          buyerId = user.accountId.value,
+                          expectedCartVersion = request.expectedCartVersion,
+                          cartLineIds = request.cartLineIds,
+                      )
+              )
+      )
 
-    @PostMapping("/refresh")
-    fun refresh(
-        @CurrentPrincipal user: AuthenticatedPrincipal,
-        @RequestBody request: RefreshRequest,
-    ): ResponseEntity<*> =
-        respond(
-            result =
-                carts.refresh(
-                    buyerId = user.accountId.value,
-                    expectedVersion = request.expectedCartVersion,
-                )
-        )
+  @PostMapping("/refresh")
+  fun refresh(
+      @CurrentPrincipal user: AuthenticatedPrincipal,
+      @RequestBody request: RefreshRequest,
+  ): ResponseEntity<*> =
+      respond(
+          result =
+              carts.refresh(
+                  buyerId = user.accountId.value,
+                  expectedVersion = request.expectedCartVersion,
+              )
+      )
 
-    @GetMapping
-    fun current(@CurrentPrincipal user: AuthenticatedPrincipal) =
-        respond(result = carts.current(buyerId = user.accountId.value))
+  @GetMapping
+  fun current(@CurrentPrincipal user: AuthenticatedPrincipal) =
+      respond(result = carts.current(buyerId = user.accountId.value))
 
-    private fun <T> respond(result: Result<T, BusinessError>): ResponseEntity<*> =
-        when (result) {
-            is Success -> ResponseEntity.ok(result.value)
-            is Failure ->
-                ResponseEntity.status(result.error.httpCode)
-                    .body(
-                        mapOf(
-                            "errorCode" to result.error.errorCode,
-                            "message" to result.error.message,
-                        )
+  private fun <T> respond(result: Result<T, BusinessError>): ResponseEntity<*> =
+      when (result) {
+        is Success -> ResponseEntity.ok(result.value)
+        is Failure ->
+            ResponseEntity.status(result.error.httpCode)
+                .body(
+                    mapOf(
+                        "errorCode" to result.error.errorCode,
+                        "message" to result.error.message,
                     )
-        }
+                )
+      }
 }

@@ -17,19 +17,19 @@
 package com.jstore.messaging
 
 interface IntegrationMessageHandler<T : IntegrationMessage> {
-    fun handlerId(): String
+  fun handlerId(): String
 
-    fun handle(message: T)
+  fun handle(message: T)
 }
 
 interface LocalIntegrationMessageBus {
-    fun publish(message: IntegrationMessage)
+  fun publish(message: IntegrationMessage)
 
-    fun publish(message: IntegrationMessage, deliveryOrder: MessageDeliveryOrder) {
-        throw UnsupportedOperationException("Ordered delivery requires a sequence-aware local bus")
-    }
+  fun publish(message: IntegrationMessage, deliveryOrder: MessageDeliveryOrder) {
+    throw UnsupportedOperationException("Ordered delivery requires a sequence-aware local bus")
+  }
 
-    fun register(handler: IntegrationMessageHandler<*>)
+  fun register(handler: IntegrationMessageHandler<*>)
 
-    fun unregister(handler: IntegrationMessageHandler<*>)
+  fun unregister(handler: IntegrationMessageHandler<*>)
 }

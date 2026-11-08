@@ -26,43 +26,43 @@ data class MessagingProperties(
     val targets: Set<String> = setOf(OutboxTransportIds.LOCAL),
     val routes: List<MessagingRouteProperties> = emptyList(),
 ) {
-    init {
-        require(targets.isNotEmpty() || routes.isNotEmpty()) {
-            "jstore.messaging.targets and routes must not both be empty"
-        }
-        require(targets.all { it.isNotBlank() }) {
-            "jstore.messaging.targets must contain only non-blank transport IDs"
-        }
-        require(OutboxTransportIds.LOCAL_DOMAIN !in targets) {
-            "local-domain is reserved for domain events"
-        }
-        require(routes.map { it.logicalDestination }.distinct().size == routes.size) {
-            "jstore.messaging.routes logical destinations must be unique"
-        }
-        require(
-            routes
-                .flatMap { it.deliveries }
-                .none {
-                    it.transportId == OutboxTransportIds.LOCAL_DOMAIN
-                }
-        ) {
-            "local-domain is reserved for domain events"
-        }
+  init {
+    require(targets.isNotEmpty() || routes.isNotEmpty()) {
+      "jstore.messaging.targets and routes must not both be empty"
     }
+    require(targets.all { it.isNotBlank() }) {
+      "jstore.messaging.targets must contain only non-blank transport IDs"
+    }
+    require(OutboxTransportIds.LOCAL_DOMAIN !in targets) {
+      "local-domain is reserved for domain events"
+    }
+    require(routes.map { it.logicalDestination }.distinct().size == routes.size) {
+      "jstore.messaging.routes logical destinations must be unique"
+    }
+    require(
+        routes
+            .flatMap { it.deliveries }
+            .none {
+              it.transportId == OutboxTransportIds.LOCAL_DOMAIN
+            }
+    ) {
+      "local-domain is reserved for domain events"
+    }
+  }
 
-    fun integrationRoutes(): List<IntegrationRoute> = routes.map { route ->
-        IntegrationRoute(
-            logicalDestination = route.logicalDestination,
-            deliveries =
-                route.deliveries.map {
-                    IntegrationDeliveryRoute(
-                        transportId = it.transportId,
-                        destination = it.destination,
-                        deliveryProfile = it.deliveryProfile,
-                    )
-                },
-        )
-    }
+  fun integrationRoutes(): List<IntegrationRoute> = routes.map { route ->
+    IntegrationRoute(
+        logicalDestination = route.logicalDestination,
+        deliveries =
+            route.deliveries.map {
+              IntegrationDeliveryRoute(
+                  transportId = it.transportId,
+                  destination = it.destination,
+                  deliveryProfile = it.deliveryProfile,
+              )
+            },
+    )
+  }
 }
 
 data class MessagingRouteProperties(

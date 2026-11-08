@@ -29,17 +29,17 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.util.HtmlUtils
 
 internal fun csrf(request: HttpServletRequest): String {
-    val token = request.getAttribute(CsrfToken::class.java.name) as CsrfToken
-    return "<input type=hidden name=\"${escape(token.parameterName)}\" value=\"${escape(token.token)}\">"
+  val token = request.getAttribute(CsrfToken::class.java.name) as CsrfToken
+  return "<input type=hidden name=\"${escape(token.parameterName)}\" value=\"${escape(token.token)}\">"
 }
 
 internal fun scopeLabel(scope: String) =
     when (scope) {
-        "openid" -> "账号标识"
-        "profile" -> "昵称"
-        "phone" -> "已验证手机号"
-        "offline_access" -> "保持登录"
-        else -> scope
+      "openid" -> "账号标识"
+      "profile" -> "昵称"
+      "phone" -> "已验证手机号"
+      "offline_access" -> "保持登录"
+      else -> scope
     }
 
 internal fun failure() =
@@ -67,9 +67,9 @@ internal fun authorizationContinuation(
     response: HttpServletResponse,
     properties: OidcProperties,
 ): String {
-    val saved = HttpSessionRequestCache().getRequest(request, response) ?: return "/"
-    val uri = URI(saved.redirectUrl)
-    return if (uri.path == "/oauth2/authorize")
-        properties.issuer + uri.rawPath + (uri.rawQuery?.let { "?$it" } ?: "")
-    else "/"
+  val saved = HttpSessionRequestCache().getRequest(request, response) ?: return "/"
+  val uri = URI(saved.redirectUrl)
+  return if (uri.path == "/oauth2/authorize")
+      properties.issuer + uri.rawPath + (uri.rawQuery?.let { "?$it" } ?: "")
+  else "/"
 }

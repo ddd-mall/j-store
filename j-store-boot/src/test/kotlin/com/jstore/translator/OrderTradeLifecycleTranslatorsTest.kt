@@ -36,79 +36,79 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
 
 class OrderTradeLifecycleTranslatorsTest {
-    @Test
-    fun `buyer cancellation carries trade correlation back to Trade`() {
-        val publisher = CapturingLifecyclePublisher()
-        OrderCancelledToTradeTranslator(publisher)
-            .onDomainEvent(
-                OrderCancellationRequestedEvent(
-                    OrderId(7001),
-                    9001,
-                    9101,
-                    "buyer changed mind",
-                    Instant.EPOCH,
-                    "cancel-event",
-                )
+  @Test
+  fun `buyer cancellation carries trade correlation back to Trade`() {
+    val publisher = CapturingLifecyclePublisher()
+    OrderCancelledToTradeTranslator(publisher)
+        .onDomainEvent(
+            OrderCancellationRequestedEvent(
+                OrderId(7001),
+                9001,
+                9101,
+                "buyer changed mind",
+                Instant.EPOCH,
+                "cancel-event",
             )
+        )
 
-        val event = assertIs<OrderCancelledIntegrationEvent>(publisher.messages.single())
-        assertEquals(9001, event.tradeId)
-        assertEquals(9101, event.orderPlanId)
-        assertEquals(7001, event.orderId)
-    }
+    val event = assertIs<OrderCancelledIntegrationEvent>(publisher.messages.single())
+    assertEquals(9001, event.tradeId)
+    assertEquals(9101, event.orderPlanId)
+    assertEquals(7001, event.orderId)
+  }
 
-    @Test
-    fun `paid trade order confirms its plan inventory`() {
-        val publisher = CapturingLifecyclePublisher()
-        val repository = repository(orderId = 7001, tradeId = 9001, orderPlanId = 9101)
+  @Test
+  fun `paid trade order confirms its plan inventory`() {
+    val publisher = CapturingLifecyclePublisher()
+    val repository = repository(orderId = 7001, tradeId = 9001, orderPlanId = 9101)
 
-        OrderPaidToStockConfirmTranslator(repository, publisher)
-            .onDomainEvent(
-                OrderPaidEvent(
-                    OrderId(7001),
-                    MerchantId(7),
-                    "payment-1",
-                    Price.ofFen(1000),
-                    "CNY",
-                    listOf(
-                        OrderItemSnapshot(
-                            spuId = 201,
-                            skuId = 101,
-                            quantity = 1,
-                            catalogSnapshotVersion = 1,
-                            unitPrice = Price.ofFen(1000),
-                            offerId = 101,
-                            storeId = 1,
-                            offerVersion = 1,
-                            fulfillmentNodeId = "DEFAULT",
-                            channelId = "ONLINE",
-                        )
-                    ),
-                    Instant.EPOCH,
-                    "paid-event",
-                )
+    OrderPaidToStockConfirmTranslator(repository, publisher)
+        .onDomainEvent(
+            OrderPaidEvent(
+                OrderId(7001),
+                MerchantId(7),
+                "payment-1",
+                Price.ofFen(1000),
+                "CNY",
+                listOf(
+                    OrderItemSnapshot(
+                        spuId = 201,
+                        skuId = 101,
+                        quantity = 1,
+                        catalogSnapshotVersion = 1,
+                        unitPrice = Price.ofFen(1000),
+                        offerId = 101,
+                        storeId = 1,
+                        offerVersion = 1,
+                        fulfillmentNodeId = "DEFAULT",
+                        channelId = "ONLINE",
+                    )
+                ),
+                Instant.EPOCH,
+                "paid-event",
             )
+        )
 
-        val command = assertIs<ConfirmInventoryCommand>(publisher.messages.single())
-        assertEquals(9001, command.tradeId)
-        assertEquals(9101, command.orderPlanId)
-        assertEquals("paid-event", command.sourceMessageId)
-    }
+    val command = assertIs<ConfirmInventoryCommand>(publisher.messages.single())
+    assertEquals(9001, command.tradeId)
+    assertEquals(9101, command.orderPlanId)
+    assertEquals("paid-event", command.sourceMessageId)
+  }
 
-    private fun repository(orderId: Long, tradeId: Long, orderPlanId: Long): OrderRepository {
-        val order = mock(Order::class.java)
-        `when`(order.sourceTradeId).thenReturn(tradeId)
-        `when`(order.sourceOrderPlanId).thenReturn(orderPlanId)
-        val repository = mock(OrderRepository::class.java)
-        `when`(repository.findById(OrderId(orderId))).thenReturn(order)
-        return repository
-    }
+  private fun repository(orderId: Long, tradeId: Long, orderPlanId: Long): OrderRepository {
+    val order = mock(Order::class.java)
+    `when`(order.sourceTradeId).thenReturn(tradeId)
+    `when`(order.sourceOrderPlanId).thenReturn(orderPlanId)
+    val repository = mock(OrderRepository::class.java)
+    `when`(repository.findById(OrderId(orderId))).thenReturn(order)
+    return repository
+  }
 }
 
 private class CapturingLifecyclePublisher : IntegrationMessagePublisher {
-    val messages = mutableListOf<IntegrationMessage>()
+  val messages = mutableListOf<IntegrationMessage>()
 
-    override fun publish(message: IntegrationMessage) {
-        messages += message
-    }
+  override fun publish(message: IntegrationMessage) {
+    messages += message
+  }
 }

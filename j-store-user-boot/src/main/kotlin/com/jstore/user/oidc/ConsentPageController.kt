@@ -36,35 +36,34 @@ class ConsentPageController(
     private val clients: RegisteredClientRepository,
     private val authorizations: DigestAuthorizationService,
 ) {
-    @SkipLogin
-    @GetMapping("/consent")
-    @ResponseBody
-    fun consent(
-        request: HttpServletRequest,
-        @RequestParam("client_id") clientId: String,
-        @RequestParam state: String,
-    ): ResponseEntity<String> {
-        val client = clients.findByClientId(clientId) ?: return failure()
-        val auth = authorizations.findByToken(state, OAuth2TokenType("state")) ?: return failure()
-        if (
-            auth.registeredClientId != client.id ||
-                auth.principalName != SecurityContextHolder.getContext().authentication.name
-        )
-            return failure()
-        val original =
-            auth.getAttribute<OAuth2AuthorizationRequest>(
-                OAuth2AuthorizationRequest::class.java.name
-            ) ?: return failure()
-        val hidden =
-            csrf(request) +
-                "<input type=hidden name=client_id value=\"${escape(clientId)}\"><input type=hidden name=state value=\"${escape(state)}\">"
-        val scopes =
-            original.scopes.joinToString("") { scope ->
-                "<label><input type=checkbox name=scope value=\"${escape(scope)}\" checked>${escape(scopeLabel(scope))}</label>"
-            }
-        return page(
-            "授权确认",
-            "<p>${escape(client.clientName)} 请求访问以下资料：</p><form method=post action=/oauth2/authorize>$hidden$scopes<button>同意</button></form><form method=post action=/oauth2/authorize>$hidden<button>拒绝</button></form>",
-        )
-    }
+  @SkipLogin
+  @GetMapping("/consent")
+  @ResponseBody
+  fun consent(
+      request: HttpServletRequest,
+      @RequestParam("client_id") clientId: String,
+      @RequestParam state: String,
+  ): ResponseEntity<String> {
+    val client = clients.findByClientId(clientId) ?: return failure()
+    val auth = authorizations.findByToken(state, OAuth2TokenType("state")) ?: return failure()
+    if (
+        auth.registeredClientId != client.id ||
+            auth.principalName != SecurityContextHolder.getContext().authentication.name
+    )
+        return failure()
+    val original =
+        auth.getAttribute<OAuth2AuthorizationRequest>(OAuth2AuthorizationRequest::class.java.name)
+            ?: return failure()
+    val hidden =
+        csrf(request) +
+            "<input type=hidden name=client_id value=\"${escape(clientId)}\"><input type=hidden name=state value=\"${escape(state)}\">"
+    val scopes =
+        original.scopes.joinToString("") { scope ->
+          "<label><input type=checkbox name=scope value=\"${escape(scope)}\" checked>${escape(scopeLabel(scope))}</label>"
+        }
+    return page(
+        "授权确认",
+        "<p>${escape(client.clientName)} 请求访问以下资料：</p><form method=post action=/oauth2/authorize>$hidden$scopes<button>同意</button></form><form method=post action=/oauth2/authorize>$hidden<button>拒绝</button></form>",
+    )
+  }
 }

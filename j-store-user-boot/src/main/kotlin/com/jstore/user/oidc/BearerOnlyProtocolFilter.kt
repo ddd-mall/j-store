@@ -23,17 +23,17 @@ import org.springframework.web.filter.OncePerRequestFilter
 
 /** DPoP is deliberately outside this server's bearer-token contract. */
 class BearerOnlyProtocolFilter : OncePerRequestFilter() {
-    override fun doFilterInternal(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        chain: FilterChain,
-    ) {
-        if (request.getHeader("DPoP") != null) {
-            response.status = 400
-            response.contentType = "application/json"
-            response.writer.write("{\"error\":\"invalid_request\"}")
-            return
-        }
-        chain.doFilter(request, response)
+  override fun doFilterInternal(
+      request: HttpServletRequest,
+      response: HttpServletResponse,
+      chain: FilterChain,
+  ) {
+    if (request.getHeader("DPoP") != null) {
+      response.status = 400
+      response.contentType = "application/json"
+      response.writer.write("{\"error\":\"invalid_request\"}")
+      return
     }
+    chain.doFilter(request, response)
+  }
 }

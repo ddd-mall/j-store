@@ -29,63 +29,62 @@ import org.springframework.transaction.annotation.Transactional
 @Repository
 class ProductTypeRepositoryImpl(private val jpaRepository: ProductTypePOJpaRepository) :
     ProductTypeRepository {
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun save(entity: ProductType): ProductType {
-        val po =
-            jpaRepository.findById(entity.id.value).orElse(null)?.also { existing ->
-                existing.merchantId = entity.merchantId.value
-                existing.name = JsonUtils.toJsonString(entity.name.values)
-                existing.definitions = encodeDefinitions(entity.definitions)
-                existing.updatedAt = LocalDateTime.now()
-            }
-                ?: ProductTypePO(
-                    id = entity.id.value,
-                    merchantId = entity.merchantId.value,
-                    name = JsonUtils.toJsonString(entity.name.values),
-                    definitions = encodeDefinitions(entity.definitions),
-                )
-        return toDomain(jpaRepository.save(po))
-    }
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun save(entity: ProductType): ProductType {
+    val po =
+        jpaRepository.findById(entity.id.value).orElse(null)?.also { existing ->
+          existing.merchantId = entity.merchantId.value
+          existing.name = JsonUtils.toJsonString(entity.name.values)
+          existing.definitions = encodeDefinitions(entity.definitions)
+          existing.updatedAt = LocalDateTime.now()
+        }
+            ?: ProductTypePO(
+                id = entity.id.value,
+                merchantId = entity.merchantId.value,
+                name = JsonUtils.toJsonString(entity.name.values),
+                definitions = encodeDefinitions(entity.definitions),
+            )
+    return toDomain(jpaRepository.save(po))
+  }
 
-    override fun findById(id: ProductTypeId): ProductType? =
-        jpaRepository.findById(id.value).orElse(null)?.let(::toDomain)
+  override fun findById(id: ProductTypeId): ProductType? =
+      jpaRepository.findById(id.value).orElse(null)?.let(::toDomain)
 
-    private fun encodeDefinitions(definitions: List<AttributeDefinition>): String =
-        JsonUtils.toJsonString(
+  private fun encodeDefinitions(definitions: List<AttributeDefinition>): String =
+      JsonUtils.toJsonString(
+          definitions.map { definition ->
+            mapOf(
+                "code" to definition.code,
+                "label" to definition.label.values,
+                "level" to definition.level.name,
+                "valueType" to definition.valueType.name,
+                "required" to definition.required,
+                "variantAxis" to definition.variantAxis,
+                "allowedValues" to definition.allowedValues.sorted(),
+            )
+          }
+      )
+
+  @Suppress("UNCHECKED_CAST")
+  private fun toDomain(po: ProductTypePO): ProductType {
+    val definitions: List<Map<String, Any?>> = JsonUtils.deserialize(po.definitions)
+    return ProductTypeImpl(
+        id = ProductTypeId(po.id),
+        merchantId = MerchantId(po.merchantId),
+        name = LocalizedText(JsonUtils.deserialize(po.name)),
+        definitions =
             definitions.map { definition ->
-                mapOf(
-                    "code" to definition.code,
-                    "label" to definition.label.values,
-                    "level" to definition.level.name,
-                    "valueType" to definition.valueType.name,
-                    "required" to definition.required,
-                    "variantAxis" to definition.variantAxis,
-                    "allowedValues" to definition.allowedValues.sorted(),
-                )
-            }
-        )
-
-    @Suppress("UNCHECKED_CAST")
-    private fun toDomain(po: ProductTypePO): ProductType {
-        val definitions: List<Map<String, Any?>> = JsonUtils.deserialize(po.definitions)
-        return ProductTypeImpl(
-            id = ProductTypeId(po.id),
-            merchantId = MerchantId(po.merchantId),
-            name = LocalizedText(JsonUtils.deserialize(po.name)),
-            definitions =
-                definitions.map { definition ->
-                    AttributeDefinition(
-                        code = definition.getValue("code") as String,
-                        label =
-                            LocalizedText((definition.getValue("label") as Map<String, String>)),
-                        level = AttributeLevel.valueOf(definition.getValue("level") as String),
-                        valueType =
-                            AttributeValueType.valueOf(definition.getValue("valueType") as String),
-                        required = definition["required"] as Boolean,
-                        variantAxis = definition["variantAxis"] as Boolean,
-                        allowedValues = (definition["allowedValues"] as List<String>).toSet(),
-                    )
-                },
-        )
-    }
+              AttributeDefinition(
+                  code = definition.getValue("code") as String,
+                  label = LocalizedText((definition.getValue("label") as Map<String, String>)),
+                  level = AttributeLevel.valueOf(definition.getValue("level") as String),
+                  valueType =
+                      AttributeValueType.valueOf(definition.getValue("valueType") as String),
+                  required = definition["required"] as Boolean,
+                  variantAxis = definition["variantAxis"] as Boolean,
+                  allowedValues = (definition["allowedValues"] as List<String>).toSet(),
+              )
+            },
+    )
+  }
 }

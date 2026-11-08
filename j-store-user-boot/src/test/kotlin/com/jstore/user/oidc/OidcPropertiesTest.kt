@@ -20,27 +20,26 @@ import kotlin.test.*
 import org.junit.jupiter.api.Test
 
 class OidcPropertiesTest {
-    @Test
-    fun `issuer cannot be inferred or use insecure external host`() {
-        assertFailsWith<IllegalArgumentException> { OidcProperties().validate(false) }
-        assertFailsWith<IllegalArgumentException> {
-            OidcProperties(issuer = "http://identity.example").validate(false)
-        }
+  @Test
+  fun `issuer cannot be inferred or use insecure external host`() {
+    assertFailsWith<IllegalArgumentException> { OidcProperties().validate(false) }
+    assertFailsWith<IllegalArgumentException> {
+      OidcProperties(issuer = "http://identity.example").validate(false)
     }
+  }
 
-    @Test
-    fun `wildcard redirect and public refresh client configuration are rejected`() {
-        assertFailsWith<IllegalArgumentException> {
-            OidcClientProperties(id = "spa", redirects = listOf("https://*.example/callback"))
-                .validate()
-        }
-        assertFailsWith<IllegalArgumentException> {
-            OidcClientProperties(
-                    id = "spa",
-                    redirects = listOf("https://app.example/callback"),
-                    scopes = setOf("openid", "offline_access"),
-                )
-                .validate()
-        }
+  @Test
+  fun `wildcard redirect and public refresh client configuration are rejected`() {
+    assertFailsWith<IllegalArgumentException> {
+      OidcClientProperties(id = "spa", redirects = listOf("https://*.example/callback")).validate()
     }
+    assertFailsWith<IllegalArgumentException> {
+      OidcClientProperties(
+              id = "spa",
+              redirects = listOf("https://app.example/callback"),
+              scopes = setOf("openid", "offline_access"),
+          )
+          .validate()
+    }
+  }
 }

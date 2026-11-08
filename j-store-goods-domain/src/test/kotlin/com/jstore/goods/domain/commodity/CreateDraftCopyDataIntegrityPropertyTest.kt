@@ -40,66 +40,64 @@ import io.kotest.property.checkAll
  */
 class CreateDraftCopyDataIntegrityPropertyTest :
     FunSpec({
-        val snowFlakSequence = SnowFlakSequence()
-        val factory = SpuFactoryImpl(snowFlakSequence)
+      val snowFlakSequence = SnowFlakSequence()
+      val factory = SpuFactoryImpl(snowFlakSequence)
 
-        // Generator for a non-empty list of SKUs (1..5)
-        val skuListArb: Arb<List<Sku>> =
-            Arb.list(
-                Arb.bind(
-                    Arb.long(1L..Long.MAX_VALUE),
-                    Arb.string(1..20),
-                    Arb.long(1L..999999L),
-                    Arb.string(1..10),
-                ) { skuIdVal, skuName, priceFen, attrValue ->
-                    SkuImpl(
-                        id = SkuId(skuIdVal),
-                        skuName = skuName,
-                        attributes = listOf(Attribute("variant", attrValue)),
-                    )
-                },
-                1..5,
-            )
-
-        // Generator for an PUBLISHED source SPU
-        val onSaleSpuArb: Arb<SpuImpl> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE),
-                Arb.string(1..50),
-                Arb.string(0..100),
-                Arb.long(1L..10000L),
-                skuListArb,
-            ) { spuIdVal, name, description, version, skus ->
-                SpuImpl(
-                    id = SpuId(spuIdVal),
-                    name = name,
-                    description = description,
-                    _status = CommodityStatus.PUBLISHED,
-                    _skus = skus.toMutableList(),
-                    _version = version,
+      // Generator for a non-empty list of SKUs (1..5)
+      val skuListArb: Arb<List<Sku>> =
+          Arb.list(
+              Arb.bind(
+                  Arb.long(1L..Long.MAX_VALUE),
+                  Arb.string(1..20),
+                  Arb.long(1L..999999L),
+                  Arb.string(1..10),
+              ) { skuIdVal, skuName, priceFen, attrValue ->
+                SkuImpl(
+                    id = SkuId(skuIdVal),
+                    skuName = skuName,
+                    attributes = listOf(Attribute("variant", attrValue)),
                 )
-            }
+              },
+              1..5,
+          )
 
-        test("createDraftCopy should preserve source data integrity for PUBLISHED SPU") {
-            checkAll(100, onSaleSpuArb) { source ->
-                val result = factory.createDraftCopy(source)
+      // Generator for an PUBLISHED source SPU
+      val onSaleSpuArb: Arb<SpuImpl> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE),
+              Arb.string(1..50),
+              Arb.string(0..100),
+              Arb.long(1L..10000L),
+              skuListArb,
+          ) { spuIdVal, name, description, version, skus ->
+            SpuImpl(
+                id = SpuId(spuIdVal),
+                name = name,
+                description = description,
+                _status = CommodityStatus.PUBLISHED,
+                _skus = skus.toMutableList(),
+                _version = version,
+            )
+          }
 
-                result.shouldBeInstanceOf<Success<Spu>>()
-                val draft = result.value
+      test("createDraftCopy should preserve source data integrity for PUBLISHED SPU") {
+        checkAll(100, onSaleSpuArb) { source ->
+          val result = factory.createDraftCopy(source)
 
-                draft.name shouldBe source.name
-                draft.description shouldBe source.description
-                draft.skus.map { it.skuName } shouldBe source.skus.map { it.skuName }
-                draft.skus.map { it.attributes } shouldBe source.skus.map { it.attributes }
-                draft.skus.map { it.sourceSkuId } shouldBe source.skus.map { it.id }
-                draft.skus
-                    .map { it.id }
-                    .toSet()
-                    .intersect(source.skus.map { it.id }.toSet()) shouldBe emptySet()
-                draft.version shouldBe source.version
-                draft.status shouldBe CommodityStatus.DRAFT
-                draft.sourceSpuId shouldBe source.id
-                draft.id shouldNotBe source.id
-            }
+          result.shouldBeInstanceOf<Success<Spu>>()
+          val draft = result.value
+
+          draft.name shouldBe source.name
+          draft.description shouldBe source.description
+          draft.skus.map { it.skuName } shouldBe source.skus.map { it.skuName }
+          draft.skus.map { it.attributes } shouldBe source.skus.map { it.attributes }
+          draft.skus.map { it.sourceSkuId } shouldBe source.skus.map { it.id }
+          draft.skus.map { it.id }.toSet().intersect(source.skus.map { it.id }.toSet()) shouldBe
+              emptySet()
+          draft.version shouldBe source.version
+          draft.status shouldBe CommodityStatus.DRAFT
+          draft.sourceSpuId shouldBe source.id
+          draft.id shouldNotBe source.id
         }
+      }
     })

@@ -44,141 +44,138 @@ import org.springframework.web.method.HandlerMethod
 class TokenValidationErrorPropertyTest :
     FunSpec({
 
-        // **Validates: Requirements 4.4, 4.6, 4.7**
+      // **Validates: Requirements 4.4, 4.6, 4.7**
 
-        test("parseAccessToken returns null produces Auth.Token.Invalid with HTTP 401") {
-            checkAll(
-                PropTestConfig(iterations = 100),
-                Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
-            ) { token ->
-                val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<AuthenticatedSessionStore>()
-                val interceptor =
-                    AuthenticationInterceptor(
-                        accessTokenVerifier = tokenVerifier,
-                        tokenStore = tokenStore,
-                        configurers = emptyList(),
-                    )
+      test("parseAccessToken returns null produces Auth.Token.Invalid with HTTP 401") {
+        checkAll(
+            PropTestConfig(iterations = 100),
+            Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
+        ) { token ->
+          val tokenVerifier = mock<AccessTokenVerifier>()
+          val tokenStore = mock<AuthenticatedSessionStore>()
+          val interceptor =
+              AuthenticationInterceptor(
+                  accessTokenVerifier = tokenVerifier,
+                  tokenStore = tokenStore,
+                  configurers = emptyList(),
+              )
 
-                val handlerMethod = mock<HandlerMethod>()
-                whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java))
-                    .thenReturn(true)
+          val handlerMethod = mock<HandlerMethod>()
+          whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
 
-                val request = mock<HttpServletRequest>()
-                whenever(request.getHeader("Authorization")).thenReturn("Bearer $token")
-                whenever(request.requestURI).thenReturn("/api/test")
+          val request = mock<HttpServletRequest>()
+          whenever(request.getHeader("Authorization")).thenReturn("Bearer $token")
+          whenever(request.requestURI).thenReturn("/api/test")
 
-                // parseAccessToken returns null → token invalid
-                whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(null)
+          // parseAccessToken returns null → token invalid
+          whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(null)
 
-                val stringWriter = StringWriter()
-                val response = mock<HttpServletResponse>()
-                whenever(response.writer).thenReturn(PrintWriter(stringWriter))
+          val stringWriter = StringWriter()
+          val response = mock<HttpServletResponse>()
+          whenever(response.writer).thenReturn(PrintWriter(stringWriter))
 
-                val result = interceptor.preHandle(request, response, handlerMethod)
+          val result = interceptor.preHandle(request, response, handlerMethod)
 
-                result shouldBe false
-                verify(response).status = AuthenticationErrors.TOKEN_INVALID.httpCode
-                AuthenticationErrors.TOKEN_INVALID.httpCode shouldBe 401
-                verify(response).contentType = "application/json"
+          result shouldBe false
+          verify(response).status = AuthenticationErrors.TOKEN_INVALID.httpCode
+          AuthenticationErrors.TOKEN_INVALID.httpCode shouldBe 401
+          verify(response).contentType = "application/json"
 
-                val body = stringWriter.toString()
-                body.contains("\"message\"") shouldBe true
-                body.contains("\"errorCode\"") shouldBe true
-                body.contains("Auth.Token.Invalid") shouldBe true
-            }
+          val body = stringWriter.toString()
+          body.contains("\"message\"") shouldBe true
+          body.contains("\"errorCode\"") shouldBe true
+          body.contains("Auth.Token.Invalid") shouldBe true
         }
+      }
 
-        test("inactive server session produces Auth.Token.Revoked with HTTP 401") {
-            checkAll(
-                PropTestConfig(iterations = 100),
-                Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
-                Arb.long(min = 1L, max = 100_000L),
-                Arb.string(minSize = 1, maxSize = 30).filter { !it.contains('\u0000') },
-            ) { token, userIdValue, jti ->
-                val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<AuthenticatedSessionStore>()
-                val interceptor =
-                    AuthenticationInterceptor(
-                        accessTokenVerifier = tokenVerifier,
-                        tokenStore = tokenStore,
-                        configurers = emptyList(),
-                    )
+      test("inactive server session produces Auth.Token.Revoked with HTTP 401") {
+        checkAll(
+            PropTestConfig(iterations = 100),
+            Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
+            Arb.long(min = 1L, max = 100_000L),
+            Arb.string(minSize = 1, maxSize = 30).filter { !it.contains('\u0000') },
+        ) { token, userIdValue, jti ->
+          val tokenVerifier = mock<AccessTokenVerifier>()
+          val tokenStore = mock<AuthenticatedSessionStore>()
+          val interceptor =
+              AuthenticationInterceptor(
+                  accessTokenVerifier = tokenVerifier,
+                  tokenStore = tokenStore,
+                  configurers = emptyList(),
+              )
 
-                val handlerMethod = mock<HandlerMethod>()
-                whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java))
-                    .thenReturn(true)
+          val handlerMethod = mock<HandlerMethod>()
+          whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
 
-                val request = mock<HttpServletRequest>()
-                whenever(request.getHeader("Authorization")).thenReturn("Bearer $token")
-                whenever(request.requestURI).thenReturn("/api/test")
+          val request = mock<HttpServletRequest>()
+          whenever(request.getHeader("Authorization")).thenReturn("Bearer $token")
+          whenever(request.requestURI).thenReturn("/api/test")
 
-                val userId = AuthenticatedAccountId(userIdValue)
-                val principal =
-                    AuthenticatedPrincipal(
-                        "issuer-a",
-                        userId,
-                        AuthenticatedSession("session-1", 4L),
-                    )
-                whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(principal)
-                whenever(tokenStore.isSessionActive(userId, "session-1", 4L)).thenReturn(false)
+          val userId = AuthenticatedAccountId(userIdValue)
+          val principal =
+              AuthenticatedPrincipal(
+                  "issuer-a",
+                  userId,
+                  AuthenticatedSession("session-1", 4L),
+              )
+          whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(principal)
+          whenever(tokenStore.isSessionActive(userId, "session-1", 4L)).thenReturn(false)
 
-                val stringWriter = StringWriter()
-                val response = mock<HttpServletResponse>()
-                whenever(response.writer).thenReturn(PrintWriter(stringWriter))
+          val stringWriter = StringWriter()
+          val response = mock<HttpServletResponse>()
+          whenever(response.writer).thenReturn(PrintWriter(stringWriter))
 
-                val result = interceptor.preHandle(request, response, handlerMethod)
+          val result = interceptor.preHandle(request, response, handlerMethod)
 
-                result shouldBe false
-                verify(response).status = AuthenticationErrors.TOKEN_REVOKED.httpCode
-                AuthenticationErrors.TOKEN_REVOKED.httpCode shouldBe 401
-                verify(response).contentType = "application/json"
+          result shouldBe false
+          verify(response).status = AuthenticationErrors.TOKEN_REVOKED.httpCode
+          AuthenticationErrors.TOKEN_REVOKED.httpCode shouldBe 401
+          verify(response).contentType = "application/json"
 
-                val body = stringWriter.toString()
-                body.contains("\"message\"") shouldBe true
-                body.contains("\"errorCode\"") shouldBe true
-                body.contains("Auth.Token.Revoked") shouldBe true
-            }
+          val body = stringWriter.toString()
+          body.contains("\"message\"") shouldBe true
+          body.contains("\"errorCode\"") shouldBe true
+          body.contains("Auth.Token.Revoked") shouldBe true
         }
+      }
 
-        test("missing Authorization header produces Auth.Token.Missing with HTTP 401") {
-            checkAll(
-                PropTestConfig(iterations = 100),
-                Arb.string(minSize = 1, maxSize = 50),
-            ) { requestPath ->
-                val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<AuthenticatedSessionStore>()
-                val interceptor =
-                    AuthenticationInterceptor(
-                        accessTokenVerifier = tokenVerifier,
-                        tokenStore = tokenStore,
-                        configurers = emptyList(),
-                    )
+      test("missing Authorization header produces Auth.Token.Missing with HTTP 401") {
+        checkAll(
+            PropTestConfig(iterations = 100),
+            Arb.string(minSize = 1, maxSize = 50),
+        ) { requestPath ->
+          val tokenVerifier = mock<AccessTokenVerifier>()
+          val tokenStore = mock<AuthenticatedSessionStore>()
+          val interceptor =
+              AuthenticationInterceptor(
+                  accessTokenVerifier = tokenVerifier,
+                  tokenStore = tokenStore,
+                  configurers = emptyList(),
+              )
 
-                val handlerMethod = mock<HandlerMethod>()
-                whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java))
-                    .thenReturn(true)
+          val handlerMethod = mock<HandlerMethod>()
+          whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
 
-                val request = mock<HttpServletRequest>()
-                // No Authorization header → token missing
-                whenever(request.getHeader("Authorization")).thenReturn(null)
-                whenever(request.requestURI).thenReturn("/api/$requestPath")
+          val request = mock<HttpServletRequest>()
+          // No Authorization header → token missing
+          whenever(request.getHeader("Authorization")).thenReturn(null)
+          whenever(request.requestURI).thenReturn("/api/$requestPath")
 
-                val stringWriter = StringWriter()
-                val response = mock<HttpServletResponse>()
-                whenever(response.writer).thenReturn(PrintWriter(stringWriter))
+          val stringWriter = StringWriter()
+          val response = mock<HttpServletResponse>()
+          whenever(response.writer).thenReturn(PrintWriter(stringWriter))
 
-                val result = interceptor.preHandle(request, response, handlerMethod)
+          val result = interceptor.preHandle(request, response, handlerMethod)
 
-                result shouldBe false
-                verify(response).status = AuthenticationErrors.TOKEN_MISSING.httpCode
-                AuthenticationErrors.TOKEN_MISSING.httpCode shouldBe 401
-                verify(response).contentType = "application/json"
+          result shouldBe false
+          verify(response).status = AuthenticationErrors.TOKEN_MISSING.httpCode
+          AuthenticationErrors.TOKEN_MISSING.httpCode shouldBe 401
+          verify(response).contentType = "application/json"
 
-                val body = stringWriter.toString()
-                body.contains("\"message\"") shouldBe true
-                body.contains("\"errorCode\"") shouldBe true
-                body.contains("Auth.Token.Missing") shouldBe true
-            }
+          val body = stringWriter.toString()
+          body.contains("\"message\"") shouldBe true
+          body.contains("\"errorCode\"") shouldBe true
+          body.contains("Auth.Token.Missing") shouldBe true
         }
+      }
     })

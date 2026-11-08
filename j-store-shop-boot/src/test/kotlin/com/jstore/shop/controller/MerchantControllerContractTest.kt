@@ -42,78 +42,78 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.method.support.ModelAndViewContainer
 
 class MerchantControllerContractTest {
-    private lateinit var mvc: MockMvc
+  private lateinit var mvc: MockMvc
 
-    @BeforeEach
-    fun setUp() {
-        var sequence = 100L
-        val memberships = FakeMembershipRepository()
-        val service =
-            MerchantService(
-                { ++sequence },
-                FakeMerchantRepository(memberships),
-                memberships,
-                UserAccountLookup { it in setOf(10L, 20L) },
-            )
-        mvc =
-            MockMvcBuilders.standaloneSetup(MerchantController(service))
-                .setCustomArgumentResolvers(CurrentUserResolver())
-                .build()
-    }
+  @BeforeEach
+  fun setUp() {
+    var sequence = 100L
+    val memberships = FakeMembershipRepository()
+    val service =
+        MerchantService(
+            { ++sequence },
+            FakeMerchantRepository(memberships),
+            memberships,
+            UserAccountLookup { it in setOf(10L, 20L) },
+        )
+    mvc =
+        MockMvcBuilders.standaloneSetup(MerchantController(service))
+            .setCustomArgumentResolvers(CurrentUserResolver())
+            .build()
+  }
 
-    @Test
-    fun `merchant HTTP contract is preserved after module split`() {
-        mvc.perform(
-                post("/api/merchants")
-                    .header("X-Test-User", "10")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"name":"示例商户"}""")
-            )
-            .andExpect(status().isCreated)
-            .andExpect(jsonPath("$.id").value(101))
-            .andExpect(jsonPath("$.name").value("示例商户"))
+  @Test
+  fun `merchant HTTP contract is preserved after module split`() {
+    mvc.perform(
+            post("/api/merchants")
+                .header("X-Test-User", "10")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"示例商户"}""")
+        )
+        .andExpect(status().isCreated)
+        .andExpect(jsonPath("$.id").value(101))
+        .andExpect(jsonPath("$.name").value("示例商户"))
 
-        mvc.perform(get("/api/merchants").header("X-Test-User", "10"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$[0].roles[0]").value("OWNER"))
-    }
+    mvc.perform(get("/api/merchants").header("X-Test-User", "10"))
+        .andExpect(status().isOk)
+        .andExpect(jsonPath("$[0].roles[0]").value("OWNER"))
+  }
 
-    private class CurrentUserResolver : HandlerMethodArgumentResolver {
-        override fun supportsParameter(parameter: MethodParameter) =
-            parameter.hasParameterAnnotation(CurrentPrincipal::class.java) &&
-                parameter.parameterType == AuthenticatedPrincipal::class.java
+  private class CurrentUserResolver : HandlerMethodArgumentResolver {
+    override fun supportsParameter(parameter: MethodParameter) =
+        parameter.hasParameterAnnotation(CurrentPrincipal::class.java) &&
+            parameter.parameterType == AuthenticatedPrincipal::class.java
 
-        override fun resolveArgument(
-            parameter: MethodParameter,
-            mavContainer: ModelAndViewContainer?,
-            webRequest: NativeWebRequest,
-            binderFactory: org.springframework.web.bind.support.WebDataBinderFactory?,
-        ) =
-            AuthenticatedPrincipal(
-                "issuer-a",
-                AuthenticatedAccountId(webRequest.getHeader("X-Test-User")!!.toLong()),
-            )
-    }
+    override fun resolveArgument(
+        parameter: MethodParameter,
+        mavContainer: ModelAndViewContainer?,
+        webRequest: NativeWebRequest,
+        binderFactory: org.springframework.web.bind.support.WebDataBinderFactory?,
+    ) =
+        AuthenticatedPrincipal(
+            "issuer-a",
+            AuthenticatedAccountId(webRequest.getHeader("X-Test-User")!!.toLong()),
+        )
+  }
 
-    private class FakeMerchantRepository(private val memberships: MerchantMembershipRepository) :
-        MerchantRepository {
-        private val values = linkedMapOf<MerchantId, Merchant>()
+  private class FakeMerchantRepository(private val memberships: MerchantMembershipRepository) :
+      MerchantRepository {
+    private val values = linkedMapOf<MerchantId, Merchant>()
 
-        override fun save(aggregate: Merchant) = aggregate.also { values[it.id] = it }
+    override fun save(aggregate: Merchant) = aggregate.also { values[it.id] = it }
 
-        override fun findById(id: MerchantId) = values[id]
-    }
+    override fun findById(id: MerchantId) = values[id]
+  }
 
-    private class FakeMembershipRepository : MerchantMembershipRepository {
-        private val values = linkedMapOf<MerchantMembershipId, MerchantMembership>()
+  private class FakeMembershipRepository : MerchantMembershipRepository {
+    private val values = linkedMapOf<MerchantMembershipId, MerchantMembership>()
 
-        override fun save(aggregate: MerchantMembership) = aggregate.also { values[it.id] = it }
+    override fun save(aggregate: MerchantMembership) = aggregate.also { values[it.id] = it }
 
-        override fun findById(id: MerchantMembershipId) = values[id]
+    override fun findById(id: MerchantMembershipId) = values[id]
 
-        override fun findByMerchantAndUser(merchantId: MerchantId, userId: Long) =
-            values.values.firstOrNull { it.merchantId == merchantId && it.userId == userId }
+    override fun findByMerchantAndUser(merchantId: MerchantId, userId: Long) =
+        values.values.firstOrNull { it.merchantId == merchantId && it.userId == userId }
 
-        override fun findByUser(userId: Long) = values.values.filter { it.userId == userId }
-    }
+    override fun findByUser(userId: Long) = values.values.filter { it.userId == userId }
+  }
 }

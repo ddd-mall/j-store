@@ -29,60 +29,60 @@ import kotlin.test.assertIs
 import org.mockito.kotlin.*
 
 class CommodityServiceSkuManagementTest {
-    private val repository = mock<SpuRepository>()
-    private val factory = mock<SpuFactory>()
-    private val service =
-        CommodityService(
-            spuFactory = factory,
-            spuRepository = repository,
-            domainEventPublisher = mock<DomainEventPublisher>(),
-            snapshotFactory = mock<SpuSnapshotFactory>(),
-            snapshotRepository = mock<SpuSnapshotRepository>(),
-            goodsStyleRepository = mock<GoodsStyleRepository>(),
-            goodsStyleFactory = mock<GoodsStyleFactory>(),
-            brandRepository = mock(),
+  private val repository = mock<SpuRepository>()
+  private val factory = mock<SpuFactory>()
+  private val service =
+      CommodityService(
+          spuFactory = factory,
+          spuRepository = repository,
+          domainEventPublisher = mock<DomainEventPublisher>(),
+          snapshotFactory = mock<SpuSnapshotFactory>(),
+          snapshotRepository = mock<SpuSnapshotRepository>(),
+          goodsStyleRepository = mock<GoodsStyleRepository>(),
+          goodsStyleFactory = mock<GoodsStyleFactory>(),
+          brandRepository = mock(),
+      )
+
+  @Test
+  fun `update sku delegates domain behavior and saves the draft`() {
+    val draft = draft()
+    val command =
+        SkuUpdateCmd(
+            spuId = draft.id,
+            skuId = SkuId(11),
+            skuName = "正红色",
+            attributes = listOf(Attribute("color", "crimson")),
         )
+    val replacement = SkuImpl(SkuId(11), "正红色", command.attributes)
+    whenever(repository.findById(draft.id)).thenReturn(draft)
+    whenever(factory.createSku(command)).thenReturn(replacement)
+    whenever(repository.save(draft)).thenReturn(draft)
 
-    @Test
-    fun `update sku delegates domain behavior and saves the draft`() {
-        val draft = draft()
-        val command =
-            SkuUpdateCmd(
-                spuId = draft.id,
-                skuId = SkuId(11),
-                skuName = "正红色",
-                attributes = listOf(Attribute("color", "crimson")),
-            )
-        val replacement = SkuImpl(SkuId(11), "正红色", command.attributes)
-        whenever(repository.findById(draft.id)).thenReturn(draft)
-        whenever(factory.createSku(command)).thenReturn(replacement)
-        whenever(repository.save(draft)).thenReturn(draft)
+    val result = service.updateSku(command)
 
-        val result = service.updateSku(command)
+    assertIs<Success<Spu>>(result)
+    assertEquals("正红色", draft.skus.single().skuName)
+    verify(repository).save(draft)
+  }
 
-        assertIs<Success<Spu>>(result)
-        assertEquals("正红色", draft.skus.single().skuName)
-        verify(repository).save(draft)
-    }
+  @Test
+  fun `remove sku delegates domain behavior and saves the draft`() {
+    val draft = draft()
+    whenever(repository.findById(draft.id)).thenReturn(draft)
+    whenever(repository.save(draft)).thenReturn(draft)
 
-    @Test
-    fun `remove sku delegates domain behavior and saves the draft`() {
-        val draft = draft()
-        whenever(repository.findById(draft.id)).thenReturn(draft)
-        whenever(repository.save(draft)).thenReturn(draft)
+    val result = service.removeSku(SkuRemoveCmd(draft.id, SkuId(11)))
 
-        val result = service.removeSku(SkuRemoveCmd(draft.id, SkuId(11)))
+    assertIs<Success<Spu>>(result)
+    assertEquals(emptyList(), draft.skus)
+    verify(repository).save(draft)
+  }
 
-        assertIs<Success<Spu>>(result)
-        assertEquals(emptyList(), draft.skus)
-        verify(repository).save(draft)
-    }
-
-    private fun draft(): Spu =
-        SpuImpl(
-            id = SpuId(1),
-            name = "T恤",
-            _status = CommodityStatus.DRAFT,
-            _skus = mutableListOf(SkuImpl(SkuId(11), "红色", listOf(Attribute("color", "red")))),
-        )
+  private fun draft(): Spu =
+      SpuImpl(
+          id = SpuId(1),
+          name = "T恤",
+          _status = CommodityStatus.DRAFT,
+          _skus = mutableListOf(SkuImpl(SkuId(11), "红色", listOf(Attribute("color", "red")))),
+      )
 }

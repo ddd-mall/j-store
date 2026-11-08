@@ -24,24 +24,24 @@ import kotlin.test.*
 import org.junit.jupiter.api.Test
 
 class WechatLoginInfrastructureTest {
-    @Test
-    fun `wechat challenge cannot be consumed by registration or another intent`() =
-        EmbeddedRedisTestFixture.withRedis { redis ->
-            val gateway =
-                RedisPhoneVerificationGateway(redis, "test-verification-key-for-integration-only")
-            val phone = PhoneNumber("+8613800138000")
-            val issued = gateway.createChallenge(phone, "wechat-binding", "intent-a")!!
-            val proof = PhoneVerificationProof(issued.challenge.challengeId, issued.code)
-            assertFalse(gateway.consumeChallenge(phone, proof, "registration", ""))
-        }
+  @Test
+  fun `wechat challenge cannot be consumed by registration or another intent`() =
+      EmbeddedRedisTestFixture.withRedis { redis ->
+        val gateway =
+            RedisPhoneVerificationGateway(redis, "test-verification-key-for-integration-only")
+        val phone = PhoneNumber("+8613800138000")
+        val issued = gateway.createChallenge(phone, "wechat-binding", "intent-a")!!
+        val proof = PhoneVerificationProof(issued.challenge.challengeId, issued.code)
+        assertFalse(gateway.consumeChallenge(phone, proof, "registration", ""))
+      }
 
-    @Test
-    fun `login state is browser bound and single use`() =
-        EmbeddedRedisTestFixture.withRedis { redis ->
-            val store = RedisLoginIntentStore(redis)
-            val state = store.create("browser-a", "payload", 300)
-            assertNull(store.consume(state, "browser-b"))
-            assertEquals("payload", store.consume(state, "browser-a"))
-            assertNull(store.consume(state, "browser-a"))
-        }
+  @Test
+  fun `login state is browser bound and single use`() =
+      EmbeddedRedisTestFixture.withRedis { redis ->
+        val store = RedisLoginIntentStore(redis)
+        val state = store.create("browser-a", "payload", 300)
+        assertNull(store.consume(state, "browser-b"))
+        assertEquals("payload", store.consume(state, "browser-a"))
+        assertNull(store.consume(state, "browser-a"))
+      }
 }

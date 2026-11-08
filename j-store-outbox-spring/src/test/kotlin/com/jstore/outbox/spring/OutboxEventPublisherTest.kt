@@ -69,302 +69,302 @@ private fun orderItemSnapshot(quantity: Int = 1) =
  */
 class OutboxEventPublisherTest :
     FunSpec({
-        afterTest {
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.clearSynchronization()
-            }
-            TransactionSynchronizationManager.clear()
+      afterTest {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+          TransactionSynchronizationManager.clearSynchronization()
         }
-        val objectMapper =
-            ObjectMapper()
-                .registerKotlinModule()
-                .registerModule(JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        TransactionSynchronizationManager.clear()
+      }
+      val objectMapper =
+          ObjectMapper()
+              .registerKotlinModule()
+              .registerModule(JavaTimeModule())
+              .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+              .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 
-        test("publishEvent creates OutboxEntry with correct fields and calls save") {
-            val mockRepository =
-                mock<OutboxEntryRepository> {
-                    on { saveAll(any()) } doAnswer
-                        @Suppress("UNCHECKED_CAST") { it.arguments[0] as List<OutboxEntry> }
-                }
-            val eventTypeRegistry =
-                InMemoryEventTypeRegistry().apply {
-                    register("order.created", 4, OrderCreatedEvent::class.java)
-                }
-            val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
-            whenever(
-                    streamSequenceAllocator.nextSequences(
-                        listOf(
-                            OutboxStreamKey(
-                                "local-domain",
-                                "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089",
-                            )
+      test("publishEvent creates OutboxEntry with correct fields and calls save") {
+        val mockRepository =
+            mock<OutboxEntryRepository> {
+              on { saveAll(any()) } doAnswer
+                  @Suppress("UNCHECKED_CAST") { it.arguments[0] as List<OutboxEntry> }
+            }
+        val eventTypeRegistry =
+            InMemoryEventTypeRegistry().apply {
+              register("order.created", 4, OrderCreatedEvent::class.java)
+            }
+        val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+        whenever(
+                streamSequenceAllocator.nextSequences(
+                    listOf(
+                        OutboxStreamKey(
+                            "local-domain",
+                            "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089",
                         )
                     )
                 )
-                .thenReturn(listOf(9))
-            val serializer = JacksonEventSerializer(objectMapper)
-            val relaySignal = mock<OutboxRelaySignal>()
-            val publisher =
-                OutboxEventPublisher(
-                    PollingOutboxWriter(mockRepository, relaySignal),
-                    serializer,
-                    SnowFlakSequence(1, 1),
-                    eventTypeRegistry,
-                    streamSequenceAllocator,
-                )
+            )
+            .thenReturn(listOf(9))
+        val serializer = JacksonEventSerializer(objectMapper)
+        val relaySignal = mock<OutboxRelaySignal>()
+        val publisher =
+            OutboxEventPublisher(
+                PollingOutboxWriter(mockRepository, relaySignal),
+                serializer,
+                SnowFlakSequence(1, 1),
+                eventTypeRegistry,
+                streamSequenceAllocator,
+            )
 
-            val event =
-                OrderCreatedEvent(
-                    orderId = OrderId(42L),
-                    merchantId = MerchantId(7),
-                    payableAmount = Price.ofFen(9999),
-                    currency = "CNY",
-                    items = listOf(orderItemSnapshot(quantity = 2)),
-                    occurredAt = Instant.parse("2025-01-01T00:00:00Z"),
-                )
+        val event =
+            OrderCreatedEvent(
+                orderId = OrderId(42L),
+                merchantId = MerchantId(7),
+                payableAmount = Price.ofFen(9999),
+                currency = "CNY",
+                items = listOf(orderItemSnapshot(quantity = 2)),
+                occurredAt = Instant.parse("2025-01-01T00:00:00Z"),
+            )
 
-            publisher.publishEvent(event)
+        publisher.publishEvent(event)
 
-            val captor = argumentCaptor<List<OutboxEntry>>()
-            verify(mockRepository, times(1)).saveAll(captor.capture())
-            verify(relaySignal).signalAfterCommit()
+        val captor = argumentCaptor<List<OutboxEntry>>()
+        verify(mockRepository, times(1)).saveAll(captor.capture())
+        verify(relaySignal).signalAfterCommit()
 
-            val saved = captor.firstValue.single()
-            saved.id shouldNotBe ""
-            saved.eventId shouldNotBe ""
-            saved.eventType shouldBe "order.created"
-            saved.eventClassName shouldBe "com.jstore.order.domain.order.event.OrderCreatedEvent"
-            saved.eventVersion shouldBe 4
-            saved.occurredAt shouldBe event.occurredAt
-            saved.status shouldBe OutboxEntryStatus.PENDING
-            saved.retryCount shouldBe 0
-            saved.payload shouldNotBe ""
-            saved.orderingKey shouldBe
-                "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089"
-            saved.sequenceNo shouldBe 9
+        val saved = captor.firstValue.single()
+        saved.id shouldNotBe ""
+        saved.eventId shouldNotBe ""
+        saved.eventType shouldBe "order.created"
+        saved.eventClassName shouldBe "com.jstore.order.domain.order.event.OrderCreatedEvent"
+        saved.eventVersion shouldBe 4
+        saved.occurredAt shouldBe event.occurredAt
+        saved.status shouldBe OutboxEntryStatus.PENDING
+        saved.retryCount shouldBe 0
+        saved.payload shouldNotBe ""
+        saved.orderingKey shouldBe
+            "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089"
+        saved.sequenceNo shouldBe 9
+      }
+
+      test("aggregate acknowledgement runs only after transaction commit") {
+        val publisher =
+            OutboxEventPublisher(
+                mock(),
+                mock(),
+                SnowFlakSequence(1, 1),
+                mock(),
+                mock(),
+            )
+        var acknowledged = false
+        TransactionSynchronizationManager.initSynchronization()
+
+        publisher.afterPublicationCommitted { acknowledged = true }
+
+        acknowledged shouldBe false
+        TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
+        acknowledged shouldBe true
+      }
+
+      test("rollback leaves aggregate acknowledgement pending") {
+        val publisher =
+            OutboxEventPublisher(
+                mock(),
+                mock(),
+                SnowFlakSequence(1, 1),
+                mock(),
+                mock(),
+            )
+        var acknowledged = false
+        TransactionSynchronizationManager.initSynchronization()
+
+        publisher.afterPublicationCommitted { acknowledged = true }
+        TransactionSynchronizationManager.getSynchronizations().forEach {
+          it.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
         }
 
-        test("aggregate acknowledgement runs only after transaction commit") {
-            val publisher =
-                OutboxEventPublisher(
-                    mock(),
-                    mock(),
-                    SnowFlakSequence(1, 1),
-                    mock(),
-                    mock(),
-                )
-            var acknowledged = false
-            TransactionSynchronizationManager.initSynchronization()
+        acknowledged shouldBe false
+      }
 
-            publisher.afterPublicationCommitted { acknowledged = true }
-
-            acknowledged shouldBe false
-            TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
-            acknowledged shouldBe true
-        }
-
-        test("rollback leaves aggregate acknowledgement pending") {
-            val publisher =
-                OutboxEventPublisher(
-                    mock(),
-                    mock(),
-                    SnowFlakSequence(1, 1),
-                    mock(),
-                    mock(),
-                )
-            var acknowledged = false
-            TransactionSynchronizationManager.initSynchronization()
-
-            publisher.afterPublicationCommitted { acknowledged = true }
-            TransactionSynchronizationManager.getSynchronizations().forEach {
-                it.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
+      test("publishEvents saves one ordered batch with allocated stream sequences") {
+        val mockRepository =
+            mock<OutboxEntryRepository> {
+              on { saveAll(any()) } doAnswer
+                  @Suppress("UNCHECKED_CAST") { it.arguments[0] as List<OutboxEntry> }
             }
-
-            acknowledged shouldBe false
-        }
-
-        test("publishEvents saves one ordered batch with allocated stream sequences") {
-            val mockRepository =
-                mock<OutboxEntryRepository> {
-                    on { saveAll(any()) } doAnswer
-                        @Suppress("UNCHECKED_CAST") { it.arguments[0] as List<OutboxEntry> }
-                }
-            val eventTypeRegistry =
-                InMemoryEventTypeRegistry().apply {
-                    register("order.created", 4, OrderCreatedEvent::class.java)
-                }
-            val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
-            val orderingKey = "963b3779794e5b98ee843f43c56811bebc9ed53050f0861c47612b0b6b3dd089"
-            val streams =
-                listOf(
-                    OutboxStreamKey(OutboxTransportIds.LOCAL_DOMAIN, orderingKey),
-                    OutboxStreamKey(OutboxTransportIds.LOCAL_DOMAIN, orderingKey),
-                )
-            whenever(streamSequenceAllocator.nextSequences(streams)).thenReturn(listOf(9, 10))
-            val publisher =
-                OutboxEventPublisher(
-                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
-                    JacksonEventSerializer(objectMapper),
-                    SnowFlakSequence(1, 1),
-                    eventTypeRegistry,
-                    streamSequenceAllocator,
-                )
-            val events =
-                listOf(
-                    orderCreatedEvent(OrderId(42L)),
-                    orderCreatedEvent(OrderId(42L)),
-                )
-
-            publisher.publishEvents(events)
-
-            val captor = argumentCaptor<List<OutboxEntry>>()
-            verify(mockRepository).saveAll(captor.capture())
-            verify(mockRepository, never()).save(any())
-            captor.firstValue.map { it.eventId } shouldBe events.map { it.eventId }
-            captor.firstValue.map { it.sequenceNo } shouldBe listOf(9L, 10L)
-            captor.firstValue.map { it.createdAt }.distinct().size shouldBe 1
-        }
-
-        test("batch serialization failure does not allocate sequences or save entries") {
-            val first = orderCreatedEvent(OrderId(42L))
-            val second = orderCreatedEvent(OrderId(42L))
-            val mockRepository = mock<OutboxEntryRepository>()
-            val serializer =
-                mock<EventSerializer> {
-                    on { serialize(first) } doReturn "{}"
-                    on { serialize(second) } doThrow RuntimeException("serialization error")
-                }
-            val eventTypeRegistry =
-                InMemoryEventTypeRegistry().apply {
-                    register("order.created", 4, OrderCreatedEvent::class.java)
-                }
-            val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
-            val publisher =
-                OutboxEventPublisher(
-                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
-                    serializer,
-                    SnowFlakSequence(1, 1),
-                    eventTypeRegistry,
-                    streamSequenceAllocator,
-                )
-
-            shouldThrow<RuntimeException> { publisher.publishEvents(listOf(first, second)) }
-
-            verify(streamSequenceAllocator, never()).nextSequences(any())
-            verify(mockRepository, never()).saveAll(any())
-            verify(mockRepository, never()).save(any())
-        }
-
-        test("empty event batch is a no-op") {
-            val mockRepository = mock<OutboxEntryRepository>()
-            val serializer = mock<EventSerializer>()
-            val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
-            val publisher =
-                OutboxEventPublisher(
-                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
-                    serializer,
-                    SnowFlakSequence(1, 1),
-                    InMemoryEventTypeRegistry(),
-                    streamSequenceAllocator,
-                )
-
-            publisher.publishEvents(emptyList())
-
-            verifyNoInteractions(mockRepository, serializer, streamSequenceAllocator)
-        }
-
-        test("batch persistence failure propagates to the caller") {
-            val event = orderCreatedEvent(OrderId(42L))
-            val mockRepository =
-                mock<OutboxEntryRepository> {
-                    on { saveAll(any()) } doThrow RuntimeException("outbox unavailable")
-                }
-            val eventTypeRegistry =
-                InMemoryEventTypeRegistry().apply {
-                    register("order.created", 4, OrderCreatedEvent::class.java)
-                }
-            val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
-            whenever(streamSequenceAllocator.nextSequences(any())).thenReturn(listOf(1L))
-            val publisher =
-                OutboxEventPublisher(
-                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
-                    JacksonEventSerializer(objectMapper),
-                    SnowFlakSequence(1, 1),
-                    eventTypeRegistry,
-                    streamSequenceAllocator,
-                )
-
-            shouldThrow<RuntimeException> { publisher.publishEvents(listOf(event)) }
-
-            verify(mockRepository).saveAll(any())
-        }
-
-        test("serialization failure propagates exception ensuring business transaction rollback") {
-            val mockRepository = mock<OutboxEntryRepository>()
-            val mockSerializer =
-                mock<EventSerializer> {
-                    on { serialize(any()) } doThrow RuntimeException("serialization error")
-                }
-            val eventTypeRegistry =
-                InMemoryEventTypeRegistry().apply {
-                    register("order.created", 4, OrderCreatedEvent::class.java)
-                }
-            val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
-
-            val publisher =
-                OutboxEventPublisher(
-                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
-                    mockSerializer,
-                    SnowFlakSequence(1, 1),
-                    eventTypeRegistry,
-                    streamSequenceAllocator,
-                )
-
-            val event =
-                OrderCreatedEvent(
-                    orderId = OrderId(1L),
-                    merchantId = MerchantId(7),
-                    payableAmount = Price.ofFen(100),
-                    currency = "CNY",
-                    items = listOf(orderItemSnapshot()),
-                    occurredAt = Instant.now(),
-                )
-
-            shouldThrow<RuntimeException> {
-                publisher.publishEvent(event)
+        val eventTypeRegistry =
+            InMemoryEventTypeRegistry().apply {
+              register("order.created", 4, OrderCreatedEvent::class.java)
             }
+        val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+        val orderingKey = OutboxOrderingKeys.domain("Order", "42")
+        val streams =
+            listOf(
+                OutboxStreamKey(OutboxTransportIds.LOCAL_DOMAIN, orderingKey),
+                OutboxStreamKey(OutboxTransportIds.LOCAL_DOMAIN, orderingKey),
+            )
+        whenever(streamSequenceAllocator.nextSequences(streams)).thenReturn(listOf(9, 10))
+        val publisher =
+            OutboxEventPublisher(
+                PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
+                JacksonEventSerializer(objectMapper),
+                SnowFlakSequence(1, 1),
+                eventTypeRegistry,
+                streamSequenceAllocator,
+            )
+        val events =
+            listOf(
+                orderCreatedEvent(OrderId(42L)),
+                orderCreatedEvent(OrderId(42L)),
+            )
 
-            verify(mockRepository, never()).saveAll(any())
-        }
+        publisher.publishEvents(events)
 
-        test("publishEvent fails when event type was not registered during startup") {
-            val mockRepository = mock<OutboxEntryRepository>()
-            val serializer = JacksonEventSerializer(objectMapper, InMemoryEventTypeRegistry())
-            val publisher =
-                OutboxEventPublisher(
-                    PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
-                    serializer,
-                    SnowFlakSequence(1, 1),
-                    InMemoryEventTypeRegistry(),
-                    mock(),
-                )
+        val captor = argumentCaptor<List<OutboxEntry>>()
+        verify(mockRepository).saveAll(captor.capture())
+        verify(mockRepository, never()).save(any())
+        captor.firstValue.map { it.eventId } shouldBe events.map { it.eventId }
+        captor.firstValue.map { it.sequenceNo } shouldBe listOf(9L, 10L)
+        captor.firstValue.map { it.createdAt }.distinct().size shouldBe 1
+      }
 
-            val event =
-                OrderCreatedEvent(
-                    orderId = OrderId(1L),
-                    merchantId = MerchantId(7),
-                    payableAmount = Price.ofFen(100),
-                    currency = "CNY",
-                    items = listOf(orderItemSnapshot()),
-                    occurredAt = Instant.now(),
-                )
-
-            shouldThrow<OutboxSerializationException> {
-                publisher.publishEvent(event)
+      test("batch serialization failure does not allocate sequences or save entries") {
+        val first = orderCreatedEvent(OrderId(42L))
+        val second = orderCreatedEvent(OrderId(42L))
+        val mockRepository = mock<OutboxEntryRepository>()
+        val serializer =
+            mock<EventSerializer> {
+              on { serialize(first) } doReturn "{}"
+              on { serialize(second) } doThrow RuntimeException("serialization error")
             }
+        val eventTypeRegistry =
+            InMemoryEventTypeRegistry().apply {
+              register("order.created", 4, OrderCreatedEvent::class.java)
+            }
+        val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+        val publisher =
+            OutboxEventPublisher(
+                PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
+                serializer,
+                SnowFlakSequence(1, 1),
+                eventTypeRegistry,
+                streamSequenceAllocator,
+            )
 
-            verify(mockRepository, never()).saveAll(any())
+        shouldThrow<RuntimeException> { publisher.publishEvents(listOf(first, second)) }
+
+        verify(streamSequenceAllocator, never()).nextSequences(any())
+        verify(mockRepository, never()).saveAll(any())
+        verify(mockRepository, never()).save(any())
+      }
+
+      test("empty event batch is a no-op") {
+        val mockRepository = mock<OutboxEntryRepository>()
+        val serializer = mock<EventSerializer>()
+        val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+        val publisher =
+            OutboxEventPublisher(
+                PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
+                serializer,
+                SnowFlakSequence(1, 1),
+                InMemoryEventTypeRegistry(),
+                streamSequenceAllocator,
+            )
+
+        publisher.publishEvents(emptyList())
+
+        verifyNoInteractions(mockRepository, serializer, streamSequenceAllocator)
+      }
+
+      test("batch persistence failure propagates to the caller") {
+        val event = orderCreatedEvent(OrderId(42L))
+        val mockRepository =
+            mock<OutboxEntryRepository> {
+              on { saveAll(any()) } doThrow RuntimeException("outbox unavailable")
+            }
+        val eventTypeRegistry =
+            InMemoryEventTypeRegistry().apply {
+              register("order.created", 4, OrderCreatedEvent::class.java)
+            }
+        val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+        whenever(streamSequenceAllocator.nextSequences(any())).thenReturn(listOf(1L))
+        val publisher =
+            OutboxEventPublisher(
+                PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
+                JacksonEventSerializer(objectMapper),
+                SnowFlakSequence(1, 1),
+                eventTypeRegistry,
+                streamSequenceAllocator,
+            )
+
+        shouldThrow<RuntimeException> { publisher.publishEvents(listOf(event)) }
+
+        verify(mockRepository).saveAll(any())
+      }
+
+      test("serialization failure propagates exception ensuring business transaction rollback") {
+        val mockRepository = mock<OutboxEntryRepository>()
+        val mockSerializer =
+            mock<EventSerializer> {
+              on { serialize(any()) } doThrow RuntimeException("serialization error")
+            }
+        val eventTypeRegistry =
+            InMemoryEventTypeRegistry().apply {
+              register("order.created", 4, OrderCreatedEvent::class.java)
+            }
+        val streamSequenceAllocator = mock<OutboxStreamSequenceAllocator>()
+
+        val publisher =
+            OutboxEventPublisher(
+                PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
+                mockSerializer,
+                SnowFlakSequence(1, 1),
+                eventTypeRegistry,
+                streamSequenceAllocator,
+            )
+
+        val event =
+            OrderCreatedEvent(
+                orderId = OrderId(1L),
+                merchantId = MerchantId(7),
+                payableAmount = Price.ofFen(100),
+                currency = "CNY",
+                items = listOf(orderItemSnapshot()),
+                occurredAt = Instant.now(),
+            )
+
+        shouldThrow<RuntimeException> {
+          publisher.publishEvent(event)
         }
+
+        verify(mockRepository, never()).saveAll(any())
+      }
+
+      test("publishEvent fails when event type was not registered during startup") {
+        val mockRepository = mock<OutboxEntryRepository>()
+        val serializer = JacksonEventSerializer(objectMapper, InMemoryEventTypeRegistry())
+        val publisher =
+            OutboxEventPublisher(
+                PollingOutboxWriter(mockRepository, NoopOutboxRelaySignal),
+                serializer,
+                SnowFlakSequence(1, 1),
+                InMemoryEventTypeRegistry(),
+                mock(),
+            )
+
+        val event =
+            OrderCreatedEvent(
+                orderId = OrderId(1L),
+                merchantId = MerchantId(7),
+                payableAmount = Price.ofFen(100),
+                currency = "CNY",
+                items = listOf(orderItemSnapshot()),
+                occurredAt = Instant.now(),
+            )
+
+        shouldThrow<OutboxSerializationException> {
+          publisher.publishEvent(event)
+        }
+
+        verify(mockRepository, never()).saveAll(any())
+      }
     })

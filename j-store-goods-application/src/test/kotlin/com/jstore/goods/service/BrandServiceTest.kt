@@ -35,87 +35,87 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class BrandServiceTest {
-    private val repository = mock<BrandRepository>()
-    private val sequence = mock<SnowFlakSequence>()
-    private val service = BrandService(sequence, repository)
+  private val repository = mock<BrandRepository>()
+  private val sequence = mock<SnowFlakSequence>()
+  private val service = BrandService(sequence, repository)
 
-    @Test
-    fun `save creates an active merchant brand`() {
-        whenever(sequence.nextId()).thenReturn(1)
-        whenever(repository.save(any())).thenAnswer { it.arguments[0] as Brand }
+  @Test
+  fun `save creates an active merchant brand`() {
+    whenever(sequence.nextId()).thenReturn(1)
+    whenever(repository.save(any())).thenAnswer { it.arguments[0] as Brand }
 
-        val result =
-            service.save(
-                BrandSaveCommand(
-                    merchantId = MerchantId(7),
-                    name = LocalizedText.of("zh-CN" to "示例品牌"),
-                )
+    val result =
+        service.save(
+            BrandSaveCommand(
+                merchantId = MerchantId(7),
+                name = LocalizedText.of("zh-CN" to "示例品牌"),
             )
+        )
 
-        val saved = assertIs<Success<Brand>>(result).value
-        assertEquals(MerchantId(7), saved.merchantId)
-        assertEquals(BrandStatus.ACTIVE, saved.status)
-        verify(repository).save(saved)
-    }
+    val saved = assertIs<Success<Brand>>(result).value
+    assertEquals(MerchantId(7), saved.merchantId)
+    assertEquals(BrandStatus.ACTIVE, saved.status)
+    verify(repository).save(saved)
+  }
 
-    @Test
-    fun `merchant cannot update another merchant brand`() {
-        whenever(repository.findById(BrandId(9)))
-            .thenReturn(
-                Brand(
-                    BrandId(9),
-                    MerchantId(8),
-                    LocalizedText.of("zh-CN" to "其他品牌"),
-                )
-            )
-
-        val result =
-            service.save(
-                BrandSaveCommand(
-                    id = BrandId(9),
-                    merchantId = MerchantId(7),
-                    name = LocalizedText.of("zh-CN" to "越权修改"),
-                )
-            )
-
-        assertEquals(BrandErrors.MERCHANT_MISMATCH, assertIs<Failure<*>>(result).error)
-    }
-
-    @Test
-    fun `merchant can deactivate its brand`() {
-        val brand =
+  @Test
+  fun `merchant cannot update another merchant brand`() {
+    whenever(repository.findById(BrandId(9)))
+        .thenReturn(
             Brand(
                 BrandId(9),
+                MerchantId(8),
+                LocalizedText.of("zh-CN" to "其他品牌"),
+            )
+        )
+
+    val result =
+        service.save(
+            BrandSaveCommand(
+                id = BrandId(9),
+                merchantId = MerchantId(7),
+                name = LocalizedText.of("zh-CN" to "越权修改"),
+            )
+        )
+
+    assertEquals(BrandErrors.MERCHANT_MISMATCH, assertIs<Failure<*>>(result).error)
+  }
+
+  @Test
+  fun `merchant can deactivate its brand`() {
+    val brand =
+        Brand(
+            BrandId(9),
+            MerchantId(7),
+            LocalizedText.of("zh-CN" to "示例品牌"),
+        )
+    whenever(repository.findById(brand.id)).thenReturn(brand)
+    whenever(repository.save(any())).thenAnswer { it.arguments[0] as Brand }
+
+    val result = service.deactivate(BrandStatusCommand(brand.id, brand.merchantId))
+
+    assertEquals(BrandStatus.INACTIVE, assertIs<Success<Brand>>(result).value.status)
+  }
+
+  @Test
+  fun `merchant cannot create duplicate normalized brand name`() {
+    whenever(repository.findByMerchantIdAndNormalizedName(MerchantId(7), "example"))
+        .thenReturn(
+            Brand(
+                BrandId(3),
                 MerchantId(7),
-                LocalizedText.of("zh-CN" to "示例品牌"),
+                LocalizedText.of("en-US" to "Example"),
             )
-        whenever(repository.findById(brand.id)).thenReturn(brand)
-        whenever(repository.save(any())).thenAnswer { it.arguments[0] as Brand }
+        )
 
-        val result = service.deactivate(BrandStatusCommand(brand.id, brand.merchantId))
-
-        assertEquals(BrandStatus.INACTIVE, assertIs<Success<Brand>>(result).value.status)
-    }
-
-    @Test
-    fun `merchant cannot create duplicate normalized brand name`() {
-        whenever(repository.findByMerchantIdAndNormalizedName(MerchantId(7), "example"))
-            .thenReturn(
-                Brand(
-                    BrandId(3),
-                    MerchantId(7),
-                    LocalizedText.of("en-US" to "Example"),
-                )
+    val result =
+        service.save(
+            BrandSaveCommand(
+                merchantId = MerchantId(7),
+                name = LocalizedText.of("en-US" to "  EXAMPLE  "),
             )
+        )
 
-        val result =
-            service.save(
-                BrandSaveCommand(
-                    merchantId = MerchantId(7),
-                    name = LocalizedText.of("en-US" to "  EXAMPLE  "),
-                )
-            )
-
-        assertEquals(BrandErrors.NAME_DUPLICATE, assertIs<Failure<*>>(result).error)
-    }
+    assertEquals(BrandErrors.NAME_DUPLICATE, assertIs<Failure<*>>(result).error)
+  }
 }

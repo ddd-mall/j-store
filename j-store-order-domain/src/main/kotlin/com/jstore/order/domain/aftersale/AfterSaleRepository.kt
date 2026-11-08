@@ -20,7 +20,7 @@ import com.jstore.common.framework.AggregateRepository
 import com.jstore.order.domain.order.OrderId
 
 interface AfterSaleRepository : AggregateRepository<AfterSaleId, AfterSale> {
-    fun findByOrderId(orderId: OrderId): List<AfterSale>
+  fun findByOrderId(orderId: OrderId): List<AfterSale>
 
-    fun findByIdForUpdate(id: AfterSaleId): AfterSale?
+  fun findByIdForUpdate(id: AfterSaleId): AfterSale?
 }

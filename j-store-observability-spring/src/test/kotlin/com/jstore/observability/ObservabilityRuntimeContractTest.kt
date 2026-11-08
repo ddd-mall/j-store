@@ -36,58 +36,57 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.web.client.RestClient
 
 class ObservabilityRuntimeContractTest {
-    private val runner =
-        ApplicationContextRunner()
-            .withConfiguration(
-                AutoConfigurations.of(
-                    MetricsAutoConfiguration::class.java,
-                    CompositeMeterRegistryAutoConfiguration::class.java,
-                    PrometheusMetricsExportAutoConfiguration::class.java,
-                    ObservationAutoConfiguration::class.java,
-                    OpenTelemetryAutoConfiguration::class.java,
-                    OpenTelemetryTracingAutoConfiguration::class.java,
-                    MicrometerTracingAutoConfiguration::class.java,
-                    RestClientAutoConfiguration::class.java,
-                    HttpClientObservationsAutoConfiguration::class.java,
-                )
-            )
+  private val runner =
+      ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  MetricsAutoConfiguration::class.java,
+                  CompositeMeterRegistryAutoConfiguration::class.java,
+                  PrometheusMetricsExportAutoConfiguration::class.java,
+                  ObservationAutoConfiguration::class.java,
+                  OpenTelemetryAutoConfiguration::class.java,
+                  OpenTelemetryTracingAutoConfiguration::class.java,
+                  MicrometerTracingAutoConfiguration::class.java,
+                  RestClientAutoConfiguration::class.java,
+                  HttpClientObservationsAutoConfiguration::class.java,
+              )
+          )
 
-    @Test
-    fun `OpenTelemetry runtime contains the baggage allocation fix`() {
-        val runtimeVersion =
-            requireNotNull(OpenTelemetry::class.java.`package`.implementationVersion)
-        val versionParts = runtimeVersion.split(".").map(String::toInt)
+  @Test
+  fun `OpenTelemetry runtime contains the baggage allocation fix`() {
+    val runtimeVersion = requireNotNull(OpenTelemetry::class.java.`package`.implementationVersion)
+    val versionParts = runtimeVersion.split(".").map(String::toInt)
 
-        assertThat(versionParts[0] > 1 || (versionParts[0] == 1 && versionParts[1] >= 62)).isTrue()
-    }
+    assertThat(versionParts[0] > 1 || (versionParts[0] == 1 && versionParts[1] >= 62)).isTrue()
+  }
 
-    @Test
-    fun `OpenTelemetry tracer Prometheus registry and observed RestClient builder are configured`() {
-        runner.run { context ->
-            assertThat(context).hasNotFailed()
-            assertThat(context).hasSingleBean(Tracer::class.java)
-            assertThat(context).hasSingleBean(RestClient.Builder::class.java)
-            assertThat(context.getBeansOfType(MeterRegistry::class.java).values).anyMatch {
-                it.javaClass.simpleName.contains("PrometheusMeterRegistry")
-            }
+  @Test
+  fun `OpenTelemetry tracer Prometheus registry and observed RestClient builder are configured`() {
+    runner.run { context ->
+      assertThat(context).hasNotFailed()
+      assertThat(context).hasSingleBean(Tracer::class.java)
+      assertThat(context).hasSingleBean(RestClient.Builder::class.java)
+      assertThat(context.getBeansOfType(MeterRegistry::class.java).values).anyMatch {
+        it.javaClass.simpleName.contains("PrometheusMeterRegistry")
+      }
 
-            val tracer = context.getBean(Tracer::class.java)
-            val span = tracer.startScopedSpan("contract-span")
-            try {
-                val currentSpan = requireNotNull(tracer.currentSpan())
-                assertThat(currentSpan.context().traceId()).isEqualTo(span.context().traceId())
-                assertThat(currentSpan.context().spanId()).isEqualTo(span.context().spanId())
-                val headers = mutableMapOf<String, String>()
-                context.getBean(Propagator::class.java).inject(span.context(), headers) {
-                    carrier,
-                    key,
-                    value ->
-                    carrier!![key] = value
-                }
-                assertThat(headers["traceparent"]).matches("00-[0-9a-f]{32}-[0-9a-f]{16}-0[0-3]")
-            } finally {
-                span.end()
-            }
+      val tracer = context.getBean(Tracer::class.java)
+      val span = tracer.startScopedSpan("contract-span")
+      try {
+        val currentSpan = requireNotNull(tracer.currentSpan())
+        assertThat(currentSpan.context().traceId()).isEqualTo(span.context().traceId())
+        assertThat(currentSpan.context().spanId()).isEqualTo(span.context().spanId())
+        val headers = mutableMapOf<String, String>()
+        context.getBean(Propagator::class.java).inject(span.context(), headers) {
+            carrier,
+            key,
+            value ->
+          carrier!![key] = value
         }
+        assertThat(headers["traceparent"]).matches("00-[0-9a-f]{32}-[0-9a-f]{16}-0[0-3]")
+      } finally {
+        span.end()
+      }
     }
+  }
 }

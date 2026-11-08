@@ -53,259 +53,258 @@ class OrderService(
     private val trustedOrderFactory: TrustedOrderFactory? = null,
 ) : OrderUseCase, InternalOrderCreationUseCase {
 
-    /** 根据ID查询订单 */
-    override fun getOrderById(
-        buyerAuthenticationDomain: String,
-        buyerId: Long,
-        orderId: OrderId,
-    ): Result<Order, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        if (!order.buyerInfo.matches(buyerAuthenticationDomain, buyerId)) {
-            return Failure(OrderErrors.ORDER_NOT_FOUND)
-        }
-        return Success(order)
+  /** 根据ID查询订单 */
+  override fun getOrderById(
+      buyerAuthenticationDomain: String,
+      buyerId: Long,
+      orderId: OrderId,
+  ): Result<Order, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    if (!order.buyerInfo.matches(buyerAuthenticationDomain, buyerId)) {
+      return Failure(OrderErrors.ORDER_NOT_FOUND)
     }
+    return Success(order)
+  }
 
-    /** 分页查询买家订单 */
-    override fun pageListByUserId(
-        buyerAuthenticationDomain: String,
-        uid: Long,
-        currentPage: Int,
-        pageSize: Int,
-    ): Page<Order> {
-        return orderRepository.pageListByUserId(
-            buyerAuthenticationDomain,
-            uid,
-            currentPage,
-            pageSize,
-        )
+  /** 分页查询买家订单 */
+  override fun pageListByUserId(
+      buyerAuthenticationDomain: String,
+      uid: Long,
+      currentPage: Int,
+      pageSize: Int,
+  ): Page<Order> {
+    return orderRepository.pageListByUserId(
+        buyerAuthenticationDomain,
+        uid,
+        currentPage,
+        pageSize,
+    )
+  }
+
+  /** 旧的领域测试/内部构造入口；公开 HTTP 创建已删除。 */
+  fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError> {
+    OrderCommandValidator.validate(cmd).onFailure {
+      return Failure(it)
     }
-
-    /** 旧的领域测试/内部构造入口；公开 HTTP 创建已删除。 */
-    fun createOrder(cmd: OrderCreateCMD): Result<Order, BusinessError> {
-        OrderCommandValidator.validate(cmd).onFailure {
-            return Failure(it)
-        }
-        val buyerInfo =
-            userService.findUserInfo(cmd.buyerUid) ?: return Failure(OrderErrors.BUYER_INVALID)
-        return orderFactory.create(cmd, buyerInfo).onSuccess { order ->
-            orderRepository.add(order)
-            order.publishPendingEvents(domainEventPublisher)
-        }
+    val buyerInfo =
+        userService.findUserInfo(cmd.buyerUid) ?: return Failure(OrderErrors.BUYER_INVALID)
+    return orderFactory.create(cmd, buyerInfo).onSuccess { order ->
+      orderRepository.add(order)
+      order.publishPendingEvents(domainEventPublisher)
     }
+  }
 
-    override fun createOrder(cmd: CreateOrderFromTradeCommand): Result<Order, BusinessError> {
-        orderRepository.findBySourceOrderPlanId(cmd.orderPlanId)?.let { existing ->
-            return if (
-                existing.sourceTradeId == cmd.tradeId && existing.sourcePlanDigest == cmd.planDigest
+  override fun createOrder(cmd: CreateOrderFromTradeCommand): Result<Order, BusinessError> {
+    orderRepository.findBySourceOrderPlanId(cmd.orderPlanId)?.let { existing ->
+      return if (
+          existing.sourceTradeId == cmd.tradeId && existing.sourcePlanDigest == cmd.planDigest
+      )
+          Success(existing)
+      else Failure(OrderErrors.TRADE_PLAN_CONFLICT)
+    }
+    val factory = trustedOrderFactory ?: return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
+    return factory.create(cmd.toDraft()).onSuccess { order ->
+      orderRepository.add(order)
+      order.publishPendingEvents(domainEventPublisher)
+    }
+  }
+
+  override fun cancelOrder(
+      tradeId: Long,
+      orderPlanId: Long,
+      reason: String,
+  ): Result<Unit, BusinessError> {
+    if (reason.isBlank()) return Failure(OrderErrors.CANCEL_REASON_INVALID)
+    val order =
+        orderRepository.findBySourceOrderPlanId(orderPlanId)
+            ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    if (order.sourceTradeId != tradeId) return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
+    if (order.tradeStatus == com.jstore.order.domain.order.TradeStatus.CLOSED) {
+      return Success(Unit)
+    }
+    order.cancelFromTrade(reason).onFailure {
+      return Failure(it)
+    }
+    orderRepository.save(order)
+    order.publishPendingEvents(domainEventPublisher)
+    return Success(Unit)
+  }
+
+  private fun CreateOrderFromTradeCommand.toDraft() =
+      TrustedOrderDraft(
+          tradeId,
+          orderPlanId,
+          planDigest,
+          merchantId,
+          buyerAuthenticationDomain,
+          buyerId,
+          buyerName,
+          buyerPhone,
+          recipientName,
+          recipientPhone,
+          recipientEmail,
+          shippingAddress,
+          detailAddress,
+          postalCode,
+          customsFields,
+          items.map {
+            TrustedOrderItemDraft(
+                it.spuId,
+                it.skuId,
+                it.offerId,
+                it.storeId,
+                it.offerVersion,
+                it.fulfillmentNodeId,
+                it.channelId,
+                it.goodsName,
+                it.skuDescription,
+                it.quantity,
+                it.unitPrice,
+                it.catalogSnapshotVersion,
             )
-                Success(existing)
-            else Failure(OrderErrors.TRADE_PLAN_CONFLICT)
-        }
-        val factory = trustedOrderFactory ?: return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
-        return factory.create(cmd.toDraft()).onSuccess { order ->
-            orderRepository.add(order)
+          },
+          payableAmount,
+          currency,
+      )
+
+  /** Trade 完整承诺成功回调。 */
+  override fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    order.confirmTradeCommitment().onFailure {
+      return Failure(it)
+    }
+    orderRepository.save(order)
+    order.publishPendingEvents(domainEventPublisher)
+    return Success(Unit)
+  }
+
+  /** Trade 无法形成承诺，关闭订单。 */
+  override fun rejectTradeCommitment(
+      orderId: OrderId,
+      reason: String,
+  ): Result<Unit, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    order.rejectTradeCommitment(reason).onFailure {
+      return Failure(it)
+    }
+    orderRepository.save(order)
+    order.publishPendingEvents(domainEventPublisher)
+    return Success(Unit)
+  }
+
+  /** 由支付集成事实驱动，不对 HTTP 控制器暴露。 */
+  override fun recordPaymentCaptured(
+      orderId: OrderId,
+      paymentReference: String,
+      amount: Price,
+      currency: String,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    val changed = order.recordPaymentCaptured(paymentReference, amount, currency, occurredAt)
+    return changed.onSuccess { didChange ->
+      if (didChange) {
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+      }
+    }
+  }
+
+  override fun recordFulfillmentPrepared(
+      orderId: OrderId,
+      fulfillmentReference: String,
+  ): Result<Boolean, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    val changed = order.recordFulfillmentPrepared(fulfillmentReference)
+    return changed.onSuccess { didChange ->
+      if (didChange) {
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+      }
+    }
+  }
+
+  override fun recordShipmentDispatched(
+      orderId: OrderId,
+      fulfillmentReference: String,
+  ): Result<Boolean, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    val changed = order.recordShipmentDispatched(fulfillmentReference)
+    return changed.onSuccess { didChange ->
+      if (didChange) {
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+      }
+    }
+  }
+
+  override fun recordShipmentDelivered(
+      orderId: OrderId,
+      fulfillmentReference: String,
+  ): Result<Boolean, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    val changed = order.recordShipmentDelivered(fulfillmentReference)
+    return changed.onSuccess { didChange ->
+      if (didChange) {
+        orderRepository.save(order)
+        order.publishPendingEvents(domainEventPublisher)
+      }
+    }
+  }
+
+  override fun recordRefundSucceeded(
+      orderId: OrderId,
+      refundId: String,
+      afterSaleId: AfterSaleId,
+      items: List<SuccessfulRefundItem>,
+      occurredAt: Instant,
+  ): Result<Boolean, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    val projection = order.recordRefundSucceeded(refundId, afterSaleId, items, occurredAt)
+    return projection
+        .onSuccess { result ->
+          if (result.newlyRegistered) {
+            orderRepository.save(order)
             order.publishPendingEvents(domainEventPublisher)
+          }
         }
+        .map { it.newlyRegistered }
+  }
+
+  /** 完成订单 */
+  override fun completeOrder(orderId: OrderId): Result<Unit, BusinessError> {
+    val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    order.complete().onFailure {
+      return Failure(it)
     }
+    orderRepository.save(order)
+    order.publishPendingEvents(domainEventPublisher)
+    return Success(Unit)
+  }
 
-    override fun cancelOrder(
-        tradeId: Long,
-        orderPlanId: Long,
-        reason: String,
-    ): Result<Unit, BusinessError> {
-        if (reason.isBlank()) return Failure(OrderErrors.CANCEL_REASON_INVALID)
-        val order =
-            orderRepository.findBySourceOrderPlanId(orderPlanId)
-                ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        if (order.sourceTradeId != tradeId) return Failure(OrderErrors.TRADE_PLAN_CONFLICT)
-        if (order.tradeStatus == com.jstore.order.domain.order.TradeStatus.CLOSED) {
-            return Success(Unit)
+  /** 买家主动取消订单 */
+  override fun cancelOrder(
+      buyerAuthenticationDomain: String,
+      buyerId: Long,
+      cmd: OrderCancelCMD,
+  ): Result<Unit, BusinessError> {
+    val reason =
+        when (val result = OrderCommandValidator.cancellationReason(cmd)) {
+          is Success -> result.value
+          is Failure -> return result
         }
-        order.cancelFromTrade(reason).onFailure {
-            return Failure(it)
-        }
-        orderRepository.save(order)
-        order.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
+    val order = orderRepository.findById(cmd.orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
+    if (!order.buyerInfo.matches(buyerAuthenticationDomain, buyerId)) {
+      return Failure(OrderErrors.ORDER_NOT_FOUND)
     }
-
-    private fun CreateOrderFromTradeCommand.toDraft() =
-        TrustedOrderDraft(
-            tradeId,
-            orderPlanId,
-            planDigest,
-            merchantId,
-            buyerAuthenticationDomain,
-            buyerId,
-            buyerName,
-            buyerPhone,
-            recipientName,
-            recipientPhone,
-            recipientEmail,
-            shippingAddress,
-            detailAddress,
-            postalCode,
-            customsFields,
-            items.map {
-                TrustedOrderItemDraft(
-                    it.spuId,
-                    it.skuId,
-                    it.offerId,
-                    it.storeId,
-                    it.offerVersion,
-                    it.fulfillmentNodeId,
-                    it.channelId,
-                    it.goodsName,
-                    it.skuDescription,
-                    it.quantity,
-                    it.unitPrice,
-                    it.catalogSnapshotVersion,
-                )
-            },
-            payableAmount,
-            currency,
-        )
-
-    /** Trade 完整承诺成功回调。 */
-    override fun confirmTradeCommitment(orderId: OrderId): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.confirmTradeCommitment().onFailure {
-            return Failure(it)
-        }
-        orderRepository.save(order)
-        order.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
+    order.cancel(reason).onFailure {
+      return Failure(it)
     }
+    orderRepository.save(order)
+    order.publishPendingEvents(domainEventPublisher)
+    return Success(Unit)
+  }
 
-    /** Trade 无法形成承诺，关闭订单。 */
-    override fun rejectTradeCommitment(
-        orderId: OrderId,
-        reason: String,
-    ): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.rejectTradeCommitment(reason).onFailure {
-            return Failure(it)
-        }
-        orderRepository.save(order)
-        order.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    /** 由支付集成事实驱动，不对 HTTP 控制器暴露。 */
-    override fun recordPaymentCaptured(
-        orderId: OrderId,
-        paymentReference: String,
-        amount: Price,
-        currency: String,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        val changed = order.recordPaymentCaptured(paymentReference, amount, currency, occurredAt)
-        return changed.onSuccess { didChange ->
-            if (didChange) {
-                orderRepository.save(order)
-                order.publishPendingEvents(domainEventPublisher)
-            }
-        }
-    }
-
-    override fun recordFulfillmentPrepared(
-        orderId: OrderId,
-        fulfillmentReference: String,
-    ): Result<Boolean, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        val changed = order.recordFulfillmentPrepared(fulfillmentReference)
-        return changed.onSuccess { didChange ->
-            if (didChange) {
-                orderRepository.save(order)
-                order.publishPendingEvents(domainEventPublisher)
-            }
-        }
-    }
-
-    override fun recordShipmentDispatched(
-        orderId: OrderId,
-        fulfillmentReference: String,
-    ): Result<Boolean, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        val changed = order.recordShipmentDispatched(fulfillmentReference)
-        return changed.onSuccess { didChange ->
-            if (didChange) {
-                orderRepository.save(order)
-                order.publishPendingEvents(domainEventPublisher)
-            }
-        }
-    }
-
-    override fun recordShipmentDelivered(
-        orderId: OrderId,
-        fulfillmentReference: String,
-    ): Result<Boolean, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        val changed = order.recordShipmentDelivered(fulfillmentReference)
-        return changed.onSuccess { didChange ->
-            if (didChange) {
-                orderRepository.save(order)
-                order.publishPendingEvents(domainEventPublisher)
-            }
-        }
-    }
-
-    override fun recordRefundSucceeded(
-        orderId: OrderId,
-        refundId: String,
-        afterSaleId: AfterSaleId,
-        items: List<SuccessfulRefundItem>,
-        occurredAt: Instant,
-    ): Result<Boolean, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        val projection = order.recordRefundSucceeded(refundId, afterSaleId, items, occurredAt)
-        return projection
-            .onSuccess { result ->
-                if (result.newlyRegistered) {
-                    orderRepository.save(order)
-                    order.publishPendingEvents(domainEventPublisher)
-                }
-            }
-            .map { it.newlyRegistered }
-    }
-
-    /** 完成订单 */
-    override fun completeOrder(orderId: OrderId): Result<Unit, BusinessError> {
-        val order = orderRepository.findById(orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        order.complete().onFailure {
-            return Failure(it)
-        }
-        orderRepository.save(order)
-        order.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    /** 买家主动取消订单 */
-    override fun cancelOrder(
-        buyerAuthenticationDomain: String,
-        buyerId: Long,
-        cmd: OrderCancelCMD,
-    ): Result<Unit, BusinessError> {
-        val reason =
-            when (val result = OrderCommandValidator.cancellationReason(cmd)) {
-                is Success -> result.value
-                is Failure -> return result
-            }
-        val order =
-            orderRepository.findById(cmd.orderId) ?: return Failure(OrderErrors.ORDER_NOT_FOUND)
-        if (!order.buyerInfo.matches(buyerAuthenticationDomain, buyerId)) {
-            return Failure(OrderErrors.ORDER_NOT_FOUND)
-        }
-        order.cancel(reason).onFailure {
-            return Failure(it)
-        }
-        orderRepository.save(order)
-        order.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    private fun UserInfo.matches(authenticationDomain: String, accountId: Long) =
-        this.authenticationDomain == authenticationDomain && uid == accountId
+  private fun UserInfo.matches(authenticationDomain: String, accountId: Long) =
+      this.authenticationDomain == authenticationDomain && uid == accountId
 }

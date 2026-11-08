@@ -29,68 +29,67 @@ class SpringEventTypeRegistryRegistrar(
     private val eventTypeRegistry: EventTypeRegistry,
     private val scanPackages: List<String>,
 ) : SmartInitializingSingleton {
-    private val logger = LoggerFactory.getLogger(SpringEventTypeRegistryRegistrar::class.java)
+  private val logger = LoggerFactory.getLogger(SpringEventTypeRegistryRegistrar::class.java)
 
-    override fun afterSingletonsInstantiated() {
-        val scanner =
-            object : ClassPathScanningCandidateComponentProvider(false) {
-                override fun isCandidateComponent(
-                    beanDefinition:
-                        org.springframework.beans.factory.annotation.AnnotatedBeanDefinition
-                ): Boolean {
-                    return beanDefinition.metadata.isIndependent
-                }
-            }
-        scanner.addIncludeFilter(AnnotationTypeFilter(DomainEventType::class.java))
-
-        var registered = 0
-        scanPackages
-            .asSequence()
-            .map(String::trim)
-            .filter(String::isNotEmpty)
-            .flatMap { scanner.findCandidateComponents(it).asSequence() }
-            .forEach { candidate ->
-                val eventClass =
-                    loadEventClass(
-                        candidate.beanClassName
-                            ?: throw IllegalStateException(
-                                "@DomainEventType candidate has no beanClassName: $candidate"
-                            )
-                    )
-                val eventType =
-                    eventClass.getAnnotation(DomainEventType::class.java)
-                        ?: throw IllegalStateException(
-                            "@DomainEventType candidate is missing runtime annotation: ${eventClass.name}"
-                        )
-                val eventName = eventType.name
-                val eventVersion = eventType.version
-                eventTypeRegistry.register(eventName, eventVersion, eventClass)
-                registered++
-            }
-
-        logger.info(
-            "Domain event types registered: count={}, packages={}",
-            registered,
-            scanPackages,
-        )
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun loadEventClass(className: String): Class<out DomainEvent> {
-        val clazz =
-            runCatching { Class.forName(className) }
-                .getOrElse { cause ->
-                    throw IllegalStateException(
-                        "Failed to load @DomainEventType class: $className",
-                        cause,
-                    )
-                }
-        require(DomainEvent::class.java.isAssignableFrom(clazz)) {
-            "@DomainEventType class must implement DomainEvent: $className"
+  override fun afterSingletonsInstantiated() {
+    val scanner =
+        object : ClassPathScanningCandidateComponentProvider(false) {
+          override fun isCandidateComponent(
+              beanDefinition: org.springframework.beans.factory.annotation.AnnotatedBeanDefinition
+          ): Boolean {
+            return beanDefinition.metadata.isIndependent
+          }
         }
-        require(!clazz.isInterface && !Modifier.isAbstract(clazz.modifiers)) {
-            "@DomainEventType class must be a concrete event class: $className"
+    scanner.addIncludeFilter(AnnotationTypeFilter(DomainEventType::class.java))
+
+    var registered = 0
+    scanPackages
+        .asSequence()
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .flatMap { scanner.findCandidateComponents(it).asSequence() }
+        .forEach { candidate ->
+          val eventClass =
+              loadEventClass(
+                  candidate.beanClassName
+                      ?: throw IllegalStateException(
+                          "@DomainEventType candidate has no beanClassName: $candidate"
+                      )
+              )
+          val eventType =
+              eventClass.getAnnotation(DomainEventType::class.java)
+                  ?: throw IllegalStateException(
+                      "@DomainEventType candidate is missing runtime annotation: ${eventClass.name}"
+                  )
+          val eventName = eventType.name
+          val eventVersion = eventType.version
+          eventTypeRegistry.register(eventName, eventVersion, eventClass)
+          registered++
         }
-        return clazz as Class<out DomainEvent>
+
+    logger.info(
+        "Domain event types registered: count={}, packages={}",
+        registered,
+        scanPackages,
+    )
+  }
+
+  @Suppress("UNCHECKED_CAST")
+  private fun loadEventClass(className: String): Class<out DomainEvent> {
+    val clazz =
+        runCatching { Class.forName(className) }
+            .getOrElse { cause ->
+              throw IllegalStateException(
+                  "Failed to load @DomainEventType class: $className",
+                  cause,
+              )
+            }
+    require(DomainEvent::class.java.isAssignableFrom(clazz)) {
+      "@DomainEventType class must implement DomainEvent: $className"
     }
+    require(!clazz.isInterface && !Modifier.isAbstract(clazz.modifiers)) {
+      "@DomainEventType class must be a concrete event class: $className"
+    }
+    return clazz as Class<out DomainEvent>
+  }
 }

@@ -38,74 +38,69 @@ import io.kotest.property.checkAll
  */
 class RecipientInfoCMDValidationPropertyTest :
     FunSpec({
-        val validContractInfo =
-            OrderCreateCMD.ContractInfoCMD(
-                phoneNumber = PhoneNumber("+8613800138000"),
-                emailAddress = null,
-            )
+      val validContractInfo =
+          OrderCreateCMD.ContractInfoCMD(
+              phoneNumber = PhoneNumber("+8613800138000"),
+              emailAddress = null,
+          )
 
-        val whitespaceStrings = Arb.string(0..20).filter { it.isBlank() }
+      val whitespaceStrings = Arb.string(0..20).filter { it.isBlank() }
 
-        test(
-            "blank consigneeName should cause validate() to return Failure with CONSIGNEE_NAME_BLANK"
-        ) {
-            checkAll(100, whitespaceStrings) { blankName ->
-                val cmd =
-                    OrderCreateCMD.RecipientInfoCMD(
-                        consigneeName = blankName,
-                        countryCode = "CN",
-                        consigneeContractInfo = validContractInfo,
-                        shippingDistrictCode = "110105",
-                        shippingDetailAddress = "三里屯街道xx号",
-                    )
+      test(
+          "blank consigneeName should cause validate() to return Failure with CONSIGNEE_NAME_BLANK"
+      ) {
+        checkAll(100, whitespaceStrings) { blankName ->
+          val cmd =
+              OrderCreateCMD.RecipientInfoCMD(
+                  consigneeName = blankName,
+                  countryCode = "CN",
+                  consigneeContractInfo = validContractInfo,
+                  shippingDistrictCode = "110105",
+                  shippingDetailAddress = "三里屯街道xx号",
+              )
 
-                val result = OrderCommandValidator.validate(cmd)
+          val result = OrderCommandValidator.validate(cmd)
 
-                result.shouldBeInstanceOf<Failure<*>>()
-                (result as Failure).error.errorCode shouldBe
-                    OrderErrors.CONSIGNEE_NAME_BLANK.errorCode
-            }
+          result.shouldBeInstanceOf<Failure<*>>()
+          (result as Failure).error.errorCode shouldBe OrderErrors.CONSIGNEE_NAME_BLANK.errorCode
         }
+      }
 
-        test(
-            "blank shippingDistrictCode should cause validate() to return Failure with DISTRICT_CODE_BLANK"
-        ) {
-            checkAll(100, whitespaceStrings) { blankCode ->
-                val cmd =
-                    OrderCreateCMD.RecipientInfoCMD(
-                        consigneeName = "张三",
-                        countryCode = "CN",
-                        consigneeContractInfo = validContractInfo,
-                        shippingDistrictCode = blankCode,
-                        shippingDetailAddress = "三里屯街道xx号",
-                    )
+      test(
+          "blank shippingDistrictCode should cause validate() to return Failure with DISTRICT_CODE_BLANK"
+      ) {
+        checkAll(100, whitespaceStrings) { blankCode ->
+          val cmd =
+              OrderCreateCMD.RecipientInfoCMD(
+                  consigneeName = "张三",
+                  countryCode = "CN",
+                  consigneeContractInfo = validContractInfo,
+                  shippingDistrictCode = blankCode,
+                  shippingDetailAddress = "三里屯街道xx号",
+              )
 
-                val result = OrderCommandValidator.validate(cmd)
+          val result = OrderCommandValidator.validate(cmd)
 
-                result.shouldBeInstanceOf<Failure<*>>()
-                (result as Failure).error.errorCode shouldBe
-                    OrderErrors.DISTRICT_CODE_BLANK.errorCode
-            }
+          result.shouldBeInstanceOf<Failure<*>>()
+          (result as Failure).error.errorCode shouldBe OrderErrors.DISTRICT_CODE_BLANK.errorCode
         }
+      }
 
-        test(
-            "blank countryCode should cause validate() to return Failure with COUNTRY_CODE_BLANK"
-        ) {
-            checkAll(100, whitespaceStrings) { blankCountryCode ->
-                val cmd =
-                    OrderCreateCMD.RecipientInfoCMD(
-                        consigneeName = "张三",
-                        countryCode = blankCountryCode,
-                        consigneeContractInfo = validContractInfo,
-                        shippingDistrictCode = "110105",
-                        shippingDetailAddress = "三里屯街道xx号",
-                    )
+      test("blank countryCode should cause validate() to return Failure with COUNTRY_CODE_BLANK") {
+        checkAll(100, whitespaceStrings) { blankCountryCode ->
+          val cmd =
+              OrderCreateCMD.RecipientInfoCMD(
+                  consigneeName = "张三",
+                  countryCode = blankCountryCode,
+                  consigneeContractInfo = validContractInfo,
+                  shippingDistrictCode = "110105",
+                  shippingDetailAddress = "三里屯街道xx号",
+              )
 
-                val result = OrderCommandValidator.validate(cmd)
+          val result = OrderCommandValidator.validate(cmd)
 
-                result.shouldBeInstanceOf<Failure<*>>()
-                (result as Failure).error.errorCode shouldBe
-                    OrderErrors.COUNTRY_CODE_BLANK.errorCode
-            }
+          result.shouldBeInstanceOf<Failure<*>>()
+          (result as Failure).error.errorCode shouldBe OrderErrors.COUNTRY_CODE_BLANK.errorCode
         }
+      }
     })

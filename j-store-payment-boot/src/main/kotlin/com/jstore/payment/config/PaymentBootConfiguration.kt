@@ -51,110 +51,110 @@ import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
 class PaymentBootConfiguration {
-    @Bean
-    fun readyCheckoutPaymentQuery(payments: TradePaymentRepository) =
-        ReadyCheckoutPaymentQueryService(payments)
+  @Bean
+  fun readyCheckoutPaymentQuery(payments: TradePaymentRepository) =
+      ReadyCheckoutPaymentQueryService(payments)
 
-    @Bean
-    fun tradePaymentPreparationUseCase(
-        payments: TradePaymentRepository,
-        sequence: SnowFlakSequence,
-        provider: PaymentProviderGateway,
-        publisher: IntegrationMessagePublisher,
-        transactionManager: PlatformTransactionManager,
-    ): TradePaymentPreparationUseCase {
-        val delegate =
-            TradePaymentPreparationService(payments, { sequence.nextId() }, provider, publisher)
-        return TransactionalTradePaymentPreparationUseCase(
-            delegate,
-            SpringTradePaymentPreparationTransactionOperations(transactionManager),
+  @Bean
+  fun tradePaymentPreparationUseCase(
+      payments: TradePaymentRepository,
+      sequence: SnowFlakSequence,
+      provider: PaymentProviderGateway,
+      publisher: IntegrationMessagePublisher,
+      transactionManager: PlatformTransactionManager,
+  ): TradePaymentPreparationUseCase {
+    val delegate =
+        TradePaymentPreparationService(payments, { sequence.nextId() }, provider, publisher)
+    return TransactionalTradePaymentPreparationUseCase(
+        delegate,
+        SpringTradePaymentPreparationTransactionOperations(transactionManager),
+    )
+  }
+
+  /** Internal-development provider. Replace this bean before enabling a production profile. */
+  @Bean
+  @Profile("!production")
+  fun localPaymentProviderGateway(): PaymentProviderGateway =
+      PaymentProviderGateway { request: PaymentProviderRequest ->
+        val acceptedAt = Instant.now()
+        PaymentProviderResult.Accepted(
+            providerReference = "local:${request.idempotencyKey}",
+            payAction = "jstore://payments/${request.paymentId}",
+            acceptedAt = acceptedAt,
+            expiresAt = request.expiresAt,
         )
-    }
+      }
 
-    /** Internal-development provider. Replace this bean before enabling a production profile. */
-    @Bean
-    @Profile("!production")
-    fun localPaymentProviderGateway(): PaymentProviderGateway =
-        PaymentProviderGateway { request: PaymentProviderRequest ->
-            val acceptedAt = Instant.now()
-            PaymentProviderResult.Accepted(
-                providerReference = "local:${request.idempotencyKey}",
-                payAction = "jstore://payments/${request.paymentId}",
-                acceptedAt = acceptedAt,
-                expiresAt = request.expiresAt,
-            )
+  @Bean
+  @Profile("!production")
+  fun localPaymentProviderCancellationGateway(): PaymentProviderCancellationGateway =
+      PaymentProviderCancellationGateway {
+        PaymentProviderCancellationResult.Confirmed
+      }
+
+  @Bean
+  fun preparePaymentInstallmentCommandHandler(
+      service: TradePaymentPreparationUseCase,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<com.jstore.contracts.commerce.PreparePaymentInstallmentCommand> =
+      transactional(PreparePaymentInstallmentCommandHandler(service), transactionManager)
+
+  @Bean
+  fun tradePaymentCancellationUseCase(
+      payments: TradePaymentRepository,
+      provider: PaymentProviderCancellationGateway,
+      publisher: IntegrationMessagePublisher,
+      transactionManager: PlatformTransactionManager,
+  ): TradePaymentCancellationUseCase {
+    val delegate = TradePaymentCancellationService(payments, provider, publisher)
+    return TransactionalTradePaymentCancellationUseCase(
+        delegate,
+        SpringTradePaymentPreparationTransactionOperations(transactionManager),
+    )
+  }
+
+  @Bean
+  fun cancelPaymentInstallmentCommandHandler(
+      service: TradePaymentCancellationUseCase,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<com.jstore.contracts.commerce.CancelPaymentInstallmentCommand> =
+      transactional(CancelPaymentInstallmentCommandHandler(service), transactionManager)
+
+  @Bean
+  fun paymentApplicationService(
+      repository: PaymentOrderRepository,
+      sequence: SnowFlakSequence,
+      publisher: DomainEventPublisher,
+  ) = PaymentApplicationService(repository, sequence, publisher)
+
+  @Bean
+  @Primary
+  fun transactionalPaymentUseCase(
+      paymentApplicationService: PaymentApplicationService,
+      transactionManager: PlatformTransactionManager,
+  ): PaymentUseCase = TransactionalPaymentUseCase(paymentApplicationService, transactionManager)
+
+  @Bean
+  fun merchantPaymentUseCase(
+      paymentUseCase: PaymentUseCase,
+      authorization: MerchantAuthorizationQuery,
+  ): MerchantPaymentUseCase = MerchantPaymentService(paymentUseCase, authorization)
+
+  @Bean
+  fun requestPaymentRefundCommandHandler(service: PaymentUseCase) =
+      RequestPaymentRefundCommandHandler(service)
+
+  private fun <T : IntegrationMessage> transactional(
+      delegate: IntegrationMessageHandler<T>,
+      transactionManager: PlatformTransactionManager,
+  ): IntegrationMessageHandler<T> =
+      object : IntegrationMessageHandler<T> {
+        private val transaction = TransactionTemplate(transactionManager)
+
+        override fun handlerId() = delegate.handlerId()
+
+        override fun handle(message: T) {
+          transaction.executeWithoutResult { delegate.handle(message) }
         }
-
-    @Bean
-    @Profile("!production")
-    fun localPaymentProviderCancellationGateway(): PaymentProviderCancellationGateway =
-        PaymentProviderCancellationGateway {
-            PaymentProviderCancellationResult.Confirmed
-        }
-
-    @Bean
-    fun preparePaymentInstallmentCommandHandler(
-        service: TradePaymentPreparationUseCase,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<com.jstore.contracts.commerce.PreparePaymentInstallmentCommand> =
-        transactional(PreparePaymentInstallmentCommandHandler(service), transactionManager)
-
-    @Bean
-    fun tradePaymentCancellationUseCase(
-        payments: TradePaymentRepository,
-        provider: PaymentProviderCancellationGateway,
-        publisher: IntegrationMessagePublisher,
-        transactionManager: PlatformTransactionManager,
-    ): TradePaymentCancellationUseCase {
-        val delegate = TradePaymentCancellationService(payments, provider, publisher)
-        return TransactionalTradePaymentCancellationUseCase(
-            delegate,
-            SpringTradePaymentPreparationTransactionOperations(transactionManager),
-        )
-    }
-
-    @Bean
-    fun cancelPaymentInstallmentCommandHandler(
-        service: TradePaymentCancellationUseCase,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<com.jstore.contracts.commerce.CancelPaymentInstallmentCommand> =
-        transactional(CancelPaymentInstallmentCommandHandler(service), transactionManager)
-
-    @Bean
-    fun paymentApplicationService(
-        repository: PaymentOrderRepository,
-        sequence: SnowFlakSequence,
-        publisher: DomainEventPublisher,
-    ) = PaymentApplicationService(repository, sequence, publisher)
-
-    @Bean
-    @Primary
-    fun transactionalPaymentUseCase(
-        paymentApplicationService: PaymentApplicationService,
-        transactionManager: PlatformTransactionManager,
-    ): PaymentUseCase = TransactionalPaymentUseCase(paymentApplicationService, transactionManager)
-
-    @Bean
-    fun merchantPaymentUseCase(
-        paymentUseCase: PaymentUseCase,
-        authorization: MerchantAuthorizationQuery,
-    ): MerchantPaymentUseCase = MerchantPaymentService(paymentUseCase, authorization)
-
-    @Bean
-    fun requestPaymentRefundCommandHandler(service: PaymentUseCase) =
-        RequestPaymentRefundCommandHandler(service)
-
-    private fun <T : IntegrationMessage> transactional(
-        delegate: IntegrationMessageHandler<T>,
-        transactionManager: PlatformTransactionManager,
-    ): IntegrationMessageHandler<T> =
-        object : IntegrationMessageHandler<T> {
-            private val transaction = TransactionTemplate(transactionManager)
-
-            override fun handlerId() = delegate.handlerId()
-
-            override fun handle(message: T) {
-                transaction.executeWithoutResult { delegate.handle(message) }
-            }
-        }
+      }
 }

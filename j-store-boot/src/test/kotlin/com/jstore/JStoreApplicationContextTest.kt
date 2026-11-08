@@ -25,37 +25,59 @@ import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
 
 class JStoreApplicationContextTest {
-    @Test
-    fun `application registers domain and outbox repositories together`() {
-        EmbeddedPostgres.builder().start().use { postgres ->
-            Flyway.configure()
-                .dataSource(postgres.postgresDatabase)
-                .locations("classpath:db/migration")
-                .schemas("develop")
-                .defaultSchema("develop")
-                .load()
-                .migrate()
-
-            SpringApplicationBuilder(JStoreOrderBootApplication::class.java)
-                .web(WebApplicationType.NONE)
-                .run(
-                    "--spring.main.lazy-initialization=true",
-                    "--spring.flyway.enabled=false",
-                    "--spring.datasource.url=${postgres.getJdbcUrl("postgres", "postgres")}&currentSchema=develop",
-                    "--spring.datasource.username=postgres",
-                    "--spring.datasource.password=",
-                    "--jstore.oidc.issuer=https://identity.test",
-                    "--account.phone-verification.hmac-secret=test-phone-hmac-secret-with-at-least-32-bytes",
-                    "--jstore.outbox.enabled=true",
-                )
-                .use { context ->
-                    val orderRepositoryType =
-                        Class.forName(
-                            "com.jstore.order.domain.order.persistence.OrderPOJpaRepository"
-                        )
-                    assertThat(context.getBeansOfType(orderRepositoryType)).hasSize(1)
-                    assertThat(context.getBean(OutboxEntryPOJpaRepository::class.java)).isNotNull
-                }
+  @Test
+  fun `cart schema allows configured quantities above default but rejects nonpositive values`() {
+    EmbeddedPostgres.builder().start().use { postgres ->
+      postgres.postgresDatabase.connection.use { connection ->
+        connection.createStatement().use {
+          it.execute("CREATE TABLE trades (id bigint PRIMARY KEY)")
         }
+        org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(
+            connection,
+            org.springframework.core.io.ClassPathResource(
+                "db/migration/V20260815__cart_context.sql"
+            ),
+        )
+        connection.createStatement().use { sql ->
+          sql.execute("INSERT INTO carts VALUES (1, 1, 'ACTIVE', 'CN', 'ONLINE', 'CNY', 0, 0)")
+          sql.execute("INSERT INTO cart_lines VALUES (1, 1, 1, 1, 1, 1500, true, now(), now())")
+          kotlin.test.assertFailsWith<java.sql.SQLException> {
+            sql.execute("UPDATE cart_lines SET quantity = 0 WHERE id = 1")
+          }
+        }
+      }
     }
+  }
+
+  @Test
+  fun `application registers domain and outbox repositories together`() {
+    EmbeddedPostgres.builder().start().use { postgres ->
+      Flyway.configure()
+          .dataSource(postgres.postgresDatabase)
+          .locations("classpath:db/migration")
+          .schemas("develop")
+          .defaultSchema("develop")
+          .load()
+          .migrate()
+
+      SpringApplicationBuilder(JStoreOrderBootApplication::class.java)
+          .web(WebApplicationType.NONE)
+          .run(
+              "--spring.main.lazy-initialization=true",
+              "--spring.flyway.enabled=false",
+              "--spring.datasource.url=${postgres.getJdbcUrl("postgres", "postgres")}&currentSchema=develop",
+              "--spring.datasource.username=postgres",
+              "--spring.datasource.password=",
+              "--jstore.oidc.issuer=https://identity.test",
+              "--account.phone-verification.hmac-secret=test-phone-hmac-secret-with-at-least-32-bytes",
+              "--jstore.outbox.enabled=true",
+          )
+          .use { context ->
+            val orderRepositoryType =
+                Class.forName("com.jstore.order.domain.order.persistence.OrderPOJpaRepository")
+            assertThat(context.getBeansOfType(orderRepositoryType)).hasSize(1)
+            assertThat(context.getBean(OutboxEntryPOJpaRepository::class.java)).isNotNull
+          }
+    }
+  }
 }

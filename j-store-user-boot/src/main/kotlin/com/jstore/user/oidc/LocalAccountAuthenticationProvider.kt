@@ -32,60 +32,60 @@ class LocalAccountAuthenticationProvider(
     private val jdbc: org.springframework.jdbc.core.JdbcTemplate,
     manager: org.springframework.transaction.PlatformTransactionManager,
 ) : AuthenticationProvider {
-    private val transaction = org.springframework.transaction.support.TransactionTemplate(manager)
+  private val transaction = org.springframework.transaction.support.TransactionTemplate(manager)
 
-    override fun supports(type: Class<*>) =
-        UsernamePasswordAuthenticationToken::class.java.isAssignableFrom(type)
+  override fun supports(type: Class<*>) =
+      UsernamePasswordAuthenticationToken::class.java.isAssignableFrom(type)
 
-    override fun authenticate(authentication: Authentication): Authentication {
-        val phone =
-            try {
-                PhoneNumber(authentication.name)
-            } catch (_: IllegalArgumentException) {
-                throw BadCredentialsException("Invalid credentials")
-            }
-        return requireNotNull(
-            transaction.execute {
-                // Serialize local password verification with password changes and account disable.
-                jdbc.query(
-                    "SELECT id FROM user_accounts WHERE phone_number = ? FOR UPDATE",
-                    { rs, _ -> rs.getLong(1) },
-                    phone.value,
-                )
-                val result =
-                    credentials.authenticate(
-                        phone,
-                        authentication.credentials?.toString().orEmpty(),
-                    )
-                if (result !is Success) throw BadCredentialsException("Invalid credentials")
-                createAuthentication(result.value, tokens, clock)
-            }
-        )
-    }
-
-    companion object {
-        fun createAuthentication(
-            id: UserId,
-            tokens: AccountSessionStore,
-            clock: Clock,
-        ): UsernamePasswordAuthenticationToken {
-            val sid = RedisLoginIntentStore.randomId()
-            val epoch = tokens.currentSessionEpoch(id)
-            if (!tokens.createSession(id, sid, epoch, 604800))
-                throw CredentialsExpiredException("Session changed; authenticate again")
-            return UsernamePasswordAuthenticationToken.authenticated(
-                    id.value.toString(),
-                    null,
-                    AuthorityUtils.NO_AUTHORITIES,
-                )
-                .apply {
-                    details =
-                        hashMapOf<String, Any>(
-                            "sid" to sid,
-                            "sev" to epoch,
-                            "auth_time" to clock.instant().epochSecond,
-                        )
-                }
+  override fun authenticate(authentication: Authentication): Authentication {
+    val phone =
+        try {
+          PhoneNumber(authentication.name)
+        } catch (_: IllegalArgumentException) {
+          throw BadCredentialsException("Invalid credentials")
         }
+    return requireNotNull(
+        transaction.execute {
+          // Serialize local password verification with password changes and account disable.
+          jdbc.query(
+              "SELECT id FROM user_accounts WHERE phone_number = ? FOR UPDATE",
+              { rs, _ -> rs.getLong(1) },
+              phone.value,
+          )
+          val result =
+              credentials.authenticate(
+                  phone,
+                  authentication.credentials?.toString().orEmpty(),
+              )
+          if (result !is Success) throw BadCredentialsException("Invalid credentials")
+          createAuthentication(result.value, tokens, clock)
+        }
+    )
+  }
+
+  companion object {
+    fun createAuthentication(
+        id: UserId,
+        tokens: AccountSessionStore,
+        clock: Clock,
+    ): UsernamePasswordAuthenticationToken {
+      val sid = RedisLoginIntentStore.randomId()
+      val epoch = tokens.currentSessionEpoch(id)
+      if (!tokens.createSession(id, sid, epoch, 604800))
+          throw CredentialsExpiredException("Session changed; authenticate again")
+      return UsernamePasswordAuthenticationToken.authenticated(
+              id.value.toString(),
+              null,
+              AuthorityUtils.NO_AUTHORITIES,
+          )
+          .apply {
+            details =
+                hashMapOf<String, Any>(
+                    "sid" to sid,
+                    "sev" to epoch,
+                    "auth_time" to clock.instant().epochSecond,
+                )
+          }
     }
+  }
 }

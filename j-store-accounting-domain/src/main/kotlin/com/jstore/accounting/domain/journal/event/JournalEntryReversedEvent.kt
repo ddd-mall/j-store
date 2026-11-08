@@ -30,15 +30,15 @@ data class JournalEntryReversedEvent(
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
 
-    override val eventName: String
-        get() = "accounting.journal-entry-reversed"
+  override val eventName: String
+    get() = "accounting.journal-entry-reversed"
 
-    override val eventVersion: Int
-        get() = 1
+  override val eventVersion: Int
+    get() = 1
 
-    override val aggregateType: String
-        get() = "JournalEntry"
+  override val aggregateType: String
+    get() = "JournalEntry"
 
-    override val aggregateId: String
-        get() = originalEntryId.toString()
+  override val aggregateId: String
+    get() = originalEntryId.toString()
 }

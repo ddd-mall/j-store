@@ -36,77 +36,77 @@ import io.kotest.property.checkAll
  */
 class SpuSnapshotFactorySkuCodePropertyTest :
     FunSpec({
-        val snowFlakSequence = SnowFlakSequence()
-        val factory = SpuSnapshotFactoryImpl(snowFlakSequence)
+      val snowFlakSequence = SnowFlakSequence()
+      val factory = SpuSnapshotFactoryImpl(snowFlakSequence)
 
-        // Generator for nullable strings (merchantCode / barcode)
-        val nullableStringArb: Arb<String?> =
-            Arb.choice(
-                Arb.constant(null),
-                Arb.string(1..64),
+      // Generator for nullable strings (merchantCode / barcode)
+      val nullableStringArb: Arb<String?> =
+          Arb.choice(
+              Arb.constant(null),
+              Arb.string(1..64),
+          )
+
+      // Generator for a single SKU with random merchantCode and barcode
+      val skuArb: Arb<Sku> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE), // skuId
+              Arb.string(1..20), // skuName
+              Arb.long(1L..999999L), // price in fen
+              nullableStringArb, // merchantCode
+              nullableStringArb, // barcode
+          ) { skuIdVal, skuName, priceFen, merchantCode, barcode ->
+            SkuImpl(
+                id = SkuId(skuIdVal),
+                skuName = skuName,
+                attributes = listOf(Attribute("color", "red")),
+                merchantCode = merchantCode,
+                barcode = barcode,
             )
+          }
 
-        // Generator for a single SKU with random merchantCode and barcode
-        val skuArb: Arb<Sku> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE), // skuId
-                Arb.string(1..20), // skuName
-                Arb.long(1L..999999L), // price in fen
-                nullableStringArb, // merchantCode
-                nullableStringArb, // barcode
-            ) { skuIdVal, skuName, priceFen, merchantCode, barcode ->
+      // Generator for a list of SKUs (1..5 items, each with unique attributes to pass addSku)
+      val skuListArb: Arb<List<Sku>> =
+          Arb.list(
+              Arb.bind(
+                  Arb.long(1L..Long.MAX_VALUE),
+                  Arb.string(1..20),
+                  Arb.long(1L..999999L),
+                  nullableStringArb,
+                  nullableStringArb,
+                  Arb.string(1..10), // unique attribute value to avoid duplicate check
+              ) { skuIdVal, skuName, priceFen, merchantCode, barcode, attrValue ->
                 SkuImpl(
                     id = SkuId(skuIdVal),
                     skuName = skuName,
-                    attributes = listOf(Attribute("color", "red")),
+                    attributes = listOf(Attribute("variant", attrValue)),
                     merchantCode = merchantCode,
                     barcode = barcode,
                 )
-            }
+              },
+              1..5,
+          )
 
-        // Generator for a list of SKUs (1..5 items, each with unique attributes to pass addSku)
-        val skuListArb: Arb<List<Sku>> =
-            Arb.list(
-                Arb.bind(
-                    Arb.long(1L..Long.MAX_VALUE),
-                    Arb.string(1..20),
-                    Arb.long(1L..999999L),
-                    nullableStringArb,
-                    nullableStringArb,
-                    Arb.string(1..10), // unique attribute value to avoid duplicate check
-                ) { skuIdVal, skuName, priceFen, merchantCode, barcode, attrValue ->
-                    SkuImpl(
-                        id = SkuId(skuIdVal),
-                        skuName = skuName,
-                        attributes = listOf(Attribute("variant", attrValue)),
-                        merchantCode = merchantCode,
-                        barcode = barcode,
-                    )
-                },
-                1..5,
-            )
+      test("snapshot should preserve merchantCode and barcode from each SKU") {
+        checkAll(100, skuListArb) { skus ->
+          // Build an SPU with the generated SKUs
+          val spu =
+              SpuImpl(
+                  id = SpuId(snowFlakSequence.nextId()),
+                  name = "Test SPU",
+                  description = "desc",
+                  _status = CommodityStatus.DRAFT,
+                  _skus = skus.toMutableList(),
+              )
 
-        test("snapshot should preserve merchantCode and barcode from each SKU") {
-            checkAll(100, skuListArb) { skus ->
-                // Build an SPU with the generated SKUs
-                val spu =
-                    SpuImpl(
-                        id = SpuId(snowFlakSequence.nextId()),
-                        name = "Test SPU",
-                        description = "desc",
-                        _status = CommodityStatus.DRAFT,
-                        _skus = skus.toMutableList(),
-                    )
+          val snapshot = factory.createSnapshot(spu)
 
-                val snapshot = factory.createSnapshot(spu)
-
-                // Verify each SkuSnapshot preserves the encoding fields
-                snapshot.skuSnapshots.size shouldBe skus.size
-                snapshot.skuSnapshots.forEachIndexed { index, skuSnapshot ->
-                    val originalSku = skus[index]
-                    skuSnapshot.merchantCode shouldBe originalSku.merchantCode
-                    skuSnapshot.barcode shouldBe originalSku.barcode
-                }
-            }
+          // Verify each SkuSnapshot preserves the encoding fields
+          snapshot.skuSnapshots.size shouldBe skus.size
+          snapshot.skuSnapshots.forEachIndexed { index, skuSnapshot ->
+            val originalSku = skus[index]
+            skuSnapshot.merchantCode shouldBe originalSku.merchantCode
+            skuSnapshot.barcode shouldBe originalSku.barcode
+          }
         }
+      }
     })

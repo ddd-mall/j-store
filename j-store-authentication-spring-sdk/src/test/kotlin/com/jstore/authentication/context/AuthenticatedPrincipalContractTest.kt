@@ -24,37 +24,37 @@ import io.kotest.matchers.shouldBe
 
 class AuthenticatedPrincipalContractTest :
     FunSpec({
-        test("principal keeps authentication domain separate from domain-local user id") {
-            val siteA =
-                AuthenticatedPrincipal(
-                    "https://accounts.site-a.example",
-                    AuthenticatedAccountId(42),
-                    AuthenticatedSession("session-a", 1),
-                )
-            val siteB =
-                AuthenticatedPrincipal(
-                    "https://accounts.site-b.example",
-                    AuthenticatedAccountId(42),
-                    AuthenticatedSession("session-b", 1),
-                )
+      test("principal keeps authentication domain separate from domain-local user id") {
+        val siteA =
+            AuthenticatedPrincipal(
+                "https://accounts.site-a.example",
+                AuthenticatedAccountId(42),
+                AuthenticatedSession("session-a", 1),
+            )
+        val siteB =
+            AuthenticatedPrincipal(
+                "https://accounts.site-b.example",
+                AuthenticatedAccountId(42),
+                AuthenticatedSession("session-b", 1),
+            )
 
-            (siteA == siteB) shouldBe false
-            siteA.accountId shouldBe siteB.accountId
+        (siteA == siteB) shouldBe false
+        siteA.accountId shouldBe siteB.accountId
+      }
+
+      test("authenticated principal context round-trips the complete principal") {
+        val principal =
+            AuthenticatedPrincipal(
+                "https://accounts.site-a.example",
+                AuthenticatedAccountId(7),
+                AuthenticatedSession("session-7", 3),
+            )
+
+        AuthenticatedPrincipalContext.set(principal)
+        try {
+          AuthenticatedPrincipalContext.getCurrent() shouldBe principal
+        } finally {
+          AuthenticatedPrincipalContext.clear()
         }
-
-        test("authenticated principal context round-trips the complete principal") {
-            val principal =
-                AuthenticatedPrincipal(
-                    "https://accounts.site-a.example",
-                    AuthenticatedAccountId(7),
-                    AuthenticatedSession("session-7", 3),
-                )
-
-            AuthenticatedPrincipalContext.set(principal)
-            try {
-                AuthenticatedPrincipalContext.getCurrent() shouldBe principal
-            } finally {
-                AuthenticatedPrincipalContext.clear()
-            }
-        }
+      }
     })

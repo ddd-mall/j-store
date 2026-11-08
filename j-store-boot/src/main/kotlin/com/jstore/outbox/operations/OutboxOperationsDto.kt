@@ -35,15 +35,15 @@ data class DeadLetterPageResponse(
     val size: Int,
     val totalElements: Long,
 ) {
-    companion object {
-        fun from(page: OutboxDeadLetterPage) =
-            DeadLetterPageResponse(
-                entries = page.entries.map(DeadLetterSummaryResponse::from),
-                page = page.page,
-                size = page.size,
-                totalElements = page.totalElements,
-            )
-    }
+  companion object {
+    fun from(page: OutboxDeadLetterPage) =
+        DeadLetterPageResponse(
+            entries = page.entries.map(DeadLetterSummaryResponse::from),
+            page = page.page,
+            size = page.size,
+            totalElements = page.totalElements,
+        )
+  }
 }
 
 /** Payload is intentionally absent from the operations API contract. */
@@ -63,35 +63,35 @@ data class DeadLetterSummaryResponse(
     val orderingKey: String,
     val sequenceNo: Long,
 ) {
-    companion object {
-        fun from(entry: OutboxDeadLetterSummary) =
-            DeadLetterSummaryResponse(
-                id = entry.id,
-                eventId = entry.eventId,
-                eventType = entry.eventType,
-                aggregateType = entry.aggregateType,
-                aggregateId = entry.aggregateId,
-                eventVersion = entry.eventVersion,
-                occurredAt = entry.occurredAt,
-                createdAt = entry.createdAt,
-                updatedAt = entry.updatedAt,
-                retryCount = entry.retryCount,
-                lastError = entry.lastError,
-                transportId = entry.transportId,
-                orderingKey = entry.orderingKey,
-                sequenceNo = entry.sequenceNo,
-            )
-    }
+  companion object {
+    fun from(entry: OutboxDeadLetterSummary) =
+        DeadLetterSummaryResponse(
+            id = entry.id,
+            eventId = entry.eventId,
+            eventType = entry.eventType,
+            aggregateType = entry.aggregateType,
+            aggregateId = entry.aggregateId,
+            eventVersion = entry.eventVersion,
+            occurredAt = entry.occurredAt,
+            createdAt = entry.createdAt,
+            updatedAt = entry.updatedAt,
+            retryCount = entry.retryCount,
+            lastError = entry.lastError,
+            transportId = entry.transportId,
+            orderingKey = entry.orderingKey,
+            sequenceNo = entry.sequenceNo,
+        )
+  }
 }
 
 data class RequeueDeadLettersResponse(
     val requeuedCount: Int,
     val notRequeuedCount: Int,
 ) {
-    companion object {
-        fun from(result: DeadLetterRequeueResult) =
-            RequeueDeadLettersResponse(result.requeuedCount, result.notRequeuedCount)
-    }
+  companion object {
+    fun from(result: DeadLetterRequeueResult) =
+        RequeueDeadLettersResponse(result.requeuedCount, result.notRequeuedCount)
+  }
 }
 
 data class OutboxOperationsErrorResponse(

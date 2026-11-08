@@ -22,43 +22,41 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /** Registers a non-durable relay hint for publication after the current transaction commits. */
 fun interface OutboxRelaySignal {
-    fun signalAfterCommit()
+  fun signalAfterCommit()
 }
 
 object NoopOutboxRelaySignal : OutboxRelaySignal {
-    override fun signalAfterCommit() = Unit
+  override fun signalAfterCommit() = Unit
 }
 
 class TransactionAwareOutboxRelaySignal(private val trigger: OutboxRelayTrigger) :
     OutboxRelaySignal {
-    private val logger = LoggerFactory.getLogger(TransactionAwareOutboxRelaySignal::class.java)
-    private val synchronizationResourceKey = Any()
+  private val logger = LoggerFactory.getLogger(TransactionAwareOutboxRelaySignal::class.java)
+  private val synchronizationResourceKey = Any()
 
-    override fun signalAfterCommit() {
-        check(TransactionSynchronizationManager.isSynchronizationActive()) {
-            "Outbox relay signal requires active transaction synchronization"
-        }
-        if (TransactionSynchronizationManager.hasResource(synchronizationResourceKey)) return
-        TransactionSynchronizationManager.bindResource(synchronizationResourceKey, true)
-        TransactionSynchronizationManager.registerSynchronization(
-            object : TransactionSynchronization {
-                override fun afterCommit() {
-                    try {
-                        trigger.requestDrain()
-                    } catch (failure: RuntimeException) {
-                        logger.warn(
-                            "Outbox relay wake-up failed after commit; periodic polling will retry",
-                            failure,
-                        )
-                    }
-                }
-
-                override fun afterCompletion(status: Int) {
-                    TransactionSynchronizationManager.unbindResourceIfPossible(
-                        synchronizationResourceKey
-                    )
-                }
-            }
-        )
+  override fun signalAfterCommit() {
+    check(TransactionSynchronizationManager.isSynchronizationActive()) {
+      "Outbox relay signal requires active transaction synchronization"
     }
+    if (TransactionSynchronizationManager.hasResource(synchronizationResourceKey)) return
+    TransactionSynchronizationManager.bindResource(synchronizationResourceKey, true)
+    TransactionSynchronizationManager.registerSynchronization(
+        object : TransactionSynchronization {
+          override fun afterCommit() {
+            try {
+              trigger.requestDrain()
+            } catch (failure: RuntimeException) {
+              logger.warn(
+                  "Outbox relay wake-up failed after commit; periodic polling will retry",
+                  failure,
+              )
+            }
+          }
+
+          override fun afterCompletion(status: Int) {
+            TransactionSynchronizationManager.unbindResourceIfPossible(synchronizationResourceKey)
+          }
+        }
+    )
+  }
 }

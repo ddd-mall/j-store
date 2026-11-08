@@ -27,42 +27,41 @@ class OidcSessionGuard(
     private val tokens: AccountSessionStore,
     private val clock: Clock,
 ) {
-    fun authenticationActive(authentication: Authentication): Boolean {
-        val id = authentication.name.toLongOrNull()?.takeIf { it > 0 } ?: return false
-        val details = authentication.details as? Map<*, *> ?: return false
-        val sid = details["sid"] as? String ?: return false
-        val epoch = (details["sev"] as? Number)?.toLong() ?: return false
-        return accounts.findById(UserId(id))?.status == UserAccountStatus.ACTIVE &&
-            tokens.isSessionActive(UserId(id), sid, epoch)
-    }
+  fun authenticationActive(authentication: Authentication): Boolean {
+    val id = authentication.name.toLongOrNull()?.takeIf { it > 0 } ?: return false
+    val details = authentication.details as? Map<*, *> ?: return false
+    val sid = details["sid"] as? String ?: return false
+    val epoch = (details["sev"] as? Number)?.toLong() ?: return false
+    return accounts.findById(UserId(id))?.status == UserAccountStatus.ACTIVE &&
+        tokens.isSessionActive(UserId(id), sid, epoch)
+  }
 
-    fun browserActive(authentication: Authentication): Boolean {
-        val details = authentication.details as? Map<*, *> ?: return false
-        val time = (details["auth_time"] as? Number)?.toLong() ?: return false
-        return clock.instant().epochSecond - time in 0..43200 &&
-            authenticationActive(authentication)
-    }
+  fun browserActive(authentication: Authentication): Boolean {
+    val details = authentication.details as? Map<*, *> ?: return false
+    val time = (details["auth_time"] as? Number)?.toLong() ?: return false
+    return clock.instant().epochSecond - time in 0..43200 && authenticationActive(authentication)
+  }
 
-    fun authorizationActive(authorization: OAuth2Authorization): Boolean =
-        authorization
-            .getAttribute<Authentication>(Principal::class.java.name)
-            ?.let(::authenticationActive) == true
+  fun authorizationActive(authorization: OAuth2Authorization): Boolean =
+      authorization
+          .getAttribute<Authentication>(Principal::class.java.name)
+          ?.let(::authenticationActive) == true
 
-    fun revoke(authentication: Authentication) {
-        val details = authentication.details as? Map<*, *> ?: return
-        val sid = details["sid"] as? String ?: return
-        tokens.revokeSession(UserId(authentication.name.toLong()), sid)
-    }
+  fun revoke(authentication: Authentication) {
+    val details = authentication.details as? Map<*, *> ?: return
+    val sid = details["sid"] as? String ?: return
+    tokens.revokeSession(UserId(authentication.name.toLong()), sid)
+  }
 
-    fun userInfo(subject: String, scopes: Set<String>): Map<String, Any> {
-        val account = requireNotNull(accounts.findById(UserId(subject.toLong())))
-        return buildMap {
-            put("sub", subject)
-            if ("profile" in scopes) put("nickname", account.nickname.value)
-            if ("phone" in scopes) {
-                put("phone_number", account.phoneNumber.value)
-                put("phone_number_verified", true)
-            }
-        }
+  fun userInfo(subject: String, scopes: Set<String>): Map<String, Any> {
+    val account = requireNotNull(accounts.findById(UserId(subject.toLong())))
+    return buildMap {
+      put("sub", subject)
+      if ("profile" in scopes) put("nickname", account.nickname.value)
+      if ("phone" in scopes) {
+        put("phone_number", account.phoneNumber.value)
+        put("phone_number_verified", true)
+      }
     }
+  }
 }

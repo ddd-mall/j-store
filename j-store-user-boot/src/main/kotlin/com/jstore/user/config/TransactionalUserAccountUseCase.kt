@@ -39,49 +39,48 @@ class TransactionalUserAccountUseCase(
     private val tokenStore: AccountSessionStore,
     transactionManager: PlatformTransactionManager,
 ) : UserAccountUseCase {
-    private val write = TransactionTemplate(transactionManager)
-    private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+  private val write = TransactionTemplate(transactionManager)
+  private val read = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
-    override fun requestPhoneVerification(phoneNumber: PhoneNumber) =
-        delegate.requestPhoneVerification(phoneNumber)
+  override fun requestPhoneVerification(phoneNumber: PhoneNumber) =
+      delegate.requestPhoneVerification(phoneNumber)
 
-    override fun register(cmd: UserRegisterCMD, verificationProof: PhoneVerificationProof) = tx {
-        delegate.register(cmd, verificationProof)
+  override fun register(cmd: UserRegisterCMD, verificationProof: PhoneVerificationProof) = tx {
+    delegate.register(cmd, verificationProof)
+  }
+
+  override fun findById(userId: UserId) = query { delegate.findById(userId) }
+
+  override fun changeNickname(userId: UserId, newNickname: Nickname) = tx {
+    delegate.changeNickname(userId, newNickname)
+  }
+
+  override fun changePassword(userId: UserId, oldPassword: String, newPassword: String) =
+      txAndRevokeAllSessions(userId) {
+        delegate.changePassword(userId, oldPassword, newPassword)
+      }
+
+  override fun disable(userId: UserId) = txAndRevokeAllSessions(userId) { delegate.disable(userId) }
+
+  override fun enable(userId: UserId) = tx { delegate.enable(userId) }
+
+  override fun forceOffline(userId: UserId) =
+      txAndRevokeAllSessions(userId) { delegate.forceOffline(userId) }
+
+  /**
+   * Revocation happens before the database commit so a Redis failure rolls back the account change.
+   * If the later database commit fails, the conservative result is an extra logout.
+   */
+  private fun <T> txAndRevokeAllSessions(
+      userId: UserId,
+      block: () -> Result<T, BusinessError>,
+  ): Result<T, BusinessError> = tx {
+    block().also { result ->
+      if (result is Success) tokenStore.revokeAllSessions(userId)
     }
+  }
 
-    override fun findById(userId: UserId) = query { delegate.findById(userId) }
+  private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
 
-    override fun changeNickname(userId: UserId, newNickname: Nickname) = tx {
-        delegate.changeNickname(userId, newNickname)
-    }
-
-    override fun changePassword(userId: UserId, oldPassword: String, newPassword: String) =
-        txAndRevokeAllSessions(userId) {
-            delegate.changePassword(userId, oldPassword, newPassword)
-        }
-
-    override fun disable(userId: UserId) =
-        txAndRevokeAllSessions(userId) { delegate.disable(userId) }
-
-    override fun enable(userId: UserId) = tx { delegate.enable(userId) }
-
-    override fun forceOffline(userId: UserId) =
-        txAndRevokeAllSessions(userId) { delegate.forceOffline(userId) }
-
-    /**
-     * Revocation happens before the database commit so a Redis failure rolls back the account
-     * change. If the later database commit fails, the conservative result is an extra logout.
-     */
-    private fun <T> txAndRevokeAllSessions(
-        userId: UserId,
-        block: () -> Result<T, BusinessError>,
-    ): Result<T, BusinessError> = tx {
-        block().also { result ->
-            if (result is Success) tokenStore.revokeAllSessions(userId)
-        }
-    }
-
-    private fun <T> tx(block: () -> T): T = requireNotNull(write.execute { block() })
-
-    private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
+  private fun <T> query(block: () -> T): T = requireNotNull(read.execute { block() })
 }

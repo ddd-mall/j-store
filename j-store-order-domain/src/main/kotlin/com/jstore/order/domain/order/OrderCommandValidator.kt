@@ -26,37 +26,36 @@ import com.jstore.order.domain.order.command.OrderCreateCMD
 
 /** Validates order requests without adding behavior to command data carriers. */
 object OrderCommandValidator {
-    fun validate(command: OrderCreateCMD): Result<OrderCreateCMD, BusinessError> {
-        if (command.items.isEmpty()) return Failure(OrderErrors.ITEMS_EMPTY)
-        if (command.buyerUid <= 0) return Failure(OrderErrors.BUYER_INVALID)
-        if (command.merchantId <= 0) return Failure(OrderErrors.MERCHANT_INVALID)
-        validate(command.recipientInfo).onFailure {
-            return Failure(it)
-        }
-        return Success(command)
+  fun validate(command: OrderCreateCMD): Result<OrderCreateCMD, BusinessError> {
+    if (command.items.isEmpty()) return Failure(OrderErrors.ITEMS_EMPTY)
+    if (command.buyerUid <= 0) return Failure(OrderErrors.BUYER_INVALID)
+    if (command.merchantId <= 0) return Failure(OrderErrors.MERCHANT_INVALID)
+    validate(command.recipientInfo).onFailure {
+      return Failure(it)
     }
+    return Success(command)
+  }
 
-    fun validate(
-        recipient: OrderCreateCMD.RecipientInfoCMD
-    ): Result<OrderCreateCMD.RecipientInfoCMD, BusinessError> {
-        if (recipient.consigneeName.isBlank()) return Failure(OrderErrors.CONSIGNEE_NAME_BLANK)
-        if (recipient.countryCode.isBlank()) return Failure(OrderErrors.COUNTRY_CODE_BLANK)
-        if (recipient.shippingDistrictCode.isBlank())
-            return Failure(OrderErrors.DISTRICT_CODE_BLANK)
-        validate(recipient.consigneeContractInfo).onFailure {
-            return Failure(it)
-        }
-        return Success(recipient)
+  fun validate(
+      recipient: OrderCreateCMD.RecipientInfoCMD
+  ): Result<OrderCreateCMD.RecipientInfoCMD, BusinessError> {
+    if (recipient.consigneeName.isBlank()) return Failure(OrderErrors.CONSIGNEE_NAME_BLANK)
+    if (recipient.countryCode.isBlank()) return Failure(OrderErrors.COUNTRY_CODE_BLANK)
+    if (recipient.shippingDistrictCode.isBlank()) return Failure(OrderErrors.DISTRICT_CODE_BLANK)
+    validate(recipient.consigneeContractInfo).onFailure {
+      return Failure(it)
     }
+    return Success(recipient)
+  }
 
-    fun validate(
-        contact: OrderCreateCMD.ContractInfoCMD
-    ): Result<OrderCreateCMD.ContractInfoCMD, BusinessError> =
-        if (contact.phoneNumber == null && contact.emailAddress == null)
-            Failure(OrderErrors.CONTRACT_INFO_INVALID.msg("收货人联系方式不能全为空"))
-        else Success(contact)
+  fun validate(
+      contact: OrderCreateCMD.ContractInfoCMD
+  ): Result<OrderCreateCMD.ContractInfoCMD, BusinessError> =
+      if (contact.phoneNumber == null && contact.emailAddress == null)
+          Failure(OrderErrors.CONTRACT_INFO_INVALID.msg("收货人联系方式不能全为空"))
+      else Success(contact)
 
-    fun cancellationReason(command: OrderCancelCMD): Result<CancellationReason, BusinessError> =
-        if (command.description.isBlank()) Failure(OrderErrors.CANCEL_REASON_INVALID)
-        else Success(CancellationReason(command.category, command.description))
+  fun cancellationReason(command: OrderCancelCMD): Result<CancellationReason, BusinessError> =
+      if (command.description.isBlank()) Failure(OrderErrors.CANCEL_REASON_INVALID)
+      else Success(CancellationReason(command.category, command.description))
 }

@@ -27,16 +27,16 @@ class AccountCredentialsService(
     private val hasher: PasswordHasher,
     private val attempts: LoginAttemptGuard,
 ) {
-    fun authenticate(phone: PhoneNumber, password: String): Result<UserId, BusinessError> {
-        if (!attempts.isAllowed(phone)) return Failure(UserAccountErrors.LOGIN_RATE_LIMITED)
-        val account = accounts.findByPhoneNumber(phone)
-        if (account == null || !hasher.matches(password, account.passwordHash.hashedValue)) {
-            attempts.recordFailure(phone)
-            return Failure(UserAccountErrors.INVALID_CREDENTIALS)
-        }
-        if (account.status != UserAccountStatus.ACTIVE)
-            return Failure(UserAccountErrors.ACCOUNT_DISABLED)
-        attempts.reset(phone)
-        return Success(account.id)
+  fun authenticate(phone: PhoneNumber, password: String): Result<UserId, BusinessError> {
+    if (!attempts.isAllowed(phone)) return Failure(UserAccountErrors.LOGIN_RATE_LIMITED)
+    val account = accounts.findByPhoneNumber(phone)
+    if (account == null || !hasher.matches(password, account.passwordHash.hashedValue)) {
+      attempts.recordFailure(phone)
+      return Failure(UserAccountErrors.INVALID_CREDENTIALS)
     }
+    if (account.status != UserAccountStatus.ACTIVE)
+        return Failure(UserAccountErrors.ACCOUNT_DISABLED)
+    attempts.reset(phone)
+    return Success(account.id)
+  }
 }

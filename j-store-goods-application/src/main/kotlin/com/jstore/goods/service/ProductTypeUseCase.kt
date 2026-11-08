@@ -32,5 +32,5 @@ data class ProductTypeSaveCommand(
 )
 
 interface ProductTypeUseCase {
-    fun save(command: ProductTypeSaveCommand): Result<ProductType, BusinessError>
+  fun save(command: ProductTypeSaveCommand): Result<ProductType, BusinessError>
 }

@@ -34,15 +34,15 @@ data class JournalEntryPostedEvent(
     override val eventId: String = newDomainEventId(),
 ) : DomainEvent {
 
-    override val eventName: String
-        get() = "accounting.journal-entry-posted"
+  override val eventName: String
+    get() = "accounting.journal-entry-posted"
 
-    override val eventVersion: Int
-        get() = 1
+  override val eventVersion: Int
+    get() = 1
 
-    override val aggregateType: String
-        get() = "JournalEntry"
+  override val aggregateType: String
+    get() = "JournalEntry"
 
-    override val aggregateId: String
-        get() = entryId.toString()
+  override val aggregateId: String
+    get() = entryId.toString()
 }

@@ -34,9 +34,27 @@ data class ReplaceCartSelectionCommand(
     val cartLineIds: Set<Long>,
 )
 
+enum class CartAssessmentViewStatus {
+  COMPLETE,
+  PARTIAL,
+  EMPTY,
+  STALE;
+
+  companion object {
+    fun from(assessment: CartAssessment, currentCartVersion: Long): CartAssessmentViewStatus {
+      if (assessment.sourceCartVersion != currentCartVersion) return STALE
+      return when (assessment.status) {
+        AssessmentStatus.COMPLETE -> COMPLETE
+        AssessmentStatus.PARTIAL -> PARTIAL
+        AssessmentStatus.EMPTY -> EMPTY
+      }
+    }
+  }
+}
+
 data class CartAssessmentView(
     val sourceCartVersion: Long,
-    val status: String,
+    val status: CartAssessmentViewStatus,
     val amountFen: Long,
     val currency: String,
     val lines: List<CartAssessmentLine>,
@@ -53,37 +71,41 @@ data class CartView(
 )
 
 interface CartUseCase {
-    fun setItemQuantity(command: SetCartItemQuantityCommand): Result<CartView, BusinessError>
+  fun setItemQuantity(command: SetCartItemQuantityCommand): Result<CartView, BusinessError>
 
-    fun replaceSelection(command: ReplaceCartSelectionCommand): Result<CartView, BusinessError>
+  fun replaceSelection(command: ReplaceCartSelectionCommand): Result<CartView, BusinessError>
 
-    fun refresh(
-        buyerId: Long,
-        expectedVersion: Long,
-    ): Result<CartView, BusinessError>
+  fun refresh(
+      buyerId: Long,
+      expectedVersion: Long,
+  ): Result<CartView, BusinessError>
 
-    fun current(buyerId: Long): Result<CartView, BusinessError>
+  fun current(buyerId: Long): Result<CartView, BusinessError>
 }
 
 sealed interface SetCartItemQuantityStart {
-    data class Completed(val view: CartView) : SetCartItemQuantityStart
+  data class Completed(val view: CartView) : SetCartItemQuantityStart
 
-    data object RequiresOffer : SetCartItemQuantityStart
+  data object RequiresOffer : SetCartItemQuantityStart
 }
 
 sealed interface CartRefreshStart {
-    data class Completed(val view: CartView) : CartRefreshStart
+  data class Completed(val view: CartView) : CartRefreshStart
 
-    data class RequiresFacts(val cart: Cart) : CartRefreshStart
+  data class RequiresFacts(val cart: Cart) : CartRefreshStart
 }
 
 sealed interface CartCheckoutPreparationStart {
-    data class Completed(val result: com.jstore.cart.api.CartCheckoutSourceResult) :
-        CartCheckoutPreparationStart
+  data class Completed(val result: com.jstore.cart.api.CartCheckoutSourceResult) :
+      CartCheckoutPreparationStart
 
-    data class RequiresFacts(val cart: Cart) : CartCheckoutPreparationStart
+  data class RequiresFacts(val cart: Cart) : CartCheckoutPreparationStart
 }
 
 fun interface CartIdentityGenerator {
-    fun nextId(): Long
+  fun nextId(): Long
+}
+
+fun interface CartLimitsProvider {
+  fun current(): CartLimits
 }

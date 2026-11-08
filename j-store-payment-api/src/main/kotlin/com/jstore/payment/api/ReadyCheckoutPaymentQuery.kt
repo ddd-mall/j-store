@@ -28,5 +28,5 @@ data class ReadyCheckoutPayment(
 )
 
 fun interface ReadyCheckoutPaymentQuery {
-    fun find(paymentId: Long): ReadyCheckoutPayment?
+  fun find(paymentId: Long): ReadyCheckoutPayment?
 }

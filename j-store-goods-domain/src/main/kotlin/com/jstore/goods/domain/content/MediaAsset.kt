@@ -17,17 +17,17 @@
 package com.jstore.goods.domain.content
 
 enum class MediaType {
-    IMAGE,
-    VIDEO,
-    MODEL_3D,
-    DOCUMENT,
+  IMAGE,
+  VIDEO,
+  MODEL_3D,
+  DOCUMENT,
 }
 
 enum class MediaRole {
-    PRIMARY,
-    GALLERY,
-    DETAIL,
-    SWATCH,
+  PRIMARY,
+  GALLERY,
+  DETAIL,
+  SWATCH,
 }
 
 /** Reference to an object managed by the media/OSS boundary. */
@@ -38,8 +38,8 @@ data class MediaAsset(
     val position: Int,
     val altText: LocalizedText? = null,
 ) {
-    init {
-        require(key.isNotBlank()) { "media key must not be blank" }
-        require(position >= 0) { "media position must not be negative" }
-    }
+  init {
+    require(key.isNotBlank()) { "media key must not be blank" }
+    require(position >= 0) { "media position must not be negative" }
+  }
 }

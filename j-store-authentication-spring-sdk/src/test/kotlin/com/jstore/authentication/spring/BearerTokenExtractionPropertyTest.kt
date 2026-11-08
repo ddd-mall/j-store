@@ -44,99 +44,97 @@ import org.springframework.web.method.HandlerMethod
 class BearerTokenExtractionPropertyTest :
     FunSpec({
 
-        // **Validates: Requirements 4.1, 4.2**
+      // **Validates: Requirements 4.1, 4.2**
 
-        test("Bearer prefix + token extracts token and proceeds to parse") {
-            checkAll(
-                PropTestConfig(iterations = 100),
-                Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
-            ) { token ->
-                // --- Build mocks ---
-                val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<AuthenticatedSessionStore>()
-                val interceptor =
-                    AuthenticationInterceptor(
-                        accessTokenVerifier = tokenVerifier,
-                        tokenStore = tokenStore,
-                        configurers = emptyList(),
-                    )
+      test("Bearer prefix + token extracts token and proceeds to parse") {
+        checkAll(
+            PropTestConfig(iterations = 100),
+            Arb.string(minSize = 1, maxSize = 50).filter { !it.contains('\u0000') },
+        ) { token ->
+          // --- Build mocks ---
+          val tokenVerifier = mock<AccessTokenVerifier>()
+          val tokenStore = mock<AuthenticatedSessionStore>()
+          val interceptor =
+              AuthenticationInterceptor(
+                  accessTokenVerifier = tokenVerifier,
+                  tokenStore = tokenStore,
+                  configurers = emptyList(),
+              )
 
-                val handlerMethod = mock<HandlerMethod>()
-                // Make this endpoint require login so preHandle enters token validation
-                whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java))
-                    .thenReturn(true)
+          val handlerMethod = mock<HandlerMethod>()
+          // Make this endpoint require login so preHandle enters token validation
+          whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
 
-                val request = mock<HttpServletRequest>()
-                whenever(request.getHeader("Authorization")).thenReturn("Bearer $token")
-                whenever(request.requestURI).thenReturn("/api/test")
+          val request = mock<HttpServletRequest>()
+          whenever(request.getHeader("Authorization")).thenReturn("Bearer $token")
+          whenever(request.requestURI).thenReturn("/api/test")
 
-                // parseAccessToken returns a UserId → token was successfully extracted
-                val userId = AuthenticatedAccountId(1L)
-                val principal =
-                    AuthenticatedPrincipal(
-                        "issuer-a",
-                        userId,
-                        AuthenticatedSession("session-1", 0L),
-                    )
-                whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(principal)
-                whenever(tokenStore.isSessionActive(userId, "session-1", 0L)).thenReturn(true)
+          // parseAccessToken returns a UserId → token was successfully extracted
+          val userId = AuthenticatedAccountId(1L)
+          val principal =
+              AuthenticatedPrincipal(
+                  "issuer-a",
+                  userId,
+                  AuthenticatedSession("session-1", 0L),
+              )
+          whenever(tokenVerifier.verifyAccessToken(token)).thenReturn(principal)
+          whenever(tokenStore.isSessionActive(userId, "session-1", 0L)).thenReturn(true)
 
-                val response = mock<HttpServletResponse>()
+          val response = mock<HttpServletResponse>()
 
-                // --- Act ---
-                val result = interceptor.preHandle(request, response, handlerMethod)
+          // --- Act ---
+          val result = interceptor.preHandle(request, response, handlerMethod)
 
-                // --- Assert ---
-                // preHandle returns true → token was extracted and parsed successfully
-                result shouldBe true
-                // Verify parseAccessToken was called with the exact extracted token
-                verify(tokenVerifier).verifyAccessToken(token)
-            }
+          // --- Assert ---
+          // preHandle returns true → token was extracted and parsed successfully
+          result shouldBe true
+          // Verify parseAccessToken was called with the exact extracted token
+          verify(tokenVerifier).verifyAccessToken(token)
         }
+      }
 
-        test("missing, empty, or non-Bearer Authorization header returns TOKEN_MISSING") {
-            val invalidHeaders: List<String?> =
-                listOf(null, "", "Basic abc123", "bearer token", "Token xyz", "BearerNoSpace")
+      test("missing, empty, or non-Bearer Authorization header returns TOKEN_MISSING") {
+        val invalidHeaders: List<String?> =
+            listOf(null, "", "Basic abc123", "bearer token", "Token xyz", "BearerNoSpace")
 
-            checkAll(
-                PropTestConfig(iterations = 100),
-                Arb.element(invalidHeaders),
-            ) { headerValue ->
-                // --- Build mocks ---
-                val tokenVerifier = mock<AccessTokenVerifier>()
-                val tokenStore = mock<AuthenticatedSessionStore>()
-                val interceptor =
-                    AuthenticationInterceptor(
-                        accessTokenVerifier = tokenVerifier,
-                        tokenStore = tokenStore,
-                        configurers = emptyList(),
-                    )
+        checkAll(
+            PropTestConfig(iterations = 100),
+            Arb.element(invalidHeaders),
+        ) { headerValue ->
+          // --- Build mocks ---
+          val tokenVerifier = mock<AccessTokenVerifier>()
+          val tokenStore = mock<AuthenticatedSessionStore>()
+          val interceptor =
+              AuthenticationInterceptor(
+                  accessTokenVerifier = tokenVerifier,
+                  tokenStore = tokenStore,
+                  configurers = emptyList(),
+              )
 
-                val handlerMethod = mock<HandlerMethod>()
-                whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java))
-                    .thenReturn(true)
+          val handlerMethod = mock<HandlerMethod>()
+          whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
 
-                val request = mock<HttpServletRequest>()
-                whenever(request.getHeader("Authorization")).thenReturn(headerValue)
-                whenever(request.requestURI).thenReturn("/api/test")
+          val request = mock<HttpServletRequest>()
+          whenever(request.getHeader("Authorization")).thenReturn(headerValue)
+          whenever(request.requestURI).thenReturn("/api/test")
 
-                val stringWriter = StringWriter()
-                val response = mock<HttpServletResponse>()
-                whenever(response.writer).thenReturn(PrintWriter(stringWriter))
+          val stringWriter = StringWriter()
+          val response = mock<HttpServletResponse>()
+          whenever(response.writer).thenReturn(PrintWriter(stringWriter))
 
-                // --- Act ---
-                val result = interceptor.preHandle(request, response, handlerMethod)
+          // --- Act ---
+          val result = interceptor.preHandle(request, response, handlerMethod)
 
-                // --- Assert ---
-                result shouldBe false
-                verify(response).status = AuthenticationErrors.TOKEN_MISSING.httpCode
-                verify(response).contentType = "application/json"
-                // parseAccessToken should never be called when token is missing
-                verify(tokenVerifier, never()).verifyAccessToken(any())
+          // --- Assert ---
+          result shouldBe false
+          verify(response).status = AuthenticationErrors.TOKEN_MISSING.httpCode
+          verify(response).contentType = "application/json"
+          // parseAccessToken should never be called when token is missing
+          verify(tokenVerifier, never()).verifyAccessToken(any())
 
-                val body = stringWriter.toString()
-                body.contains("Auth.Token.Missing") shouldBe true
-                body.contains(AuthenticationErrors.TOKEN_MISSING.message) shouldBe true
-            }
+          val body = stringWriter.toString()
+          body.contains("Auth.Token.Missing") shouldBe true
+          body.contains(AuthenticationErrors.TOKEN_MISSING.message) shouldBe true
         }
+      }
     })

@@ -19,5 +19,5 @@ package com.jstore.goods.domain.brand.persistence
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface BrandPOJpaRepository : JpaRepository<BrandPO, Long> {
-    fun findByMerchantIdAndNormalizedName(merchantId: Long, normalizedName: String): BrandPO?
+  fun findByMerchantIdAndNormalizedName(merchantId: Long, normalizedName: String): BrandPO?
 }

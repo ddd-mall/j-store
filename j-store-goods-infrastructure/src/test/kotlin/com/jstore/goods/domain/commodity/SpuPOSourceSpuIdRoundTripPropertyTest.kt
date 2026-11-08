@@ -38,120 +38,120 @@ import io.kotest.property.checkAll
 class SpuPOSourceSpuIdRoundTripPropertyTest :
     FunSpec({
 
-        // --- Converter logic replicated from SpuRepositoryImpl (private object) ---
+      // --- Converter logic replicated from SpuRepositoryImpl (private object) ---
 
-        fun toSkuPO(sku: Sku, spuId: Long): SkuPO {
-            return SkuPO(
-                id = sku.id.value,
-                spuId = spuId,
-                skuName = sku.skuName,
-                attributes = JsonUtils.toJsonString(sku.attributes),
-                merchantCode = sku.merchantCode,
-                barcode = sku.barcode,
-            )
-        }
+      fun toSkuPO(sku: Sku, spuId: Long): SkuPO {
+        return SkuPO(
+            id = sku.id.value,
+            spuId = spuId,
+            skuName = sku.skuName,
+            attributes = JsonUtils.toJsonString(sku.attributes),
+            merchantCode = sku.merchantCode,
+            barcode = sku.barcode,
+        )
+      }
 
-        fun toDomainSku(po: SkuPO): Sku {
-            val attrs: List<Attribute<String, String>> = JsonUtils.deserialize(po.attributes)
-            return SkuImpl(
-                id = SkuId(po.id),
-                skuName = po.skuName,
+      fun toDomainSku(po: SkuPO): Sku {
+        val attrs: List<Attribute<String, String>> = JsonUtils.deserialize(po.attributes)
+        return SkuImpl(
+            id = SkuId(po.id),
+            skuName = po.skuName,
+            attributes = attrs,
+            merchantCode = po.merchantCode,
+            barcode = po.barcode,
+        )
+      }
+
+      fun toPO(spu: Spu): SpuPO {
+        return SpuPO(
+            id = spu.id.value,
+            name = spu.name,
+            description = spu.description,
+            status = spu.status,
+            version = spu.version,
+            sourceSpuId = spu.sourceSpuId?.value,
+            skus = spu.skus.map { toSkuPO(it, spu.id.value) }.toMutableList(),
+        )
+      }
+
+      fun toDomain(po: SpuPO): Spu {
+        return SpuImpl(
+            id = SpuId(po.id),
+            name = po.name,
+            description = po.description,
+            _status = po.status,
+            _skus = po.skus.map { toDomainSku(it) }.toMutableList(),
+            _version = po.version,
+            sourceSpuId = po.sourceSpuId?.let { SpuId(it) },
+        )
+      }
+
+      // --- Arb generators ---
+
+      val attributeArb: Arb<Attribute<String, String>> =
+          Arb.bind(
+              Arb.string(1..10),
+              Arb.string(1..10),
+          ) { key, value ->
+            Attribute(key, value)
+          }
+
+      val skuArb: Arb<Sku> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE),
+              Arb.string(1..20),
+              Arb.list(attributeArb, 0..3),
+              Arb.long(0L..999999L),
+          ) { skuIdVal, skuName, attrs, priceFen ->
+            SkuImpl(
+                id = SkuId(skuIdVal),
+                skuName = skuName,
                 attributes = attrs,
-                merchantCode = po.merchantCode,
-                barcode = po.barcode,
             )
+          }
+
+      val nullableSourceSpuIdArb: Arb<SpuId?> =
+          Arb.choice(
+              Arb.constant(null),
+              Arb.long(1L..Long.MAX_VALUE).map { SpuId(it) },
+          )
+
+      val statusArb: Arb<CommodityStatus> =
+          Arb.of(
+              CommodityStatus.DRAFT,
+              CommodityStatus.ARCHIVED,
+              CommodityStatus.PUBLISHED,
+          )
+
+      val spuArb: Arb<Spu> =
+          Arb.bind(
+              Arb.long(1L..Long.MAX_VALUE),
+              Arb.string(1..50),
+              Arb.string(0..100),
+              statusArb,
+              Arb.list(skuArb, 0..5),
+              Arb.long(1L..10000L),
+              nullableSourceSpuIdArb,
+          ) { spuIdVal, name, description, status, skus, version, sourceSpuId ->
+            SpuImpl(
+                id = SpuId(spuIdVal),
+                name = name,
+                description = description,
+                _status = status,
+                _skus = skus.toMutableList(),
+                _version = version,
+                sourceSpuId = sourceSpuId,
+            )
+          }
+
+      // --- Property test ---
+
+      test("toPO then toDomain round-trip should preserve sourceSpuId") {
+        checkAll(100, spuArb) { spu ->
+          val po = toPO(spu)
+          val roundTripped = toDomain(po)
+
+          roundTripped.sourceSpuId?.value shouldBe spu.sourceSpuId?.value
         }
-
-        fun toPO(spu: Spu): SpuPO {
-            return SpuPO(
-                id = spu.id.value,
-                name = spu.name,
-                description = spu.description,
-                status = spu.status,
-                version = spu.version,
-                sourceSpuId = spu.sourceSpuId?.value,
-                skus = spu.skus.map { toSkuPO(it, spu.id.value) }.toMutableList(),
-            )
-        }
-
-        fun toDomain(po: SpuPO): Spu {
-            return SpuImpl(
-                id = SpuId(po.id),
-                name = po.name,
-                description = po.description,
-                _status = po.status,
-                _skus = po.skus.map { toDomainSku(it) }.toMutableList(),
-                _version = po.version,
-                sourceSpuId = po.sourceSpuId?.let { SpuId(it) },
-            )
-        }
-
-        // --- Arb generators ---
-
-        val attributeArb: Arb<Attribute<String, String>> =
-            Arb.bind(
-                Arb.string(1..10),
-                Arb.string(1..10),
-            ) { key, value ->
-                Attribute(key, value)
-            }
-
-        val skuArb: Arb<Sku> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE),
-                Arb.string(1..20),
-                Arb.list(attributeArb, 0..3),
-                Arb.long(0L..999999L),
-            ) { skuIdVal, skuName, attrs, priceFen ->
-                SkuImpl(
-                    id = SkuId(skuIdVal),
-                    skuName = skuName,
-                    attributes = attrs,
-                )
-            }
-
-        val nullableSourceSpuIdArb: Arb<SpuId?> =
-            Arb.choice(
-                Arb.constant(null),
-                Arb.long(1L..Long.MAX_VALUE).map { SpuId(it) },
-            )
-
-        val statusArb: Arb<CommodityStatus> =
-            Arb.of(
-                CommodityStatus.DRAFT,
-                CommodityStatus.ARCHIVED,
-                CommodityStatus.PUBLISHED,
-            )
-
-        val spuArb: Arb<Spu> =
-            Arb.bind(
-                Arb.long(1L..Long.MAX_VALUE),
-                Arb.string(1..50),
-                Arb.string(0..100),
-                statusArb,
-                Arb.list(skuArb, 0..5),
-                Arb.long(1L..10000L),
-                nullableSourceSpuIdArb,
-            ) { spuIdVal, name, description, status, skus, version, sourceSpuId ->
-                SpuImpl(
-                    id = SpuId(spuIdVal),
-                    name = name,
-                    description = description,
-                    _status = status,
-                    _skus = skus.toMutableList(),
-                    _version = version,
-                    sourceSpuId = sourceSpuId,
-                )
-            }
-
-        // --- Property test ---
-
-        test("toPO then toDomain round-trip should preserve sourceSpuId") {
-            checkAll(100, spuArb) { spu ->
-                val po = toPO(spu)
-                val roundTripped = toDomain(po)
-
-                roundTripped.sourceSpuId?.value shouldBe spu.sourceSpuId?.value
-            }
-        }
+      }
     })

@@ -26,35 +26,34 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 
 class ProtocolTransactionFilterTest {
-    @Test
-    fun `failed persistence cannot leak credentials or a redirect`() {
-        val manager = mock<PlatformTransactionManager>()
-        whenever(manager.getTransaction(any())).thenReturn(mock<TransactionStatus>())
-        doThrow(IllegalStateException("commit failed")).whenever(manager).commit(any())
-        val response = MockHttpServletResponse()
-        ProtocolTransactionFilter(manager)
-            .doFilter(
-                MockHttpServletRequest(),
-                response,
-                FilterChain { _, target ->
-                    val http = target as HttpServletResponse
-                    http.writer.write("secret-credential")
-                    http.sendRedirect("https://client.example?code=secret-code")
-                },
-            )
-        assertEquals(503, response.status)
-        assertNull(response.getHeader("Location"))
-        assertFalse(response.contentAsString.contains("secret"))
-    }
+  @Test
+  fun `failed persistence cannot leak credentials or a redirect`() {
+    val manager = mock<PlatformTransactionManager>()
+    whenever(manager.getTransaction(any())).thenReturn(mock<TransactionStatus>())
+    doThrow(IllegalStateException("commit failed")).whenever(manager).commit(any())
+    val response = MockHttpServletResponse()
+    ProtocolTransactionFilter(manager)
+        .doFilter(
+            MockHttpServletRequest(),
+            response,
+            FilterChain { _, target ->
+              val http = target as HttpServletResponse
+              http.writer.write("secret-credential")
+              http.sendRedirect("https://client.example?code=secret-code")
+            },
+        )
+    assertEquals(503, response.status)
+    assertNull(response.getHeader("Location"))
+    assertFalse(response.contentAsString.contains("secret"))
+  }
 
-    @Test
-    fun `unsupported proof bound token requests never reach protocol processing`() {
-        val request = MockHttpServletRequest().apply { addHeader("DPoP", "proof") }
-        val response = MockHttpServletResponse()
-        var processed = false
-        BearerOnlyProtocolFilter()
-            .doFilter(request, response, FilterChain { _, _ -> processed = true })
-        assertEquals(400, response.status)
-        assertFalse(processed)
-    }
+  @Test
+  fun `unsupported proof bound token requests never reach protocol processing`() {
+    val request = MockHttpServletRequest().apply { addHeader("DPoP", "proof") }
+    val response = MockHttpServletResponse()
+    var processed = false
+    BearerOnlyProtocolFilter().doFilter(request, response, FilterChain { _, _ -> processed = true })
+    assertEquals(400, response.status)
+    assertFalse(processed)
+  }
 }

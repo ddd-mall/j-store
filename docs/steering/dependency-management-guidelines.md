@@ -42,7 +42,7 @@ fileMatchPattern: ['**/*.gradle.kts', 'gradle/libs.versions.toml', '.github/work
    ./gradlew :j-store-boot:cyclonedxDirectBom --no-daemon
    ```
 
-5. 使用与 `.github/workflows/security.yml` 固定版本一致且校验过发布摘要的 OSV Scanner 扫描 SBOM。不同扫描器版本结果冲突时，以 CI 固定版本和上游漏洞记录复核，不得用较新的零结果直接判定安全。
+5. 使用与 `.github/workflows/security.yml` 固定版本一致且校验过发布摘要的 OSV Scanner 扫描 SBOM。不同扫描器版本结果冲突时，以 CI 固定版本和上游漏洞记录复核，不得用较新的零结果直接判定安全。 向 develop 提交 PR 或推送时，生产 SBOM 与镜像中的 Maven 漏洞公告产生警告，并归档完整报告供评审。扫描执行错误和镜像系统包漏洞仍阻断检查。发布分支、定时及手动审计保留严格检查。
 6. 运行受影响模块测试，并在依赖治理或跨模块变更交付前运行：
 
    ```bash

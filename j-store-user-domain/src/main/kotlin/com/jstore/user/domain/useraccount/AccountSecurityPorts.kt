@@ -29,29 +29,29 @@ data class IssuedPhoneVerificationChallenge(
 )
 
 interface PhoneVerificationGateway {
-    /** Returns null when the phone number is currently send-rate-limited. */
-    fun createChallenge(
-        phoneNumber: PhoneNumber,
-        purpose: String = "registration",
-        context: String = "",
-    ): IssuedPhoneVerificationChallenge?
+  /** Returns null when the phone number is currently send-rate-limited. */
+  fun createChallenge(
+      phoneNumber: PhoneNumber,
+      purpose: String = "registration",
+      context: String = "",
+  ): IssuedPhoneVerificationChallenge?
 
-    fun consumeChallenge(
-        phoneNumber: PhoneNumber,
-        proof: PhoneVerificationProof,
-        purpose: String = "registration",
-        context: String = "",
-    ): Boolean
+  fun consumeChallenge(
+      phoneNumber: PhoneNumber,
+      proof: PhoneVerificationProof,
+      purpose: String = "registration",
+      context: String = "",
+  ): Boolean
 }
 
 interface PhoneVerificationCodeSender {
-    fun send(phoneNumber: PhoneNumber, code: String)
+  fun send(phoneNumber: PhoneNumber, code: String)
 }
 
 interface LoginAttemptGuard {
-    fun isAllowed(phoneNumber: PhoneNumber): Boolean
+  fun isAllowed(phoneNumber: PhoneNumber): Boolean
 
-    fun recordFailure(phoneNumber: PhoneNumber)
+  fun recordFailure(phoneNumber: PhoneNumber)
 
-    fun reset(phoneNumber: PhoneNumber)
+  fun reset(phoneNumber: PhoneNumber)
 }

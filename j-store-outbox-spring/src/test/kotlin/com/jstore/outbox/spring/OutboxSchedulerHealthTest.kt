@@ -24,22 +24,22 @@ import org.mockito.kotlin.verify
 
 class OutboxSchedulerHealthTest :
     FunSpec({
-        test("scheduler requests a recovery drain") {
-            val trigger = mock<OutboxRelayTrigger>()
-            val scheduler = OutboxScheduler(trigger, mock())
+      test("scheduler requests a recovery drain") {
+        val trigger = mock<OutboxRelayTrigger>()
+        val scheduler = OutboxScheduler(trigger, mock())
 
-            scheduler.schedulePollAndPublish()
+        scheduler.schedulePollAndPublish()
 
-            verify(trigger).requestDrain()
-        }
+        verify(trigger).requestDrain()
+      }
 
-        test("scheduler records and rethrows poll failures") {
-            val trigger =
-                mock<OutboxRelayTrigger> {
-                    on { requestDrain() } doThrow IllegalStateException("executor unavailable")
-                }
-            val scheduler = OutboxScheduler(trigger, mock())
+      test("scheduler records and rethrows poll failures") {
+        val trigger =
+            mock<OutboxRelayTrigger> {
+              on { requestDrain() } doThrow IllegalStateException("executor unavailable")
+            }
+        val scheduler = OutboxScheduler(trigger, mock())
 
-            shouldThrow<IllegalStateException> { scheduler.schedulePollAndPublish() }
-        }
+        shouldThrow<IllegalStateException> { scheduler.schedulePollAndPublish() }
+      }
     })

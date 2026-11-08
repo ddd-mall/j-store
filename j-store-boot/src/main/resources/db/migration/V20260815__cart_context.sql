@@ -16,7 +16,7 @@ CREATE TABLE cart_lines (
     sku_id bigint NOT NULL,
     offer_id bigint NOT NULL,
     merchant_id bigint NOT NULL,
-    quantity integer NOT NULL CHECK (quantity BETWEEN 1 AND 999),
+    quantity integer NOT NULL CHECK (quantity > 0),
     selected boolean NOT NULL,
     added_at timestamp with time zone NOT NULL,
     modified_at timestamp with time zone NOT NULL,

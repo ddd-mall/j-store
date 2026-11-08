@@ -23,23 +23,23 @@ import java.time.Instant
 
 class DomainEventListenerUtilsTest :
     FunSpec({
-        test("resolves direct listener generic event type") {
-            DomainEventListenerUtils.getListeningEventType(DirectTestEventListener()) shouldBe
-                TestEvent::class.java
-        }
+      test("resolves direct listener generic event type") {
+        DomainEventListenerUtils.getListeningEventType(DirectTestEventListener()) shouldBe
+            TestEvent::class.java
+      }
 
-        test("resolves listener event type through parameterized base class") {
-            DomainEventListenerUtils.getListeningEventType(InheritedTestEventListener()) shouldBe
-                TestEvent::class.java
-        }
+      test("resolves listener event type through parameterized base class") {
+        DomainEventListenerUtils.getListeningEventType(InheritedTestEventListener()) shouldBe
+            TestEvent::class.java
+      }
 
-        test("fails when listener event type is still an unresolved type variable") {
-            shouldThrow<IllegalArgumentException> {
-                DomainEventListenerUtils.requireListeningEventType(
-                    RawGenericTestEventListener<DomainEvent>()
-                )
-            }
+      test("fails when listener event type is still an unresolved type variable") {
+        shouldThrow<IllegalArgumentException> {
+          DomainEventListenerUtils.requireListeningEventType(
+              RawGenericTestEventListener<DomainEvent>()
+          )
         }
+      }
     })
 
 private data class TestEvent(
@@ -52,21 +52,21 @@ private data class TestEvent(
 ) : DomainEvent
 
 private class DirectTestEventListener : DomainEventListener<TestEvent> {
-    override fun listenerId(): String = "test.direct"
+  override fun listenerId(): String = "test.direct"
 
-    override fun onDomainEvent(event: TestEvent) {}
+  override fun onDomainEvent(event: TestEvent) {}
 }
 
 private abstract class BaseTestEventListener<T : DomainEvent> : DomainEventListener<T> {
-    override fun listenerId(): String = "test.base"
+  override fun listenerId(): String = "test.base"
 }
 
 private class InheritedTestEventListener : BaseTestEventListener<TestEvent>() {
-    override fun onDomainEvent(event: TestEvent) {}
+  override fun onDomainEvent(event: TestEvent) {}
 }
 
 private class RawGenericTestEventListener<T : DomainEvent> : DomainEventListener<T> {
-    override fun listenerId(): String = "test.raw-generic"
+  override fun listenerId(): String = "test.raw-generic"
 
-    override fun onDomainEvent(event: T) {}
+  override fun onDomainEvent(event: T) {}
 }

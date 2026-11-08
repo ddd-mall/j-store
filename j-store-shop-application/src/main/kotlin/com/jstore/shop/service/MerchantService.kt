@@ -35,62 +35,62 @@ import com.jstore.shop.domain.merchant.MerchantRole
 import com.jstore.shop.domain.merchant.MerchantStatus
 
 fun interface MerchantIdGenerator {
-    fun nextId(): Long
+  fun nextId(): Long
 }
 
 fun interface UserAccountLookup {
-    fun exists(userId: Long): Boolean
+  fun exists(userId: Long): Boolean
 }
 
 data class MerchantAccountView(val merchant: Merchant, val membership: MerchantMembership)
 
 interface MerchantUseCase {
-    fun create(creatorUserId: Long, name: String): Result<Merchant, BusinessError>
+  fun create(creatorUserId: Long, name: String): Result<Merchant, BusinessError>
 
-    fun listForUser(userId: Long): List<MerchantAccountView>
+  fun listForUser(userId: Long): List<MerchantAccountView>
 
-    fun addMember(
-        actorUserId: Long,
-        merchantId: MerchantId,
-        userId: Long,
-        roles: Set<MerchantRole>,
-    ): Result<MerchantMembership, BusinessError>
+  fun addMember(
+      actorUserId: Long,
+      merchantId: MerchantId,
+      userId: Long,
+      roles: Set<MerchantRole>,
+  ): Result<MerchantMembership, BusinessError>
 
-    fun changeMemberRoles(
-        actorUserId: Long,
-        merchantId: MerchantId,
-        memberUserId: Long,
-        roles: Set<MerchantRole>,
-    ): Result<MerchantMembership, BusinessError>
+  fun changeMemberRoles(
+      actorUserId: Long,
+      merchantId: MerchantId,
+      memberUserId: Long,
+      roles: Set<MerchantRole>,
+  ): Result<MerchantMembership, BusinessError>
 
-    fun disableMember(
-        actorUserId: Long,
-        merchantId: MerchantId,
-        memberUserId: Long,
-    ): Result<Unit, BusinessError>
+  fun disableMember(
+      actorUserId: Long,
+      merchantId: MerchantId,
+      memberUserId: Long,
+  ): Result<Unit, BusinessError>
 }
 
 class MerchantAuthorizationService(
     private val merchantRepository: MerchantRepository,
     private val membershipRepository: MerchantMembershipRepository,
 ) : MerchantAuthorizationQuery {
-    override fun isAllowed(accountId: Long, merchantId: Long, capability: MerchantCapability) =
-        hasPermission(
-            accountId,
-            MerchantId(merchantId),
-            MerchantPermission.valueOf(capability.name),
-        )
+  override fun isAllowed(accountId: Long, merchantId: Long, capability: MerchantCapability) =
+      hasPermission(
+          accountId,
+          MerchantId(merchantId),
+          MerchantPermission.valueOf(capability.name),
+      )
 
-    fun hasPermission(
-        userId: Long,
-        merchantId: MerchantId,
-        permission: MerchantPermission,
-    ): Boolean {
-        val merchant = merchantRepository.findById(merchantId) ?: return false
-        if (merchant.status != MerchantStatus.ACTIVE) return false
-        return membershipRepository.findByMerchantAndUser(merchantId, userId)?.allows(permission) ==
-            true
-    }
+  fun hasPermission(
+      userId: Long,
+      merchantId: MerchantId,
+      permission: MerchantPermission,
+  ): Boolean {
+    val merchant = merchantRepository.findById(merchantId) ?: return false
+    if (merchant.status != MerchantStatus.ACTIVE) return false
+    return membershipRepository.findByMerchantAndUser(merchantId, userId)?.allows(permission) ==
+        true
+  }
 }
 
 class MerchantService(
@@ -99,100 +99,99 @@ class MerchantService(
     private val membershipRepository: MerchantMembershipRepository,
     private val userAccountLookup: UserAccountLookup,
 ) : MerchantUseCase {
-    private val authorization =
-        MerchantAuthorizationService(merchantRepository, membershipRepository)
+  private val authorization = MerchantAuthorizationService(merchantRepository, membershipRepository)
 
-    override fun create(creatorUserId: Long, name: String): Result<Merchant, BusinessError> {
-        if (!userAccountLookup.exists(creatorUserId)) return Failure(MerchantErrors.USER_NOT_FOUND)
-        if (!Merchant.validName(name.trim())) return Failure(MerchantErrors.NAME_INVALID)
-        val merchant = Merchant(MerchantId(idGenerator.nextId()), name)
-        val owner =
-            MerchantMembership(
-                MerchantMembershipId(idGenerator.nextId()),
-                merchant.id,
-                creatorUserId,
-                setOf(MerchantRole.OWNER),
-            )
-        val saved = merchantRepository.save(merchant)
-        membershipRepository.save(owner)
-        return Success(saved)
+  override fun create(creatorUserId: Long, name: String): Result<Merchant, BusinessError> {
+    if (!userAccountLookup.exists(creatorUserId)) return Failure(MerchantErrors.USER_NOT_FOUND)
+    if (!Merchant.validName(name.trim())) return Failure(MerchantErrors.NAME_INVALID)
+    val merchant = Merchant(MerchantId(idGenerator.nextId()), name)
+    val owner =
+        MerchantMembership(
+            MerchantMembershipId(idGenerator.nextId()),
+            merchant.id,
+            creatorUserId,
+            setOf(MerchantRole.OWNER),
+        )
+    val saved = merchantRepository.save(merchant)
+    membershipRepository.save(owner)
+    return Success(saved)
+  }
+
+  override fun listForUser(userId: Long): List<MerchantAccountView> =
+      membershipRepository.findByUser(userId).mapNotNull { membership ->
+        merchantRepository.findById(membership.merchantId)?.let {
+          MerchantAccountView(it, membership)
+        }
+      }
+
+  override fun addMember(
+      actorUserId: Long,
+      merchantId: MerchantId,
+      userId: Long,
+      roles: Set<MerchantRole>,
+  ): Result<MerchantMembership, BusinessError> {
+    authorizeMemberManagement(actorUserId, merchantId).onFailure {
+      return Failure(it)
     }
-
-    override fun listForUser(userId: Long): List<MerchantAccountView> =
-        membershipRepository.findByUser(userId).mapNotNull { membership ->
-            merchantRepository.findById(membership.merchantId)?.let {
-                MerchantAccountView(it, membership)
-            }
-        }
-
-    override fun addMember(
-        actorUserId: Long,
-        merchantId: MerchantId,
-        userId: Long,
-        roles: Set<MerchantRole>,
-    ): Result<MerchantMembership, BusinessError> {
-        authorizeMemberManagement(actorUserId, merchantId).onFailure {
-            return Failure(it)
-        }
-        if (!userAccountLookup.exists(userId)) return Failure(MerchantErrors.USER_NOT_FOUND)
-        if (roles.isEmpty()) return Failure(MerchantErrors.ROLES_EMPTY)
-        if (MerchantRole.OWNER in roles) return Failure(MerchantErrors.OWNER_ROLE_RESERVED)
-        if (membershipRepository.findByMerchantAndUser(merchantId, userId) != null) {
-            return Failure(MerchantErrors.MEMBER_ALREADY_EXISTS)
-        }
-        val membership =
-            MerchantMembership(
-                MerchantMembershipId(idGenerator.nextId()),
-                merchantId,
-                userId,
-                roles,
-            )
-        return Success(membershipRepository.save(membership))
+    if (!userAccountLookup.exists(userId)) return Failure(MerchantErrors.USER_NOT_FOUND)
+    if (roles.isEmpty()) return Failure(MerchantErrors.ROLES_EMPTY)
+    if (MerchantRole.OWNER in roles) return Failure(MerchantErrors.OWNER_ROLE_RESERVED)
+    if (membershipRepository.findByMerchantAndUser(merchantId, userId) != null) {
+      return Failure(MerchantErrors.MEMBER_ALREADY_EXISTS)
     }
+    val membership =
+        MerchantMembership(
+            MerchantMembershipId(idGenerator.nextId()),
+            merchantId,
+            userId,
+            roles,
+        )
+    return Success(membershipRepository.save(membership))
+  }
 
-    override fun changeMemberRoles(
-        actorUserId: Long,
-        merchantId: MerchantId,
-        memberUserId: Long,
-        roles: Set<MerchantRole>,
-    ): Result<MerchantMembership, BusinessError> {
-        authorizeMemberManagement(actorUserId, merchantId).onFailure {
-            return Failure(it)
-        }
-        val membership =
-            membershipRepository.findByMerchantAndUser(merchantId, memberUserId)
-                ?: return Failure(MerchantErrors.MEMBER_NOT_FOUND)
-        membership.changeRoles(roles).onFailure {
-            return Failure(it)
-        }
-        return Success(membershipRepository.save(membership))
+  override fun changeMemberRoles(
+      actorUserId: Long,
+      merchantId: MerchantId,
+      memberUserId: Long,
+      roles: Set<MerchantRole>,
+  ): Result<MerchantMembership, BusinessError> {
+    authorizeMemberManagement(actorUserId, merchantId).onFailure {
+      return Failure(it)
     }
-
-    override fun disableMember(
-        actorUserId: Long,
-        merchantId: MerchantId,
-        memberUserId: Long,
-    ): Result<Unit, BusinessError> {
-        authorizeMemberManagement(actorUserId, merchantId).onFailure {
-            return Failure(it)
-        }
-        val membership =
-            membershipRepository.findByMerchantAndUser(merchantId, memberUserId)
-                ?: return Failure(MerchantErrors.MEMBER_NOT_FOUND)
-        membership.disable().onFailure {
-            return Failure(it)
-        }
-        membershipRepository.save(membership)
-        return Success(Unit)
+    val membership =
+        membershipRepository.findByMerchantAndUser(merchantId, memberUserId)
+            ?: return Failure(MerchantErrors.MEMBER_NOT_FOUND)
+    membership.changeRoles(roles).onFailure {
+      return Failure(it)
     }
+    return Success(membershipRepository.save(membership))
+  }
 
-    private fun authorizeMemberManagement(
-        userId: Long,
-        merchantId: MerchantId,
-    ): Result<Unit, BusinessError> =
-        if (authorization.hasPermission(userId, merchantId, MerchantPermission.MEMBER_MANAGE)) {
-            Success(Unit)
-        } else {
-            Failure(MerchantErrors.FORBIDDEN)
-        }
+  override fun disableMember(
+      actorUserId: Long,
+      merchantId: MerchantId,
+      memberUserId: Long,
+  ): Result<Unit, BusinessError> {
+    authorizeMemberManagement(actorUserId, merchantId).onFailure {
+      return Failure(it)
+    }
+    val membership =
+        membershipRepository.findByMerchantAndUser(merchantId, memberUserId)
+            ?: return Failure(MerchantErrors.MEMBER_NOT_FOUND)
+    membership.disable().onFailure {
+      return Failure(it)
+    }
+    membershipRepository.save(membership)
+    return Success(Unit)
+  }
+
+  private fun authorizeMemberManagement(
+      userId: Long,
+      merchantId: MerchantId,
+  ): Result<Unit, BusinessError> =
+      if (authorization.hasPermission(userId, merchantId, MerchantPermission.MEMBER_MANAGE)) {
+        Success(Unit)
+      } else {
+        Failure(MerchantErrors.FORBIDDEN)
+      }
 }

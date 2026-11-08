@@ -23,7 +23,7 @@ data class SaleAuthorizationRef(
     val offerId: Long,
     val expiresAt: Instant,
 ) {
-    init {
-        require(authorizationId.isNotBlank() && offerId > 0)
-    }
+  init {
+    require(authorizationId.isNotBlank() && offerId > 0)
+  }
 }

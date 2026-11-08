@@ -31,157 +31,150 @@ class DigestAuthorizationService(
     clients: RegisteredClientRepository,
     private val active: (OAuth2Authorization) -> Boolean = { true },
 ) : OAuth2AuthorizationService {
-    private val delegate =
-        JdbcOAuth2AuthorizationService(jdbc, clients).apply {
-            val mapper = com.fasterxml.jackson.databind.ObjectMapper()
-            mapper.registerModules(
-                org.springframework.security.jackson2.SecurityJackson2Modules.getModules(
-                    javaClass.classLoader
-                )
+  private val delegate =
+      JdbcOAuth2AuthorizationService(jdbc, clients).apply {
+        val mapper = com.fasterxml.jackson.databind.ObjectMapper()
+        mapper.registerModules(
+            org.springframework.security.jackson2.SecurityJackson2Modules.getModules(
+                javaClass.classLoader
             )
-            mapper.registerModule(
-                org.springframework.security.oauth2.server.authorization.jackson2
-                    .OAuth2AuthorizationServerJackson2Module()
-            )
-            // Session epochs and auth_time are immutable scalars, not arbitrary polymorphic types.
-            mapper.addMixIn(java.lang.Long::class.java, LongScalar::class.java)
-            setAuthorizationRowMapper(
-                JdbcOAuth2AuthorizationService.OAuth2AuthorizationRowMapper(clients).apply {
-                    setObjectMapper(mapper)
-                }
-            )
-            setAuthorizationParametersMapper(
-                JdbcOAuth2AuthorizationService.OAuth2AuthorizationParametersMapper().apply {
-                    setObjectMapper(mapper)
-                }
-            )
-        }
-
-    @com.fasterxml.jackson.annotation.JsonTypeInfo(
-        use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.CLASS
-    )
-    private abstract class LongScalar
-
-    override fun save(authorization: OAuth2Authorization) {
-        requireTransaction()
-        val builder = OAuth2Authorization.from(authorization)
-        authorization.getToken(OAuth2AuthorizationCode::class.java)?.let { entry ->
-            builder.token(
-                OAuth2AuthorizationCode(
-                    digest(entry.token.tokenValue),
-                    entry.token.issuedAt,
-                    entry.token.expiresAt,
-                )
-            ) {
-                it.putAll(entry.metadata)
+        )
+        mapper.registerModule(
+            org.springframework.security.oauth2.server.authorization.jackson2
+                .OAuth2AuthorizationServerJackson2Module()
+        )
+        // Session epochs and auth_time are immutable scalars, not arbitrary polymorphic types.
+        mapper.addMixIn(java.lang.Long::class.java, LongScalar::class.java)
+        setAuthorizationRowMapper(
+            JdbcOAuth2AuthorizationService.OAuth2AuthorizationRowMapper(clients).apply {
+              setObjectMapper(mapper)
             }
-        }
-        authorization.refreshToken?.let { entry ->
-            val hash = digest(entry.token.tokenValue)
-            jdbc.update(
-                "INSERT INTO oauth2_token_history(digest, authorization_id, expires_at) VALUES (?, ?, ?) ON CONFLICT (digest) DO NOTHING",
-                hash,
-                authorization.id,
-                java.sql.Timestamp.from(requireNotNull(entry.token.expiresAt)),
-            )
-            builder.refreshToken(
-                OAuth2RefreshToken(hash, entry.token.issuedAt, entry.token.expiresAt)
-            )
-            builder.token(OAuth2RefreshToken(hash, entry.token.issuedAt, entry.token.expiresAt)) {
-                it.putAll(entry.metadata)
+        )
+        setAuthorizationParametersMapper(
+            JdbcOAuth2AuthorizationService.OAuth2AuthorizationParametersMapper().apply {
+              setObjectMapper(mapper)
             }
-        }
-        delegate.save(builder.build())
+        )
+      }
+
+  @com.fasterxml.jackson.annotation.JsonTypeInfo(
+      use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.CLASS
+  )
+  private abstract class LongScalar
+
+  override fun save(authorization: OAuth2Authorization) {
+    requireTransaction()
+    val builder = OAuth2Authorization.from(authorization)
+    authorization.getToken(OAuth2AuthorizationCode::class.java)?.let { entry ->
+      builder.token(
+          OAuth2AuthorizationCode(
+              digest(entry.token.tokenValue),
+              entry.token.issuedAt,
+              entry.token.expiresAt,
+          )
+      ) {
+        it.putAll(entry.metadata)
+      }
     }
-
-    override fun remove(authorization: OAuth2Authorization) {
-        requireTransaction()
-        delegate.remove(authorization)
-        // History intentionally survives removal until expiry to prevent credential resurrection.
+    authorization.refreshToken?.let { entry ->
+      val hash = digest(entry.token.tokenValue)
+      jdbc.update(
+          "INSERT INTO oauth2_token_history(digest, authorization_id, expires_at) VALUES (?, ?, ?) ON CONFLICT (digest) DO NOTHING",
+          hash,
+          authorization.id,
+          java.sql.Timestamp.from(requireNotNull(entry.token.expiresAt)),
+      )
+      builder.refreshToken(OAuth2RefreshToken(hash, entry.token.issuedAt, entry.token.expiresAt))
+      builder.token(OAuth2RefreshToken(hash, entry.token.issuedAt, entry.token.expiresAt)) {
+        it.putAll(entry.metadata)
+      }
     }
+    delegate.save(builder.build())
+  }
 
-    override fun findById(id: String): OAuth2Authorization? = delegate.findById(id)
+  override fun remove(authorization: OAuth2Authorization) {
+    requireTransaction()
+    delegate.remove(authorization)
+    // History intentionally survives removal until expiry to prevent credential resurrection.
+  }
 
-    override fun findByToken(token: String, tokenType: OAuth2TokenType?): OAuth2Authorization? {
-        if (tokenType?.value == "code") {
-            requireTransaction()
-            lockCode(hash(token))
-            val auth =
-                delegate.findByToken(hash(token), tokenType)?.takeIf(::accessible) ?: return null
-            val entry = auth.getToken(OAuth2AuthorizationCode::class.java) ?: return null
-            return OAuth2Authorization.from(auth)
-                .token(
-                    OAuth2AuthorizationCode(token, entry.token.issuedAt, entry.token.expiresAt)
-                ) {
-                    it.putAll(entry.metadata)
-                }
-                .build()
-        }
-        if (tokenType == OAuth2TokenType.REFRESH_TOKEN) return findRefresh(token)
-        if (tokenType == null) {
-            // Revocation may omit token_type_hint. Access/ID/state values are not refresh
-            // credentials.
-            return delegate.findByToken(token, null)?.takeIf(::accessible) ?: findRefresh(token)
-        }
-        return delegate.findByToken(token, tokenType)?.takeIf(::accessible)
+  override fun findById(id: String): OAuth2Authorization? = delegate.findById(id)
+
+  override fun findByToken(token: String, tokenType: OAuth2TokenType?): OAuth2Authorization? {
+    if (tokenType?.value == "code") {
+      requireTransaction()
+      lockCode(hash(token))
+      val auth = delegate.findByToken(hash(token), tokenType)?.takeIf(::accessible) ?: return null
+      val entry = auth.getToken(OAuth2AuthorizationCode::class.java) ?: return null
+      return OAuth2Authorization.from(auth)
+          .token(OAuth2AuthorizationCode(token, entry.token.issuedAt, entry.token.expiresAt)) {
+            it.putAll(entry.metadata)
+          }
+          .build()
     }
-
-    private fun findRefresh(token: String): OAuth2Authorization? {
-        requireTransaction()
-        val hash = hash(token)
-        val ids =
-            jdbc.query(
-                "SELECT a.id FROM oauth2_authorization a JOIN oauth2_token_history h ON h.authorization_id = a.id WHERE h.digest = ? AND h.expires_at > CURRENT_TIMESTAMP FOR UPDATE OF a",
-                { rs, _ -> rs.getString(1) },
-                hash,
-            )
-        val auth = ids.firstOrNull()?.let(delegate::findById)?.takeIf(::accessible) ?: return null
-        val entry = auth.refreshToken ?: return null
-        if (entry.token.tokenValue != hash) {
-            // A spent refresh credential identifies the family even after rotation.
-            delegate.remove(auth)
-            return null
-        }
-        return OAuth2Authorization.from(auth)
-            .token(OAuth2RefreshToken(token, entry.token.issuedAt, entry.token.expiresAt)) {
-                it.putAll(entry.metadata)
-            }
-            .build()
+    if (tokenType == OAuth2TokenType.REFRESH_TOKEN) return findRefresh(token)
+    if (tokenType == null) {
+      // Revocation may omit token_type_hint. Access/ID/state values are not refresh
+      // credentials.
+      return delegate.findByToken(token, null)?.takeIf(::accessible) ?: findRefresh(token)
     }
+    return delegate.findByToken(token, tokenType)?.takeIf(::accessible)
+  }
 
-    private fun accessible(authorization: OAuth2Authorization): Boolean {
-        val client =
-            org.springframework.security.core.context.SecurityContextHolder.getContext()
-                .authentication
-                as?
-                org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientAuthenticationToken
-        return (client?.registeredClient == null ||
-            client.registeredClient!!.id == authorization.registeredClientId) &&
-            active(authorization)
-    }
-
-    private fun lockCode(hash: String) {
+  private fun findRefresh(token: String): OAuth2Authorization? {
+    requireTransaction()
+    val hash = hash(token)
+    val ids =
         jdbc.query(
-            "SELECT id FROM oauth2_authorization WHERE authorization_code_value = ? FOR UPDATE",
+            "SELECT a.id FROM oauth2_authorization a JOIN oauth2_token_history h ON h.authorization_id = a.id WHERE h.digest = ? AND h.expires_at > CURRENT_TIMESTAMP FOR UPDATE OF a",
             { rs, _ -> rs.getString(1) },
             hash,
         )
+    val auth = ids.firstOrNull()?.let(delegate::findById)?.takeIf(::accessible) ?: return null
+    val entry = auth.refreshToken ?: return null
+    if (entry.token.tokenValue != hash) {
+      // A spent refresh credential identifies the family even after rotation.
+      delegate.remove(auth)
+      return null
     }
-
-    private fun requireTransaction() {
-        check(TransactionSynchronizationManager.isActualTransactionActive()) {
-            "OAuth credential exchange requires a transaction"
+    return OAuth2Authorization.from(auth)
+        .token(OAuth2RefreshToken(token, entry.token.issuedAt, entry.token.expiresAt)) {
+          it.putAll(entry.metadata)
         }
-    }
+        .build()
+  }
 
-    companion object {
-        fun digest(value: String): String =
-            if (value.startsWith("sha256:") && value.length == 71) value else hash(value)
+  private fun accessible(authorization: OAuth2Authorization): Boolean {
+    val client =
+        org.springframework.security.core.context.SecurityContextHolder.getContext().authentication
+            as?
+            org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientAuthenticationToken
+    return (client?.registeredClient == null ||
+        client.registeredClient!!.id == authorization.registeredClientId) && active(authorization)
+  }
 
-        fun hash(value: String): String =
-            "sha256:" +
-                MessageDigest.getInstance("SHA-256")
-                    .digest(value.toByteArray(Charsets.UTF_8))
-                    .joinToString("") { "%02x".format(it.toInt() and 255) }
+  private fun lockCode(hash: String) {
+    jdbc.query(
+        "SELECT id FROM oauth2_authorization WHERE authorization_code_value = ? FOR UPDATE",
+        { rs, _ -> rs.getString(1) },
+        hash,
+    )
+  }
+
+  private fun requireTransaction() {
+    check(TransactionSynchronizationManager.isActualTransactionActive()) {
+      "OAuth credential exchange requires a transaction"
     }
+  }
+
+  companion object {
+    fun digest(value: String): String =
+        if (value.startsWith("sha256:") && value.length == 71) value else hash(value)
+
+    fun hash(value: String): String =
+        "sha256:" +
+            MessageDigest.getInstance("SHA-256")
+                .digest(value.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it.toInt() and 255) }
+  }
 }

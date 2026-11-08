@@ -21,15 +21,15 @@ import kotlin.test.assertContentEquals
 import org.springframework.context.annotation.Profile
 
 class PaymentProviderProfileTest {
-    @Test
-    fun `local payment provider is never enabled in production profile`() {
-        listOf("localPaymentProviderGateway", "localPaymentProviderCancellationGateway").forEach {
-            methodName ->
-            val beanMethod = PaymentBootConfiguration::class.java.getDeclaredMethod(methodName)
-            assertContentEquals(
-                arrayOf("!production"),
-                beanMethod.getAnnotation(Profile::class.java).value,
-            )
-        }
+  @Test
+  fun `local payment provider is never enabled in production profile`() {
+    listOf("localPaymentProviderGateway", "localPaymentProviderCancellationGateway").forEach {
+        methodName ->
+      val beanMethod = PaymentBootConfiguration::class.java.getDeclaredMethod(methodName)
+      assertContentEquals(
+          arrayOf("!production"),
+          beanMethod.getAnnotation(Profile::class.java).value,
+      )
     }
+  }
 }

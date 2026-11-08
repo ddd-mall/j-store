@@ -25,16 +25,16 @@ import org.springframework.stereotype.Component
 @Component
 @Profile("local", "dev")
 class DevelopmentPhoneVerificationSender : PhoneVerificationCodeSender {
-    private val logger = LoggerFactory.getLogger(javaClass)
+  private val logger = LoggerFactory.getLogger(javaClass)
 
-    override fun send(phoneNumber: PhoneNumber, code: String) {
-        val nationalNumber = phoneNumber.nationalNumber
-        val maskedNumber =
-            if (nationalNumber.length > 7) {
-                "+${phoneNumber.countryCallingCode}${nationalNumber.take(3)}****${nationalNumber.takeLast(4)}"
-            } else {
-                "+${phoneNumber.countryCallingCode}****"
-            }
-        logger.info("Development phone verification code issued for {}", maskedNumber)
-    }
+  override fun send(phoneNumber: PhoneNumber, code: String) {
+    val nationalNumber = phoneNumber.nationalNumber
+    val maskedNumber =
+        if (nationalNumber.length > 7) {
+          "+${phoneNumber.countryCallingCode}${nationalNumber.take(3)}****${nationalNumber.takeLast(4)}"
+        } else {
+          "+${phoneNumber.countryCallingCode}****"
+        }
+    logger.info("Development phone verification code issued for {}", maskedNumber)
+  }
 }

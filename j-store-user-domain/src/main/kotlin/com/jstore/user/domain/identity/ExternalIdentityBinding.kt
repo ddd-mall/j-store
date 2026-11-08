@@ -22,11 +22,11 @@ import com.jstore.user.domain.useraccount.UserId
 import java.util.UUID
 
 data class ExternalIdentity(val provider: String, val appId: String, val subject: String) {
-    init {
-        require(provider == "wechat")
-        require(appId.isNotBlank() && appId.length <= 128 && appId.none(Char::isWhitespace))
-        require(subject.isNotBlank() && subject.length <= 128 && subject.none(Char::isWhitespace))
-    }
+  init {
+    require(provider == "wechat")
+    require(appId.isNotBlank() && appId.length <= 128 && appId.none(Char::isWhitespace))
+    require(subject.isNotBlank() && subject.length <= 128 && subject.none(Char::isWhitespace))
+  }
 }
 
 data class ExternalIdentityBindingId(val value: String = UUID.randomUUID().toString()) : Identifier
@@ -37,11 +37,11 @@ class ExternalIdentityBinding(
     val userId: UserId,
     val unionId: String? = null,
 ) : AggregateRoot<ExternalIdentityBindingId> {
-    init {
-        require(unionId == null || (unionId.isNotBlank() && unionId.length <= 128))
-    }
+  init {
+    require(unionId == null || (unionId.isNotBlank() && unionId.length <= 128))
+  }
 
-    fun belongsTo(userId: UserId) = this.userId == userId
+  fun belongsTo(userId: UserId) = this.userId == userId
 }
 
 interface ExternalIdentityBindingRepository :
@@ -49,15 +49,15 @@ interface ExternalIdentityBindingRepository :
         ExternalIdentityBindingId,
         ExternalIdentityBinding,
     > {
-    fun findByIdentity(identity: ExternalIdentity): ExternalIdentityBinding?
+  fun findByIdentity(identity: ExternalIdentity): ExternalIdentityBinding?
 
-    fun findByUser(userId: UserId, provider: String, appId: String): ExternalIdentityBinding?
+  fun findByUser(userId: UserId, provider: String, appId: String): ExternalIdentityBinding?
 
-    fun add(binding: ExternalIdentityBinding)
+  fun add(binding: ExternalIdentityBinding)
 }
 
 fun interface WechatIdentityGateway {
-    fun exchange(code: String): VerifiedWechatIdentity?
+  fun exchange(code: String): VerifiedWechatIdentity?
 }
 
 data class VerifiedWechatIdentity(val identity: ExternalIdentity, val unionId: String?)

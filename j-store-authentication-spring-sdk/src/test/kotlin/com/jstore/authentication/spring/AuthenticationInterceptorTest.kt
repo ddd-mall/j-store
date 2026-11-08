@@ -38,99 +38,99 @@ import org.springframework.web.method.HandlerMethod
 class AuthenticationInterceptorTest :
     FunSpec({
 
-        // _需求: 6.4_ — 非预期异常返回 HTTP 500 + Auth.InternalError，不泄露异常详情
-        test(
-            "unexpected exception during token validation returns HTTP 500 with Auth.InternalError"
-        ) {
-            val tokenVerifier = mock<AccessTokenVerifier>()
-            val tokenStore = mock<AuthenticatedSessionStore>()
-            val interceptor =
-                AuthenticationInterceptor(
-                    accessTokenVerifier = tokenVerifier,
-                    tokenStore = tokenStore,
-                    configurers = emptyList(),
-                )
+      // _需求: 6.4_ — 非预期异常返回 HTTP 500 + Auth.InternalError，不泄露异常详情
+      test(
+          "unexpected exception during token validation returns HTTP 500 with Auth.InternalError"
+      ) {
+        val tokenVerifier = mock<AccessTokenVerifier>()
+        val tokenStore = mock<AuthenticatedSessionStore>()
+        val interceptor =
+            AuthenticationInterceptor(
+                accessTokenVerifier = tokenVerifier,
+                tokenStore = tokenStore,
+                configurers = emptyList(),
+            )
 
-            val handlerMethod = mock<HandlerMethod>()
-            whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
+        val handlerMethod = mock<HandlerMethod>()
+        whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
 
-            val request = mock<HttpServletRequest>()
-            whenever(request.getHeader("Authorization")).thenReturn("Bearer sometoken")
-            whenever(request.requestURI).thenReturn("/api/test")
+        val request = mock<HttpServletRequest>()
+        whenever(request.getHeader("Authorization")).thenReturn("Bearer sometoken")
+        whenever(request.requestURI).thenReturn("/api/test")
 
-            // parseAccessToken throws an unexpected RuntimeException
-            whenever(tokenVerifier.verifyAccessToken("sometoken"))
-                .thenThrow(RuntimeException("unexpected DB connection failure"))
+        // parseAccessToken throws an unexpected RuntimeException
+        whenever(tokenVerifier.verifyAccessToken("sometoken"))
+            .thenThrow(RuntimeException("unexpected DB connection failure"))
 
-            val stringWriter = StringWriter()
-            val response = mock<HttpServletResponse>()
-            whenever(response.writer).thenReturn(PrintWriter(stringWriter))
+        val stringWriter = StringWriter()
+        val response = mock<HttpServletResponse>()
+        whenever(response.writer).thenReturn(PrintWriter(stringWriter))
 
-            val result = interceptor.preHandle(request, response, handlerMethod)
+        val result = interceptor.preHandle(request, response, handlerMethod)
 
-            result shouldBe false
-            verify(response).status = 500
-            verify(response).contentType = "application/json"
+        result shouldBe false
+        verify(response).status = 500
+        verify(response).contentType = "application/json"
 
-            val body = stringWriter.toString()
-            body shouldContain "\"errorCode\""
-            body shouldContain "Auth.InternalError"
-            body shouldContain "\"message\""
-            body shouldContain AuthenticationErrors.INTERNAL_ERROR.message
+        val body = stringWriter.toString()
+        body shouldContain "\"errorCode\""
+        body shouldContain "Auth.InternalError"
+        body shouldContain "\"message\""
+        body shouldContain AuthenticationErrors.INTERNAL_ERROR.message
 
-            // Exception details must NOT be leaked in the response
-            body shouldNotContain "unexpected DB connection failure"
-            body shouldNotContain "RuntimeException"
-        }
+        // Exception details must NOT be leaked in the response
+        body shouldNotContain "unexpected DB connection failure"
+        body shouldNotContain "RuntimeException"
+      }
 
-        // _需求: 3.1_ — 注解 + 路径配置同时满足时只执行一次验证
-        test(
-            "when both annotation and path config require auth, token validation executes only once"
-        ) {
-            val tokenVerifier = mock<AccessTokenVerifier>()
-            val tokenStore = mock<AuthenticatedSessionStore>()
+      // _需求: 3.1_ — 注解 + 路径配置同时满足时只执行一次验证
+      test(
+          "when both annotation and path config require auth, token validation executes only once"
+      ) {
+        val tokenVerifier = mock<AccessTokenVerifier>()
+        val tokenStore = mock<AuthenticatedSessionStore>()
 
-            // Configure a path pattern that also matches the request
-            val configurer =
-                object : AuthenticationConfigurer {
-                    override fun authenticatedPathPatterns(): List<String> = listOf("/api/**")
+        // Configure a path pattern that also matches the request
+        val configurer =
+            object : AuthenticationConfigurer {
+              override fun authenticatedPathPatterns(): List<String> = listOf("/api/**")
 
-                    override fun excludedPathPatterns(): List<String> = emptyList()
-                }
+              override fun excludedPathPatterns(): List<String> = emptyList()
+            }
 
-            val interceptor =
-                AuthenticationInterceptor(
-                    accessTokenVerifier = tokenVerifier,
-                    tokenStore = tokenStore,
-                    configurers = listOf(configurer),
-                )
+        val interceptor =
+            AuthenticationInterceptor(
+                accessTokenVerifier = tokenVerifier,
+                tokenStore = tokenStore,
+                configurers = listOf(configurer),
+            )
 
-            // HandlerMethod with @RequireLogin on method
-            val handlerMethod = mock<HandlerMethod>()
-            whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
+        // HandlerMethod with @RequireLogin on method
+        val handlerMethod = mock<HandlerMethod>()
+        whenever(handlerMethod.hasMethodAnnotation(RequireLogin::class.java)).thenReturn(true)
 
-            val request = mock<HttpServletRequest>()
-            whenever(request.getHeader("Authorization")).thenReturn("Bearer validtoken")
-            whenever(request.requestURI).thenReturn("/api/orders")
+        val request = mock<HttpServletRequest>()
+        whenever(request.getHeader("Authorization")).thenReturn("Bearer validtoken")
+        whenever(request.requestURI).thenReturn("/api/orders")
 
-            // Mock valid token flow
-            val principal =
-                AuthenticatedPrincipal(
-                    "issuer-a",
-                    AuthenticatedAccountId(42L),
-                    AuthenticatedSession("session-1", 2L),
-                )
-            whenever(tokenVerifier.verifyAccessToken("validtoken")).thenReturn(principal)
-            whenever(tokenStore.isSessionActive(AuthenticatedAccountId(42L), "session-1", 2L))
-                .thenReturn(true)
+        // Mock valid token flow
+        val principal =
+            AuthenticatedPrincipal(
+                "issuer-a",
+                AuthenticatedAccountId(42L),
+                AuthenticatedSession("session-1", 2L),
+            )
+        whenever(tokenVerifier.verifyAccessToken("validtoken")).thenReturn(principal)
+        whenever(tokenStore.isSessionActive(AuthenticatedAccountId(42L), "session-1", 2L))
+            .thenReturn(true)
 
-            val response = mock<HttpServletResponse>()
+        val response = mock<HttpServletResponse>()
 
-            val result = interceptor.preHandle(request, response, handlerMethod)
+        val result = interceptor.preHandle(request, response, handlerMethod)
 
-            result shouldBe true
+        result shouldBe true
 
-            // parseAccessToken should be called exactly once — not twice for annotation + path
-            verify(tokenVerifier, times(1)).verifyAccessToken("validtoken")
-        }
+        // parseAccessToken should be called exactly once — not twice for annotation + path
+        verify(tokenVerifier, times(1)).verifyAccessToken("validtoken")
+      }
     })

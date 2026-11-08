@@ -26,65 +26,65 @@ import com.jstore.shop.api.MerchantAuthorizationQuery
 import com.jstore.shop.api.MerchantCapability
 
 interface MerchantFulfillmentUseCase {
-    fun get(accountId: Long, orderId: Long): Result<FulfillmentOrder, BusinessError>
+  fun get(accountId: Long, orderId: Long): Result<FulfillmentOrder, BusinessError>
 
-    fun prepare(accountId: Long, orderId: Long): Result<Boolean, BusinessError>
+  fun prepare(accountId: Long, orderId: Long): Result<Boolean, BusinessError>
 
-    fun dispatch(
-        accountId: Long,
-        orderId: Long,
-        carrierCode: String,
-        trackingNumber: String,
-    ): Result<Boolean, BusinessError>
+  fun dispatch(
+      accountId: Long,
+      orderId: Long,
+      carrierCode: String,
+      trackingNumber: String,
+  ): Result<Boolean, BusinessError>
 
-    fun deliver(accountId: Long, orderId: Long): Result<Boolean, BusinessError>
+  fun deliver(accountId: Long, orderId: Long): Result<Boolean, BusinessError>
 }
 
 class MerchantFulfillmentService(
     private val fulfillments: FulfillmentUseCase,
     private val authorization: MerchantAuthorizationQuery,
 ) : MerchantFulfillmentUseCase {
-    override fun get(accountId: Long, orderId: Long): Result<FulfillmentOrder, BusinessError> =
-        authorized(accountId, orderId, MerchantCapability.FULFILLMENT_READ)
+  override fun get(accountId: Long, orderId: Long): Result<FulfillmentOrder, BusinessError> =
+      authorized(accountId, orderId, MerchantCapability.FULFILLMENT_READ)
 
-    override fun prepare(accountId: Long, orderId: Long): Result<Boolean, BusinessError> =
-        mutate(accountId, orderId) { fulfillments.prepare(orderId) }
+  override fun prepare(accountId: Long, orderId: Long): Result<Boolean, BusinessError> =
+      mutate(accountId, orderId) { fulfillments.prepare(orderId) }
 
-    override fun dispatch(
-        accountId: Long,
-        orderId: Long,
-        carrierCode: String,
-        trackingNumber: String,
-    ): Result<Boolean, BusinessError> =
-        mutate(accountId, orderId) {
-            fulfillments.dispatch(orderId, carrierCode, trackingNumber)
+  override fun dispatch(
+      accountId: Long,
+      orderId: Long,
+      carrierCode: String,
+      trackingNumber: String,
+  ): Result<Boolean, BusinessError> =
+      mutate(accountId, orderId) {
+        fulfillments.dispatch(orderId, carrierCode, trackingNumber)
+      }
+
+  override fun deliver(accountId: Long, orderId: Long): Result<Boolean, BusinessError> =
+      mutate(accountId, orderId) { fulfillments.deliver(orderId) }
+
+  private fun mutate(
+      accountId: Long,
+      orderId: Long,
+      operation: () -> Result<Boolean, BusinessError>,
+  ): Result<Boolean, BusinessError> =
+      when (authorized(accountId, orderId, MerchantCapability.FULFILLMENT_MANAGE)) {
+        is Success -> operation()
+        is Failure -> Failure(FulfillmentErrors.NOT_FOUND)
+      }
+
+  private fun authorized(
+      accountId: Long,
+      orderId: Long,
+      capability: MerchantCapability,
+  ): Result<FulfillmentOrder, BusinessError> {
+    val fulfillment =
+        when (val result = fulfillments.getByOrderId(orderId)) {
+          is Success -> result.value
+          is Failure -> return result
         }
-
-    override fun deliver(accountId: Long, orderId: Long): Result<Boolean, BusinessError> =
-        mutate(accountId, orderId) { fulfillments.deliver(orderId) }
-
-    private fun mutate(
-        accountId: Long,
-        orderId: Long,
-        operation: () -> Result<Boolean, BusinessError>,
-    ): Result<Boolean, BusinessError> =
-        when (authorized(accountId, orderId, MerchantCapability.FULFILLMENT_MANAGE)) {
-            is Success -> operation()
-            is Failure -> Failure(FulfillmentErrors.NOT_FOUND)
-        }
-
-    private fun authorized(
-        accountId: Long,
-        orderId: Long,
-        capability: MerchantCapability,
-    ): Result<FulfillmentOrder, BusinessError> {
-        val fulfillment =
-            when (val result = fulfillments.getByOrderId(orderId)) {
-                is Success -> result.value
-                is Failure -> return result
-            }
-        return if (authorization.isAllowed(accountId, fulfillment.merchantId, capability))
-            Success(fulfillment)
-        else Failure(FulfillmentErrors.NOT_FOUND)
-    }
+    return if (authorization.isAllowed(accountId, fulfillment.merchantId, capability))
+        Success(fulfillment)
+    else Failure(FulfillmentErrors.NOT_FOUND)
+  }
 }

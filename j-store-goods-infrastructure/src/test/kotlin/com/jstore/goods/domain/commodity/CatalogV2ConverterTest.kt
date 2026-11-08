@@ -26,70 +26,69 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class CatalogV2ConverterTest {
-    @Test
-    fun `spu converter preserves draft sku source identity`() {
-        val draft =
-            SpuImpl(
-                id = SpuId(2),
-                merchantId = MerchantId(7),
-                name = "T恤草稿",
-                _status = CommodityStatus.DRAFT,
-                _skus =
-                    mutableListOf(
-                        SkuImpl(
-                            SkuId(901),
-                            "红色",
-                            listOf(Attribute("color", "red")),
-                            sourceSkuId = SkuId(101),
-                        )
-                    ),
-                sourceSpuId = SpuId(1),
-            )
-
-        val roundTrip =
-            SpuRepositoryImpl.Converter.toDomain(SpuRepositoryImpl.Converter.toPO(draft))
-
-        assertEquals(SkuId(101), roundTrip.skus.single().sourceSkuId)
-    }
-
-    @Test
-    fun `snapshot converter preserves versioned style content`() {
-        val snapshot =
-            SpuSnapshot(
-                id = SpuSnapshotId(5),
-                merchantId = MerchantId(7),
-                spuId = SpuId(1),
-                snapshotVersion = 4,
-                spuName = "咖啡",
-                description = "日晒",
-                skuSnapshots =
-                    listOf(
-                        SkuSnapshot(
-                            skuId = SkuId(11),
-                            skuName = "250g",
-                            attributes = emptyList(),
-                            imageKeys = listOf("sku-image"),
-                        )
-                    ),
-                mainImages = listOf("main-image"),
-                detailHtml = "<p>detail</p>",
-                brandId = BrandId(9),
-                brandName = LocalizedText.of("zh-CN" to "山野"),
-                createdAt = LocalDateTime.of(2026, 8, 13, 12, 0),
-            )
-
-        val roundTrip =
-            SpuSnapshotRepositoryImpl.Converter.toDomain(
-                SpuSnapshotRepositoryImpl.Converter.toPO(snapshot)
-            )
-
-        assertEquals(snapshot.mainImages, roundTrip.mainImages)
-        assertEquals(snapshot.detailHtml, roundTrip.detailHtml)
-        assertEquals(snapshot.brandId, roundTrip.brandId)
-        assertEquals(snapshot.brandName, roundTrip.brandName)
-        assertEquals(
-            snapshot.skuSnapshots.single().imageKeys,
-            roundTrip.skuSnapshots.single().imageKeys,
+  @Test
+  fun `spu converter preserves draft sku source identity`() {
+    val draft =
+        SpuImpl(
+            id = SpuId(2),
+            merchantId = MerchantId(7),
+            name = "T恤草稿",
+            _status = CommodityStatus.DRAFT,
+            _skus =
+                mutableListOf(
+                    SkuImpl(
+                        SkuId(901),
+                        "红色",
+                        listOf(Attribute("color", "red")),
+                        sourceSkuId = SkuId(101),
+                    )
+                ),
+            sourceSpuId = SpuId(1),
         )
-    }
+
+    val roundTrip = SpuRepositoryImpl.Converter.toDomain(SpuRepositoryImpl.Converter.toPO(draft))
+
+    assertEquals(SkuId(101), roundTrip.skus.single().sourceSkuId)
+  }
+
+  @Test
+  fun `snapshot converter preserves versioned style content`() {
+    val snapshot =
+        SpuSnapshot(
+            id = SpuSnapshotId(5),
+            merchantId = MerchantId(7),
+            spuId = SpuId(1),
+            snapshotVersion = 4,
+            spuName = "咖啡",
+            description = "日晒",
+            skuSnapshots =
+                listOf(
+                    SkuSnapshot(
+                        skuId = SkuId(11),
+                        skuName = "250g",
+                        attributes = emptyList(),
+                        imageKeys = listOf("sku-image"),
+                    )
+                ),
+            mainImages = listOf("main-image"),
+            detailHtml = "<p>detail</p>",
+            brandId = BrandId(9),
+            brandName = LocalizedText.of("zh-CN" to "山野"),
+            createdAt = LocalDateTime.of(2026, 8, 13, 12, 0),
+        )
+
+    val roundTrip =
+        SpuSnapshotRepositoryImpl.Converter.toDomain(
+            SpuSnapshotRepositoryImpl.Converter.toPO(snapshot)
+        )
+
+    assertEquals(snapshot.mainImages, roundTrip.mainImages)
+    assertEquals(snapshot.detailHtml, roundTrip.detailHtml)
+    assertEquals(snapshot.brandId, roundTrip.brandId)
+    assertEquals(snapshot.brandName, roundTrip.brandName)
+    assertEquals(
+        snapshot.skuSnapshots.single().imageKeys,
+        roundTrip.skuSnapshots.single().imageKeys,
+    )
+  }
 }

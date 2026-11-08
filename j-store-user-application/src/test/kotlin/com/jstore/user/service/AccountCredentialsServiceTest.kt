@@ -26,36 +26,36 @@ import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
 
 class AccountCredentialsServiceTest {
-    private val accounts = mock<UserAccountRepository>()
-    private val hasher = mock<PasswordHasher>()
-    private val attempts = mock<LoginAttemptGuard>()
-    private val phone = PhoneNumber("+8613800138000")
-    private val service = AccountCredentialsService(accounts, hasher, attempts)
+  private val accounts = mock<UserAccountRepository>()
+  private val hasher = mock<PasswordHasher>()
+  private val attempts = mock<LoginAttemptGuard>()
+  private val phone = PhoneNumber("+8613800138000")
+  private val service = AccountCredentialsService(accounts, hasher, attempts)
 
-    @Test
-    fun `unknown phone and wrong password have same failure and increment guard`() {
-        whenever(attempts.isAllowed(phone)).thenReturn(true)
-        assertEquals(
-            UserAccountErrors.INVALID_CREDENTIALS,
-            assertIs<Failure<*>>(service.authenticate(phone, "wrong")).error,
-        )
-        verify(attempts).recordFailure(phone)
-    }
+  @Test
+  fun `unknown phone and wrong password have same failure and increment guard`() {
+    whenever(attempts.isAllowed(phone)).thenReturn(true)
+    assertEquals(
+        UserAccountErrors.INVALID_CREDENTIALS,
+        assertIs<Failure<*>>(service.authenticate(phone, "wrong")).error,
+    )
+    verify(attempts).recordFailure(phone)
+  }
 
-    @Test
-    fun `valid local credentials return stable identity without issuing credentials`() {
-        val account = mock<UserAccount>()
-        whenever(account.id).thenReturn(UserId(42))
-        whenever(account.passwordHash).thenReturn(Password("hash"))
-        whenever(account.status).thenReturn(UserAccountStatus.ACTIVE)
-        whenever(accounts.findByPhoneNumber(phone)).thenReturn(account)
-        whenever(attempts.isAllowed(phone)).thenReturn(true)
-        whenever(hasher.matches("password1", "hash")).thenReturn(true)
-        assertEquals(
-            UserId(42),
-            assertIs<Success<*>>(service.authenticate(phone, "password1")).value,
-        )
-        verify(attempts).reset(phone)
-        verify(accounts, never()).save(any())
-    }
+  @Test
+  fun `valid local credentials return stable identity without issuing credentials`() {
+    val account = mock<UserAccount>()
+    whenever(account.id).thenReturn(UserId(42))
+    whenever(account.passwordHash).thenReturn(Password("hash"))
+    whenever(account.status).thenReturn(UserAccountStatus.ACTIVE)
+    whenever(accounts.findByPhoneNumber(phone)).thenReturn(account)
+    whenever(attempts.isAllowed(phone)).thenReturn(true)
+    whenever(hasher.matches("password1", "hash")).thenReturn(true)
+    assertEquals(
+        UserId(42),
+        assertIs<Success<*>>(service.authenticate(phone, "password1")).value,
+    )
+    verify(attempts).reset(phone)
+    verify(accounts, never()).save(any())
+  }
 }

@@ -36,78 +36,76 @@ open class OutboxIntegrationMessagePublisher(
     private val streamSequenceAllocator: OutboxStreamSequenceAllocator,
 ) : IntegrationMessagePublisher {
 
-    @Transactional(propagation = Propagation.MANDATORY)
-    override fun publish(message: IntegrationMessage) {
-        val metadata = message.metadata
-        val annotation =
-            message::class.java.getAnnotation(IntegrationMessageType::class.java)
-                ?: throw IllegalArgumentException(
-                    "IntegrationMessage must be annotated with @IntegrationMessageType: " +
-                        message::class.java.name
-                )
-        require(
-            annotation.name == metadata.messageName && annotation.version == metadata.messageVersion
-        ) {
-            "IntegrationMessage metadata must match @IntegrationMessageType: " +
-                "class=${message::class.java.name}"
-        }
-        require(
-            typeRegistry.resolve(metadata.messageName, metadata.messageVersion) ==
-                message::class.java
-        ) {
-            "IntegrationMessage class must match the registered message type: " +
-                "${metadata.messageName}@${metadata.messageVersion}"
-        }
-
-        val now = Instant.now()
-        val payload = serializer.serialize(message)
-        val kind =
-            when (message) {
-                is IntegrationCommand -> OutboxMessageKind.INTEGRATION_COMMAND
-                is IntegrationEvent -> OutboxMessageKind.INTEGRATION_EVENT
-                else -> error("Unsupported IntegrationMessage marker: ${message::class.java.name}")
-            }
-
-        val publications = publicationPlanner.plan(message.destination)
-        val messages = publications.map { publication ->
-            val orderingKey =
-                OutboxOrderingKeys.integration(
-                    publication.logicalDestination,
-                    metadata.partitionKey,
-                )
-            OutboxMessage(
-                id = sequence.nextId().toString(),
-                eventId = metadata.messageId,
-                eventType = metadata.messageName,
-                eventClassName = message::class.java.name,
-                eventVersion = metadata.messageVersion,
-                payload = payload,
-                aggregateType = publication.logicalDestination,
-                aggregateId = metadata.partitionKey,
-                createdAt = now,
-                occurredAt = metadata.occurredAt,
-                messageKind = kind,
-                deliveryTarget =
-                    if (publication.transportId == OutboxTransportIds.LOCAL) {
-                        OutboxDeliveryTarget.LOCAL_INTEGRATION
-                    } else {
-                        OutboxDeliveryTarget.BROKER
-                    },
-                transportId = publication.transportId,
-                destination = publication.destination,
-                logicalDestination = publication.logicalDestination,
-                deliveryProfile = publication.deliveryProfile,
-                acceptBefore = metadata.acceptBefore,
-                partitionKey = metadata.partitionKey,
-                correlationId = metadata.correlationId,
-                causationId = metadata.causationId,
-                merchantScopeId = metadata.merchantScopeId,
-                deploymentScopeId = metadata.deploymentScopeId,
-                orderingKey = orderingKey,
-                sequenceNo =
-                    streamSequenceAllocator.nextSequence(publication.transportId, orderingKey),
+  @Transactional(propagation = Propagation.MANDATORY)
+  override fun publish(message: IntegrationMessage) {
+    val metadata = message.metadata
+    val annotation =
+        message::class.java.getAnnotation(IntegrationMessageType::class.java)
+            ?: throw IllegalArgumentException(
+                "IntegrationMessage must be annotated with @IntegrationMessageType: " +
+                    message::class.java.name
             )
-        }
-        writer.append(messages)
+    require(
+        annotation.name == metadata.messageName && annotation.version == metadata.messageVersion
+    ) {
+      "IntegrationMessage metadata must match @IntegrationMessageType: " +
+          "class=${message::class.java.name}"
     }
+    require(
+        typeRegistry.resolve(metadata.messageName, metadata.messageVersion) == message::class.java
+    ) {
+      "IntegrationMessage class must match the registered message type: " +
+          "${metadata.messageName}@${metadata.messageVersion}"
+    }
+
+    val now = Instant.now()
+    val payload = serializer.serialize(message)
+    val kind =
+        when (message) {
+          is IntegrationCommand -> OutboxMessageKind.INTEGRATION_COMMAND
+          is IntegrationEvent -> OutboxMessageKind.INTEGRATION_EVENT
+          else -> error("Unsupported IntegrationMessage marker: ${message::class.java.name}")
+        }
+
+    val publications = publicationPlanner.plan(message.destination)
+    val messages = publications.map { publication ->
+      val orderingKey =
+          OutboxOrderingKeys.integration(
+              publication.logicalDestination,
+              metadata.partitionKey,
+          )
+      OutboxMessage(
+          id = sequence.nextId().toString(),
+          eventId = metadata.messageId,
+          eventType = metadata.messageName,
+          eventClassName = message::class.java.name,
+          eventVersion = metadata.messageVersion,
+          payload = payload,
+          aggregateType = publication.logicalDestination,
+          aggregateId = metadata.partitionKey,
+          createdAt = now,
+          occurredAt = metadata.occurredAt,
+          messageKind = kind,
+          deliveryTarget =
+              if (publication.transportId == OutboxTransportIds.LOCAL) {
+                OutboxDeliveryTarget.LOCAL_INTEGRATION
+              } else {
+                OutboxDeliveryTarget.BROKER
+              },
+          transportId = publication.transportId,
+          destination = publication.destination,
+          logicalDestination = publication.logicalDestination,
+          deliveryProfile = publication.deliveryProfile,
+          acceptBefore = metadata.acceptBefore,
+          partitionKey = metadata.partitionKey,
+          correlationId = metadata.correlationId,
+          causationId = metadata.causationId,
+          merchantScopeId = metadata.merchantScopeId,
+          deploymentScopeId = metadata.deploymentScopeId,
+          orderingKey = orderingKey,
+          sequenceNo = streamSequenceAllocator.nextSequence(publication.transportId, orderingKey),
+      )
+    }
+    writer.append(messages)
+  }
 }

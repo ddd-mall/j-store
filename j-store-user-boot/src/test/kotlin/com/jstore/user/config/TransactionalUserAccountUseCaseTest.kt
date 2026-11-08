@@ -27,50 +27,49 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 
 class TransactionalUserAccountUseCaseTest {
-    private val delegate = mock<UserAccountUseCase>()
-    private val tokenStore = mock<AccountSessionStore>()
-    private val transactionManager = mock<PlatformTransactionManager>()
-    private val transactionStatus = mock<TransactionStatus>()
-    private val userId = UserId(42)
+  private val delegate = mock<UserAccountUseCase>()
+  private val tokenStore = mock<AccountSessionStore>()
+  private val transactionManager = mock<PlatformTransactionManager>()
+  private val transactionStatus = mock<TransactionStatus>()
+  private val userId = UserId(42)
 
-    init {
-        whenever(transactionManager.getTransaction(any())).thenReturn(transactionStatus)
+  init {
+    whenever(transactionManager.getTransaction(any())).thenReturn(transactionStatus)
+  }
+
+  @Test
+  fun `password change disable and force offline revoke all sessions before commit`() {
+    whenever(delegate.changePassword(userId, "old", "NewPass12")).thenReturn(Success(Unit))
+    whenever(delegate.disable(userId)).thenReturn(Success(Unit))
+    whenever(delegate.forceOffline(userId)).thenReturn(Success(Unit))
+
+    subject().changePassword(userId, "old", "NewPass12")
+    subject().disable(userId)
+    subject().forceOffline(userId)
+
+    inOrder(tokenStore, transactionManager) {
+      verify(tokenStore).revokeAllSessions(userId)
+      verify(transactionManager).commit(transactionStatus)
+      verify(tokenStore).revokeAllSessions(userId)
+      verify(transactionManager).commit(transactionStatus)
+      verify(tokenStore).revokeAllSessions(userId)
+      verify(transactionManager).commit(transactionStatus)
+    }
+  }
+
+  @Test
+  fun `session revocation failure rolls back password change`() {
+    whenever(delegate.changePassword(userId, "old", "NewPass12")).thenReturn(Success(Unit))
+    whenever(tokenStore.revokeAllSessions(userId))
+        .thenThrow(IllegalStateException("Redis unavailable"))
+
+    assertFailsWith<IllegalStateException> {
+      subject().changePassword(userId, "old", "NewPass12")
     }
 
-    @Test
-    fun `password change disable and force offline revoke all sessions before commit`() {
-        whenever(delegate.changePassword(userId, "old", "NewPass12")).thenReturn(Success(Unit))
-        whenever(delegate.disable(userId)).thenReturn(Success(Unit))
-        whenever(delegate.forceOffline(userId)).thenReturn(Success(Unit))
+    verify(transactionManager).rollback(transactionStatus)
+    verify(transactionManager, never()).commit(transactionStatus)
+  }
 
-        subject().changePassword(userId, "old", "NewPass12")
-        subject().disable(userId)
-        subject().forceOffline(userId)
-
-        inOrder(tokenStore, transactionManager) {
-            verify(tokenStore).revokeAllSessions(userId)
-            verify(transactionManager).commit(transactionStatus)
-            verify(tokenStore).revokeAllSessions(userId)
-            verify(transactionManager).commit(transactionStatus)
-            verify(tokenStore).revokeAllSessions(userId)
-            verify(transactionManager).commit(transactionStatus)
-        }
-    }
-
-    @Test
-    fun `session revocation failure rolls back password change`() {
-        whenever(delegate.changePassword(userId, "old", "NewPass12")).thenReturn(Success(Unit))
-        whenever(tokenStore.revokeAllSessions(userId))
-            .thenThrow(IllegalStateException("Redis unavailable"))
-
-        assertFailsWith<IllegalStateException> {
-            subject().changePassword(userId, "old", "NewPass12")
-        }
-
-        verify(transactionManager).rollback(transactionStatus)
-        verify(transactionManager, never()).commit(transactionStatus)
-    }
-
-    private fun subject() =
-        TransactionalUserAccountUseCase(delegate, tokenStore, transactionManager)
+  private fun subject() = TransactionalUserAccountUseCase(delegate, tokenStore, transactionManager)
 }

@@ -20,5 +20,5 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
 
 interface AccountingPaymentService {
-    fun getPaymentAccountingInfo(orderId: String): Result<PaymentAccountingInfo, BusinessError>
+  fun getPaymentAccountingInfo(orderId: String): Result<PaymentAccountingInfo, BusinessError>
 }

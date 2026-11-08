@@ -21,7 +21,7 @@ import com.jstore.common.errors.BusinessError
 import com.jstore.common.utils.Result
 
 interface AccountingOrderService {
-    fun getOrderAccountingInfo(orderId: String): Result<OrderAccountingInfo, BusinessError>
+  fun getOrderAccountingInfo(orderId: String): Result<OrderAccountingInfo, BusinessError>
 
-    fun getRefundableOriginalSource(orderId: String): Result<SourceDocument, BusinessError>
+  fun getRefundableOriginalSource(orderId: String): Result<SourceDocument, BusinessError>
 }

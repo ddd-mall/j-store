@@ -39,132 +39,127 @@ class UserAccountService(
     private val domainEventPublisher: DomainEventPublisher,
 ) : UserAccountUseCase {
 
-    override fun requestPhoneVerification(
-        phoneNumber: PhoneNumber
-    ): Result<PhoneVerificationChallenge, BusinessError> {
-        val issued =
-            phoneVerificationGateway.createChallenge(phoneNumber)
-                ?: return Failure(UserAccountErrors.PHONE_VERIFICATION_RATE_LIMITED)
-        phoneVerificationCodeSender.send(phoneNumber, issued.code)
-        return Success(issued.challenge)
+  override fun requestPhoneVerification(
+      phoneNumber: PhoneNumber
+  ): Result<PhoneVerificationChallenge, BusinessError> {
+    val issued =
+        phoneVerificationGateway.createChallenge(phoneNumber)
+            ?: return Failure(UserAccountErrors.PHONE_VERIFICATION_RATE_LIMITED)
+    phoneVerificationCodeSender.send(phoneNumber, issued.code)
+    return Success(issued.challenge)
+  }
+
+  /** 用户注册 */
+  override fun register(
+      cmd: UserRegisterCMD,
+      verificationProof: PhoneVerificationProof,
+  ): Result<UserAccount, BusinessError> {
+    if (!phoneVerificationGateway.consumeChallenge(cmd.phoneNumber, verificationProof)) {
+      return Failure(UserAccountErrors.PHONE_VERIFICATION_INVALID)
     }
-
-    /** 用户注册 */
-    override fun register(
-        cmd: UserRegisterCMD,
-        verificationProof: PhoneVerificationProof,
-    ): Result<UserAccount, BusinessError> {
-        if (!phoneVerificationGateway.consumeChallenge(cmd.phoneNumber, verificationProof)) {
-            return Failure(UserAccountErrors.PHONE_VERIFICATION_INVALID)
-        }
-        if (userAccountRepository.existsByPhoneNumber(cmd.phoneNumber)) {
-            return Failure(UserAccountErrors.PHONE_ALREADY_REGISTERED)
-        }
-        val account =
-            userAccountFactory.create(cmd, passwordHasher).onFailure {
-                return Failure(it)
-            } as Success
-        userAccountRepository.add(account.value)
-        account.value.publishPendingEvents(domainEventPublisher)
-        return account
+    if (userAccountRepository.existsByPhoneNumber(cmd.phoneNumber)) {
+      return Failure(UserAccountErrors.PHONE_ALREADY_REGISTERED)
     }
+    val account =
+        userAccountFactory.create(cmd, passwordHasher).onFailure {
+          return Failure(it)
+        } as Success
+    userAccountRepository.add(account.value)
+    account.value.publishPendingEvents(domainEventPublisher)
+    return account
+  }
 
-    /** 根据 ID 查询用户 */
-    override fun findById(userId: UserId): Result<UserAccount, BusinessError> {
-        val account =
-            userAccountRepository.findById(userId)
-                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
-        return Success(account)
+  /** 根据 ID 查询用户 */
+  override fun findById(userId: UserId): Result<UserAccount, BusinessError> {
+    val account =
+        userAccountRepository.findById(userId) ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+    return Success(account)
+  }
+
+  /** 修改昵称 */
+  override fun changeNickname(
+      userId: UserId,
+      newNickname: Nickname,
+  ): Result<Unit, BusinessError> {
+    val account =
+        userAccountRepository.findById(userId) ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+    account.changeNickname(newNickname).onFailure {
+      return Failure(it)
     }
+    userAccountRepository.save(account)
+    account.publishPendingEvents(domainEventPublisher)
+    return Success(Unit)
+  }
 
-    /** 修改昵称 */
-    override fun changeNickname(
-        userId: UserId,
-        newNickname: Nickname,
-    ): Result<Unit, BusinessError> {
-        val account =
-            userAccountRepository.findById(userId)
-                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
-        account.changeNickname(newNickname).onFailure {
-            return Failure(it)
-        }
-        userAccountRepository.save(account)
-        account.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    /** 修改密码 */
-    override fun changePassword(
-        userId: UserId,
-        oldPassword: String,
-        newPassword: String,
-    ): Result<Unit, BusinessError> {
-        val account =
-            userAccountRepository.findById(userId)
-                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
-
-        if (!passwordHasher.matches(oldPassword, account.passwordHash.hashedValue)) {
-            return Failure(UserAccountErrors.OLD_PASSWORD_MISMATCH)
-        }
-
-        if (!UserAccountFactoryImpl.validatePasswordStrength(newPassword)) {
-            return Failure(UserAccountErrors.PASSWORD_STRENGTH_INSUFFICIENT)
-        }
-
-        val newHash = passwordHasher.hash(newPassword)
-        account.changePassword(Password(newHash)).onFailure {
-            return Failure(it)
-        }
-        userAccountRepository.save(account)
-        account.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    /** 禁用账号（自动执行强制下线） */
-    override fun disable(userId: UserId): Result<Unit, BusinessError> {
-        val account =
-            userAccountRepository.findById(userId)
-                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
-        account.disable().onFailure {
-            return Failure(it)
-        }
-        userAccountRepository.save(account)
-        account.publishPendingEvents(domainEventPublisher)
-
-        domainEventPublisher.publishEvent(
-            UserAccountForcedOfflineEvent(
-                userId = userId,
-                operationTime = LocalDateTime.now(),
-            )
-        )
-
-        return Success(Unit)
-    }
-
-    /** 启用账号 */
-    override fun enable(userId: UserId): Result<Unit, BusinessError> {
-        val account =
-            userAccountRepository.findById(userId)
-                ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
-        account.enable().onFailure {
-            return Failure(it)
-        }
-        userAccountRepository.save(account)
-        account.publishPendingEvents(domainEventPublisher)
-        return Success(Unit)
-    }
-
-    /** 强制下线 */
-    override fun forceOffline(userId: UserId): Result<Unit, BusinessError> {
+  /** 修改密码 */
+  override fun changePassword(
+      userId: UserId,
+      oldPassword: String,
+      newPassword: String,
+  ): Result<Unit, BusinessError> {
+    val account =
         userAccountRepository.findById(userId) ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
 
-        domainEventPublisher.publishEvent(
-            UserAccountForcedOfflineEvent(
-                userId = userId,
-                operationTime = LocalDateTime.now(),
-            )
-        )
-
-        return Success(Unit)
+    if (!passwordHasher.matches(oldPassword, account.passwordHash.hashedValue)) {
+      return Failure(UserAccountErrors.OLD_PASSWORD_MISMATCH)
     }
+
+    if (!UserAccountFactoryImpl.validatePasswordStrength(newPassword)) {
+      return Failure(UserAccountErrors.PASSWORD_STRENGTH_INSUFFICIENT)
+    }
+
+    val newHash = passwordHasher.hash(newPassword)
+    account.changePassword(Password(newHash)).onFailure {
+      return Failure(it)
+    }
+    userAccountRepository.save(account)
+    account.publishPendingEvents(domainEventPublisher)
+    return Success(Unit)
+  }
+
+  /** 禁用账号（自动执行强制下线） */
+  override fun disable(userId: UserId): Result<Unit, BusinessError> {
+    val account =
+        userAccountRepository.findById(userId) ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+    account.disable().onFailure {
+      return Failure(it)
+    }
+    userAccountRepository.save(account)
+    account.publishPendingEvents(domainEventPublisher)
+
+    domainEventPublisher.publishEvent(
+        UserAccountForcedOfflineEvent(
+            userId = userId,
+            operationTime = LocalDateTime.now(),
+        )
+    )
+
+    return Success(Unit)
+  }
+
+  /** 启用账号 */
+  override fun enable(userId: UserId): Result<Unit, BusinessError> {
+    val account =
+        userAccountRepository.findById(userId) ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+    account.enable().onFailure {
+      return Failure(it)
+    }
+    userAccountRepository.save(account)
+    account.publishPendingEvents(domainEventPublisher)
+    return Success(Unit)
+  }
+
+  /** 强制下线 */
+  override fun forceOffline(userId: UserId): Result<Unit, BusinessError> {
+    userAccountRepository.findById(userId) ?: return Failure(UserAccountErrors.USER_NOT_FOUND)
+
+    domainEventPublisher.publishEvent(
+        UserAccountForcedOfflineEvent(
+            userId = userId,
+            operationTime = LocalDateTime.now(),
+        )
+    )
+
+    return Success(Unit)
+  }
 }

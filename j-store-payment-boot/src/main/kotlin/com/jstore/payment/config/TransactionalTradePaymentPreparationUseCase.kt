@@ -33,74 +33,71 @@ import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.support.TransactionTemplate
 
 interface TradePaymentPreparationTransactionOperations {
-    fun <T : Any> durable(action: () -> T): T
+  fun <T : Any> durable(action: () -> T): T
 
-    fun <T : Any> withoutTransaction(action: () -> T): T
+  fun <T : Any> withoutTransaction(action: () -> T): T
 }
 
 class SpringTradePaymentPreparationTransactionOperations(
     transactionManager: PlatformTransactionManager
 ) : TradePaymentPreparationTransactionOperations {
-    private val durable =
-        TransactionTemplate(transactionManager).apply {
-            propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
-        }
-    private val external =
-        TransactionTemplate(transactionManager).apply {
-            propagationBehavior = TransactionDefinition.PROPAGATION_NOT_SUPPORTED
-        }
+  private val durable =
+      TransactionTemplate(transactionManager).apply {
+        propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
+      }
+  private val external =
+      TransactionTemplate(transactionManager).apply {
+        propagationBehavior = TransactionDefinition.PROPAGATION_NOT_SUPPORTED
+      }
 
-    override fun <T : Any> durable(action: () -> T): T =
-        requireNotNull(durable.execute { action() })
+  override fun <T : Any> durable(action: () -> T): T = requireNotNull(durable.execute { action() })
 
-    override fun <T : Any> withoutTransaction(action: () -> T): T =
-        requireNotNull(external.execute { action() })
+  override fun <T : Any> withoutTransaction(action: () -> T): T =
+      requireNotNull(external.execute { action() })
 }
 
 class TransactionalTradePaymentPreparationUseCase(
     private val delegate: TradePaymentPreparationService,
     private val transactions: TradePaymentPreparationTransactionOperations,
 ) : TradePaymentPreparationUseCase {
-    override fun prepare(
-        command: PreparePaymentInstallmentCommand
-    ): Result<Boolean, BusinessError> {
-        return when (val start = transactions.durable { delegate.start(command) }) {
-            is Failure -> start
-            is Success ->
-                when (val value = start.value) {
-                    is TradePaymentPreparationStart.Completed -> Success(value.changed)
-                    is TradePaymentPreparationStart.Pending -> {
-                        val providerResult = transactions.withoutTransaction {
-                            delegate.invokeProvider(value.request)
-                        }
-                        transactions.durable {
-                            delegate.complete(command, value.request.paymentId, providerResult)
-                        }
-                    }
-                }
-        }
+  override fun prepare(command: PreparePaymentInstallmentCommand): Result<Boolean, BusinessError> {
+    return when (val start = transactions.durable { delegate.start(command) }) {
+      is Failure -> start
+      is Success ->
+          when (val value = start.value) {
+            is TradePaymentPreparationStart.Completed -> Success(value.changed)
+            is TradePaymentPreparationStart.Pending -> {
+              val providerResult = transactions.withoutTransaction {
+                delegate.invokeProvider(value.request)
+              }
+              transactions.durable {
+                delegate.complete(command, value.request.paymentId, providerResult)
+              }
+            }
+          }
     }
+  }
 }
 
 class TransactionalTradePaymentCancellationUseCase(
     private val delegate: TradePaymentCancellationService,
     private val transactions: TradePaymentPreparationTransactionOperations,
 ) : TradePaymentCancellationUseCase {
-    override fun cancel(command: CancelPaymentInstallmentCommand): Result<Boolean, BusinessError> {
-        return when (val start = transactions.durable { delegate.start(command) }) {
-            is Failure -> start
-            is Success ->
-                when (val value = start.value) {
-                    is TradePaymentCancellationStart.Completed -> Success(value.changed)
-                    is TradePaymentCancellationStart.Pending -> {
-                        val providerResult = transactions.withoutTransaction {
-                            delegate.invokeProvider(value.request)
-                        }
-                        transactions.durable {
-                            delegate.complete(command, value.request, providerResult)
-                        }
-                    }
-                }
-        }
+  override fun cancel(command: CancelPaymentInstallmentCommand): Result<Boolean, BusinessError> {
+    return when (val start = transactions.durable { delegate.start(command) }) {
+      is Failure -> start
+      is Success ->
+          when (val value = start.value) {
+            is TradePaymentCancellationStart.Completed -> Success(value.changed)
+            is TradePaymentCancellationStart.Pending -> {
+              val providerResult = transactions.withoutTransaction {
+                delegate.invokeProvider(value.request)
+              }
+              transactions.durable {
+                delegate.complete(command, value.request, providerResult)
+              }
+            }
+          }
     }
+  }
 }

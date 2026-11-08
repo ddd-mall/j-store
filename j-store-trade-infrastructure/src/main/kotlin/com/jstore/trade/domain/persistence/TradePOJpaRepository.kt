@@ -19,11 +19,11 @@ package com.jstore.trade.domain.persistence
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface TradePOJpaRepository : JpaRepository<TradePO, Long> {
-    fun findByActingPrincipalAuthenticationDomainAndActingPrincipalIdAndCheckoutRequestId(
-        actingPrincipalAuthenticationDomain: String,
-        actingPrincipalId: Long,
-        checkoutRequestId: String,
-    ): TradePO?
+  fun findByActingPrincipalAuthenticationDomainAndActingPrincipalIdAndCheckoutRequestId(
+      actingPrincipalAuthenticationDomain: String,
+      actingPrincipalId: Long,
+      checkoutRequestId: String,
+  ): TradePO?
 
-    fun findByOrderPlansId(orderPlanId: Long): TradePO?
+  fun findByOrderPlansId(orderPlanId: Long): TradePO?
 }

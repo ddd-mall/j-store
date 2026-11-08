@@ -21,18 +21,18 @@ package com.jstore.user.domain.useraccount
  * store.
  */
 interface AccountSessionStore {
-    fun currentSessionEpoch(userId: UserId): Long
+  fun currentSessionEpoch(userId: UserId): Long
 
-    fun createSession(
-        userId: UserId,
-        sessionId: String,
-        sessionEpoch: Long,
-        ttlSeconds: Long,
-    ): Boolean
+  fun createSession(
+      userId: UserId,
+      sessionId: String,
+      sessionEpoch: Long,
+      ttlSeconds: Long,
+  ): Boolean
 
-    fun revokeSession(userId: UserId, sessionId: String)
+  fun revokeSession(userId: UserId, sessionId: String)
 
-    fun revokeAllSessions(userId: UserId): Long
+  fun revokeAllSessions(userId: UserId): Long
 
-    fun isSessionActive(userId: UserId, sessionId: String, sessionEpoch: Long): Boolean
+  fun isSessionActive(userId: UserId, sessionId: String, sessionEpoch: Long): Boolean
 }

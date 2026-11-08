@@ -27,7 +27,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(OncePerRequestFilter::class)
 class ObservabilityAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean(CorrelationIdFilter::class)
-    fun correlationIdFilter(): CorrelationIdFilter = CorrelationIdFilter()
+  @Bean
+  @ConditionalOnMissingBean(CorrelationIdFilter::class)
+  fun correlationIdFilter(): CorrelationIdFilter = CorrelationIdFilter()
 }

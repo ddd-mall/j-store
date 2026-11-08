@@ -21,49 +21,49 @@ import com.jstore.user.domain.useraccount.UserId
 import kotlin.test.*
 
 class RedisAccountSessionStoreIntegrationTest {
-    @Test
-    fun `independent sessions and issuer namespaces cannot revoke one another`() =
-        EmbeddedRedisTestFixture.withRedis { redis ->
-            val first = RedisAccountSessionStore(redis, "first-issuer")
-            val other = RedisAccountSessionStore(redis, "other-issuer")
-            val id = UserId(42)
-            val epoch = first.currentSessionEpoch(id)
-            val otherEpoch = other.currentSessionEpoch(id)
-            assertTrue(first.createSession(id, "phone", epoch, 600))
-            assertTrue(first.createSession(id, "web", epoch, 600))
-            assertTrue(other.createSession(id, "web", otherEpoch, 600))
-            first.revokeSession(id, "phone")
-            assertFalse(first.isSessionActive(id, "phone", epoch))
-            assertTrue(first.isSessionActive(id, "web", epoch))
-            assertEquals(epoch + 1, first.revokeAllSessions(id))
-            assertFalse(first.isSessionActive(id, "web", epoch))
-            assertTrue(other.isSessionActive(id, "web", otherEpoch))
-        }
+  @Test
+  fun `independent sessions and issuer namespaces cannot revoke one another`() =
+      EmbeddedRedisTestFixture.withRedis { redis ->
+        val first = RedisAccountSessionStore(redis, "first-issuer")
+        val other = RedisAccountSessionStore(redis, "other-issuer")
+        val id = UserId(42)
+        val epoch = first.currentSessionEpoch(id)
+        val otherEpoch = other.currentSessionEpoch(id)
+        assertTrue(first.createSession(id, "phone", epoch, 600))
+        assertTrue(first.createSession(id, "web", epoch, 600))
+        assertTrue(other.createSession(id, "web", otherEpoch, 600))
+        first.revokeSession(id, "phone")
+        assertFalse(first.isSessionActive(id, "phone", epoch))
+        assertTrue(first.isSessionActive(id, "web", epoch))
+        assertEquals(epoch + 1, first.revokeAllSessions(id))
+        assertFalse(first.isSessionActive(id, "web", epoch))
+        assertTrue(other.isSessionActive(id, "web", otherEpoch))
+      }
 
-    @Test
-    fun `a stale login cannot recreate a session after global revocation`() =
-        EmbeddedRedisTestFixture.withRedis { redis ->
-            val store = RedisAccountSessionStore(redis, "issuer")
-            val id = UserId(84)
-            val oldEpoch = store.currentSessionEpoch(id)
-            val epoch = store.revokeAllSessions(id)
-            assertFalse(store.createSession(id, "stale-login", oldEpoch, 600))
-            assertFalse(store.isSessionActive(id, "stale-login", oldEpoch))
-            assertTrue(store.createSession(id, "fresh-login", epoch, 600))
-            assertTrue(store.isSessionActive(id, "fresh-login", epoch))
-        }
+  @Test
+  fun `a stale login cannot recreate a session after global revocation`() =
+      EmbeddedRedisTestFixture.withRedis { redis ->
+        val store = RedisAccountSessionStore(redis, "issuer")
+        val id = UserId(84)
+        val oldEpoch = store.currentSessionEpoch(id)
+        val epoch = store.revokeAllSessions(id)
+        assertFalse(store.createSession(id, "stale-login", oldEpoch, 600))
+        assertFalse(store.isSessionActive(id, "stale-login", oldEpoch))
+        assertTrue(store.createSession(id, "fresh-login", epoch, 600))
+        assertTrue(store.isSessionActive(id, "fresh-login", epoch))
+      }
 
-    @Test
-    fun `lost epoch state cannot reactivate old credentials after reinitialization`() =
-        EmbeddedRedisTestFixture.withRedis { redis ->
-            val store = RedisAccountSessionStore(redis, "issuer")
-            val id = UserId(99)
-            val old = store.currentSessionEpoch(id)
-            assertTrue(store.createSession(id, "old", old, 600))
-            store.revokeAllSessions(id)
-            redis.delete("issuer:epoch:99")
-            assertFalse(store.isSessionActive(id, "old", old))
-            assertNotEquals(old, store.currentSessionEpoch(id))
-            assertFalse(store.isSessionActive(id, "old", old))
-        }
+  @Test
+  fun `lost epoch state cannot reactivate old credentials after reinitialization`() =
+      EmbeddedRedisTestFixture.withRedis { redis ->
+        val store = RedisAccountSessionStore(redis, "issuer")
+        val id = UserId(99)
+        val old = store.currentSessionEpoch(id)
+        assertTrue(store.createSession(id, "old", old, 600))
+        store.revokeAllSessions(id)
+        redis.delete("issuer:epoch:99")
+        assertFalse(store.isSessionActive(id, "old", old))
+        assertNotEquals(old, store.currentSessionEpoch(id))
+        assertFalse(store.isSessionActive(id, "old", old))
+      }
 }

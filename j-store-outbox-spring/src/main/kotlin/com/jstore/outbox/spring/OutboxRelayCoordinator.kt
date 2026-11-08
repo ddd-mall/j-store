@@ -23,19 +23,19 @@ import org.slf4j.LoggerFactory
 
 /** Receives non-durable hints that committed outbox work may be ready. */
 fun interface OutboxRelayTrigger {
-    fun requestDrain()
+  fun requestDrain()
 }
 
 interface OutboxRelayExecutionObserver {
-    fun recordSuccess()
+  fun recordSuccess()
 
-    fun recordFailure()
+  fun recordFailure()
 }
 
 object NoopOutboxRelayExecutionObserver : OutboxRelayExecutionObserver {
-    override fun recordSuccess() = Unit
+  override fun recordSuccess() = Unit
 
-    override fun recordFailure() = Unit
+  override fun recordFailure() = Unit
 }
 
 class MonitoringOutboxRelayExecutionObserver(
@@ -43,19 +43,19 @@ class MonitoringOutboxRelayExecutionObserver(
     private val state: SchedulerExecutionState,
     private val clock: Clock = Clock.systemUTC(),
 ) : OutboxRelayExecutionObserver {
-    override fun recordSuccess() {
-        clock.instant().also {
-            state.recordSuccess(it)
-            monitor.recordSchedulerSuccess(it)
-        }
+  override fun recordSuccess() {
+    clock.instant().also {
+      state.recordSuccess(it)
+      monitor.recordSchedulerSuccess(it)
     }
+  }
 
-    override fun recordFailure() {
-        clock.instant().also {
-            state.recordFailure(it)
-            monitor.recordSchedulerFailure(it)
-        }
+  override fun recordFailure() {
+    clock.instant().also {
+      state.recordFailure(it)
+      monitor.recordSchedulerFailure(it)
     }
+  }
 }
 
 /** Coalesces concurrent wake-up requests into one local relay task. */
@@ -64,44 +64,44 @@ class OutboxRelayCoordinator(
     private val executor: Executor,
     private val observer: OutboxRelayExecutionObserver = NoopOutboxRelayExecutionObserver,
 ) : OutboxRelayTrigger {
-    private val logger = LoggerFactory.getLogger(OutboxRelayCoordinator::class.java)
-    private val pending = AtomicBoolean(false)
-    private val running = AtomicBoolean(false)
+  private val logger = LoggerFactory.getLogger(OutboxRelayCoordinator::class.java)
+  private val pending = AtomicBoolean(false)
+  private val running = AtomicBoolean(false)
 
-    override fun requestDrain() {
-        pending.set(true)
-        scheduleIfNeeded()
-    }
+  override fun requestDrain() {
+    pending.set(true)
+    scheduleIfNeeded()
+  }
 
-    private fun scheduleIfNeeded() {
-        if (!running.compareAndSet(false, true)) return
-        try {
-            executor.execute(::runDrain)
-        } catch (failure: RuntimeException) {
-            running.set(false)
-            observer.recordFailure()
-            logger.warn(
-                "Outbox relay wake-up could not be scheduled; periodic polling will retry",
-                failure,
-            )
-        }
+  private fun scheduleIfNeeded() {
+    if (!running.compareAndSet(false, true)) return
+    try {
+      executor.execute(::runDrain)
+    } catch (failure: RuntimeException) {
+      running.set(false)
+      observer.recordFailure()
+      logger.warn(
+          "Outbox relay wake-up could not be scheduled; periodic polling will retry",
+          failure,
+      )
     }
+  }
 
-    private fun runDrain() {
-        var budgetExhausted = false
-        try {
-            do {
-                pending.set(false)
-                budgetExhausted = publisher.drainAndPublish().budgetExhausted
-                observer.recordSuccess()
-            } while (!budgetExhausted && pending.get())
-            if (budgetExhausted) pending.set(true)
-        } catch (failure: RuntimeException) {
-            observer.recordFailure()
-            logger.error("Outbox relay drain failed; periodic polling will retry", failure)
-        } finally {
-            running.set(false)
-            if (pending.get()) scheduleIfNeeded()
-        }
+  private fun runDrain() {
+    var budgetExhausted = false
+    try {
+      do {
+        pending.set(false)
+        budgetExhausted = publisher.drainAndPublish().budgetExhausted
+        observer.recordSuccess()
+      } while (!budgetExhausted && pending.get())
+      if (budgetExhausted) pending.set(true)
+    } catch (failure: RuntimeException) {
+      observer.recordFailure()
+      logger.error("Outbox relay drain failed; periodic polling will retry", failure)
+    } finally {
+      running.set(false)
+      if (pending.get()) scheduleIfNeeded()
     }
+  }
 }

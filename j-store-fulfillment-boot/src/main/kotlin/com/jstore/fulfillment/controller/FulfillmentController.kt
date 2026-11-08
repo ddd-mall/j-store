@@ -36,72 +36,72 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/fulfillments")
 @RequireLogin
 class FulfillmentController(private val service: MerchantFulfillmentUseCase) {
-    data class DispatchRequest(val carrierCode: String, val trackingNumber: String)
+  data class DispatchRequest(val carrierCode: String, val trackingNumber: String)
 
-    data class ErrorResponse(val message: String, val errorCode: String)
+  data class ErrorResponse(val message: String, val errorCode: String)
 
-    data class Response(
-        val id: Long,
-        val orderId: Long,
-        val merchantId: Long,
-        val status: String,
-        val carrierCode: String?,
-        val trackingNumber: String?,
-    )
+  data class Response(
+      val id: Long,
+      val orderId: Long,
+      val merchantId: Long,
+      val status: String,
+      val carrierCode: String?,
+      val trackingNumber: String?,
+  )
 
-    @GetMapping("/orders/{orderId}")
-    fun get(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> =
-        service.get(principal.accountId.value, orderId).response {
-            it.toResponse()
-        }
+  @GetMapping("/orders/{orderId}")
+  fun get(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable orderId: Long,
+  ): ResponseEntity<*> =
+      service.get(principal.accountId.value, orderId).response {
+        it.toResponse()
+      }
 
-    @PostMapping("/orders/{orderId}/prepare")
-    fun prepare(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> =
-        service.prepare(principal.accountId.value, orderId).response { mapOf("changed" to it) }
+  @PostMapping("/orders/{orderId}/prepare")
+  fun prepare(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable orderId: Long,
+  ): ResponseEntity<*> =
+      service.prepare(principal.accountId.value, orderId).response { mapOf("changed" to it) }
 
-    @PostMapping("/orders/{orderId}/dispatch")
-    fun dispatch(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable orderId: Long,
-        @RequestBody body: DispatchRequest,
-    ): ResponseEntity<*> =
-        service
-            .dispatch(
-                principal.accountId.value,
-                orderId,
-                body.carrierCode,
-                body.trackingNumber,
-            )
-            .response { mapOf("changed" to it) }
+  @PostMapping("/orders/{orderId}/dispatch")
+  fun dispatch(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable orderId: Long,
+      @RequestBody body: DispatchRequest,
+  ): ResponseEntity<*> =
+      service
+          .dispatch(
+              principal.accountId.value,
+              orderId,
+              body.carrierCode,
+              body.trackingNumber,
+          )
+          .response { mapOf("changed" to it) }
 
-    @PostMapping("/orders/{orderId}/deliver")
-    fun deliver(
-        @CurrentPrincipal principal: AuthenticatedPrincipal,
-        @PathVariable orderId: Long,
-    ): ResponseEntity<*> =
-        service.deliver(principal.accountId.value, orderId).response { mapOf("changed" to it) }
+  @PostMapping("/orders/{orderId}/deliver")
+  fun deliver(
+      @CurrentPrincipal principal: AuthenticatedPrincipal,
+      @PathVariable orderId: Long,
+  ): ResponseEntity<*> =
+      service.deliver(principal.accountId.value, orderId).response { mapOf("changed" to it) }
 
-    private fun FulfillmentOrder.toResponse() =
-        Response(
-            id.value,
-            orderId,
-            merchantId,
-            status.name,
-            carrierCode,
-            trackingNumber,
-        )
+  private fun FulfillmentOrder.toResponse() =
+      Response(
+          id.value,
+          orderId,
+          merchantId,
+          status.name,
+          carrierCode,
+          trackingNumber,
+      )
 
-    private fun <T> Result<T, BusinessError>.response(mapper: (T) -> Any): ResponseEntity<*> =
-        fold(
-            onSuccess = { ResponseEntity.ok(mapper(it)) },
-            onFailure = {
-                ResponseEntity.status(it.httpCode).body(ErrorResponse(it.message, it.errorCode))
-            },
-        )
+  private fun <T> Result<T, BusinessError>.response(mapper: (T) -> Any): ResponseEntity<*> =
+      fold(
+          onSuccess = { ResponseEntity.ok(mapper(it)) },
+          onFailure = {
+            ResponseEntity.status(it.httpCode).body(ErrorResponse(it.message, it.errorCode))
+          },
+      )
 }

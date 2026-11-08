@@ -33,99 +33,98 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter
 
 class PhysicalStockRepositoryPostgresTest {
-    @Test
-    fun `physical stock survives a PostgreSQL round trip`() = database { factory ->
-        transaction(factory) { entityManager ->
-            val repository = repository(entityManager)
-            repository.save(PhysicalStock(PhysicalStockId("61@WH-1"), 61, "WH-1", 20, 3))
-            entityManager.flush()
-            entityManager.clear()
-            val restored = assertNotNull(repository.findById(PhysicalStockId("61@WH-1")))
-            assertEquals(20, restored.onHand)
-            assertEquals(3, restored.sourceVersion)
-        }
+  @Test
+  fun `physical stock survives a PostgreSQL round trip`() = database { factory ->
+    transaction(factory) { entityManager ->
+      val repository = repository(entityManager)
+      repository.save(PhysicalStock(PhysicalStockId("61@WH-1"), 61, "WH-1", 20, 3))
+      entityManager.flush()
+      entityManager.clear()
+      val restored = assertNotNull(repository.findById(PhysicalStockId("61@WH-1")))
+      assertEquals(20, restored.onHand)
+      assertEquals(3, restored.sourceVersion)
     }
+  }
 
-    @Test
-    fun `optimistic version allows one concurrent stale update`() = database { factory ->
-        transaction(factory) {
-            repository(it).save(PhysicalStock(PhysicalStockId("61@WH-1"), 61, "WH-1", 20, 3))
-        }
-        val loaded = CountDownLatch(2)
-        val update = CountDownLatch(1)
-        val pool = Executors.newFixedThreadPool(2)
-        try {
-            val results =
-                listOf(21, 22).map { quantity ->
-                    pool.submit<Boolean> {
-                        try {
-                            transaction(factory) { entityManager ->
-                                val stocks = repository(entityManager)
-                                val stock =
-                                    assertNotNull(stocks.findById(PhysicalStockId("61@WH-1")))
-                                loaded.countDown()
-                                assertTrue(update.await(5, TimeUnit.SECONDS))
-                                assertTrue(stock.adjustTo(quantity, "count") is Success)
-                                stocks.save(stock)
-                                entityManager.flush()
-                            }
-                            true
-                        } catch (_: RuntimeException) {
-                            false
-                        }
-                    }
+  @Test
+  fun `optimistic version allows one concurrent stale update`() = database { factory ->
+    transaction(factory) {
+      repository(it).save(PhysicalStock(PhysicalStockId("61@WH-1"), 61, "WH-1", 20, 3))
+    }
+    val loaded = CountDownLatch(2)
+    val update = CountDownLatch(1)
+    val pool = Executors.newFixedThreadPool(2)
+    try {
+      val results =
+          listOf(21, 22).map { quantity ->
+            pool.submit<Boolean> {
+              try {
+                transaction(factory) { entityManager ->
+                  val stocks = repository(entityManager)
+                  val stock = assertNotNull(stocks.findById(PhysicalStockId("61@WH-1")))
+                  loaded.countDown()
+                  assertTrue(update.await(5, TimeUnit.SECONDS))
+                  assertTrue(stock.adjustTo(quantity, "count") is Success)
+                  stocks.save(stock)
+                  entityManager.flush()
                 }
-            assertTrue(loaded.await(5, TimeUnit.SECONDS))
-            update.countDown()
-            assertEquals(1, results.count { it.get(5, TimeUnit.SECONDS) })
-            transaction(factory) {
-                val current = assertNotNull(repository(it).findById(PhysicalStockId("61@WH-1")))
-                assertTrue(current.onHand == 21 || current.onHand == 22)
-                assertEquals(4, current.sourceVersion)
+                true
+              } catch (_: RuntimeException) {
+                false
+              }
             }
-        } finally {
-            update.countDown()
-            pool.shutdownNow()
-            assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS))
-        }
+          }
+      assertTrue(loaded.await(5, TimeUnit.SECONDS))
+      update.countDown()
+      assertEquals(1, results.count { it.get(5, TimeUnit.SECONDS) })
+      transaction(factory) {
+        val current = assertNotNull(repository(it).findById(PhysicalStockId("61@WH-1")))
+        assertTrue(current.onHand == 21 || current.onHand == 22)
+        assertEquals(4, current.sourceVersion)
+      }
+    } finally {
+      update.countDown()
+      pool.shutdownNow()
+      assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS))
     }
+  }
 
-    private fun repository(entityManager: EntityManager) =
-        PhysicalStockRepositoryImpl(
-            JpaRepositoryFactory(entityManager)
-                .getRepository(PhysicalStockPOJpaRepository::class.java)
-        )
+  private fun repository(entityManager: EntityManager) =
+      PhysicalStockRepositoryImpl(
+          JpaRepositoryFactory(entityManager)
+              .getRepository(PhysicalStockPOJpaRepository::class.java)
+      )
 
-    private fun <T> transaction(factory: EntityManagerFactory, block: (EntityManager) -> T): T {
-        val entityManager = factory.createEntityManager()
-        return try {
-            entityManager.transaction.begin()
-            val result = block(entityManager)
-            entityManager.transaction.commit()
-            result
-        } catch (throwable: Throwable) {
-            if (entityManager.transaction.isActive) entityManager.transaction.rollback()
-            throw throwable
-        } finally {
-            entityManager.close()
-        }
+  private fun <T> transaction(factory: EntityManagerFactory, block: (EntityManager) -> T): T {
+    val entityManager = factory.createEntityManager()
+    return try {
+      entityManager.transaction.begin()
+      val result = block(entityManager)
+      entityManager.transaction.commit()
+      result
+    } catch (throwable: Throwable) {
+      if (entityManager.transaction.isActive) entityManager.transaction.rollback()
+      throw throwable
+    } finally {
+      entityManager.close()
     }
+  }
 
-    private fun database(block: (EntityManagerFactory) -> Unit) {
-        EmbeddedPostgres.builder().start().use { postgres ->
-            val factoryBean =
-                LocalContainerEntityManagerFactoryBean().apply {
-                    dataSource = postgres.postgresDatabase
-                    jpaVendorAdapter = HibernateJpaVendorAdapter()
-                    setPackagesToScan("com.jstore.warehouse.domain.persistence")
-                    setJpaPropertyMap(mapOf("hibernate.hbm2ddl.auto" to "create-drop"))
-                    afterPropertiesSet()
-                }
-            try {
-                block(requireNotNull(factoryBean.`object`))
-            } finally {
-                factoryBean.destroy()
-            }
-        }
+  private fun database(block: (EntityManagerFactory) -> Unit) {
+    EmbeddedPostgres.builder().start().use { postgres ->
+      val factoryBean =
+          LocalContainerEntityManagerFactoryBean().apply {
+            dataSource = postgres.postgresDatabase
+            jpaVendorAdapter = HibernateJpaVendorAdapter()
+            setPackagesToScan("com.jstore.warehouse.domain.persistence")
+            setJpaPropertyMap(mapOf("hibernate.hbm2ddl.auto" to "create-drop"))
+            afterPropertiesSet()
+          }
+      try {
+        block(requireNotNull(factoryBean.`object`))
+      } finally {
+        factoryBean.destroy()
+      }
     }
+  }
 }

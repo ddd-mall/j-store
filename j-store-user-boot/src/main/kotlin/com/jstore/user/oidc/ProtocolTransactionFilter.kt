@@ -26,38 +26,38 @@ import org.springframework.web.util.ContentCachingResponseWrapper
 
 /** Finish credential persistence before making a token or redirect visible to the caller. */
 class ProtocolTransactionFilter(manager: PlatformTransactionManager) : OncePerRequestFilter() {
-    private val transaction = TransactionTemplate(manager)
+  private val transaction = TransactionTemplate(manager)
 
-    override fun doFilterInternal(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        chain: FilterChain,
-    ) {
-        val buffered =
-            object : ContentCachingResponseWrapper(response) {
-                override fun sendRedirect(location: String) {
-                    status = 302
-                    setHeader("Location", location)
-                }
+  override fun doFilterInternal(
+      request: HttpServletRequest,
+      response: HttpServletResponse,
+      chain: FilterChain,
+  ) {
+    val buffered =
+        object : ContentCachingResponseWrapper(response) {
+          override fun sendRedirect(location: String) {
+            status = 302
+            setHeader("Location", location)
+          }
 
-                override fun sendError(code: Int) {
-                    status = code
-                }
+          override fun sendError(code: Int) {
+            status = code
+          }
 
-                override fun sendError(code: Int, message: String?) {
-                    status = code
-                }
-            }
-        try {
-            transaction.executeWithoutResult { chain.doFilter(request, buffered) }
-            buffered.copyBodyToResponse()
-        } catch (_: Exception) {
-            if (!response.isCommitted) {
-                response.reset()
-                response.status = 503
-                response.contentType = "application/json"
-                response.writer.write("{\"error\":\"temporarily_unavailable\"}")
-            }
+          override fun sendError(code: Int, message: String?) {
+            status = code
+          }
         }
+    try {
+      transaction.executeWithoutResult { chain.doFilter(request, buffered) }
+      buffered.copyBodyToResponse()
+    } catch (_: Exception) {
+      if (!response.isCommitted) {
+        response.reset()
+        response.status = 503
+        response.contentType = "application/json"
+        response.writer.write("{\"error\":\"temporarily_unavailable\"}")
+      }
     }
+  }
 }
