@@ -43,3 +43,5 @@ PR #73 首轮 quality、dependency-license-audit 和 dependency-vulnerability-sc
 已修复 quality、security 和 release-evidence 工作流中的全部四处引用，保留原有 SHA 固定版本。新增 YAML 解析回归检查，确保远程 Action 不使用本地目录前缀、Gradle Action 保留正确发布者；测试先复现失败，修复后 4 项目录契约通过。远端门禁以修复提交对应的 Actions 结果为准，不能用此前本地通过代替。
 
 修复提交 c90b1f7d 的远端许可证、漏洞扫描、静态分析和密钥扫描通过。Qodana 随后暴露 Gradle 导入根仍为 `/data/project` 的错误：`onlyDirectory` 只限制分析范围，未指定构建导入根。依据官方 JVM monorepo 配置补充 `rootJavaProjects: ["./backend"]`，保留仓库根上下文和 PR 增量分析。新增配置回归测试先失败后通过；该修复的最终远端结果以 Actions 为准。
+
+ed1062ac 的 Qodana 日志进一步显示：旧基线导入成功，切换新提交后仍尝试旧 Gradle 根。仅声明 rootJavaProjects 未能覆盖两阶段运行遗留的 IDE 链接。新增 bootstrap，仅将 `.idea/gradle.xml` 中指向 `$PROJECT_DIR$` 的 externalProjectPath 重定向到 backend，保留其它 IDE 设置；不关闭 PR 模式或降低质量阈值。临时目录回归测试使用旧模型验证重定向、其它选项保留及重复执行，先失败后通过。参照 [CLI 两阶段分析实现](https://github.com/JetBrains/qodana-cli/blob/main/internal/core/incremental_analysis.go) 中每个 revision 执行 bootstrap 的行为。

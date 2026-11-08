@@ -11,6 +11,7 @@ version: "1.0"
 onlyDirectory: backend
 rootJavaProjects:
   - "./backend"
+bootstrap: sh scripts/prepare-qodana.sh
 
 #Specify inspection profile for code analysis
 profile:

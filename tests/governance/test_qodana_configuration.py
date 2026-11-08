@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import unittest
+import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import yaml
@@ -9,6 +12,23 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class QodanaConfigurationContractTest(unittest.TestCase):
+    def test_bootstrap_relinks_the_gradle_model_left_by_pr_baseline_analysis(self) -> None:
+        configuration = yaml.safe_load((REPO_ROOT / "qodana.yaml").read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "backend").mkdir()
+            (root / "backend/settings.gradle.kts").touch()
+            (root / ".idea").mkdir()
+            model = root / ".idea/gradle.xml"
+            model.write_text('<project><option name="externalProjectPath" value="$PROJECT_DIR$" />'
+                             '<option name="gradleJvm" value="25" /></project>')
+            bootstrap = configuration["bootstrap"].replace("scripts/prepare-qodana.sh", str(REPO_ROOT / "scripts/prepare-qodana.sh"))
+            for _ in range(2):
+                subprocess.run(bootstrap, cwd=root, shell=True, check=True)
+                options = {e.get("name"): e.get("value") for e in ET.parse(model).iter("option")}
+                self.assertEqual("$PROJECT_DIR$/backend", options["externalProjectPath"])
+                self.assertEqual("25", options["gradleJvm"])
+
     def test_qodana_imports_the_backend_gradle_build_from_the_vcs_root(self) -> None:
         configuration = yaml.safe_load((REPO_ROOT / "qodana.yaml").read_text())
         self.assertEqual(["./backend"], configuration["rootJavaProjects"])
