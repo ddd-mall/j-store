@@ -48,7 +48,7 @@ jobs:
           distribution: temurin
           java-version: "25"
 
-      - uses: backend/gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Install specification test dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-quality.txt

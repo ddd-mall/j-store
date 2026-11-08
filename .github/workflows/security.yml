@@ -86,7 +86,7 @@ jobs:
           distribution: temurin
           java-version: "25"
 
-      - uses: backend/gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Generate production dependency SBOM
         run: ./scripts/backend-gradle.sh :j-store-boot:cyclonedxDirectBom --no-daemon
@@ -175,7 +175,7 @@ jobs:
           distribution: temurin
           java-version: "25"
 
-      - uses: backend/gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Audit direct and transitive dependency licenses
         run: ./scripts/backend-gradle.sh licensee --no-daemon --console=plain

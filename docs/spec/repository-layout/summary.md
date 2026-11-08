@@ -35,3 +35,9 @@
 - LAYOUT-DRIFT-01：搬迁前的 observability Compose 和 smoke 配置仍要求旧 JWT 环境变量，而 OAuth 候选已改用外部 JWK/OIDC 配置。此项归属用户认证/可观测性部署配置，已记录到 OAuth 交付记录；本次只迁移路径，不将既有部署配置漂移伪装为已经修复。
 - OAuth 真实微信/短信联调、独立安全审查仍属于前置 PR 的未决门槛。历史文档中的 11 条 Maven 公告来自同步 develop 安全修复前的扫描，不是本次目录重整重新扫描的结论。
 - 未新增或升级依赖、未执行生产写入或数据库迁移。恢复以撤销目录重整提交为边界，不复制新旧两套源码。
+
+## CI 初始化失败修复
+
+PR #73 首轮 quality、dependency-license-audit 和 dependency-vulnerability-scan 均在下载 Action 阶段失败，日志为 `Unable to resolve action backend/gradle, repository not found`。目录替换误将外部 `gradle/actions/setup-gradle` 坐标添加了本地 `backend/` 前缀；本地 Gradle 门禁无法发现远程 Action 解析错误。
+
+已修复 quality、security 和 release-evidence 工作流中的全部四处引用，保留原有 SHA 固定版本。新增 YAML 解析回归检查，确保远程 Action 不使用本地目录前缀、Gradle Action 保留正确发布者；测试先复现失败，修复后 4 项目录契约通过。远端门禁以修复提交对应的 Actions 结果为准，不能用此前本地通过代替。
