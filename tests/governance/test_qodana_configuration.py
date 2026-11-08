@@ -43,6 +43,11 @@ class QodanaConfigurationContractTest(unittest.TestCase):
         self.assertIn("pr-mode: true", workflow)
         self.assertNotIn("pr-mode: false", workflow)
 
+    def test_layout_transition_does_not_restore_a_head_model_into_the_old_baseline(self) -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/qodana_code_quality.yml").read_text())
+        scan = next(step for step in workflow["jobs"]["qodana"]["steps"] if step.get("name") == "Qodana Scan")
+        self.assertIs(False, scan["with"]["use-caches"])
+
     def test_qodana_uses_jdk_25_and_rejects_any_problem(self) -> None:
         configuration = (REPO_ROOT / "qodana.yaml").read_text(encoding="utf-8")
 

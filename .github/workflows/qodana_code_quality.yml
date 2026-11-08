@@ -34,7 +34,9 @@ jobs:
         with:
           # Pull requests report only findings introduced by their changed files.
           pr-mode: true
-          use-caches: true
+          # Cached head IDE models cannot import the pre-move PR baseline.
+          # Keep each run clean while PR analysis crosses Gradle root layouts.
+          use-caches: false
           post-pr-comment: true
           use-annotations: true
           # Upload Qodana results (SARIF, other artifacts, logs) as an artifact to the job

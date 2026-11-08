@@ -47,3 +47,5 @@ PR #73 首轮 quality、dependency-license-audit 和 dependency-vulnerability-sc
 ed1062ac 的 Qodana 日志进一步显示：旧基线导入成功，切换新提交后仍尝试旧 Gradle 根。仅声明 rootJavaProjects 未能覆盖两阶段运行遗留的 IDE 链接。新增 bootstrap，仅将 `.idea/gradle.xml` 中指向 `$PROJECT_DIR$` 的 externalProjectPath 重定向到 backend，保留其它 IDE 设置；不关闭 PR 模式或降低质量阈值。临时目录回归测试使用旧模型验证重定向、其它选项保留及重复执行，先失败后通过。参照 [CLI 两阶段分析实现](https://github.com/JetBrains/qodana-cli/blob/main/internal/core/incremental_analysis.go) 中每个 revision 执行 bootstrap 的行为。
 
 900b7bc9 的远端 quality、branch-policy 及四项安全检查均通过。Qodana 成功导入 backend 并完成分析，报告新增 repositoryRoot 变量的 platform type 警告；为该变量声明非空 File 类型，保持路径行为不变。未禁用检查或降低阈值。
+
+后续运行恢复了上一轮 head 的 IDE 缓存，导致旧基线尝试打开尚不存在的 backend（错误定位在基线 6625b1ec）。关闭 Qodana 的跨运行缓存恢复，保留每次运行内的 bootstrap 重定向及完整 PR 两阶段分析，防止新目录模型污染旧目录基线。配置回归先复现缓存仍启用，再验证关闭；代价是 Qodana 冷启动耗时增加，未跳过任何检查。
