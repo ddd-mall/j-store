@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: ['**/*.gradle.kts', 'gradle/libs.versions.toml', '.github/workflows/*.yml']
+fileMatchPattern: ['**/*.gradle.kts', 'backend/gradle/libs.versions.toml', '.github/workflows/*.yml']
 ---
 
 # 依赖管理规范 — j-store
@@ -9,7 +9,7 @@ fileMatchPattern: ['**/*.gradle.kts', 'gradle/libs.versions.toml', '.github/work
 
 ## 权威来源与职责
 
-- `gradle/libs.versions.toml` 是外部库、项目插件和构建工具版本的统一坐标目录；它负责类型安全名称，不单独保证最终解析版本。
+- `backend/gradle/libs.versions.toml` 是外部库、项目插件和构建工具版本的统一坐标目录；它负责类型安全名称，不单独保证最终解析版本。
 - `j-store-dependencies-platform` 是 JVM 依赖版本对齐的统一所有者；Spring Boot BOM、其它获批 BOM 和单组件约束必须从这里进入模块 classpath。
 - 各模块 `build.gradle.kts` 只表达依赖作用域和模块关系，例如 `api`、`implementation`、`runtimeOnly`、`testImplementation` 与 `project()`，不得自行建立第二套版本策略。
 - 当前获批的版本与安全基线以 catalog、统一 Platform、可执行治理测试及适用的 `docs/spec/` 为准；说明文档与解析结果冲突时，以 Gradle 实际解析结果和测试证据为当前事实，并修正文档漂移。
@@ -39,7 +39,7 @@ fileMatchPattern: ['**/*.gradle.kts', 'gradle/libs.versions.toml', '.github/work
 4. 生成生产依赖 SBOM：
 
    ```bash
-   ./gradlew :j-store-boot:cyclonedxDirectBom --no-daemon
+   ./scripts/backend-gradle.sh :j-store-boot:cyclonedxDirectBom --no-daemon
    ```
 
 5. 使用与 `.github/workflows/security.yml` 固定版本一致且校验过发布摘要的 OSV Scanner 扫描 SBOM。不同扫描器版本结果冲突时，以 CI 固定版本和上游漏洞记录复核，不得用较新的零结果直接判定安全。 向 develop 提交 PR 或推送时，生产 SBOM 与镜像中的 Maven 漏洞公告产生警告，并归档完整报告供评审。扫描执行错误和镜像系统包漏洞仍阻断检查。发布分支、定时及手动审计保留严格检查。

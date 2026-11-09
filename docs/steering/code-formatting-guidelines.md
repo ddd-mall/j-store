@@ -9,8 +9,8 @@
 
 ## 开发流程
 
-1. 新克隆或新 worktree 中执行 `./gradlew installSpotlessGitHooks`。
-2. 开发中执行 `./gradlew spotlessApply`，交付前执行 `./gradlew spotlessCheck`。
+1. 新克隆或新 worktree 中执行 `./scripts/backend-gradle.sh installSpotlessGitHooks`。
+2. 开发中执行 `./scripts/backend-gradle.sh spotlessApply`，交付前执行 `./scripts/backend-gradle.sh spotlessCheck`。
 3. Windows JDK 因临时目录的 UNIX Domain Socket 路径无法创建 NIO Selector 时，使用 `.\scripts\gradlew-windows.ps1 <tasks>`。
 4. `pre-commit` 只格式化已暂存的目标源码并重新暂存结果；目标文件同时有未暂存改动时停止提交。
 5. `pre-push` 检查待推送提交中的目标源码；发现格式问题时应用 Spotless，开发者提交结果后重新推送。

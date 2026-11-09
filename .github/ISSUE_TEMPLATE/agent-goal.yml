@@ -49,7 +49,7 @@ body:
       label: 验收标准
       description: 每行一个可执行或可观察的验收场景，使用稳定ID并绑定下方必需验证中的一条命令。
       placeholder: |
-        - [ ] AC-EXAMPLE-01 | Given ... When ... Then ... | Evidence: `./gradlew :module:test`
+        - [ ] AC-EXAMPLE-01 | Given ... When ... Then ... | Evidence: `./scripts/backend-gradle.sh :module:test`
     validations:
       required: true
 
@@ -58,7 +58,7 @@ body:
     attributes:
       label: 必需验证
       description: 列出聚焦测试、集成测试、质量门禁或人工检查要求。
-      placeholder: ./gradlew :module:test
+      placeholder: ./scripts/backend-gradle.sh :module:test
     validations:
       required: true
 

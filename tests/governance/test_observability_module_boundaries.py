@@ -8,9 +8,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class ObservabilityModuleBoundaryTests(unittest.TestCase):
     def test_common_observability_module_has_no_project_or_web_runtime_dependency(self):
-        settings = (ROOT / "settings.gradle.kts").read_text(encoding="utf-8")
+        settings = (ROOT / "backend" / "settings.gradle.kts").read_text(encoding="utf-8")
         build = (
-            ROOT / "j-store-observability-spring" / "build.gradle.kts"
+            ROOT / "backend" / "j-store-observability-spring" / "build.gradle.kts"
         ).read_text(encoding="utf-8")
 
         self.assertIn('include("j-store-observability-spring")', settings)
@@ -20,7 +20,7 @@ class ObservabilityModuleBoundaryTests(unittest.TestCase):
         self.assertNotIn("runtimeOnly(libs.spring.boot.starter.web)", build)
 
     def test_boot_consumes_the_common_module_instead_of_redeclaring_runtime(self):
-        build = (ROOT / "j-store-boot" / "build.gradle.kts").read_text(
+        build = (ROOT / "backend" / "j-store-boot" / "build.gradle.kts").read_text(
             encoding="utf-8"
         )
 
@@ -32,7 +32,7 @@ class ObservabilityModuleBoundaryTests(unittest.TestCase):
     def test_component_health_and_configuration_remain_component_owned(self):
         common_profile = (
             ROOT
-            / "j-store-boot"
+            / "backend" / "j-store-boot"
             / "src"
             / "main"
             / "resources"
@@ -40,7 +40,7 @@ class ObservabilityModuleBoundaryTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         outbox_profile = (
             ROOT
-            / "j-store-boot"
+            / "backend" / "j-store-boot"
             / "src"
             / "main"
             / "resources"
@@ -48,7 +48,7 @@ class ObservabilityModuleBoundaryTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         outbox_imports = (
             ROOT
-            / "j-store-outbox-spring"
+            / "backend" / "j-store-outbox-spring"
             / "src"
             / "main"
             / "resources"
@@ -63,7 +63,7 @@ class ObservabilityModuleBoundaryTests(unittest.TestCase):
         self.assertFalse(
             (
                 ROOT
-                / "j-store-boot"
+                / "backend" / "j-store-boot"
                 / "src"
                 / "main"
                 / "kotlin"

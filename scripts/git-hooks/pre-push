@@ -80,7 +80,7 @@ run_gradle() {
                 -File "$windows_wrapper" "$@"
             ;;
         *)
-            ./gradlew "$@"
+            "$repository_root/scripts/backend-gradle.sh" "$@"
             ;;
     esac
 }

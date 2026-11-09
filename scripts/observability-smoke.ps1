@@ -8,8 +8,8 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "observability-smoke-support.ps1")
 $composeFiles = @(
-    "-f", (Join-Path $repositoryRoot "docker-compose.postgres.yml"),
-    "-f", (Join-Path $repositoryRoot "docker-compose.observability.yml")
+    "-f", (Join-Path $repositoryRoot "backend/docker-compose.postgres.yml"),
+    "-f", (Join-Path $repositoryRoot "backend/docker-compose.observability.yml")
 )
 
 function Invoke-Compose {
@@ -75,7 +75,7 @@ if (-not $grafanaPassword -or $grafanaPassword -like "change-me*") {
 
 Push-Location $repositoryRoot
 try {
-    & .\gradlew.bat :j-store-boot:bootJar --console=plain
+    & (Join-Path $repositoryRoot "scripts/gradlew-windows.ps1") :j-store-boot:bootJar --console=plain
     if ($LASTEXITCODE -ne 0) { throw "bootJar build failed" }
 
     Invoke-Compose config --quiet

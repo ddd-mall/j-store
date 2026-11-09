@@ -146,15 +146,15 @@ if search_quietly '`skills/spec-dev/references/' agents .agents; then
   fail "legacy agent adapter uses a broken skills/spec-dev reference"
 fi
 
-kotlin_version="$(sed -n 's/^kotlin = "\([^"]*\)"/\1/p' gradle/libs.versions.toml)"
-spring_version="$(sed -n 's/^spring-boot = "\([^"]*\)"/\1/p' gradle/libs.versions.toml)"
-java_version="$(sed -n 's/.*JavaLanguageVersion\.of(\([0-9][0-9]*\)).*/\1/p' build.gradle.kts)"
+kotlin_version="$(sed -n 's/^kotlin = "\([^"]*\)"/\1/p' backend/gradle/libs.versions.toml)"
+spring_version="$(sed -n 's/^spring-boot = "\([^"]*\)"/\1/p' backend/gradle/libs.versions.toml)"
+java_version="$(sed -n 's/.*JavaLanguageVersion\.of(\([0-9][0-9]*\)).*/\1/p' backend/build.gradle.kts)"
 
 search_quietly "Kotlin ${kotlin_version}，Java ${java_version}" docs/project-overview.md || \
   fail "docs/project-overview.md does not match Kotlin/Java build versions"
 search_quietly "Spring Boot ${spring_version}" docs/project-overview.md || \
   fail "docs/project-overview.md does not match the Spring Boot catalog version"
-search_quietly "openjdk-${java_version}-runtime:" j-store-boot/Dockerfile || \
+search_quietly "openjdk-${java_version}-runtime:" backend/j-store-boot/Dockerfile || \
   fail "j-store-boot Docker runtime does not match the Java toolchain"
 
 if search_quietly 'actions/dependency-review-action|gitleaks/gitleaks-action|github/codeql-action' \
@@ -175,7 +175,7 @@ search_quietly 'cyclonedxDirectBom' .github/workflows/security.yml || \
   fail "security workflow is missing a resolved production dependency SBOM"
 search_quietly 'dependency-license-audit' .github/workflows/security.yml || \
   fail "security workflow is missing dependency license auditing"
-search_quietly 'gradlew licensee' .github/workflows/security.yml || \
+search_quietly 'backend-gradle.sh licensee' .github/workflows/security.yml || \
   fail "security workflow does not enforce the Licensee policy"
 search_quietly 'gitleaks.*git' .github/workflows/security.yml || \
   fail "security workflow is missing Gitleaks CLI history scanning"
@@ -206,9 +206,9 @@ if [[ -e .github/dependabot.yml ]]; then
   fail "Dependabot must remain disabled; dependency upgrades require explicit compatibility review"
 fi
 
-search_quietly '^FROM .+@sha256:[0-9a-f]{64}$' j-store-boot/Dockerfile || \
+search_quietly '^FROM .+@sha256:[0-9a-f]{64}$' backend/j-store-boot/Dockerfile || \
   fail "j-store-boot base image is not pinned by digest"
-if search_quietly '^\s*image:\s*\S+:latest\s*$' deploy j-store-boot --glob '*.yaml'; then
+if search_quietly '^\s*image:\s*\S+:latest\s*$' deploy backend/j-store-boot --glob '*.yaml'; then
   fail "Kubernetes deployment contains a latest image tag"
 fi
 

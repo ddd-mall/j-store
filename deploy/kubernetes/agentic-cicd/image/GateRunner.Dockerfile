@@ -40,7 +40,7 @@ RUN --mount=type=cache,id=jstore-gate-pip,target=/root/.cache/pip \
       'HOME=/tmp/gate-home \
        ORG_GRADLE_PROJECT_spotlessFilesFile=/tmp/spotless-targets \
        GRADLE_USER_HOME=/var/cache/jstore-gradle \
-       ./gradlew spotlessCheck verifyDependencyResolution licensee test \
+       ./scripts/backend-gradle.sh spotlessCheck verifyDependencyResolution licensee test \
          verifyLicenseArtifacts --no-daemon --console=plain' \
     && mkdir -p /opt/jstore-gate/gradle-home \
     && cp -a /var/cache/jstore-gradle/wrapper /opt/jstore-gate/gradle-home/ \

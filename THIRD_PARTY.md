@@ -18,7 +18,7 @@ Unknown, missing, or unapproved dependency licenses fail the build. An exception
 
 ### Frontend dependencies
 
-Frontend packages are resolved by the root `pnpm-lock.yaml` and are not vendored. Run `pnpm licenses list --json` for the installed inventory and `pnpm licenses list --prod --json` for runtime dependencies. The Gradle Licensee and JVM SBOM checks do not cover npm packages. See `apps/admin-web/README.md` for frontend verification commands. License inventory does not replace upstream notices required when distributing bundled assets.
+Frontend packages are resolved by the root `pnpm-lock.yaml` and are not vendored. Run `pnpm licenses list --json` for the installed inventory and `pnpm licenses list --prod --json` for runtime dependencies. The Gradle Licensee and JVM SBOM checks do not cover npm packages. See `frontend/apps/admin-web/README.md` for frontend verification commands. License inventory does not replace upstream notices required when distributing bundled assets.
 
 ### Spring Authorization Server JDBC schemas
 

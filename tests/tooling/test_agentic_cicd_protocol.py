@@ -158,7 +158,7 @@ class ProtocolContractTest(unittest.TestCase):
         Draft202012Validator(GATE_RECEIPT_SCHEMA).validate(pass_receipt.to_json())
 
         changed = request.to_json()
-        changed["validation_commands"] = ["./gradlew test"]
+        changed["validation_commands"] = ["./scripts/backend-gradle.sh test"]
         with self.assertRaisesRegex(ValueError, "does not bind"):
             GateRequest.from_json(changed)
 

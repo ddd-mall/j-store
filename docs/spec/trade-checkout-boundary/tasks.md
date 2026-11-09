@@ -98,7 +98,7 @@
 
 完成证据（2026-08-15）：
 
-- `./gradlew test`：通过，212 个可执行 Gradle task（34 executed，178 up-to-date）。
+- `./scripts/backend-gradle.sh test`：通过，212 个可执行 Gradle task（34 executed，178 up-to-date）。
 - Trade、Order、TradePayment PostgreSQL 测试：可信快照/来源字段往返及 Checkout、OrderPlan、PaymentInstallment 唯一约束通过。
 - Root Boot 空库 Flyway 与 Spring 上下文测试：通过。
 - `./scripts/quality-gate.sh`：6/6 通过，包含治理契约、格式、依赖解析、许可证、全仓回归和制品检查。

@@ -58,7 +58,7 @@ Describe "observability smoke settings" {
 
     It "publishes every observability endpoint on loopback only" {
         $repositoryRoot = Split-Path -Parent $scriptDirectory
-        $compose = Get-Content -Raw (Join-Path $repositoryRoot "docker-compose.observability.yml")
+        $compose = Get-Content -Raw (Join-Path $repositoryRoot "backend/docker-compose.observability.yml")
 
         @(
             '127.0.0.1:${JSTORE_PORT:-8080}:8080'
@@ -73,7 +73,7 @@ Describe "observability smoke settings" {
 
     It "prevents host proxy settings from intercepting internal observability traffic" {
         $repositoryRoot = Split-Path -Parent $scriptDirectory
-        $compose = Get-Content -Raw (Join-Path $repositoryRoot "docker-compose.observability.yml")
+        $compose = Get-Content -Raw (Join-Path $repositoryRoot "backend/docker-compose.observability.yml")
 
         $compose | Should Match ([regex]::Escape('x-runtime-no-proxy: &runtime-no-proxy'))
         $compose | Should Match ([regex]::Escape('NO_PROXY: "*"'))

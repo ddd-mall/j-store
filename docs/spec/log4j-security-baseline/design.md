@@ -3,7 +3,7 @@
 ## 决策
 
 - 选择 2.25.5：这是包含目标漏洞修复的最小补丁版本，相比 2.26.1 变更面更小。
-- 在 `gradle/libs.versions.toml` 声明 Log4j BOM 坐标，由
+- 在 `backend/gradle/libs.versions.toml` 声明 Log4j BOM 坐标，由
   `j-store-dependencies-platform` 导入；消费模块不声明版本、不使用 `force`。
 - 使用 Log4j BOM 对齐家族，而不是只约束 `log4j-api`，避免 API、适配器和可选组件混装。
 - 保持 Spring Boot 默认 Logback 实现；Log4j API 继续通过 `log4j-to-slf4j` 路由。

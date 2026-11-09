@@ -9,7 +9,7 @@ if (-not [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
 }
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$gradleWrapper = Join-Path $repositoryRoot "gradlew.bat"
+$gradleWrapper = Join-Path $repositoryRoot "backend/gradlew.bat"
 $configuredJavaTemp = [Environment]::GetEnvironmentVariable(
     "JSTORE_JAVA_TMPDIR",
     [EnvironmentVariableTarget]::Process
@@ -49,7 +49,7 @@ try {
         [EnvironmentVariableTarget]::Process
     )
 
-    & $gradleWrapper @gradleArguments
+    & $gradleWrapper -p (Join-Path $repositoryRoot "backend") @gradleArguments
     $gradleExitCode = $LASTEXITCODE
 } finally {
     [Environment]::SetEnvironmentVariable(

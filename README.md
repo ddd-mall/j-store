@@ -9,14 +9,22 @@
 
 j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring Data JPA、PostgreSQL 和 Redis。项目结构、模块边界与测试入口见 [`docs/project-overview.md`](docs/project-overview.md)。
 
+## 仓库目录
+
+- `backend/`：独立 Gradle 多模块工程、wrapper 和后端本地 Docker Compose 配置。
+- `frontend/`：独立 pnpm workspace，后台应用位于 `frontend/apps/admin-web`。
+- `docs/`、`scripts/`、`config/`、`deploy/`：共享规格、仓库门禁、治理与部署入口。
+
+后端可在 `backend/` 中执行 `./gradlew`，也可从任意目录调用 `scripts/backend-gradle.sh`；根目录不再承载 Gradle 或 pnpm 工程。环境变量示例和共享许可证仍保留在仓库根。
+
 ## 后台前端
 
-空白后台前端工程位于 [`apps/admin-web`](apps/admin-web/README.md)，采用 React、TypeScript、Vite 和 Ant Design，通过 pnpm workspace 管理，与 Gradle 后端独立构建。
+空白后台前端工程位于 [`frontend/apps/admin-web`](frontend/apps/admin-web/README.md)，采用 React、TypeScript、Vite 和 Ant Design，通过 pnpm workspace 管理，与 Gradle 后端独立构建。
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm dev
-pnpm check
+pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend dev
+pnpm --dir frontend check
 ```
 
 运行环境、浏览器测试及 API 接入边界见应用 README。本次初始化不包含业务页面或登录。
@@ -26,8 +34,8 @@ pnpm check
 Java、Kotlin 和 Gradle Kotlin DSL 代码只由 Spotless 格式化，其中 Java 使用 google-java-format 的官方默认 Google 风格，Kotlin 和 Gradle Kotlin DSL 使用 ktfmt 的官方默认风格。仓库不采用额外的人工或 AI 格式化规则。执行方式见 [`docs/steering/code-formatting-guidelines.md`](docs/steering/code-formatting-guidelines.md)。
 
 ```bash
-./gradlew spotlessApply
-./gradlew spotlessCheck
+./scripts/backend-gradle.sh spotlessApply
+./scripts/backend-gradle.sh spotlessCheck
 ```
 
 Windows PowerShell 中如遇到 JDK NIO `Unable to establish loopback connection`，使用仓库包装脚本为 Gradle 子进程配置短临时目录：
@@ -42,12 +50,12 @@ Windows PowerShell 中如遇到 JDK NIO `Unable to establish loopback connection
 如需启用仓库提供的 Spotless Git hooks，可执行：
 
 ```bash
-./gradlew installSpotlessGitHooks
+./scripts/backend-gradle.sh installSpotlessGitHooks
 ```
 
 `pre-commit` hook 只格式化已暂存的 Kotlin、Java 与 Gradle Kotlin 文件，并将格式化结果重新暂存到当前 commit。如果目标文件同时包含未暂存修改，hook 会终止提交，避免意外提交这些修改。
 
-`pre-push` hook 保留为后备检查，只检查本次待推送提交中新增或修改的目标文件；纯文档或其他非源码操作会跳过 Spotless。安装任务会使用 Git 实际的 hooks 目录，可用于主工作区、linked worktree 和自定义 `core.hooksPath`。完整仓库检查仍可通过 `./gradlew spotlessCheck` 执行。
+`pre-push` hook 保留为后备检查，只检查本次待推送提交中新增或修改的目标文件；纯文档或其他非源码操作会跳过 Spotless。安装任务会使用 Git 实际的 hooks 目录，可用于主工作区、linked worktree 和自定义 `core.hooksPath`。完整仓库检查仍可通过 `./scripts/backend-gradle.sh spotlessCheck` 执行。
 
 Spotless 同时检查所有 Java、Kotlin 源码的 Apache-2.0 许可证声明。新增源码缺少声明时，运行
 `spotlessApply` 会根据 [`config/spotless/license-header.txt`](config/spotless/license-header.txt) 自动补充。
@@ -55,7 +63,7 @@ Spotless 同时检查所有 Java、Kotlin 源码的 Apache-2.0 许可证声明�
 依赖许可证由 Licensee 审计，未知或未批准许可证会使构建失败：
 
 ```bash
-./gradlew licensee
+./scripts/backend-gradle.sh licensee
 ```
 
 机器可读文件归属见 [`config/licenses/file-ownership.toml`](config/licenses/file-ownership.toml)，仓库内第三方文件及依赖说明见 [`THIRD_PARTY.md`](THIRD_PARTY.md)。
@@ -73,8 +81,8 @@ cp .env.example .env
 编辑 `.env` 中的所有 `change-me` 值。`.env` 已被 Git 忽略，不得提交。启动服务：
 
 ```bash
-docker compose --env-file .env -f docker-compose.postgres.yml up -d
-docker compose --env-file .env -f docker-compose.postgres.yml ps
+docker compose --env-file .env -f backend/docker-compose.postgres.yml up -d
+docker compose --env-file .env -f backend/docker-compose.postgres.yml ps
 ```
 
 运行 Spring Boot local profile 前，将 `.env` 中对应的 `JSTORE_*` 变量导入启动进程。IDE 用户可在本地 Run Configuration 中配置；不要把值写入受版本控制的 properties 文件。
@@ -108,13 +116,13 @@ jstore.user-query.remote.read-timeout=3s
 停止服务：
 
 ```bash
-docker compose --env-file .env -f docker-compose.postgres.yml down
+docker compose --env-file .env -f backend/docker-compose.postgres.yml down
 ```
 
 删除本地数据库卷会永久删除本地数据，仅在明确需要时执行：
 
 ```bash
-docker compose --env-file .env -f docker-compose.postgres.yml down -v
+docker compose --env-file .env -f backend/docker-compose.postgres.yml down -v
 ```
 
 ## 验证
@@ -128,8 +136,8 @@ docker compose --env-file .env -f docker-compose.postgres.yml down -v
 也可以只运行相关模块测试，例如：
 
 ```bash
-./gradlew :j-store-order:test
-./gradlew :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
+./scripts/backend-gradle.sh :j-store-order-domain:test :j-store-order-application:test :j-store-order-boot:test
+./scripts/backend-gradle.sh :j-store-goods-domain:test :j-store-goods-application:test :j-store-goods-boot:test
 ```
 
 ## 多集群交付

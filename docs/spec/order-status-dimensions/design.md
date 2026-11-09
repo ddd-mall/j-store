@@ -67,7 +67,7 @@ stateDiagram-v2
 
 ### 1. 四维状态枚举
 
-位置：`j-store-order/src/main/kotlin/com/jstore/order/domain/order/`
+位置：`backend/j-store-order/src/main/kotlin/com/jstore/order/domain/order/`
 
 新增四个文件并删除 `OrderStatus.kt`、`OrderStatusTransitionRules.kt`：
 
@@ -82,7 +82,7 @@ enum class AfterSaleStatus { NONE, PROCESSING, PARTIALLY_COMPLETED, COMPLETED }
 
 ### 2. `Order` 聚合接口
 
-位置：`j-store-order/src/main/kotlin/com/jstore/order/domain/order/Order.kt`
+位置：`backend/j-store-order/src/main/kotlin/com/jstore/order/domain/order/Order.kt`
 
 删除 `val status: OrderStatus` 和 `val previousStatus: OrderStatus?`，其余行为签名保持不变，新增：
 
@@ -117,7 +117,7 @@ interface Order : AgreeGate<OrderId> {
 
 ### 3. `OrderImpl` 与统一不变量
 
-位置：`j-store-order/src/main/kotlin/com/jstore/order/domain/order/OrderImpl.kt`
+位置：`backend/j-store-order/src/main/kotlin/com/jstore/order/domain/order/OrderImpl.kt`
 
 构造器直接接收四维状态，支持工厂创建和仓储恢复；不提供默认状态，避免恢复方遗漏持久化事实：
 
@@ -207,7 +207,7 @@ private fun deriveAfterSaleStatus(
 
 ### 4. `OrderFactory`
 
-位置：`j-store-order/src/main/kotlin/com/jstore/order/domain/order/OrderFactory.kt`
+位置：`backend/j-store-order/src/main/kotlin/com/jstore/order/domain/order/OrderFactory.kt`
 
 `OrderFactory` 接口和 `create(cmd: OrderCreateCMD): Result<Order, BusinessError>` 不变。构造 `OrderImpl` 时显式传入：
 
@@ -228,8 +228,8 @@ _afterSaleStatus = AfterSaleStatus.NONE
 
 位置：
 
-- `j-store-order-infrastructure/src/main/kotlin/com/jstore/order/domain/order/persistence/OrderPO.kt`
-- `j-store-order-infrastructure/src/main/kotlin/com/jstore/order/domain/order/OrderRepositoryImpl.kt`
+- `backend/j-store-order-infrastructure/src/main/kotlin/com/jstore/order/domain/order/persistence/OrderPO.kt`
+- `backend/j-store-order-infrastructure/src/main/kotlin/com/jstore/order/domain/order/OrderRepositoryImpl.kt`
 
 `OrderPO` 删除 `status`、`previousStatus`，新增：
 
@@ -255,7 +255,7 @@ var afterSaleStatus: AfterSaleStatus = AfterSaleStatus.NONE
 
 ### 7. API 响应
 
-位置：`j-store-boot/src/main/kotlin/com/jstore/order/controller/OrderController.kt`
+位置：`backend/j-store-boot/src/main/kotlin/com/jstore/order/controller/OrderController.kt`
 
 请求 DTO、URL、HTTP 方法、认证注解及错误响应保持不变。响应 DTO 修改为：
 
@@ -296,7 +296,7 @@ OrderImpl
 
 ### 持久化模型与 DDL
 
-新增 `j-store-boot/src/main/resources/db/migration/V20260731__order_status_dimensions.sql`。迁移顺序固定如下：
+新增 `backend/j-store-boot/src/main/resources/db/migration/V20260731__order_status_dimensions.sql`。迁移顺序固定如下：
 
 ```sql
 -- 仅适用于未上线开发环境：放弃现有订单数据，避免错误状态推导。
@@ -507,8 +507,8 @@ CREATE INDEX idx_orders_after_sale_status_create_time
 | 修改 | `Order.kt`、`OrderImpl.kt`、`OrderFactory.kt` |
 | 修改 | `OrderPO.kt`、`OrderRepositoryImpl.kt` |
 | 修改 | `OrderController.kt` |
-| 新增 | `j-store-boot/src/main/resources/db/migration/V20260731__order_status_dimensions.sql` |
-| 修改/新增测试 | `j-store-order/src/test/.../order/`、`j-store-order-infrastructure/src/test/.../order/`、`j-store-boot/src/test/.../order/` 中与状态、转换、迁移和响应契约相关的测试 |
+| 新增 | `backend/j-store-boot/src/main/resources/db/migration/V20260731__order_status_dimensions.sql` |
+| 修改/新增测试 | `backend/j-store-order/src/test/.../order/`、`backend/j-store-order-infrastructure/src/test/.../order/`、`backend/j-store-boot/src/test/.../order/` 中与状态、转换、迁移和响应契约相关的测试 |
 
 ## 风险与缓解
 

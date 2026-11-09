@@ -15,7 +15,7 @@
 | 订单领域依赖方向 | `j-store-order` 不依赖 `j-store-goods-api`，继续只依赖本地 `com.jstore.order.acl.GoodsService` | 保持订单领域模型与外部商品发布语言解耦 |
 | 订单基础设施适配方式 | `j-store-order-infrastructure` 依赖 `j-store-goods-api`，`GoodsServiceImpl` 将 goods api DTO 转换为订单本地 ACL DTO | 符合“ACL 接口在消费方领域模块，实现在基础设施模块”的约定 |
 | 商品发布实现位置 | `j-store-goods` 依赖 `j-store-goods-api`，`CommodityService` 实现 `GoodsSnapshotQueryService` | 商品应用服务已经拥有快照仓储依赖和查询实现，迁移只改契约命名不改行为 |
-| 非目标 `acl` 包处理 | 不迁移 `j-store-goods/src/main/kotlin/com/jstore/goods/acl/event` 和 `OssService` | 需求只要求 provider 侧快照查询契约迁移，其他 `acl` 命名需要独立需求确认 |
+| 非目标 `acl` 包处理 | 不迁移 `backend/j-store-goods/src/main/kotlin/com/jstore/goods/acl/event` 和 `OssService` | 需求只要求 provider 侧快照查询契约迁移，其他 `acl` 命名需要独立需求确认 |
 | 兼容策略 | 不保留 `j-store-goods-acl` alias 模块，不保留 `com.jstore.goods.acl` 快照契约桥接类 | 需求要求旧模块不再作为依赖入口，旧包不再承载 provider 快照契约 |
 
 ## 架构
@@ -127,30 +127,30 @@ classDiagram
 settings.gradle.kts
   include("j-store-goods-api")
 
-j-store-goods-api/
+backend/j-store-goods-api/
   build.gradle.kts
   src/main/kotlin/com/jstore/goods/api/
     GoodsSnapshotQueryService.kt
 
-j-store-goods/
+backend/j-store-goods/
   build.gradle.kts
   src/main/kotlin/com/jstore/goods/service/
     CommodityService.kt
   src/test/kotlin/com/jstore/goods/service/
     CommodityServiceGoodsSnapshotQueryTest.kt
 
-j-store-order/
+backend/j-store-order/
   src/main/kotlin/com/jstore/order/acl/
     GoodsService.kt
 
-j-store-order-infrastructure/
+backend/j-store-order-infrastructure/
   build.gradle.kts
   src/main/kotlin/com/jstore/order/acl/
     GoodsServiceImpl.kt
   src/test/kotlin/com/jstore/order/acl/
     GoodsServiceImplTest.kt
 
-j-store-boot/
+backend/j-store-boot/
   src/main/kotlin/com/jstore/order/config/
     OrderBootConfiguration.kt
 ```
@@ -163,7 +163,7 @@ j-store-boot/
 - 职责: 承载商品上下文对外发布的稳定快照查询契约，不包含商品领域实现、Spring Bean、JPA 或消费方 ACL 类型。
 
 ```kotlin
-// j-store-goods-api/build.gradle.kts
+// backend/j-store-goods-api/build.gradle.kts
 plugins {
     alias(libs.plugins.kotlin.jvm)
 }
@@ -186,7 +186,7 @@ kotlin {
 }
 ```
 
-生成阶段需要将原 `j-store-goods-acl/build.gradle.kts` 的内容迁移到新目录，并保证下游依赖引用 `project(":j-store-goods-api")`。
+生成阶段需要将原 `backend/j-store-goods-acl/build.gradle.kts` 的内容迁移到新目录，并保证下游依赖引用 `project(":j-store-goods-api")`。
 
 ### 2. Settings 模块注册 - Gradle include 入口
 
@@ -234,11 +234,11 @@ data class GoodsSkuSnapshotInfo(
 
 ### 4. Goods Application 依赖 - 商品应用实现发布契约
 
-- 位置: `j-store-goods/build.gradle.kts`
+- 位置: `backend/j-store-goods/build.gradle.kts`
 - 职责: 让商品应用模块依赖新的 goods api 模块，并暴露给需要使用商品应用服务的上层模块。
 
 ```kotlin
-// j-store-goods/build.gradle.kts
+// backend/j-store-goods/build.gradle.kts
 dependencies {
     implementation(libs.kotlin.stdlib)
     testImplementation(libs.kotlin.test)
@@ -357,15 +357,15 @@ data class GoodsInfo(
 )
 ```
 
-`j-store-order/build.gradle.kts` 不应新增 `project(":j-store-goods-api")` 依赖；订单领域中 `OrderFactory` 继续只 import `com.jstore.order.acl.GoodsService`。
+`backend/j-store-order/build.gradle.kts` 不应新增 `project(":j-store-goods-api")` 依赖；订单领域中 `OrderFactory` 继续只 import `com.jstore.order.acl.GoodsService`。
 
 ### 7. Order Infrastructure 依赖 - 消费方 ACL 实现适配 Goods API
 
-- 位置: `j-store-order-infrastructure/build.gradle.kts`
+- 位置: `backend/j-store-order-infrastructure/build.gradle.kts`
 - 职责: 基础设施模块依赖订单领域和商品 API 契约，负责从 provider 发布语言到订单本地 ACL 语言的转换。
 
 ```kotlin
-// j-store-order-infrastructure/build.gradle.kts
+// backend/j-store-order-infrastructure/build.gradle.kts
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
@@ -457,22 +457,22 @@ class OrderBootConfiguration {
 
 ```text
 必须迁移的引用：
-- j-store-goods/src/main/kotlin/com/jstore/goods/service/CommodityService.kt
-- j-store-goods/src/test/kotlin/com/jstore/goods/service/CommodityServiceGoodsSnapshotQueryTest.kt
-- j-store-order-infrastructure/src/main/kotlin/com/jstore/order/acl/GoodsServiceImpl.kt
-- j-store-order-infrastructure/src/test/kotlin/com/jstore/order/acl/GoodsServiceImplTest.kt
-- j-store-boot/src/main/kotlin/com/jstore/order/config/OrderBootConfiguration.kt
+- backend/j-store-goods/src/main/kotlin/com/jstore/goods/service/CommodityService.kt
+- backend/j-store-goods/src/test/kotlin/com/jstore/goods/service/CommodityServiceGoodsSnapshotQueryTest.kt
+- backend/j-store-order-infrastructure/src/main/kotlin/com/jstore/order/acl/GoodsServiceImpl.kt
+- backend/j-store-order-infrastructure/src/test/kotlin/com/jstore/order/acl/GoodsServiceImplTest.kt
+- backend/j-store-boot/src/main/kotlin/com/jstore/order/config/OrderBootConfiguration.kt
 
 必须迁移的 Gradle 引用：
 - settings.gradle.kts
-- j-store-goods/build.gradle.kts
-- j-store-order-infrastructure/build.gradle.kts
+- backend/j-store-goods/build.gradle.kts
+- backend/j-store-order-infrastructure/build.gradle.kts
 
 不得作为本需求附带迁移的引用：
-- j-store-goods/src/main/kotlin/com/jstore/goods/acl/OssService.kt
-- j-store-goods/src/main/kotlin/com/jstore/goods/acl/event/*.kt
-- j-store-goods/src/main/kotlin/com/jstore/goods/service/Inventory*EventHandler.kt 对 acl.event 的引用
-- j-store-boot/src/main/kotlin/com/jstore/translator/OrderToStockEventTranslator.kt 对 acl.event 的引用
+- backend/j-store-goods/src/main/kotlin/com/jstore/goods/acl/OssService.kt
+- backend/j-store-goods/src/main/kotlin/com/jstore/goods/acl/event/*.kt
+- backend/j-store-goods/src/main/kotlin/com/jstore/goods/service/Inventory*EventHandler.kt 对 acl.event 的引用
+- backend/j-store-boot/src/main/kotlin/com/jstore/translator/OrderToStockEventTranslator.kt 对 acl.event 的引用
 ```
 
 ## 数据模型
@@ -684,13 +684,13 @@ graph TD
 
 | Property | 测试文件 | 模块 |
 |----------|----------|------|
-| Property 1 | `j-store-goods-api/build.gradle.kts` 与 `settings.gradle.kts` 静态扫描测试或验证任务 | root |
-| Property 2 | `j-store-goods/src/test/kotlin/com/jstore/goods/service/CommodityServiceGoodsSnapshotQueryTest.kt` 加静态扫描断言 | `j-store-goods` |
-| Property 3 | `j-store-order/src/test/kotlin/com/jstore/order/domain/order/*PropertyTest.kt` 现有订单领域属性测试保持通过 | `j-store-order` |
-| Property 4 | 新增 `j-store-order/src/test/kotlin/com/jstore/order/acl/OrderGoodsApiDependencyBoundaryTest.kt` 或使用 `rg` 验证 | `j-store-order` |
-| Property 5 | `j-store-order-infrastructure/src/test/kotlin/com/jstore/order/acl/GoodsServiceImplTest.kt` | `j-store-order-infrastructure` |
-| Property 6 | 新增静态扫描验证 `j-store-goods/src/main/kotlin/com/jstore/goods/domain` 不 import `com.jstore.order` | `j-store-goods` |
-| Property 7 | `j-store-goods/src/test/kotlin/com/jstore/goods/service/CommodityServiceGoodsSnapshotQueryTest.kt` | `j-store-goods` |
+| Property 1 | `backend/j-store-goods-api/build.gradle.kts` 与 `settings.gradle.kts` 静态扫描测试或验证任务 | root |
+| Property 2 | `backend/j-store-goods/src/test/kotlin/com/jstore/goods/service/CommodityServiceGoodsSnapshotQueryTest.kt` 加静态扫描断言 | `j-store-goods` |
+| Property 3 | `backend/j-store-order/src/test/kotlin/com/jstore/order/domain/order/*PropertyTest.kt` 现有订单领域属性测试保持通过 | `j-store-order` |
+| Property 4 | 新增 `backend/j-store-order/src/test/kotlin/com/jstore/order/acl/OrderGoodsApiDependencyBoundaryTest.kt` 或使用 `rg` 验证 | `j-store-order` |
+| Property 5 | `backend/j-store-order-infrastructure/src/test/kotlin/com/jstore/order/acl/GoodsServiceImplTest.kt` | `j-store-order-infrastructure` |
+| Property 6 | 新增静态扫描验证 `backend/j-store-goods/src/main/kotlin/com/jstore/goods/domain` 不 import `com.jstore.order` | `j-store-goods` |
+| Property 7 | `backend/j-store-goods/src/test/kotlin/com/jstore/goods/service/CommodityServiceGoodsSnapshotQueryTest.kt` | `j-store-goods` |
 | Property 8 | Gradle 编译与相关测试命令 | root |
 
 属性测试重点不在包名字符串本身，而在迁移后行为等价和依赖边界稳定。若不新增专门的静态扫描测试，也必须在任务中用 `rg` 命令作为验证步骤覆盖 Property 1、2、4、6。
@@ -709,18 +709,18 @@ graph TD
 建议验证命令：
 
 ```bash
-./gradlew --no-daemon :j-store-goods:test :j-store-order:test :j-store-order-infrastructure:test
+./scripts/backend-gradle.sh --no-daemon :j-store-goods:test :j-store-order:test :j-store-order-infrastructure:test
 rg -n 'project\\(":j-store-goods-acl"\\)|include\\("j-store-goods-acl"\\)' --glob '*.kts'
 rg -n 'com\\.jstore\\.goods\\.acl\\.(GoodsSnapshotQueryService|GoodsSnapshotInfo|GoodsSkuSnapshotInfo)|package com\\.jstore\\.goods\\.acl$' --glob '*.kt'
-rg -n 'com\\.jstore\\.goods\\.api|j-store-goods-api' j-store-order/src/main j-store-order/build.gradle.kts
+rg -n 'com\\.jstore\\.goods\\.api|j-store-goods-api' backend/j-store-order/src/main backend/j-store-order/build.gradle.kts
 ```
 
 ### 集成测试
 
 | 测试场景 | 对应需求 |
 |----------|----------|
-| `./gradlew --no-daemon :j-store-goods:compileKotlin :j-store-order-infrastructure:compileKotlin :j-store-boot:compileKotlin` 成功 | 需求 1.3, 需求 6.1, 需求 6.3 |
-| `./gradlew --no-daemon :j-store-goods:test :j-store-order-infrastructure:test` 成功 | 需求 6.2, 需求 6.4 |
+| `./scripts/backend-gradle.sh --no-daemon :j-store-goods:compileKotlin :j-store-order-infrastructure:compileKotlin :j-store-boot:compileKotlin` 成功 | 需求 1.3, 需求 6.1, 需求 6.3 |
+| `./scripts/backend-gradle.sh --no-daemon :j-store-goods:test :j-store-order-infrastructure:test` 成功 | 需求 6.2, 需求 6.4 |
 | 根项目依赖解析能找到 `:j-store-goods-api`，且没有 unresolved project `:j-store-goods-acl` | 需求 1.1, 需求 1.2 |
 | Spring 装配层 `OrderBootConfiguration.goodsService(GoodsSnapshotQueryService)` 使用 `com.jstore.goods.api` 类型编译通过 | 需求 6.1 |
 | 订单基础设施模块依赖 `j-store-goods-api`，订单领域模块不依赖该模块 | 需求 4.1, 需求 4.3 |

@@ -146,12 +146,12 @@ fun handle(event: OrderCreatedEvent) { ... }
 您的项目已经有了**模块化的基础**：
 ```
 j-store/
-├── j-store-order/             # 订单领域模块
-├── j-store-order-boot/        # 订单服务启动模块
-├── j-store-goods/             # 商品领域模块
-├── j-store-goods-boot/        # 商品服务启动模块
-├── j-store-common/            # 通用模块
-└── j-store-application/       # 主应用（单体部署）
+├── backend/j-store-order/             # 订单领域模块
+├── backend/j-store-order-boot/        # 订单服务启动模块
+├── backend/j-store-goods/             # 商品领域模块
+├── backend/j-store-goods-boot/        # 商品服务启动模块
+├── backend/j-store-common/            # 通用模块
+└── backend/j-store-application/       # 主应用（单体部署）
 ```
 
 **适合使用 Spring Modulith 的场景：**
@@ -163,7 +163,7 @@ j-store/
 
 您的 `libs.versions.toml` 已经定义了 Spring Modulith BOM，现在需要在具体模块中使用。
 
-**修改 `j-store-application/build.gradle.kts`：**
+**修改 `backend/j-store-application/build.gradle.kts`：**
 ```kotlin
 dependencies {
     // 添加 Spring Modulith 依赖

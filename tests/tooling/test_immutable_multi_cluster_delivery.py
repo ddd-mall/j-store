@@ -230,7 +230,7 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
     def test_runtime_and_container_build_do_not_default_to_development_inputs(self) -> None:
         application = (
             REPOSITORY_ROOT
-            / "j-store-boot"
+            / "backend" / "j-store-boot"
             / "src"
             / "main"
             / "resources"
@@ -238,13 +238,13 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         production = (
             REPOSITORY_ROOT
-            / "j-store-boot"
+            / "backend" / "j-store-boot"
             / "src"
             / "main"
             / "resources"
             / "application-production.properties"
         ).read_text(encoding="utf-8")
-        dockerfile = (REPOSITORY_ROOT / "j-store-boot" / "Dockerfile").read_text(
+        dockerfile = (REPOSITORY_ROOT / "backend" / "j-store-boot" / "Dockerfile").read_text(
             encoding="utf-8"
         )
 
@@ -266,7 +266,7 @@ class ImmutableMultiClusterDeliveryTest(unittest.TestCase):
         self.assertIn("COPY build/libs/app.jar /app.jar", dockerfile)
 
     def test_legacy_latest_manifest_is_removed(self) -> None:
-        self.assertFalse((REPOSITORY_ROOT / "j-store-boot" / "k8s-deployment.yaml").exists())
+        self.assertFalse((REPOSITORY_ROOT / "backend" / "j-store-boot" / "k8s-deployment.yaml").exists())
         deployment_files = [
             path
             for path in REPOSITORY_ROOT.rglob("*.yaml")

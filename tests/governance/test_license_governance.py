@@ -33,7 +33,7 @@ class LicenseGovernanceContractTest(unittest.TestCase):
         self.assertEqual([], sorted(offenders), f"missing SPDX ownership: {offenders}")
 
     def test_license_delivery_and_dependency_audit_are_enforced(self) -> None:
-        build_script = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        build_script = (REPO_ROOT / "backend" / "build.gradle.kts").read_text(encoding="utf-8")
         quality_gate = (REPO_ROOT / "scripts/quality-gate.sh").read_text(encoding="utf-8")
         security_workflow = (REPO_ROOT / ".github/workflows/security.yml").read_text(
             encoding="utf-8"
@@ -43,10 +43,10 @@ class LicenseGovernanceContractTest(unittest.TestCase):
         self.assertIn('into("META-INF")', build_script)
         self.assertIn('tasks.register("verifyLicenseArtifacts")', build_script)
         self.assertIn('python "$tool_root/check-file-ownership.py"', quality_gate)
-        self.assertIn("./gradlew licensee", quality_gate)
+        self.assertIn("./scripts/backend-gradle.sh licensee", quality_gate)
         self.assertIn("verifyLicenseArtifacts", quality_gate)
         self.assertIn("dependency-license-audit:", security_workflow)
-        self.assertIn("./gradlew licensee", security_workflow)
+        self.assertIn("./scripts/backend-gradle.sh licensee", security_workflow)
 
     def test_file_ownership_manifest_distinguishes_gradle_wrapper(self) -> None:
         manifest_path = REPO_ROOT / "config/licenses/file-ownership.toml"
@@ -57,7 +57,7 @@ class LicenseGovernanceContractTest(unittest.TestCase):
         wrapper = manifest["overrides"]["gradle_wrapper"]
         self.assertEqual("third-party", wrapper["classification"])
         self.assertEqual("Apache-2.0", wrapper["license"])
-        self.assertIn("gradle/wrapper/**", wrapper["paths"])
+        self.assertIn("backend/gradle/wrapper/**", wrapper["paths"])
 
         result = subprocess.run(
             [sys.executable, "scripts/check-file-ownership.py"],
@@ -116,7 +116,7 @@ class LicenseGovernanceContractTest(unittest.TestCase):
             self.assertEqual(expected_contexts, contexts)
 
     def test_quality_workflow_fetches_spotless_ratchet_reference(self) -> None:
-        build_script = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        build_script = (REPO_ROOT / "backend" / "build.gradle.kts").read_text(encoding="utf-8")
         quality_workflow = (REPO_ROOT / ".github/workflows/quality.yml").read_text(
             encoding="utf-8"
         )

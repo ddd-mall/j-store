@@ -89,7 +89,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Generate production dependency SBOM
-        run: ./gradlew :j-store-boot:cyclonedxDirectBom --no-daemon
+        run: ./scripts/backend-gradle.sh :j-store-boot:cyclonedxDirectBom --no-daemon
 
       - name: Install verified OSV Scanner CLI
         shell: bash
@@ -107,7 +107,7 @@ jobs:
         run: >-
           python3 scripts/run-osv-ci.py
           "$RUNNER_TEMP/osv-scanner" scan source
-          --lockfile j-store-boot/build/reports/cyclonedx-direct/bom.json
+          --lockfile backend/j-store-boot/build/reports/cyclonedx-direct/bom.json
           --format json
           --output-file osv-results.json
 
@@ -118,14 +118,14 @@ jobs:
         env:
           BUILDX_METADATA_PROVENANCE: max
         run: |
-          ./gradlew :j-store-boot:bootJar --no-daemon --console=plain
+          ./scripts/backend-gradle.sh :j-store-boot:bootJar --no-daemon --console=plain
           docker buildx build \
             --output type=oci,dest=j-store-security.tar \
             --provenance=mode=max \
             --sbom=true \
             --metadata-file container-build-metadata.json \
             --tag "j-store-security:${GITHUB_SHA}" \
-            j-store-boot
+            backend/j-store-boot
 
       - name: Convert attested OCI archive for OSV Scanner
         env:
@@ -158,7 +158,7 @@ jobs:
             osv-results.json
             osv-container-results.json
             container-build-metadata.json
-            j-store-boot/build/reports/cyclonedx-direct/bom.json
+            backend/j-store-boot/build/reports/cyclonedx-direct/bom.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -178,7 +178,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Audit direct and transitive dependency licenses
-        run: ./gradlew licensee --no-daemon --console=plain
+        run: ./scripts/backend-gradle.sh licensee --no-daemon --console=plain
 
       - name: Upload dependency license reports
         if: always()

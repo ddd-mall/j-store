@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class OrderModuleBoundaryTests(unittest.TestCase):
     def test_order_context_uses_four_layer_modules(self):
-        settings = (ROOT / "settings.gradle.kts").read_text(encoding="utf-8")
+        settings = (ROOT / "backend" / "settings.gradle.kts").read_text(encoding="utf-8")
         for module in (
             "j-store-order-domain",
             "j-store-order-api",
@@ -38,14 +38,14 @@ class OrderModuleBoundaryTests(unittest.TestCase):
             },
         }
         for module, allowed in expected.items():
-            build = (ROOT / module / "build.gradle.kts").read_text(encoding="utf-8")
+            build = (ROOT / "backend" / module / "build.gradle.kts").read_text(encoding="utf-8")
             dependencies = set(re.findall(r'project\(":([^"]+)"\)', build))
             self.assertTrue(
                 dependencies <= allowed,
                 f"{module} has forbidden project dependencies: {dependencies - allowed}",
             )
 
-        boot = (ROOT / "j-store-order-boot" / "build.gradle.kts").read_text(encoding="utf-8")
+        boot = (ROOT / "backend" / "j-store-order-boot" / "build.gradle.kts").read_text(encoding="utf-8")
         for dependency in (
             "j-store-order-domain",
             "j-store-order-application",
@@ -61,7 +61,7 @@ class OrderModuleBoundaryTests(unittest.TestCase):
             "org.hibernate",
         )
         for module in ("j-store-order-domain", "j-store-order-application"):
-            source_root = ROOT / module / "src" / "main"
+            source_root = ROOT / "backend" / module / "src" / "main"
             self.assertTrue(source_root.is_dir(), f"missing source root: {source_root}")
             for source in source_root.rglob("*.kt"):
                 text = source.read_text(encoding="utf-8")
