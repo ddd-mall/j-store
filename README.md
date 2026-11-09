@@ -15,6 +15,8 @@ j-store 是一个 Kotlin/Spring Boot 多模块电商后端，采用 DDD、Spring
 - `frontend/`：独立 pnpm workspace，后台应用位于 `frontend/apps/admin-web`。
 - `docs/`、`scripts/`、`config/`、`deploy/`：共享规格、仓库门禁、治理与部署入口。
 
+完整目录职责和后端模块分层见 [项目概览](docs/project-overview.md#仓库结构与导航)，文档阅读入口见 [文档索引](docs/文档索引.md)。
+
 后端可在 `backend/` 中执行 `./gradlew`，也可从任意目录调用 `scripts/backend-gradle.sh`；根目录不再承载 Gradle 或 pnpm 工程。环境变量示例和共享许可证仍保留在仓库根。
 
 ## 后台前端
