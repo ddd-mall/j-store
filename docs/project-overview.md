@@ -6,6 +6,38 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 完整的权威事实、上下文关系、聚合边界和跨服务一致性协议见 [领域建模说明](domain-modeling.md)。
 
+## 仓库结构与导航
+
+仓库采用前后端独立构建、共享文档与交付工具的布局。后端当前以模块化单体组合运行；Gradle 模块划分不等于独立部署服务。
+
+```text
+j-store/
+├── backend/                 # 独立 Gradle 构建根、JVM 模块及本地依赖服务
+│   ├── settings.gradle.kts  # 模块注册
+│   ├── build.gradle.kts     # 公共构建配置
+│   ├── gradle/              # Wrapper 与统一依赖版本目录
+│   ├── j-store-*/           # 业务上下文、公共能力与启动模块
+│   ├── docker/              # 本地容器构建资源
+│   └── examples/            # 独立 Kotlin 示例
+├── frontend/                # 独立 pnpm workspace、锁文件与 Node 配置
+│   └── apps/admin-web/      # 管理后台空白应用
+├── docs/                    # 项目理解、规格、工程规范及运维手册
+├── scripts/                 # 构建入口、质量检查、部署与自动化工具
+├── tests/                   # 仓库治理、技能及工具测试
+├── config/                  # 格式、许可证及 CI/CD 配置
+├── deploy/                  # 主机与 Kubernetes 部署资源
+├── observability/           # Prometheus、Grafana、Loki、Alloy 配置
+├── agents/                  # Agent 角色定义
+├── .github/                 # CI 工作流、Issue/PR 模板及仓库规则
+├── assets/                  # 项目标识等静态资源
+└── AGENTS.md                # 跨工具统一指令与规范索引
+```
+
+- 运行与环境配置从 [根 README](../README.md) 进入；后端和前端的局部命令分别见 [后端 README](../backend/README.md) 与 [前端 README](../frontend/README.md)。
+- 领域职责与跨上下文协作只在 [领域建模说明](domain-modeling.md) 维护；具体产品意图以 `docs/spec/<feature>/requirement.md` 及已批准 delta 为准。
+- 文档分类、工程规范和历史参考资料见 [文档索引](文档索引.md)。
+- JVM 测试跟随各模块放在 `src/test/`；前端组件测试位于应用源码内，浏览器测试位于 `frontend/apps/admin-web/e2e/`；根 `tests/` 用于仓库工具与治理验证。
+
 ## 开发阶段与变更策略
 
 本项目当前处于内部开发期，尚未发布公开稳定版本，也没有需要保留的生产数据。除非已批准的 requirement/delta 明确规定兼容或迁移要求，否则仓库内接口、集成契约、领域模型和数据库结构均按当前目标形态直接演进。
@@ -35,7 +67,17 @@ j-store 是一个 Kotlin/Spring Boot 电商后端项目，按 DDD 有界上下�
 
 Gradle 构建根和全部 JVM 模块位于 `backend/`，下列模块标识保持不变。仓库根的 `scripts/backend-gradle.sh` 负责定位构建；共享 LICENSE、THIRD_PARTY、Spotless 资源和 hooks 由后端构建引用父目录，前端不进入 Gradle。
 
-当前 `settings.gradle.kts` 注册了这些模块：
+当前 [settings.gradle.kts](../backend/settings.gradle.kts) 注册了 64 个模块。业务上下文通常按以下职责拆分，只有需要发布查询契约的上下文才提供独立 `*-api`：
+
+| 模块后缀 | 职责 |
+| --- | --- |
+| `domain` | 聚合、实体、值对象、业务规则、仓储与 ACL 端口 |
+| `application` | 用例编排、应用端口与集成消息处理 |
+| `infrastructure` | 持久化、外部查询及其它技术适配器 |
+| `boot` | HTTP Controller、Spring 装配及用例事务边界 |
+| `api` | 面向其它上下文的查询契约与标量快照，不等同于 HTTP 接口层 |
+
+完整模块清单如下；带斜线的条目表示同一上下文的多个分层模块：
 
 - `j-store-dependencies-platform`: 全模块共享的 Java Platform，统一导入 Spring Boot、JUnit、OpenTelemetry 及获批安全 BOM/constraint；不承载运行时代码。详细规则见 [依赖管理规范](steering/dependency-management-guidelines.md)。
 - `j-store-common-core`: 不依赖 Spring 的共享领域基础类型、错误、Result、领域事件、地理地址、日志、工具类。
@@ -47,6 +89,7 @@ Gradle 构建根和全部 JVM 模块位于 `backend/`，下列模块标识保持
 - `j-store-outbox-spring`: 共享 Jackson/事务发布装配，以及按 `jstore.outbox.mode` 条件启用的默认 polling JPA、relay、调度、死信和监控；polling 模型/仓储位于 `spring.polling`，后续独立实现通过 `OutboxBackend` 接入。
 - `j-store-integration-contracts`: 跨有界上下文的版本化集成命令/事件契约；依赖 `messaging-core`，不承载领域对象或基础设施实现。
 - `j-store-order-domain`: 纯订单/售后领域模型、仓储与 ACL 端口；只依赖 `common-core`。
+- `j-store-order-api`: Order 面向 Accounting 发布的订单记账快照查询契约。
 - `j-store-order-application`: 无框架的订单/售后用例编排、用例端口和集成消息 handler。
 - `j-store-order-infrastructure`: 订单/售后 JPA、PostgreSQL 并发控制及 Catalog、Offer 查询 ACL 适配器。
 - `j-store-order-boot`: 订单 HTTP Controller、Spring 事务用例装饰器与上下文 Bean 装配。
@@ -61,6 +104,7 @@ Gradle 构建根和全部 JVM 模块位于 `backend/`，下列模块标识保持
 - `backend/j-store-trade-domain/application/infrastructure/boot`: Trade Process、`POST /api/checkouts` 用户入口、成交快照、销售授权与库存预留 Saga、失败补偿和取消释放。公开 Order 边界不再提供创建接口。
 - `backend/j-store-warehouse-domain/application/infrastructure/boot`: WMS 实物库存权威及单调版本库存事件；Inventory 消费其事件维护销售库存镜像。
 - `backend/j-store-payment-domain/application/infrastructure/boot`: 支付单与退款用例、JPA/Outbox 以及 Spring 事务装配。
+- `j-store-payment-api`: Payment 面向 Trade 发布的 READY Checkout 支付动作查询契约。
 - `backend/j-store-fulfillment-domain/application/infrastructure/boot`: 履约单用例、JPA/Outbox 以及 Spring 事务装配。
 - `backend/j-store-user-domain/application/infrastructure/boot`: 用户账户与微信身份绑定、注册与凭证验证、JPA/Redis 适配，以及 Spring Authorization Server 的 OAuth 2.0/OIDC、认证页面与事务装配。
 - `j-store-user-api`: User 上下文发布的稳定用户资料查询契约，只包含用户 ID、昵称、已验证手机号和账号状态等标量快照。
