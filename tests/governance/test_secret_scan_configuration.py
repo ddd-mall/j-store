@@ -65,6 +65,22 @@ class SecretScanConfigurationTest(unittest.TestCase):
 
         self.assertEqual(2, workflow.count("--gitleaks-ignore-path .gitleaksignore"))
 
+    def test_push_and_scheduled_scans_are_scoped_to_the_checked_out_ref(self) -> None:
+        # Checkout fetches every branch so that PR ranges resolve. Scanning all
+        # refs would apply this branch's ignore file to commits from other
+        # branches, which makes the master schedule report develop-only fixtures.
+        workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn('--log-opts="$range"', workflow)
+        self.assertEqual(1, workflow.count("--log-opts=HEAD"))
+
+    def test_scanner_downloads_retry_transient_network_failures(self) -> None:
+        workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+
+        # Gitleaks and OSV Scanner are fetched from GitHub Releases, which has
+        # returned transient 504 responses and blocked both security jobs.
+        self.assertEqual(2, workflow.count("--retry-all-errors"))
+
     def test_static_analysis_pins_the_semgrep_ruleset(self) -> None:
         workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
 

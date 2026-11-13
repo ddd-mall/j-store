@@ -98,6 +98,7 @@ jobs:
           binary="osv-scanner_linux_amd64"
           url="https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/${binary}"
           curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
             "$url" --output "$RUNNER_TEMP/osv-scanner"
           printf '%s  %s\n' "$OSV_SCANNER_LINUX_X64_SHA256" "$RUNNER_TEMP/osv-scanner" | sha256sum --check --strict
           chmod +x "$RUNNER_TEMP/osv-scanner"
@@ -208,6 +209,7 @@ jobs:
           archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
           curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
             "$url" --output "$RUNNER_TEMP/$archive"
           printf '%s  %s\n' "$GITLEAKS_LINUX_X64_SHA256" "$RUNNER_TEMP/$archive" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gitleaks
@@ -225,6 +227,8 @@ jobs:
             "$RUNNER_TEMP/gitleaks" git . --redact --no-banner \
               --gitleaks-ignore-path .gitleaksignore --log-opts="$range"
           else
+            # Checkout fetches every branch; scan only the checked-out ref so the
+            # reviewed ignore fingerprints match the commits being scanned.
             "$RUNNER_TEMP/gitleaks" git . --redact --no-banner \
-              --gitleaks-ignore-path .gitleaksignore
+              --gitleaks-ignore-path .gitleaksignore --log-opts=HEAD
           fi
