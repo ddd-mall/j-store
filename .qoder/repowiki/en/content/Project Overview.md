@@ -1,417 +1,111 @@
 # Project Overview
 
-<cite>
-**Referenced Files in This Document**
-- [settings.gradle.kts](file://settings.gradle.kts)
-- [build.gradle.kts](file://build.gradle.kts)
-- [gradle.properties](file://gradle.properties)
-- [libs.versions.toml](file://gradle/libs.versions.toml)
-- [docker-compose.postgres.yml](file://docker-compose.postgres.yml)
-- [project-overview.md](file://docs/project-overview.md)
-- [README.md](file://README.md)
-- [JStoreOrderBootApplication.kt](file://j-store-boot/src/main/kotlin/JStoreOrderBootApplication.kt)
-- [application.properties](file://j-store-boot/src/main/resources/application.properties)
-- [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
-- [Order.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/Order.kt)
-- [Spu.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/commodity/Spu.kt)
-- [UserAccount.kt](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccount.kt)
-</cite>
-
-## Update Summary
-**Changes Made**
-- Updated Introduction section to reflect professional project branding and responsive README integration
-- Added new section documenting the professional logo system with SVG/PNG assets and light/dark theme support
-- Enhanced Getting Started section with updated repository presentation information
-- Updated Conclusion to reflect enhanced project presentation capabilities
-
-## Table of Contents
-1. Introduction
-2. Project Structure
-3. Core Components
-4. Architecture Overview
-5. Detailed Component Analysis
-6. Dependency Analysis
-7. Performance Considerations
-8. Troubleshooting Guide
-9. Conclusion
-
 ## Introduction
-J-Store is a Kotlin and Spring Boot e-commerce backend that implements Domain-Driven Design (DDD) through a modular, multi-module Gradle architecture. It organizes business capabilities into bounded contexts such as Order Management, Goods Catalog, User Authentication, Payment Processing, Fulfillment, and Accounting. The platform leverages modern tooling including Kotlin 2.3.0, Spring Boot 3.5.16, PostgreSQL, Redis, and Gradle Kotlin DSL for dependency management and build orchestration.
 
-The project emphasizes clear architectural boundaries, testability, and operational robustness. It includes an integrated Outbox-based event infrastructure to ensure reliable cross-context communication and supports local development with Docker Compose for PostgreSQL and Redis. The repository features a professional project presentation system with responsive logo assets supporting both light and dark themes, enhancing the developer experience across different environments.
+j-store is an internally developed Kotlin/Spring Boot commerce platform. The backend runs as a modular monolith; Gradle modules are bounded-context and layering boundaries, not independently deployed services. The repository also contains an independent blank administration frontend.
 
-## Project Structure
-J-Store uses a layered, context-oriented module layout:
-- Common modules provide shared domain primitives, logging, utilities, and Spring integrations.
-- Each bounded context is split into domain, application, infrastructure, and boot layers.
-- A root boot module wires together the runtime, migrations, and cross-context integration points.
+The current catalog declares Kotlin 2.4.10 and Spring Boot 3.5.16. The backend Java toolchain is 25. PostgreSQL, Redis, JPA, Flyway, versioned integration messages and transactional Outbox support the runtime.
 
-```mermaid
-graph TB
-subgraph "Common"
-common_core["j-store-common-core"]
-common_spring["j-store-common-spring"]
-contracts["j-store-integration-contracts"]
-end
-subgraph "Order Context"
-order_domain["j-store-order-domain"]
-order_app["j-store-order-application"]
-order_infra["j-store-order-infrastructure"]
-order_boot["j-store-order-boot"]
-end
-subgraph "Goods Context"
-goods_api["j-store-goods-api"]
-goods_domain["j-store-goods-domain"]
-goods_app["j-store-goods-application"]
-goods_infra["j-store-goods-infrastructure"]
-goods_boot["j-store-goods-boot"]
-end
-subgraph "User Context"
-user_domain["j-store-user-domain"]
-user_app["j-store-user-application"]
-user_infra["j-store-user-infrastructure"]
-user_boot["j-store-user-boot"]
-end
-subgraph "Payment Context"
-payment_domain["j-store-payment-domain"]
-payment_app["j-store-payment-application"]
-payment_infra["j-store-payment-infrastructure"]
-payment_boot["j-store-payment-boot"]
-end
-subgraph "Fulfillment Context"
-fulfillment_domain["j-store-fulfillment-domain"]
-fulfillment_app["j-store-fulfillment-application"]
-fulfillment_infra["j-store-fulfillment-infrastructure"]
-fulfillment_boot["j-store-fulfillment-boot"]
-end
-subgraph "Accounting Context"
-accounting_domain["j-store-accounting-domain"]
-accounting_app["j-store-accounting-application"]
-accounting_infra["j-store-accounting-infrastructure"]
-accounting_boot["j-store-accounting-boot"]
-end
-root_boot["j-store-boot"]
-admin_boot["j-store-admin-boot"]
-root_boot --> order_boot
-root_boot --> goods_boot
-root_boot --> user_boot
-root_boot --> payment_boot
-root_boot --> fulfillment_boot
-root_boot --> accounting_boot
-order_app --> order_domain
-order_infra --> order_domain
-order_boot --> order_app
-order_boot --> order_infra
-goods_app --> goods_domain
-goods_infra --> goods_domain
-goods_boot --> goods_app
-goods_boot --> goods_infra
-user_app --> user_domain
-user_infra --> user_domain
-user_boot --> user_app
-user_boot --> user_infra
-payment_app --> payment_domain
-payment_infra --> payment_domain
-payment_boot --> payment_app
-payment_boot --> payment_infra
-fulfillment_app --> fulfillment_domain
-fulfillment_infra --> fulfillment_domain
-fulfillment_boot --> fulfillment_app
-fulfillment_boot --> fulfillment_infra
-accounting_app --> accounting_domain
-accounting_infra --> accounting_domain
-accounting_boot --> accounting_app
-accounting_boot --> accounting_infra
-contracts --> order_app
-contracts --> payment_app
-contracts --> fulfillment_app
-contracts --> accounting_app
-common_core --> order_domain
-common_core --> goods_domain
-common_core --> user_domain
-common_core --> payment_domain
-common_core --> fulfillment_domain
-common_core --> accounting_domain
-common_spring --> order_infra
-common_spring --> goods_infra
-common_spring --> user_infra
-common_spring --> payment_infra
-common_spring --> fulfillment_infra
-common_spring --> accounting_infra
+**Sources** · [Versions:1-28](file:///Users/101bjb0467/Sources/j-store/backend/gradle/libs.versions.toml#L1-L28) · [Java toolchain:20-23](file:///Users/101bjb0467/Sources/j-store/backend/build.gradle.kts#L20-L23)
+
+## Repository Structure
+
+```text
+backend/                 Independent Gradle build; 64 registered modules
+  gradle/                Wrapper and version catalog
+  j-store-*/             Context layers and shared runtime capabilities
+  docker/                Local container resources
+frontend/                Independent pnpm workspace
+  apps/admin-web/        React/TypeScript/Vite/Ant Design blank application
+docs/                    Domain model, specifications, steering and operations
+scripts/                 Build entry points, checks and delivery tools
+tests/                   Repository governance and tooling tests
+deploy/                  Host and Kubernetes delivery resources
+observability/           Metrics, tracing and logging configuration
+config/                  Shared formatting, licensing and CI configuration
 ```
 
-**Diagram sources**
-- [settings.gradle.kts](file://settings.gradle.kts)
-- [project-overview.md](file://docs/project-overview.md)
+The root directory is neither the Gradle build root nor the pnpm workspace. JVM tests live with their backend modules. Frontend browser tests live under the administration application.
 
-**Section sources**
-- [settings.gradle.kts](file://settings.gradle.kts)
-- [project-overview.md](file://docs/project-overview.md)
+**Sources** · [Module registration:5-133](file:///Users/101bjb0467/Sources/j-store/backend/settings.gradle.kts#L5-L133) · [Repository layout:9-39](file:///Users/101bjb0467/Sources/j-store/docs/project-overview.md#L9-L39)
 
-## Core Components
-- Common Core: Shared domain primitives, identifiers, Result types, error definitions, logging, and utility classes without Spring dependencies.
-- Common Spring: Spring and JPA integrations, domain event listener registration, transactional outbox support, and messaging transport abstractions.
-- Integration Contracts: Versioned cross-context command/event contracts used by application layers to coordinate bounded contexts.
-- Bounded Contexts: Each context follows the same four-layer pattern:
-  - Domain: Pure domain models, repositories, and ACL ports.
-  - Application: Use cases and orchestrators; no framework coupling.
-  - Infrastructure: JPA entities, repositories, external adapters, and persistence details.
-  - Boot: Spring configuration, controllers, and transactional use-case decorators.
+## Bounded Contexts
 
-Key entry points:
-- Root application class initializes Spring Boot features like JPA auditing, scheduling, and configuration properties.
-- Local profiles configure database, Redis, JWT, and Outbox behavior for development.
+| Context | Current responsibility |
+| --- | --- |
+| Catalog (`goods`) | SPU, stable SKU, Product Type, merchant brands, localized content, copy-on-write drafts and published snapshots; lifecycle `DRAFT/PUBLISHED/ARCHIVED` |
+| Store / Offer (`shop`) | Merchant membership, stores, offer price and eligibility, persistent `SaleAuthorization` |
+| Inventory / ATP | Stock mirror, safety stock, isolated quantity and persistent `StockReservation` |
+| WMS (`warehouse`) | Physical stock and monotonic source versions |
+| Cart | Mutable buyer intent, absolute item quantities, selection and derived assessments; no price lock or stock reservation |
+| Trade / Checkout | Buyer-scoped request idempotency, frozen source, merchant/fulfillment plans, authorization/reservation Saga, internal Order creation and unique SettlementPlan |
+| Order | Frozen transaction and buyer snapshots, individual-order lifecycle, buyer queries/cancellation and after-sale rules |
+| Payment | Installment payment preparation/cancellation and refund-related models; provider interaction remains inside Payment |
+| Fulfillment | Fulfillment order lifecycle and persistence |
+| Accounting | Accounts, periods, journals and settlement facts |
+| User / Authentication | Local accounts, WeChat identity binding, OAuth 2.0/OIDC, authorization persistence and Redis-backed sessions |
 
-**Updated** Enhanced project presentation with professional logo system supporting responsive design and theme-aware rendering.
+**Sources** · [Context ownership:15-62](file:///Users/101bjb0467/Sources/j-store/docs/domain-modeling.md#L15-L62)
 
-**Section sources**
-- [project-overview.md](file://docs/project-overview.md)
-- [README.md](file://README.md)
-- [JStoreOrderBootApplication.kt](file://j-store-boot/src/main/kotlin/JStoreOrderBootApplication.kt)
-- [application.properties](file://j-store-boot/src/main/resources/application.properties)
-- [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
-
-## Architecture Overview
-J-Store enforces DDD layering and bounded context isolation:
-- Dependencies flow from interface/boot down to application, then domain, and finally common-core.
-- Infrastructure depends on domain interfaces and provides concrete implementations.
-- Cross-context coordination uses versioned integration contracts and event-driven patterns via Outbox.
+## Commerce Flow
 
 ```mermaid
-graph LR
-boot["Boot Layer<br/>Controllers & Config"] --> app["Application Layer<br/>Use Cases"]
-app --> domain["Domain Layer<br/>Aggregates & Ports"]
-infra["Infrastructure Layer<br/>JPA, Redis, Adapters"] --> domain
-app --> infra
-contracts["Integration Contracts"] --> app
-common["Common Core"] --> domain
+flowchart LR
+  C[Catalog snapshots] --> T[Trade / Checkout]
+  Cart[Cart fresh selected source] --> T
+  T -->|authorize sale| S[Store / Offer]
+  S -->|SaleAuthorization| T
+  W[WMS physical stock] -->|versioned stock facts| I[Inventory / ATP]
+  T -->|reserve with authorization| I
+  I -->|StockReservation| T
+  T -->|versioned creation command| O[Order]
+  O -->|created or rejected fact| T
+  T -->|unique SettlementPlan / installment| P[Payment]
+  P -->|prepared / rejected / uncertain| T
 ```
 
-**Diagram sources**
-- [project-overview.md](file://docs/project-overview.md)
+Checkout owns an independent `tradeId`; resource commitments use `tradeId + orderPlanId`. Orders are created only after commitments, and one SettlementPlan is prepared after all plans have orders and their amounts balance. Payment first commits a stable PREPARING identity, invokes the provider outside a database transaction, then commits the result separately.
 
-## Detailed Component Analysis
+**Sources** · [Checkout planning:142-197](file:///Users/101bjb0467/Sources/j-store/backend/j-store-trade-application/src/main/kotlin/com/jstore/trade/service/CheckoutApplicationService.kt#L142-L197) · [Payment transaction phases:35-103](file:///Users/101bjb0467/Sources/j-store/backend/j-store-payment-boot/src/main/kotlin/com/jstore/payment/config/TransactionalTradePaymentPreparationUseCase.kt#L35-L103)
 
-### Professional Logo System and Project Presentation
-The project now features a professional logo system with responsive design capabilities. The README.md integrates SVG logo assets with automatic light/dark theme detection using HTML `<picture>` elements and CSS media queries. This enhancement improves the visual presentation of the project across different GitHub themes and development environments.
+## Current HTTP Surface
 
-The logo system includes:
-- SVG format logos for scalability and crisp rendering at any size
-- Dark mode optimized variants for better contrast in dark themes
-- Responsive design that automatically switches between light and dark logos based on user preferences
-- Consistent branding across all project documentation and presentations
+- `POST /api/checkouts`: authenticated direct purchase or Cart source; returns HTTP 202 with `tradeId`, `statusUrl` and current `orderIds`.
+- `GET /api/checkouts/{tradeId}`: buyer-scoped status and optional READY, unexpired payment action.
+- Cart: `GET /api/carts/current`, `PUT /api/carts/current/items`, `PUT /api/carts/current/selection`, `POST /api/carts/current/refresh`.
+- Order: authenticated list/detail and `POST /api/orders/{orderId}/cancel`. Public Order creation has been removed.
+- User: phone verification, verified registration, own profile/nickname/password and session logout; token acquisition uses the OIDC protocol rather than custom login/refresh endpoints.
 
-```mermaid
-flowchart TD
-ThemeDetection["Theme Detection<br/>(prefers-color-scheme)"] --> LightMode{"Light Mode?"}
-ThemeDetection --> DarkMode{"Dark Mode?"}
-LightMode --> |Yes| ShowLightLogo["Display j-store-logo.svg"]
-DarkMode --> |Yes| ShowDarkLogo["Display j-store-logo-dark.svg"]
-ShowLightLogo --> EnhancedPresentation["Enhanced Visual Experience"]
-ShowDarkLogo --> EnhancedPresentation
+The current Checkout controller and `CheckoutUseCase` do **not** expose a Checkout cancellation operation. Internal payment cancellation/Saga behavior must not be described as a public `POST /api/checkouts/{tradeId}/cancel` implementation.
+
+**Sources** · [Checkout controller:29-158](file:///Users/101bjb0467/Sources/j-store/backend/j-store-trade-boot/src/main/kotlin/com/jstore/trade/controller/CheckoutController.kt#L29-L158) · [Checkout use-case contract:122-130](file:///Users/101bjb0467/Sources/j-store/backend/j-store-trade-application/src/main/kotlin/com/jstore/trade/service/CheckoutApplicationService.kt#L122-L130) · [Cart controller:32-114](file:///Users/101bjb0467/Sources/j-store/backend/j-store-cart-boot/src/main/kotlin/com/jstore/cart/controller/CartController.kt#L32-L114) · [Order endpoints:98-150](file:///Users/101bjb0467/Sources/j-store/backend/j-store-order-boot/src/main/kotlin/com/jstore/order/controller/OrderController.kt#L98-L150) · [User endpoints:79-154](file:///Users/101bjb0467/Sources/j-store/backend/j-store-user-boot/src/main/kotlin/com/jstore/user/controller/UserAccountController.kt#L79-L154)
+
+## Shared Infrastructure
+
+`common-core` contains framework-independent primitives. `common-spring` is limited to shared geographic-address integration. Messaging contracts/buses, Outbox contracts/runtime and observability have dedicated modules. `outbox-core` contains immutable publication and backend contracts; polling state and repositories belong to `outbox-spring`. Stable transport IDs describe routing targets, not proof that a production broker adapter is deployed.
+
+**Sources** · [Shared modules:82-90](file:///Users/101bjb0467/Sources/j-store/docs/project-overview.md#L82-L90) · [Outbox backend selection:33-48](file:///Users/101bjb0467/Sources/j-store/backend/j-store-outbox-spring/src/main/kotlin/com/jstore/outbox/spring/OutboxAutoConfiguration.kt#L33-L48)
+
+## Development and Verification
+
+```bash
+./scripts/backend-gradle.sh projects
+./scripts/backend-gradle.sh test
+./scripts/backend-gradle.sh :j-store-boot:bootJar
+pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend dev
+pnpm --dir frontend check
+./scripts/quality-gate.sh
 ```
 
-**Diagram sources**
-- [README.md](file://README.md)
+External JVM coordinates come from the version catalog; version alignment belongs to `j-store-dependencies-platform`. Internal interfaces and disposable development data evolve directly unless approved requirements explicitly mandate compatibility.
 
-**Section sources**
-- [README.md](file://README.md)
+**Sources** · [Backend entry points:3-19](file:///Users/101bjb0467/Sources/j-store/backend/README.md#L3-L19) · [Frontend status:59-64](file:///Users/101bjb0467/Sources/j-store/docs/project-overview.md#L59-L64) · [Dependency ownership:10-32](file:///Users/101bjb0467/Sources/j-store/docs/steering/dependency-management-guidelines.md#L10-L32)
 
-### Order Management Context
-The Order aggregate encapsulates trade, payment, fulfillment, and refund facts with explicit state transitions and validation rules. It exposes methods for stock confirmation, payment capture recording, fulfillment lifecycle updates, cancellation, and refund eligibility/projection.
+## Delivery Boundaries and Wiki Coverage
 
-```mermaid
-classDiagram
-class Order {
-+id
-+merchantId
-+buyerInfo
-+items
-+recipientInfo
-+tradeStatus
-+paymentStatus
-+fulfillmentStatus
-+refundedAmount
-+successfulRefundFacts
-+amountSnapshot
-+paidAmount
-+paymentReference
-+fulfillmentReference
-+createTime
-+updateTime
-+confirmStock()
-+markStockInsufficient(reason)
-+recordPaymentCaptured(paymentReference, capturedAmount, currency, occurredAt)
-+recordFulfillmentPrepared(fulfillmentReference)
-+recordShipmentDispatched(fulfillmentReference)
-+recordShipmentDelivered(fulfillmentReference)
-+complete()
-+cancel(reason)
-+refundEligibility()
-+recordRefundSucceeded(refundId, afterSaleId, items, occurredAt)
-}
-```
+The administration frontend has only a minimal entry and 404 fallback; business pages, authentication and BFF integration are not delivered. Production payment adapters, active provider queries, capture, late-payment refunds and explicit fulfillment release remain follow-up slices. Real WeChat/SMS integration and independent authentication review remain incomplete.
 
-**Diagram sources**
-- [Order.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/Order.kt)
+This local export is not a Knowledge Center publication. The refreshed overview, architecture, build, API and selected context pages describe current verified boundaries; untouched detailed pages can still contain historical paths and behavior. Consult current source and authoritative domain/specification documents before treating those pages as implementation evidence. No build, runtime or production-readiness claim follows from a documentation refresh.
 
-**Section sources**
-- [Order.kt](file://j-store-order-domain/src/main/kotlin/com/jstore/order/domain/order/Order.kt)
-
-### Goods Catalog Context
-The SPU aggregate manages product metadata, SKU composition, and lifecycle states (draft, off-sale, on-sale). It supports adding SKUs, publishing, putting on sale, taking off sale, and merging draft changes into live versions.
-
-```mermaid
-classDiagram
-class Spu {
-+merchantId
-+name
-+description
-+skus
-+status
-+version
-+sourceSpuId
-+addSku(sku)
-+publish()
-+putOnSale()
-+takeOffSale()
-+mergeFromDraft(draft)
-}
-```
-
-**Diagram sources**
-- [Spu.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/commodity/Spu.kt)
-
-**Section sources**
-- [Spu.kt](file://j-store-goods-domain/src/main/kotlin/com/jstore/goods/domain/commodity/Spu.kt)
-
-### User Authentication Context
-The UserAccount aggregate encapsulates account lifecycle behaviors such as nickname changes, password updates, and status toggling. It integrates with token providers and stores for authentication flows.
-
-```mermaid
-classDiagram
-class UserAccount {
-+id
-+phoneNumber
-+nickname
-+passwordHash
-+status
-+createTime
-+updateTime
-+changeNickname(newNickname)
-+changePassword(newPasswordHash)
-+disable()
-+enable()
-}
-```
-
-**Diagram sources**
-- [UserAccount.kt](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccount.kt)
-
-**Section sources**
-- [UserAccount.kt](file://j-store-user-domain/src/main/kotlin/com/jstore/user/domain/useraccount/UserAccount.kt)
-
-### Technology Stack and Build Configuration
-- Kotlin 2.3.0 and Java 25 toolchain.
-- Spring Boot 3.5.16 with Spring Data JPA, Web, Devtools, and configuration processor.
-- PostgreSQL driver and Flyway for schema migrations.
-- Redis client and Redisson for caching and distributed locks.
-- JSON serialization with Jackson and Kotlin module.
-- Security libraries including JJWT and Spring Security Crypto.
-- Testing stack: JUnit 5, Kotest, Mockito, and Spring Boot Test.
-
-Build and dependency management:
-- Centralized versions in libs.versions.toml.
-- Gradle Kotlin DSL with Spotless formatting and CycloneDX BOM generation.
-- JVM args and worker settings tuned for performance.
-
-**Section sources**
-- [libs.versions.toml](file://gradle/libs.versions.toml)
-- [build.gradle.kts](file://build.gradle.kts)
-- [gradle.properties](file://gradle.properties)
-
-### Getting Started and Development Environment Setup
-- Start local PostgreSQL and Redis using Docker Compose.
-- Configure environment variables for database URL, credentials, Redis host/port/password/database, and JWT secret.
-- Run the application with the local profile to enable Flyway migrations and Outbox mode.
-
-The enhanced project presentation includes professional branding with responsive logo assets that automatically adapt to light and dark themes, improving the overall developer experience when exploring the repository.
-
-```mermaid
-flowchart TD
-Start(["Start Development"]) --> LaunchDocker["Run docker-compose.postgres.yml"]
-LaunchDocker --> VerifyServices{"PostgreSQL and Redis healthy?"}
-VerifyServices --> |No| Troubleshoot["Check ports, env vars, healthchecks"]
-VerifyServices --> |Yes| ConfigureApp["Set application-local.properties env vars"]
-ConfigureApp --> EnhancedUI["Experience Enhanced Project Presentation"]
-EnhancedUI --> RunApp["Run j-store-boot application"]
-RunApp --> MigrateDB["Flyway applies migrations"]
-MigrateDB --> Ready["Service ready on configured port"]
-```
-
-**Diagram sources**
-- [docker-compose.postgres.yml](file://docker-compose.postgres.yml)
-- [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
-- [application.properties](file://j-store-boot/src/main/resources/application.properties)
-- [README.md](file://README.md)
-
-**Section sources**
-- [docker-compose.postgres.yml](file://docker-compose.postgres.yml)
-- [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
-- [application.properties](file://j-store-boot/src/main/resources/application.properties)
-- [README.md](file://README.md)
-
-### Common Gradle Commands
-- Run all tests: ./gradlew test
-- Run specific module tests: ./gradlew :j-store-order-domain:test :j-store-order-application:test
-- Build the main application jar: ./gradlew :j-store-boot:bootJar
-- Additional commands are listed in the project overview documentation.
-
-**Section sources**
-- [project-overview.md](file://docs/project-overview.md)
-
-## Dependency Analysis
-Dependency direction adheres to DDD constraints:
-- boot/interface -> application -> domain -> common-core
-- infrastructure -> domain
-- integration contracts used by application layers for cross-context coordination
-
-```mermaid
-graph TB
-boot["Boot"] --> app["Application"]
-app --> domain["Domain"]
-infra["Infrastructure"] --> domain
-contracts["Integration Contracts"] --> app
-common["Common Core"] --> domain
-```
-
-**Diagram sources**
-- [project-overview.md](file://docs/project-overview.md)
-
-**Section sources**
-- [project-overview.md](file://docs/project-overview.md)
-
-## Performance Considerations
-- Connection pooling: HikariCP configured with pool size and auto-commit settings for optimal throughput.
-- Redis usage: Caching and distributed locking via Redisson; tune timeouts and database indices.
-- Database indexing: Ensure appropriate indexes on frequently queried tables (e.g., orders, after_sales, order_items).
-- Event processing: Outbox mode set to local for single-node deployments; switch to broker/hybrid when integrating message brokers.
-- JVM tuning: Adjust heap and metaspace sizes in gradle.properties based on workload.
-
-[No sources needed since this section provides general guidance]
-
-## Troubleshooting Guide
-- Database connectivity: Verify JDBC URL, username, password, and schema settings in application-local.properties.
-- Redis connectivity: Confirm host, port, password, and database index; ensure Redis container is running and healthy.
-- Flyway migrations: Check migration locations and baseline settings; validate schema creation flags.
-- JWT configuration: Ensure secret is provided via environment variable.
-- Outbox messaging: Validate mode setting (local/broker/hybrid) and related configuration keys.
-
-**Section sources**
-- [application-local.properties](file://j-store-boot/src/main/resources/application-local.properties)
-- [application.properties](file://j-store-boot/src/main/resources/application.properties)
-
-## Conclusion
-J-Store delivers a robust, modular e-commerce backend grounded in DDD principles. Its clear separation of concerns, strong testing foundations, and operational tooling make it suitable for scalable and maintainable development. The enhanced project presentation system with professional logo assets and responsive theme support further improves the developer experience and project accessibility. By following the documented architecture boundaries and leveraging the provided setup instructions, teams can rapidly extend functionality across bounded contexts while ensuring consistency and reliability.
-
-[No sources needed since this section summarizes without analyzing specific files]
+**Sources** · [Current delivery limits:126-129](file:///Users/101bjb0467/Sources/j-store/docs/project-overview.md#L126-L129) · [Trade follow-up boundaries:159-162](file:///Users/101bjb0467/Sources/j-store/docs/domain-modeling.md#L159-L162)
